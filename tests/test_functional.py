@@ -4,6 +4,8 @@ import numpy as np
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import mdale.ale2 as ale2
 import mdale.utils as utils
+import pandas as pd
+import PyALE
 
 # set global seed
 np.random.seed(21)
@@ -100,17 +102,18 @@ class TestExample:
         x = np.linspace(0, 1, 1000)
         y_pred = np.array([utils.pdp(self.f, samples, xx, i=0) for xx in x])
         y_gt = self.pdp(x)
-        np.allclose(y_pred, y_gt, atol=1.e-3)
+        np.allclose(y_pred, y_gt, atol=1.e-2)
 
     def test_mplot(self):
         N = 1000
+        K = 100
         samples = self.generate_samples(N)
         tau = (np.max(samples) - np.min(samples)) / K
 
         x = np.linspace(0, 1, 1000)
         y_pred = np.array([utils.mplot(self.f, samples, xx, i=0, tau=tau) for xx in x])
         y_gt = self.mplot(x)
-        np.allclose(y_pred, y_gt, atol=1.e-3)
+        np.allclose(y_pred, y_gt, atol=1.e-2)
 
     def test_ale(self):
         N = 1000
@@ -138,10 +141,48 @@ class TestExample:
         f1 = ale2.create_ale_gradients(samples, X_der, s=0, K=K)
         y_pred = f1(x)
         y_gt = self.ale(x)
-        np.allclose(y_pred, y_gt, atol=1.e-3)
+        np.allclose(y_pred, y_gt, atol=1.e-2)
 
         # feature 2
         f2 = ale2.create_ale_gradients(samples, X_der, s=1, K=K)
         y_pred = f2(x)
         y_gt = self.ale(x)
-        np.allclose(y_pred, y_gt, atol=1.e-3)
+        np.allclose(y_pred, y_gt, atol=1.e-2)
+
+
+# # set global seed
+# np.random.seed(21)
+
+# test_example = TestExample()
+# X = test_example.generate_samples(N = 1000)
+# X_df = pd.DataFrame(X, columns=["feat_" + str(i) for i in range(X.shape[-1])])
+# class model():
+#     def __init__(self, f, X_df):
+#         self.predict = self.func
+#         self.f_bb = f
+
+#     def func(self, X_df):
+#         return self.f_bb(X_df.to_numpy())
+
+# model_bb = model(test_example.f, X_df)
+# s = 0
+# feature_type = "auto"
+# K = 50
+# ale_computation = PyALE.ale(X_df, model_bb, feature= ["feat_" + str(s)],
+#                             feature_type=feature_type,
+#                             grid_size=K,
+#                             plot=False)
+
+# K = 100
+# # dale
+# x = np.linspace(0, 1, 1000)
+# X_der = test_example.f_der(X)
+
+# # feature 1
+# f1 = ale2.create_ale_gradients(X, X_der, s=0, K=K)
+# y_pred = f1(x)
+# y_gt = test_example.ale(x)
+# np.allclose(y_pred, y_gt, atol=1.e-2)
+
+
+# # ale2.plot(X, X_der, s=0, K=K)
