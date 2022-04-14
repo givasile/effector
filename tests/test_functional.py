@@ -2,7 +2,7 @@ import os
 import sys
 import numpy as np
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import mdale.ale2 as ale2
+import mdale.dale as dale
 import mdale.utils as utils
 import pandas as pd
 import PyALE
@@ -102,7 +102,7 @@ class TestExample:
         x = np.linspace(0, 1, 1000)
         y_pred = np.array([utils.pdp(self.f, samples, xx, i=0) for xx in x])
         y_gt = self.pdp(x)
-        np.allclose(y_pred, y_gt, atol=1.e-2)
+        assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
     def test_mplot(self):
         N = 1000
@@ -113,7 +113,7 @@ class TestExample:
         x = np.linspace(0, 1, 1000)
         y_pred = np.array([utils.mplot(self.f, samples, xx, i=0, tau=tau) for xx in x])
         y_gt = self.mplot(x)
-        np.allclose(y_pred, y_gt, atol=1.e-2)
+        assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
     def test_ale(self):
         N = 1000
@@ -138,16 +138,36 @@ class TestExample:
         x = np.linspace(0, 1, 1000)
 
         # feature 1
-        f1 = ale2.create_ale_gradients(samples, X_der, s=0, K=K)
+        f1 = dale.create_dale_function(samples, X_der, s=0, K=K)
         y_pred = f1(x)
         y_gt = self.ale(x)
-        np.allclose(y_pred, y_gt, atol=1.e-2)
+        assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
         # feature 2
-        f2 = ale2.create_ale_gradients(samples, X_der, s=1, K=K)
+        f2 = dale.create_dale_function(samples, X_der, s=1, K=K)
         y_pred = f2(x)
         y_gt = self.ale(x)
-        np.allclose(y_pred, y_gt, atol=1.e-2)
+        assert np.allclose(y_pred, y_gt, atol=1.e-2)
+
+    def test_dale_2(self):
+        N = 1000
+        K = 100
+        samples = self.generate_samples(N)
+        tau = (np.max(samples) - np.min(samples)) / K
+        X_der = self.f_der(samples)
+
+        # dale
+        x = np.linspace(0, 1, 1000)
+
+        # feature 1
+        y_pred = dale.compute_dale(x, s=0, k=K, points=samples, effects=X_der)
+        y_gt = self.ale(x)
+        assert np.allclose(y_pred, y_gt, atol=1.e-2)
+
+        # feature 2
+        y_pred = dale.compute_dale(x, s=1, k=K, points=samples, effects=X_der)
+        y_gt = self.ale(x)
+        assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
 
 # # set global seed

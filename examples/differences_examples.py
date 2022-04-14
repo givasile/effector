@@ -19,8 +19,10 @@ def f_bb(x: np.array) -> np.array:
     else:
         return x[:,0] + x[:,1] + x[:,0]*x[:,1] + np.e**(x[:,1]-x[:,0]**2) - np.e**tau
 
+
 def f_der(x: np.array) -> np.array:
     return np.stack((x[:,1]+1, x[:,0]+1), axis=1)
+
 
 def generate_samples(N: int) -> np.array:
     """Generates N samples
