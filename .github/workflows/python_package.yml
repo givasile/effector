@@ -1,14 +1,15 @@
 name: Run Tests
 
-on:
-    push:
-    branches: [ master, dev ]
-    pull_request:
-    branches: [ master, dev ]
+on: [push, pull_request]
 
 jobs:
     run-tests:
-    name: Run all defined tests
-    runs-on: ubuntu-20.04
-    steps:
-        - uses: actions/checkout@dev
+        name: Run all defined tests
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@dev
+            - name: Initialize Python 3.7
+            uses: actions/setup-python@v1
+            with:
+                python-version: 3.7
+            - name: Install dependencie
