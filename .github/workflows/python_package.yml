@@ -1,0 +1,14 @@
+name: Run Tests
+
+on:
+    push:
+    branches: [ master, dev ]
+    pull_request:
+    branches: [ master, dev ]
+
+jobs:
+    run-tests:
+    name: Run all defined tests
+    runs-on: ubuntu-20.04
+    steps:
+        - uses: actions/checkout@dev

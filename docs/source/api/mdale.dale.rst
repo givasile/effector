@@ -1,4 +1,4 @@
-﻿mdale.dale
+mdale.dale
 ==========
 
 .. automodule:: mdale.dale
@@ -13,17 +13,13 @@
 
    .. autosummary::
    
-      alloc_points_to_bins
       compute_accumulated_effect
+      compute_bin_effects
+      compute_dale
       compute_normalizer
-      create_ale_gradients
       create_bins
-      f_eff_norm
-      f_eff_un
-      interp
-      mean_of_bins
-      mean_var_of_bins
-      point_to_bin
+      create_dale_function
+      fill_nans
    
    
 
