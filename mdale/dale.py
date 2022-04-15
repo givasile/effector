@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def create_bins(x: np.array, k: int):
@@ -160,16 +161,18 @@ def compute_normalizer(xs, limits, bin_effects, dx):
     return z
 
 
-def compute_dale(x, s, k, points, effects):
-    """Compute DALE at points x.
+def compute_dale_parameters(points, effects, s, k):
+    """Compute the DALE parameters for the s-th feature
+
+    Performs all actions to compute the parameters that are required for
+    the s-th feature DALE effect
 
     Parameters
     ----------
-    x
-    s
-    K
     points
     effects
+    s
+    k
 
     Returns
     -------
@@ -178,53 +181,110 @@ def compute_dale(x, s, k, points, effects):
     points = points[:, s]
     effects = effects[:, s]
 
+    # create bins
     limits, dx = create_bins(points, k)
 
-    # step 2-3
+    # compute effect on each bin
     bin_effects = compute_bin_effects(points, effects, limits)
 
-    # step 4 - fill NaNs
+    # fill bins with NaN values
     bin_effects = fill_nans(bin_effects)
 
-    # step 5 - compute the normalizer
+    # compute Z
     z = compute_normalizer(points, limits, bin_effects, dx)
 
-    # step 6 - create the normalized feature effect function
-    return compute_accumulated_effect(x, limits, bin_effects, dx) - z
+    parameters = {"limits": limits,
+                  "dx": dx,
+                  "bin_effects": bin_effects,
+                  "z": z}
+    return parameters
 
 
-def create_dale_function(X, X_der, s, K):
-    """Return DALE function on for the s-th feature.
+def create_dale_function(points, effects, s, k):
+    """Returns the DALE function on for the s-th feature.
 
     Parameters
     ----------
-    X
-    X_der
-    s
-    K
+    points: dataset
+    effects: effect of each point
+    s: feature
+    k: nof bins
 
     Returns
     -------
 
     """
+    parameters = compute_dale_parameters(points, effects, s, k)
+
     def dale_function(x):
-        return compute_dale(x, s, K, X, X_der)
+        y = compute_accumulated_effect(x,
+                                       limits=parameters["limits"],
+                                       bin_effects=parameters["bin_effects"],
+                                       dx=parameters["dx"]) - parameters["z"]
+        return y
     return dale_function
 
 
-# def plot(X, X_der, s, K, title=None, savefig=None):
-#     S, dx = create_bins(X, s, K)
-#     z0 = S[0,0]
-#     zK = S[-1,1]
+def dale(x, s, k, points, effects):
+    """Compute DALE at points x.
 
-#     ale_grad2 = create_ale_gradients(X, X_der, s, K)
-#     plt.figure()
-#     if title is not None:
-#         plt.title(title)
-#     x = np.arange(z0, zK, .01)
-#     y = [ale_grad2(i) for i in x]
-#     plt.plot(x,y,"b-")
-#     if savefig is not None:
-#         plt.savefig(savefig)
-#     else:
-#         plt.show(block=False)
+    Functional implementation of DALE at the s-th feature. Computation is
+    made on-the-fly.
+
+    Parameters
+    ----------
+    x: ndarray, shape (N,)
+      The points to evaluate DALE on
+    s: int
+      Index of the feature
+    k: int
+      number of bins
+    points: ndarray, shape (N,D)
+      The training set
+    effects: ndarray, shape (N,D)
+      The training set
+
+    Returns
+    -------
+
+    """
+    parameters = compute_dale_parameters(points, effects, s, k)
+    y = compute_accumulated_effect(x,
+                                   limits=parameters["limits"],
+                                   bin_effects=parameters["bin_effects"],
+                                   dx=parameters["dx"]) - parameters["z"]
+    return y
+
+
+class DALE:
+    def __init__(self, f, f_der):
+        self.f = f
+        self.f_der = f_der
+        self.dale_effects = None
+        self.dale_parameters = None
+
+    def compile(self):
+        pass
+
+    def fit(self, X, features, k, effects):
+        dic = {}
+        dic1 = {}
+        for s in features:
+            # TODO: fix for not recomputing
+            dic1["dale_params_feature_" + str(s)] = compute_dale_parameters(X, effects, s, k)
+            dic["dale_feature_" + str(s)] = create_dale_function(X, effects, s, k)
+        self.dale_effects = dic
+        self.dale_parameters = dic1
+
+    def evaluate(self, x, s):
+        func = self.dale_effects["dale_feature_" + str(s)]
+        return func(x)
+
+    def plot(self, s):
+        params = self.dale_parameters["dale_params_feature_" + str(s)]
+        x = np.linspace(params["limits"] - .01, params["limits"] + .01, 10000)
+        y = self.evaluate(x, s)
+        plt.figure()
+        plt.plot(x, y, "b-")
+        plt.show()
+
