@@ -5,7 +5,7 @@ import sys
 
 # hack to import mdale
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import mdale.dale
+import mdale.utils as utils
 
 
 def measure_time(k, n):
@@ -20,7 +20,7 @@ def measure_time(k, n):
 
     # measure time
     tic = time.time()
-    predict = mdale.dale.compute_accumulated_effect(xs, limits, bin_effects, dx)
+    predict = utils.compute_accumulated_effect(xs, limits, bin_effects, dx)
     toc = time.time()
     exec_time = toc - tic
     print("Time elapsed: %.2f, k: %d, n:%d" % (exec_time, k, n))

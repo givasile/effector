@@ -1,48 +1,41 @@
+import numpy as np
 import typing
 import mdale.utils as utils
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-def compute_dale_parameters(points: np.ndarray, point_effects: np.ndarray, s: int, k: int):
-    """Compute the DALE parameters for a single feature.
+def compute_ale_parameters(points: np.ndarray, f: np.ndarray, s: int, k: int):
+    """Compute the ALE parameters for the s-th feature
 
     Performs all actions to compute the parameters that are required for
-    the s-th feature DALE plot
+    the s-th feature DALE effect
 
     Parameters
     ----------
-    points: ndarray
-      The training-set points, shape: (N,D)
-    point_effects: ndarray
-      The feature effect contribution of the training-set points, shape: (N,)
-    s: int
-      Index of the feature of interest
-    k: int
-      Number of bins
+    points
+    f
+    s
+    k
 
     Returns
     -------
-    parameters: Dict
-      - limits: ndarray (K+1,) with the bin limits
-      - bin_effects: ndarray (K,) with the effect of each bin
-      - dx: float, bin length
-      - z: float, the normalizer
-    """
-    points = points[:, s]
-    point_effects = point_effects[:, s]
 
+    """
     # create bins
-    limits, dx = utils.create_bins(points, k)
+    limits, dx = utils.create_bins(points[:, s], k)
+
+    # compute bin effects
+    point_effects = utils.compute_point_effects(points, limits, f, dx, s)
 
     # compute effect on each bin
-    bin_effects = utils.compute_bin_effects(points, point_effects, limits)
+    bin_effects = utils.compute_bin_effects(points[:, s], point_effects, limits)
 
     # fill bins with NaN values
     bin_effects = utils.fill_nans(bin_effects)
 
     # compute Z
-    z = utils.compute_normalizer(points, limits, bin_effects, dx)
+    z = utils.compute_normalizer(points[:, s], limits, bin_effects, dx)
 
     parameters = {"limits": limits,
                   "dx": dx,
@@ -51,57 +44,55 @@ def compute_dale_parameters(points: np.ndarray, point_effects: np.ndarray, s: in
     return parameters
 
 
-def dale(x: np.ndarray, points: np.ndarray, point_effects: np.ndarray, s: int, k: int = 100):
-    """Compute DALE at points x.
+def ale(x, points, f, s, k=100):
+    """Compute ALE at points x.
 
-    Functional implementation of DALE at a single feature. Computation is
+    Functional implementation of DALE at the s-th feature. Computation is
     made on-the-fly.
 
     Parameters
     ----------
     x: ndarray, shape (N,)
-      The points we want to evaluate the feature effect plot
-    points: ndarray
-      The training-set points, shape: (N,D)
-    point_effects: ndarray
-      The feature effect contribution of the training-set points, shape: (N,)
+      The points to evaluate DALE on
     s: int
-      Index of the feature of interest
+      Index of the feature
     k: int
-      Number of bins
+      number of bins
+    points: ndarray, shape (N,D)
+      The training set
+    effects: ndarray, shape (N,D)
+      The training set
 
     Returns
     -------
-    y: ndarray, shape (N,)
-      Feature effect evaluation at points x.
+
     """
-    parameters = compute_dale_parameters(points, point_effects, s, k)
+    # compute
+    parameters = compute_ale_parameters(points, f, s, k)
     y = utils.compute_accumulated_effect(x,
-                                         limits=parameters["limits"],
-                                         bin_effects=parameters["bin_effects"],
-                                         dx=parameters["dx"])
-    y -= parameters["z"]
+                                        limits=parameters["limits"],
+                                        bin_effects=parameters["bin_effects"],
+                                        dx=parameters["dx"]) - parameters["z"]
     return y
 
 
-class DALE:
-    def __init__(self, points: np.ndarray, f: typing.Callable, f_der: typing.Union[typing.Callable, None] = None):
+class ALE:
+    def __init__(self, points: np.ndarray, f: typing.Callable):
         self.points = points
         self.f = f
-        self.f_der = f_der
         self.effects = None
         self.funcs = None
         self.parameters = None
 
     @staticmethod
-    def create_dale_function(points, point_effects, s, k):
+    def create_ale_function(points, f, s, k):
         """Returns the DALE function on for the s-th feature.
 
         Parameters
         ----------
         points: ndarray
           The training-set points, shape: (N,D)
-        point_effects: ndarray
+        f: ndarray
           The feature effect contribution of the training-set points, shape: (N,)
         s: int
           Index of the feature of interest
@@ -119,7 +110,7 @@ class DALE:
           - z: float, the normalizer
 
         """
-        parameters = compute_dale_parameters(points, point_effects, s, k)
+        parameters = compute_ale_parameters(points, f, s, k)
 
         def dale_function(x):
             y = utils.compute_accumulated_effect(x,
@@ -132,21 +123,13 @@ class DALE:
         return dale_function, parameters
 
     def compile(self):
-        if self.f_der is not None:
-            self.effects = self.f_der(self.points)
-        else:
-            # TODO add numerical approximation
-            pass
+        pass
 
     def fit(self, features: list, k: int):
-        if self.effects is None:
-            self.compile()
-
-        # (b) compute DALE function for the features
         funcs = {}
         parameters = {}
         for s in features:
-            func, param = self.create_dale_function(self.points, self.effects, s, k)
+            func, param = self.create_ale_function(self.points, self.f, s, k)
             funcs["feature_" + str(s)] = func
             parameters["feature_" + str(s)] = param
 

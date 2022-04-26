@@ -2,7 +2,8 @@ import os
 import sys
 import numpy as np
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import mdale.dale as dale
+import mdale.dale
+import mdale.ale
 import mdale.utils as utils
 import pandas as pd
 import PyALE
@@ -165,7 +166,7 @@ class TestExample:
         samples = self.generate_samples(N)
 
         x = np.linspace(0, 1, 1000)
-        y_pred = np.array([utils.pdp(self.f, samples, xx, i=0) for xx in x])
+        y_pred = utils.pdp(x, samples, self.f, s=0)
         y_gt = self.pdp(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
@@ -178,23 +179,50 @@ class TestExample:
         tau = (np.max(samples) - np.min(samples)) / K
 
         x = np.linspace(0, 1, 1000)
-        y_pred = np.array([utils.mplot(self.f, samples, xx, i=0, tau=tau) for xx in x])
+        y_pred = utils.mplot(x, samples, self.f, s=0, tau=tau)
         y_gt = self.mplot(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
-    def test_ale(self):
+    def test_ale_functional(self):
         """Test ALE approximation is close, i.e. tolerance=10^-2, to the ground-truth.
         """
         N = 1000
         K = 100
         samples = self.generate_samples(N)
-        tau = (np.max(samples) - np.min(samples)) / K
 
         x = np.linspace(0, 1, 1000)
-        x, y = utils.ale(samples, self.f, s=0, K=K)
-        # y_pred = np.array([utils.mplot(self.f, samples, xx, i=0, tau=tau) for xx in x])
-        # y_gt = self.mplot(x)
-        # np.allclose(y_pred, y_gt, atol=1.e-3)
+
+        # feature 1
+        y_pred = mdale.ale.ale(x, points=samples, f=self.f, s=0, k=K)
+        y_gt = self.ale(x)
+        np.allclose(y_pred, y_gt, atol=1.e-3)
+
+        # feature 2
+        y_pred = mdale.ale.ale(x, points=samples, f=self.f, s=1, k=K)
+        y_gt = self.ale(x)
+        np.allclose(y_pred, y_gt, atol=1.e-3)
+
+    def test_ale_class(self):
+        # generate data
+        N = 1000
+        K = 100
+        samples = self.generate_samples(N)
+
+        # prediction
+        alef = mdale.ale.ALE(points=samples, f=self.f)
+        alef.fit(features=[0, 1], k=K)
+
+        # feature 1
+        x = np.linspace(0, 1, 1000)
+        pred = alef.evaluate(x, s=0)
+        gt = self.ale(x)
+        assert np.allclose(pred, gt, atol=1.e-2)
+
+        # feature 2
+        pred = alef.evaluate(x, s=1)
+        gt = self.ale(x)
+        assert np.allclose(pred, gt, atol=1.e-2)
+
 
     def test_dale_functional(self):
         N = 1000
@@ -206,12 +234,12 @@ class TestExample:
         x = np.linspace(0, 1, 1000)
 
         # feature 1
-        y_pred = dale.dale(x, s=0, k=K, points=samples, effects=X_der)
+        y_pred = mdale.dale.dale(x, points=samples, point_effects=X_der, s=0, k=K)
         y_gt = self.ale(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
         # feature 2
-        y_pred = dale.dale(x, s=1, k=K, points=samples, effects=X_der)
+        y_pred = mdale.dale.dale(x, points=samples, point_effects=X_der, s=1, k=K)
         y_gt = self.ale(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
@@ -220,11 +248,11 @@ class TestExample:
         N = 1000
         K = 100
         samples = self.generate_samples(N)
-        X_der = self.f_der(samples)
+        # X_der = self.f_der(samples)
 
         # prediction
-        dalef = dale.DALE(f=self.f, f_der=self.f_der)
-        dalef.fit(samples, features=[0, 1], k=K, effects=X_der)
+        dalef = mdale.dale.DALE(points=samples, f=self.f, f_der=self.f_der)
+        dalef.fit(features=[0, 1], k=K)
 
         # feature 1
         x = np.linspace(0, 1, 1000)
@@ -242,6 +270,7 @@ if __name__ == "__main__":
     test_example = TestExample()
     test_example.test_pdp()
     test_example.test_mplot()
-    test_example.test_ale()
+    test_example.test_ale_functional()
+    test_example.test_ale_class()
     test_example.test_dale_functional()
     test_example.test_dale_class()
