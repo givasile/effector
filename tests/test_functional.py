@@ -223,7 +223,6 @@ class TestExample:
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
-
     def test_dale_functional(self):
         N = 1000
         K = 100
@@ -234,12 +233,12 @@ class TestExample:
         x = np.linspace(0, 1, 1000)
 
         # feature 1
-        y_pred = mdale.dale.dale(x, points=samples, point_effects=X_der, s=0, k=K)
+        y_pred, _ = mdale.dale.dale(x, points=samples, point_effects=X_der, s=0, k=K)
         y_gt = self.ale(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
         # feature 2
-        y_pred = mdale.dale.dale(x, points=samples, point_effects=X_der, s=1, k=K)
+        y_pred, _ = mdale.dale.dale(x, points=samples, point_effects=X_der, s=1, k=K)
         y_gt = self.ale(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
@@ -256,12 +255,12 @@ class TestExample:
 
         # feature 1
         x = np.linspace(0, 1, 1000)
-        pred = dalef.evaluate(x, s=0)
+        pred, _ = dalef.evaluate(x, s=0)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
         # feature 2
-        pred = dalef.evaluate(x, s=1)
+        pred, _ = dalef.evaluate(x, s=1)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 

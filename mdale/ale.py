@@ -142,9 +142,10 @@ class ALE:
 
     def plot(self, s: int, block=True):
         params = self.parameters["feature_" + str(s)]
-        x = np.linspace(params["limits"] - .01, params["limits"] + .01, 10000)
+        x = np.linspace(params["limits"][0] - .01, params["limits"][-1] + .01, 10000)
         y = self.evaluate(x, s)
         plt.figure()
+        plt.title("ALE plot for feature %d" % (s+1))
         plt.plot(x, y, "b-")
         if block is False:
             plt.show(block=False)

@@ -126,6 +126,33 @@ def compute_bin_effects(points: np.ndarray, point_effects: np.ndarray, limits: n
     return bin_effects
 
 
+def compute_bin_estimator_variance(points, point_effects, limits, mean_effects):
+    empty_symbol = np.NaN
+
+    # find bin-index of points
+    eps = 1e-8
+    limits[-1] += eps
+    ind = np.digitize(points, limits)
+    assert np.alltrue(ind > 0)
+
+    variance_per_point = (point_effects - mean_effects[ind-1])**2
+    nof_bins = limits.shape[0] - 1
+    aggregated_variance_per_bin = np.bincount(ind - 1, variance_per_point, minlength=nof_bins)
+    points_per_bin = np.bincount(ind - 1, minlength=nof_bins)
+
+    # if no point lies in a bin, store Nan
+    bin_variance = np.divide(aggregated_variance_per_bin,
+                             points_per_bin,
+                             out=np.ones(aggregated_variance_per_bin.shape,dtype=float)*empty_symbol,
+                             where=points_per_bin != 0)
+
+    bin_estimator_variance = np.divide(bin_variance,
+                                       points_per_bin,
+                                       out=np.ones(aggregated_variance_per_bin.shape, dtype=float)*empty_symbol,
+                                       where=points_per_bin != 0)
+    return bin_estimator_variance
+
+
 def fill_nans(bin_effects):
     """Interpolate the bin_effects with Nan values.
 

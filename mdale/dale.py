@@ -35,11 +35,17 @@ def compute_dale_parameters(points: np.ndarray, point_effects: np.ndarray, s: in
     # create bins
     limits, dx = utils.create_bins(points, k)
 
-    # compute effect on each bin
+    # compute mean effect on each bin
     bin_effects = utils.compute_bin_effects(points, point_effects, limits)
+
+    # compute effect variance in each bin
+    bin_estimator_variance = utils.compute_bin_estimator_variance(points, point_effects, limits, bin_effects)
 
     # fill bins with NaN values
     bin_effects = utils.fill_nans(bin_effects)
+
+    # fill bins with NaN values
+    bin_estimator_variance = utils.fill_nans(bin_estimator_variance)
 
     # compute Z
     z = utils.compute_normalizer(points, limits, bin_effects, dx)
@@ -47,6 +53,7 @@ def compute_dale_parameters(points: np.ndarray, point_effects: np.ndarray, s: in
     parameters = {"limits": limits,
                   "dx": dx,
                   "bin_effects": bin_effects,
+                  "bin_estimator_variance": bin_estimator_variance,
                   "z": z}
     return parameters
 
@@ -81,7 +88,11 @@ def dale(x: np.ndarray, points: np.ndarray, point_effects: np.ndarray, s: int, k
                                          bin_effects=parameters["bin_effects"],
                                          dx=parameters["dx"])
     y -= parameters["z"]
-    return y
+    var = utils.compute_accumulated_effect(x,
+                                           limits=parameters["limits"],
+                                           bin_effects=parameters["bin_estimator_variance"],
+                                           dx=parameters["dx"]**2)
+    return y, var
 
 
 class DALE:
@@ -127,7 +138,11 @@ class DALE:
                                                  bin_effects=parameters["bin_effects"],
                                                  dx=parameters["dx"])
             y -= parameters["z"]
-            return y
+            var = utils.compute_accumulated_effect(x,
+                                                   limits=parameters["limits"],
+                                                   bin_effects=parameters["bin_estimator_variance"],
+                                                   dx=parameters["dx"] ** 2)
+            return y, var
 
         return dale_function, parameters
 
@@ -155,14 +170,17 @@ class DALE:
 
     def evaluate(self, x: np.ndarray, s: int):
         func = self.funcs["feature_" + str(s)]
-        return func(x)
+        y, var = func(x)
+        return y, var
 
     def plot(self, s: int, block=True):
         params = self.parameters["feature_" + str(s)]
-        x = np.linspace(params["limits"] - .01, params["limits"] + .01, 10000)
-        y = self.evaluate(x, s)
+        x = np.linspace(params["limits"][0] - .01, params["limits"][-1] + .01, 10000)
+        y, var = self.evaluate(x, s)
         plt.figure()
+        plt.title("DALE plot for feature %d" % (s+1))
         plt.plot(x, y, "b-")
+        plt.fill_between(x, y - np.sqrt(var), y + np.sqrt(var), color='gray', alpha=0.4)
         if block is False:
             plt.show(block=False)
         else:
