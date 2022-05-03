@@ -72,6 +72,27 @@ def create_bins(x: np.array, k: int):
     return limits, dx
 
 
+def allocate_points_in_bins(points, point_effects, limits):
+    # find bin-index of points
+    eps = 1e-8
+    limits[-1] += eps
+    ind = np.digitize(points, limits)
+    assert np.alltrue(ind > 0)
+
+    list_with_bin_point_effects = []
+    list_with_bin_points = []
+    is_bin_empty = []
+    for i in range(limits.shape[0]-1):
+        if sum(ind == i+1) == 0:
+            is_bin_empty.append(True)
+        else:
+            is_bin_empty.append(False)
+
+        list_with_bin_points.append(points[ind == i+1].tolist())
+        list_with_bin_point_effects.append(point_effects[ind == i+1].tolist())
+    return list_with_bin_points, list_with_bin_point_effects, is_bin_empty
+
+
 def compute_point_effects(points, limits, f, dx, s):
     # find bin-index of points
     eps = 1e-8
@@ -167,15 +188,17 @@ def fill_nans(bin_effects):
       The bin effects without NaNs
 
     """
+    bin_effects1 = copy.deepcopy(bin_effects)
+
     def nan_helper(y):
         return np.isnan(y), lambda z: z.nonzero()[0]
 
-    nans, x = nan_helper(bin_effects)
-    bin_effects[nans] = np.interp(x(nans), x(~nans), bin_effects[~nans])
-    return bin_effects
+    nans, x = nan_helper(bin_effects1)
+    bin_effects1[nans] = np.interp(x(nans), x(~nans), bin_effects1[~nans])
+    return bin_effects1
 
 
-def compute_accumulated_effect(xs: np.ndarray, limits: np.ndarray, bin_effects: np.ndarray, dx: float):
+def compute_accumulated_effect(xs: np.ndarray, limits: np.ndarray, bin_effects: np.ndarray, dx: float, with_squares=False):
     """Compute the accumulated effect.
 
     Parameters
@@ -208,7 +231,10 @@ def compute_accumulated_effect(xs: np.ndarray, limits: np.ndarray, bin_effects: 
     # find for each point, the accumulated full-bin effect
     x_cumsum = bin_effects.cumsum()
     tmp = np.concatenate([[0, 0], x_cumsum])
-    full_bin_effect = tmp[ind] * dx
+    if with_squares:
+        full_bin_effect = tmp[ind] * dx**2
+    else:
+        full_bin_effect = tmp[ind] * dx
 
     # find for each point, the remaining effect
     tmp = np.concatenate([[limits[0]], limits[:-1], [big_m]])
@@ -216,6 +242,8 @@ def compute_accumulated_effect(xs: np.ndarray, limits: np.ndarray, bin_effects: 
 
     # if xs < left_limit or xs > right_limit, delta = 0
     deltas[deltas < 0] = 0
+    if with_squares:
+        deltas = deltas**2
 
     tmp = np.concatenate([[0.], bin_effects, [bin_effects[-1]]])
     remaining_effect = deltas * tmp[ind]
@@ -223,6 +251,16 @@ def compute_accumulated_effect(xs: np.ndarray, limits: np.ndarray, bin_effects: 
     # final effect
     y = full_bin_effect + remaining_effect
     return y
+
+
+def find_first_nan_bin(x: np.ndarray):
+    nans = np.where(np.isnan(x))[0]
+
+    if nans.size == 0:
+        first_empty_bin = None
+    else:
+        first_empty_bin = nans[0]
+    return first_empty_bin
 
 
 def compute_normalizer(xs: np.ndarray, limits: np.ndarray, bin_effects: np.ndarray, dx: float):

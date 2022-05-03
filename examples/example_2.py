@@ -20,6 +20,7 @@ def f(x):
 def f_der(x):
     return np.stack([2*x[:,0]*(1 + x[:,0]), x[:,0]**2], axis=-1)
 
+
 seed = 1
 N = 20
 X = generate_samples(N, seed)
@@ -32,7 +33,7 @@ plt.plot(X[:,0], X[:,1], "ro")
 plt.show(block=False)
 
 
-K = 2
+K = 100
 # ALE
 ale_inst = ale.ALE(points=X, f=f)
 ale_inst.fit(features=[0, 1], k=K)

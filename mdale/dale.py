@@ -35,26 +35,38 @@ def compute_dale_parameters(points: np.ndarray, point_effects: np.ndarray, s: in
     # create bins
     limits, dx = utils.create_bins(points, k)
 
+    # list with points
+    list_with_bin_points, list_with_bin_points_effects, is_bin_empty = utils.allocate_points_in_bins(points, point_effects, limits)
+
     # compute mean effect on each bin
-    bin_effects = utils.compute_bin_effects(points, point_effects, limits)
+    bin_effects_with_nans = utils.compute_bin_effects(points, point_effects, limits)
 
     # compute effect variance in each bin
-    bin_estimator_variance = utils.compute_bin_estimator_variance(points, point_effects, limits, bin_effects)
+    bin_estimator_variance_with_nans = utils.compute_bin_estimator_variance(points, point_effects, limits, bin_effects_with_nans)
 
     # fill bins with NaN values
-    bin_effects = utils.fill_nans(bin_effects)
+    bin_effects = utils.fill_nans(bin_effects_with_nans)
 
     # fill bins with NaN values
-    bin_estimator_variance = utils.fill_nans(bin_estimator_variance)
+    bin_estimator_variance = utils.fill_nans(bin_estimator_variance_with_nans)
+
+    # first empty bin
+    first_empty_bin = utils.find_first_nan_bin(bin_effects_with_nans)
 
     # compute Z
     z = utils.compute_normalizer(points, limits, bin_effects, dx)
 
     parameters = {"limits": limits,
                   "dx": dx,
+                  "list_with_bin_points": list_with_bin_points,
+                  "list_with_bin_points_effects": list_with_bin_points_effects,
+                  "is_bin_empty": is_bin_empty,
                   "bin_effects": bin_effects,
+                  "bin_effects_with_nans": bin_effects_with_nans,
                   "bin_estimator_variance": bin_estimator_variance,
-                  "z": z}
+                  "bin_estimator_variance_with_nans": bin_estimator_variance_with_nans,
+                  "z": z,
+                  "first_empty_bin": first_empty_bin}
     return parameters
 
 
@@ -91,7 +103,8 @@ def dale(x: np.ndarray, points: np.ndarray, point_effects: np.ndarray, s: int, k
     var = utils.compute_accumulated_effect(x,
                                            limits=parameters["limits"],
                                            bin_effects=parameters["bin_estimator_variance"],
-                                           dx=parameters["dx"]**2)
+                                           dx=parameters["dx"],
+                                           with_squares=True)
     return y, var
 
 
@@ -141,7 +154,8 @@ class DALE:
             var = utils.compute_accumulated_effect(x,
                                                    limits=parameters["limits"],
                                                    bin_effects=parameters["bin_estimator_variance"],
-                                                   dx=parameters["dx"] ** 2)
+                                                   dx=parameters["dx"],
+                                                   with_squares=True)
             return y, var
 
         return dale_function, parameters
@@ -177,10 +191,35 @@ class DALE:
         params = self.parameters["feature_" + str(s)]
         x = np.linspace(params["limits"][0] - .01, params["limits"][-1] + .01, 10000)
         y, var = self.evaluate(x, s)
-        plt.figure()
-        plt.title("DALE plot for feature %d" % (s+1))
-        plt.plot(x, y, "b-")
-        plt.fill_between(x, y - np.sqrt(var), y + np.sqrt(var), color='gray', alpha=0.4)
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+
+        fig.suptitle("Effect of feature %d" % (s+1))
+
+        # first subplot
+        ax1.set_title("Plot")
+        ax1.plot(x, y, "b-", label="feature effect")
+
+        first_empty = params["first_empty_bin"]
+        if first_empty is not None:
+            ax1.axvspan(xmin=params["limits"][first_empty], xmax=x[-1], ymin=np.min(y), ymax=np.max(y), alpha=.2, color="red", label="not-trusted-area")
+
+        ax1.fill_between(x, y - np.sqrt(var), y + np.sqrt(var), color='green', alpha=0.8, label="standard error")
+        # ax1.fill_between(x, y - 2*np.sqrt(var), y + 2*np.sqrt(var), color='green', alpha=0.4)
+        ax1.legend()
+
+        # second subplot
+        ax2.set_title("Effects per bin")
+        data = params["list_with_bin_points_effects"]
+        bin_centers = params["limits"][:-1] + params["dx"]/2
+        is_bin_full = ~np.array(params["is_bin_empty"])
+        positions = bin_centers[is_bin_full]
+        std_err = params["bin_estimator_variance"][is_bin_full]
+        data1 = params["bin_effects"][is_bin_full]
+        ax2.bar(x=positions, height=data1, width=params["dx"], color=(0.1, 0.1, 0.1, 0.1),  edgecolor='blue',
+                yerr=std_err, label="bin effect")
+        ax2.legend()
+
         if block is False:
             plt.show(block=False)
         else:
