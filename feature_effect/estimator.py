@@ -2,6 +2,7 @@ from feature_effect.dale import DALE
 from feature_effect.ale import ALE
 from feature_effect.pdp import PDP
 from feature_effect.mplot import MPlot
+from feature_effect import visualization as vis
 
 
 class Estimator:
@@ -53,8 +54,7 @@ class Estimator:
     def plot(self, feature, method: str = 'DALE'):
         assert method in ["DALE", "ALE", "PDP", "MPlot", "all"]
         if method == "all":
-            # TODO add method
-            pass
+            vis.fe_all(self.dale, self.ale, self.pdp, self.mplot, feature)
         elif method == "DALE":
             self.dale.plot(feature, block=False)
         elif method == "ALE":
@@ -62,4 +62,4 @@ class Estimator:
         elif method == "PDP":
             self.pdp.plot(feature)
         elif method == "MPlot":
-            self.mplot.plot(feature, tau=.5)
+            self.mplot.plot(feature, tau=.1)

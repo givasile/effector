@@ -7,7 +7,7 @@ def generate_samples(N, seed):
         np.random.seed(seed)
 
     x1 = np.random.uniform(size=N)
-    x2 = x1 + np.random.normal(size=N)
+    x2 = np.random.normal(size=N)
     return np.stack([x1, x2]).T
 
 
@@ -16,11 +16,11 @@ def f(x):
 
 
 def f_der(x):
-    return np.stack([2*x[:,0]*(1 + x[:,0]), x[:,0]**2], axis=-1)
+    return np.stack([2*x[:,0]*(1 + x[:,1]), x[:,0]**2], axis=-1)
 
 
 seed = 1
-N = 20
+N = 200
 X = generate_samples(N, seed)
 y = f(X)
 dy = f_der(X)
@@ -31,7 +31,7 @@ plt.plot(X[:,0], X[:,1], "ro")
 plt.show(block=False)
 
 
-K = 100
+K = 10
 # ALE
 ale_inst = fe.ALE(data=X, model=f)
 ale_inst.fit(features=[0, 1], k=K)
@@ -41,3 +41,7 @@ ale_inst.plot(s=0, block=False)
 dale_inst = fe.DALE(data=X, model=f, model_jac=f_der)
 dale_inst.fit(features=[0, 1], k=K)
 dale_inst.plot(s=0, block=False)
+
+est = fe.Estimator(data=X, model=f, model_jac=f_der)
+est.fit(features=[0, 1], method="all", nof_bins=K)
+est.plot(feature=0, method="all")

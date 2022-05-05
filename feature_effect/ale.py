@@ -139,15 +139,5 @@ class ALE:
         return func(x)
 
     def plot(self, s: int, block=False):
-        params = self.parameters["feature_" + str(s)]
-        x = np.linspace(params["limits"][0] - .01, params["limits"][-1] + .01, 10000)
-        y, var = self.eval(x, s)
-
-        vis.feature_effect_plot(s, x, y, var,
-                                params["first_empty_bin"],
-                                params["limits"],
-                                params["dx"],
-                                params["is_bin_empty"],
-                                params["bin_estimator_variance"],
-                                params["bin_effect"],
-                                block)
+        title = "ALE: Effect of feature %d" % (s + 1)
+        vis.feature_effect_plot(self.parameters["feature_" + str(s)], self.eval, s, title=title, block=block)
