@@ -1,8 +1,6 @@
-import mdale.ale as ale
-import mdale.dale as dale
 import numpy as np
 import matplotlib.pyplot as plt
-
+import feature_effect as fe
 
 def generate_samples(N, seed):
     if seed is not None:
@@ -35,11 +33,11 @@ plt.show(block=False)
 
 K = 100
 # ALE
-ale_inst = ale.ALE(points=X, f=f)
+ale_inst = fe.ALE(data=X, model=f)
 ale_inst.fit(features=[0, 1], k=K)
 ale_inst.plot(s=0, block=False)
 
 # DALE
-dale_inst = dale.DALE(points=X, f=f, f_der=f_der)
+dale_inst = fe.DALE(data=X, model=f, model_jac=f_der)
 dale_inst.fit(features=[0, 1], k=K)
 dale_inst.plot(s=0, block=False)

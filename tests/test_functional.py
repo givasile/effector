@@ -1,12 +1,5 @@
-import os
-import sys
 import numpy as np
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import mdale.dale
-import mdale.ale
-import mdale.utils as utils
-import pandas as pd
-import PyALE
+import feature_effect as fe
 
 # set global seed
 np.random.seed(21)
@@ -32,12 +25,12 @@ class TestExample:
     """
 
     @staticmethod
-    def generate_samples(N: int, seed:int = None) -> np.array:
+    def generate_samples(n: int, seed: int = None) -> np.array:
         """Generate N samples
 
         Parameters
         ----------
-        N: int
+        n: int
           nof samples
         seed: int or None
           seed for generating samples
@@ -50,7 +43,7 @@ class TestExample:
         if seed is not None:
             np.random.seed(seed)
 
-        x1 = np.random.uniform(size=N)
+        x1 = np.random.uniform(size=n)
         x2 = x1
         return np.stack([x1, x2]).T
 
@@ -165,8 +158,9 @@ class TestExample:
         N = 1000
         samples = self.generate_samples(N)
 
+        pdp = fe.PDP(data=samples, model=self.f)
         x = np.linspace(0, 1, 1000)
-        y_pred = utils.pdp(x, samples, self.f, s=0)
+        y_pred = pdp.eval(x, feature=0)
         y_gt = self.pdp(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
@@ -178,8 +172,9 @@ class TestExample:
         samples = self.generate_samples(N)
         tau = (np.max(samples) - np.min(samples)) / K
 
+        mplot = fe.MPlot(data=samples, model=self.f)
         x = np.linspace(0, 1, 1000)
-        y_pred = utils.mplot(x, samples, self.f, s=0, tau=tau)
+        y_pred = mplot.eval(x, feature=0, tau=tau)
         y_gt = self.mplot(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
@@ -193,12 +188,12 @@ class TestExample:
         x = np.linspace(0, 1, 1000)
 
         # feature 1
-        y_pred = mdale.ale.ale(x, points=samples, f=self.f, s=0, k=K)
+        y_pred = fe.ale(x, data=samples, model=self.f, s=0, k=K)
         y_gt = self.ale(x)
         np.allclose(y_pred, y_gt, atol=1.e-3)
 
         # feature 2
-        y_pred = mdale.ale.ale(x, points=samples, f=self.f, s=1, k=K)
+        y_pred = fe.ale(x, data=samples, model=self.f, s=1, k=K)
         y_gt = self.ale(x)
         np.allclose(y_pred, y_gt, atol=1.e-3)
 
@@ -209,17 +204,17 @@ class TestExample:
         samples = self.generate_samples(N)
 
         # prediction
-        alef = mdale.ale.ALE(points=samples, f=self.f)
-        alef.fit(features=[0, 1], k=K)
+        ale = fe.ALE(data=samples, model=self.f)
+        ale.fit(features=[0, 1], k=K)
 
         # feature 1
         x = np.linspace(0, 1, 1000)
-        pred = alef.evaluate(x, s=0)
+        pred = ale.eval(x, s=0)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
         # feature 2
-        pred = alef.evaluate(x, s=1)
+        pred = ale.eval(x, s=1)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
@@ -233,12 +228,12 @@ class TestExample:
         x = np.linspace(0, 1, 1000)
 
         # feature 1
-        y_pred, _ = mdale.dale.dale(x, points=samples, point_effects=X_der, s=0, k=K)
+        y_pred, _ = fe.dale(x, points=samples, point_effects=X_der, s=0, k=K)
         y_gt = self.ale(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
         # feature 2
-        y_pred, _ = mdale.dale.dale(x, points=samples, point_effects=X_der, s=1, k=K)
+        y_pred, _ = fe.dale(x, points=samples, point_effects=X_der, s=1, k=K)
         y_gt = self.ale(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
@@ -250,17 +245,17 @@ class TestExample:
         # X_der = self.f_der(samples)
 
         # prediction
-        dalef = mdale.dale.DALE(points=samples, f=self.f, f_der=self.f_der)
-        dalef.fit(features=[0, 1], k=K)
+        dale = fe.DALE(data=samples, model=self.f, model_jac=self.f_der)
+        dale.fit(features=[0, 1], k=K)
 
         # feature 1
         x = np.linspace(0, 1, 1000)
-        pred, _ = dalef.evaluate(x, s=0)
+        pred, _ = dale.eval(x, s=0)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
         # feature 2
-        pred, _ = dalef.evaluate(x, s=1)
+        pred, _ = dale.eval(x, s=1)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 

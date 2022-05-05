@@ -2,23 +2,23 @@
    :toctree: api
    :recursive:
 
-   mdale
+   feature_effect
 
 
-MDALE
+FEATURE_EFFECT
 ======
 
-.. autofunction:: mdale.dale.create_bins
-.. autofunction:: mdale.dale.compute_bin_effects
-.. autofunction:: mdale.dale.fill_nans
-.. autofunction:: mdale.dale.compute_accumulated_effect
-.. autofunction:: mdale.dale.compute_dale
-.. autofunction:: mdale.dale.create_dale_function
+.. autofunction:: feature_effect.dale.create_bins
+.. autofunction:: feature_effect.dale.compute_bin_effects
+.. autofunction:: feature_effect.dale.fill_nans
+.. autofunction:: feature_effect.dale.compute_accumulated_effect
+.. autofunction:: feature_effect.dale.compute_dale
+.. autofunction:: feature_effect.dale.create_dale_function
 
 
 UTILS
 ===========
 
-.. autofunction:: mdale.utils.pdp
-.. autofunction:: mdale.utils.mplot
-.. autofunction:: mdale.utils.ale
+.. autofunction:: feature_effect.utils.pdp
+.. autofunction:: feature_effect.utils.mplot
+.. autofunction:: feature_effect.utils.ale

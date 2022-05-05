@@ -1,6 +1,6 @@
 import numpy as np
 import typing
-import mdale.utils as utils
+import feature_effect.utils as utils
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -26,10 +26,10 @@ def compute_ale_parameters(points: np.ndarray, f: np.ndarray, s: int, k: int):
     limits, dx = utils.create_bins(points[:, s], k)
 
     # compute bin effects
-    point_effects = utils.compute_point_effects(points, limits, f, dx, s)
+    point_effects = utils.compute_data_effect(points, f, limits, dx, s)
 
     # compute effect on each bin
-    bin_effects = utils.compute_bin_effects(points[:, s], point_effects, limits)
+    bin_effects, points_per_bin = utils.compute_bin_effect_mean(points[:, s], point_effects, limits)
 
     # fill bins with NaN values
     bin_effects = utils.fill_nans(bin_effects)
@@ -39,12 +39,12 @@ def compute_ale_parameters(points: np.ndarray, f: np.ndarray, s: int, k: int):
 
     parameters = {"limits": limits,
                   "dx": dx,
-                  "bin_effects": bin_effects,
+                  "bin_effect": bin_effects,
                   "z": z}
     return parameters
 
 
-def ale(x, points, f, s, k=100):
+def ale(x, data, model, s, k=100):
     """Compute ALE at points x.
 
     Functional implementation of DALE at the s-th feature. Computation is
@@ -58,7 +58,7 @@ def ale(x, points, f, s, k=100):
       Index of the feature
     k: int
       number of bins
-    points: ndarray, shape (N,D)
+    data: ndarray, shape (N,D)
       The training set
     effects: ndarray, shape (N,D)
       The training set
@@ -68,18 +68,19 @@ def ale(x, points, f, s, k=100):
 
     """
     # compute
-    parameters = compute_ale_parameters(points, f, s, k)
+    parameters = compute_ale_parameters(data, model, s, k)
     y = utils.compute_accumulated_effect(x,
-                                        limits=parameters["limits"],
-                                        bin_effects=parameters["bin_effects"],
-                                        dx=parameters["dx"]) - parameters["z"]
+                                         limits=parameters["limits"],
+                                         bin_effect=parameters["bin_effect"],
+                                         dx=parameters["dx"]) - parameters["z"]
     return y
 
 
 class ALE:
-    def __init__(self, points: np.ndarray, f: typing.Callable):
-        self.points = points
-        self.f = f
+    def __init__(self, data: np.ndarray, model: typing.Callable):
+        self.data = data
+        self.model = model
+
         self.effects = None
         self.funcs = None
         self.parameters = None
@@ -115,7 +116,7 @@ class ALE:
         def dale_function(x):
             y = utils.compute_accumulated_effect(x,
                                                  limits=parameters["limits"],
-                                                 bin_effects=parameters["bin_effects"],
+                                                 bin_effect=parameters["bin_effect"],
                                                  dx=parameters["dx"])
             y -= parameters["z"]
             return y
@@ -129,21 +130,21 @@ class ALE:
         funcs = {}
         parameters = {}
         for s in features:
-            func, param = self.create_ale_function(self.points, self.f, s, k)
+            func, param = self.create_ale_function(self.data, self.model, s, k)
             funcs["feature_" + str(s)] = func
             parameters["feature_" + str(s)] = param
 
         self.funcs = funcs
         self.parameters = parameters
 
-    def evaluate(self, x: np.ndarray, s: int):
+    def eval(self, x: np.ndarray, s: int):
         func = self.funcs["feature_" + str(s)]
         return func(x)
 
-    def plot(self, s: int, block=True):
+    def plot(self, s: int, block=False):
         params = self.parameters["feature_" + str(s)]
         x = np.linspace(params["limits"][0] - .01, params["limits"][-1] + .01, 10000)
-        y = self.evaluate(x, s)
+        y = self.eval(x, s)
         plt.figure()
         plt.title("ALE plot for feature %d" % (s+1))
         plt.plot(x, y, "b-")
