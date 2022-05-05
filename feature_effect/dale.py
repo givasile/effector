@@ -4,7 +4,7 @@ import feature_effect.visualization as vis
 import numpy as np
 
 
-def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: int, k: int):
+def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: int, k: int) -> typing.Dict:
     """Compute the DALE parameters for a single feature.
 
     Performs all actions to compute the parameters that are required for
@@ -29,45 +29,15 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
       - dx: float, bin length
       - z: float, the normalizer
     """
-    data = data[:, feature]
-    data_effect = data_effect[:, feature]
-
     # create bins
-    limits, dx = utils.create_bins(data, k)
+    limits, dx = utils.create_bins(data[:, feature], k)
 
-    # compute mean effect on each bin
-    bin_effect_nans, points_per_bin = utils.compute_bin_effect_mean(data, data_effect, limits)
-
-    # add empty bins
-    is_bin_empty = bin_effect_nans == np.NaN
-
-    # compute effect variance in each bin
-    bin_variance_nans, bin_estimator_variance_nans = utils.compute_bin_effect_variance(data, data_effect, limits, bin_effect_nans)
-
-    # interpolate NaNs
-    bin_effect = utils.fill_nans(bin_effect_nans)
-    bin_variance = utils.fill_nans(bin_variance_nans)
-    bin_estimator_variance = utils.fill_nans(bin_estimator_variance_nans)
-
-    # first empty bin
-    first_empty_bin = utils.find_first_nan_bin(bin_effect_nans)
-
-    # compute Z
-    z = utils.compute_normalizer(data, limits, bin_effect, dx)
-
-    parameters = {"limits": limits,
-                  "dx": dx,
-                  "points_per_bin": points_per_bin,
-                  "is_bin_empty": is_bin_empty,
-                  "bin_effect": bin_effect,
-                  "bin_variance": bin_variance,
-                  "bin_estimator_variance": bin_estimator_variance,
-                  "z": z,
-                  "first_empty_bin": first_empty_bin}
+    # compute parameters
+    parameters = utils.compute_fe_parameters(data[:, feature], data_effect[:, feature], limits, dx)
     return parameters
 
 
-def dale(x: np.ndarray, points: np.ndarray, point_effects: np.ndarray, s: int, k: int = 100):
+def dale(x: np.ndarray, data: np.ndarray, data_effect: np.ndarray, feature: int, k: int = 100):
     """Compute DALE at points x.
 
     Functional implementation of DALE at a single feature. Computation is
@@ -77,11 +47,11 @@ def dale(x: np.ndarray, points: np.ndarray, point_effects: np.ndarray, s: int, k
     ----------
     x: ndarray, shape (N,)
       The points we want to evaluate the feature effect plot
-    points: ndarray
+    data: ndarray
       The training-set points, shape: (N,D)
-    point_effects: ndarray
+    data_effect: ndarray
       The feature effect contribution of the training-set points, shape: (N,)
-    s: int
+    feature: int
       Index of the feature of interest
     k: int
       Number of bins
@@ -91,7 +61,7 @@ def dale(x: np.ndarray, points: np.ndarray, point_effects: np.ndarray, s: int, k
     y: ndarray, shape (N,)
       Feature effect evaluation at points x.
     """
-    parameters = compute_dale_parameters(points, point_effects, s, k)
+    parameters = compute_dale_parameters(data, data_effect, feature, k)
     y = utils.compute_accumulated_effect(x,
                                          limits=parameters["limits"],
                                          bin_effect=parameters["bin_effect"],
@@ -155,7 +125,6 @@ class DALE:
                                                    dx=parameters["dx"],
                                                    square=True)
             return y, var
-
         return dale_function, parameters
 
     def compile(self):

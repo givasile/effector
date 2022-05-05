@@ -155,8 +155,8 @@ class TestExample:
     def test_pdp(self):
         """Test PDP approximation is close, i.e. tolerance=10^-2, to the ground-truth.
         """
-        N = 1000
-        samples = self.generate_samples(N)
+        n = 1000
+        samples = self.generate_samples(n)
 
         pdp = fe.PDP(data=samples, model=self.f)
         x = np.linspace(0, 1, 1000)
@@ -167,10 +167,10 @@ class TestExample:
     def test_mplot(self):
         """Test MPlot approximation is close, i.e. tolerance=10^-2, to the ground-truth.
         """
-        N = 1000
-        K = 100
-        samples = self.generate_samples(N)
-        tau = (np.max(samples) - np.min(samples)) / K
+        n = 1000
+        k = 100
+        samples = self.generate_samples(n)
+        tau = (np.max(samples) - np.min(samples)) / k
 
         mplot = fe.MPlot(data=samples, model=self.f)
         x = np.linspace(0, 1, 1000)
@@ -181,72 +181,72 @@ class TestExample:
     def test_ale_functional(self):
         """Test ALE approximation is close, i.e. tolerance=10^-2, to the ground-truth.
         """
-        N = 1000
-        K = 100
-        samples = self.generate_samples(N)
+        n = 1000
+        k = 100
+        samples = self.generate_samples(n)
 
         x = np.linspace(0, 1, 1000)
 
         # feature 1
-        y_pred = fe.ale(x, data=samples, model=self.f, s=0, k=K)
+        y_pred, _ = fe.ale(x, data=samples, model=self.f, feature=0, k=k)
         y_gt = self.ale(x)
         np.allclose(y_pred, y_gt, atol=1.e-3)
 
         # feature 2
-        y_pred = fe.ale(x, data=samples, model=self.f, s=1, k=K)
+        y_pred, _ = fe.ale(x, data=samples, model=self.f, feature=1, k=k)
         y_gt = self.ale(x)
         np.allclose(y_pred, y_gt, atol=1.e-3)
 
     def test_ale_class(self):
         # generate data
-        N = 1000
-        K = 100
-        samples = self.generate_samples(N)
+        n = 1000
+        k = 100
+        samples = self.generate_samples(n)
 
         # prediction
         ale = fe.ALE(data=samples, model=self.f)
-        ale.fit(features=[0, 1], k=K)
+        ale.fit(features=[0, 1], k=k)
 
         # feature 1
         x = np.linspace(0, 1, 1000)
-        pred = ale.eval(x, s=0)
+        pred, _ = ale.eval(x, s=0)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
         # feature 2
-        pred = ale.eval(x, s=1)
+        pred, _ = ale.eval(x, s=1)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
     def test_dale_functional(self):
-        N = 1000
-        K = 100
-        samples = self.generate_samples(N)
-        X_der = self.f_der(samples)
+        n = 1000
+        k = 100
+        samples = self.generate_samples(n)
+        x_der = self.f_der(samples)
 
         # dale
         x = np.linspace(0, 1, 1000)
 
         # feature 1
-        y_pred, _ = fe.dale(x, points=samples, point_effects=X_der, s=0, k=K)
+        y_pred, _ = fe.dale(x, data=samples, data_effect=x_der, feature=0, k=k)
         y_gt = self.ale(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
         # feature 2
-        y_pred, _ = fe.dale(x, points=samples, point_effects=X_der, s=1, k=K)
+        y_pred, _ = fe.dale(x, data=samples, data_effect=x_der, feature=1, k=k)
         y_gt = self.ale(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
     def test_dale_class(self):
         # generate data
-        N = 1000
-        K = 100
-        samples = self.generate_samples(N)
+        n = 1000
+        k = 100
+        samples = self.generate_samples(n)
         # X_der = self.f_der(samples)
 
         # prediction
         dale = fe.DALE(data=samples, model=self.f, model_jac=self.f_der)
-        dale.fit(features=[0, 1], k=K)
+        dale.fit(features=[0, 1], k=k)
 
         # feature 1
         x = np.linspace(0, 1, 1000)

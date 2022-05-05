@@ -1,21 +1,20 @@
-import numpy as np
 import typing
 import feature_effect.utils as utils
+import feature_effect.visualization as vis
 import numpy as np
-import matplotlib.pyplot as plt
 
 
-def compute_ale_parameters(points: np.ndarray, f: np.ndarray, s: int, k: int):
+def compute_ale_parameters(data: np.ndarray, model: np.ndarray, feature: int, k: int) -> typing.Dict:
     """Compute the ALE parameters for the s-th feature
 
     Performs all actions to compute the parameters that are required for
-    the s-th feature DALE effect
+    the s-th feature ALE effect
 
     Parameters
     ----------
-    points
-    f
-    s
+    data
+    model
+    feature
     k
 
     Returns
@@ -23,28 +22,17 @@ def compute_ale_parameters(points: np.ndarray, f: np.ndarray, s: int, k: int):
 
     """
     # create bins
-    limits, dx = utils.create_bins(points[:, s], k)
+    limits, dx = utils.create_bins(data[:, feature], k)
 
-    # compute bin effects
-    point_effects = utils.compute_data_effect(points, f, limits, dx, s)
+    # compute local data effects, based on the bins
+    data_effect = utils.compute_data_effect(data, model, limits, dx, feature)
 
-    # compute effect on each bin
-    bin_effects, points_per_bin = utils.compute_bin_effect_mean(points[:, s], point_effects, limits)
-
-    # fill bins with NaN values
-    bin_effects = utils.fill_nans(bin_effects)
-
-    # compute Z
-    z = utils.compute_normalizer(points[:, s], limits, bin_effects, dx)
-
-    parameters = {"limits": limits,
-                  "dx": dx,
-                  "bin_effect": bin_effects,
-                  "z": z}
+    # compute parameters
+    parameters = utils.compute_fe_parameters(data[:, feature], data_effect, limits, dx)
     return parameters
 
 
-def ale(x, data, model, s, k=100):
+def ale(x: np.ndarray, data: np.ndarray, model: typing.Callable, feature: int, k: int = 100):
     """Compute ALE at points x.
 
     Functional implementation of DALE at the s-th feature. Computation is
@@ -54,26 +42,31 @@ def ale(x, data, model, s, k=100):
     ----------
     x: ndarray, shape (N,)
       The points to evaluate DALE on
-    s: int
+    data: ndarray, shape (N,D)
+      The training set
+    model: Callable
+    feature: int
       Index of the feature
     k: int
       number of bins
-    data: ndarray, shape (N,D)
-      The training set
-    effects: ndarray, shape (N,D)
-      The training set
 
     Returns
     -------
 
     """
     # compute
-    parameters = compute_ale_parameters(data, model, s, k)
+    parameters = compute_ale_parameters(data, model, feature, k)
     y = utils.compute_accumulated_effect(x,
                                          limits=parameters["limits"],
                                          bin_effect=parameters["bin_effect"],
-                                         dx=parameters["dx"]) - parameters["z"]
-    return y
+                                         dx=parameters["dx"])
+    y -= parameters["z"]
+    var = utils.compute_accumulated_effect(x,
+                                           limits=parameters["limits"],
+                                           bin_effect=parameters["bin_estimator_variance"],
+                                           dx=parameters["dx"],
+                                           square=True)
+    return y, var
 
 
 class ALE:
@@ -81,12 +74,12 @@ class ALE:
         self.data = data
         self.model = model
 
-        self.effects = None
-        self.funcs = None
+        self.data_effect = None
+        self.feature_effect = None
         self.parameters = None
 
     @staticmethod
-    def create_ale_function(points, f, s, k):
+    def _ale_func(points, f, s, k):
         """Returns the DALE function on for the s-th feature.
 
         Parameters
@@ -113,15 +106,19 @@ class ALE:
         """
         parameters = compute_ale_parameters(points, f, s, k)
 
-        def dale_function(x):
+        def ale_function(x):
             y = utils.compute_accumulated_effect(x,
                                                  limits=parameters["limits"],
                                                  bin_effect=parameters["bin_effect"],
                                                  dx=parameters["dx"])
             y -= parameters["z"]
-            return y
-
-        return dale_function, parameters
+            var = utils.compute_accumulated_effect(x,
+                                                   limits=parameters["limits"],
+                                                   bin_effect=parameters["bin_estimator_variance"],
+                                                   dx=parameters["dx"],
+                                                   square=True)
+            return y, var
+        return ale_function, parameters
 
     def compile(self):
         pass
@@ -130,26 +127,27 @@ class ALE:
         funcs = {}
         parameters = {}
         for s in features:
-            func, param = self.create_ale_function(self.data, self.model, s, k)
+            func, param = self._ale_func(self.data, self.model, s, k)
             funcs["feature_" + str(s)] = func
             parameters["feature_" + str(s)] = param
 
-        self.funcs = funcs
+        self.feature_effect = funcs
         self.parameters = parameters
 
     def eval(self, x: np.ndarray, s: int):
-        func = self.funcs["feature_" + str(s)]
+        func = self.feature_effect["feature_" + str(s)]
         return func(x)
 
     def plot(self, s: int, block=False):
         params = self.parameters["feature_" + str(s)]
         x = np.linspace(params["limits"][0] - .01, params["limits"][-1] + .01, 10000)
-        y = self.eval(x, s)
-        plt.figure()
-        plt.title("ALE plot for feature %d" % (s+1))
-        plt.plot(x, y, "b-")
-        if block is False:
-            plt.show(block=False)
-        else:
-            plt.show()
+        y, var = self.eval(x, s)
 
+        vis.feature_effect_plot(s, x, y, var,
+                                params["first_empty_bin"],
+                                params["limits"],
+                                params["dx"],
+                                params["is_bin_empty"],
+                                params["bin_estimator_variance"],
+                                params["bin_effect"],
+                                block)

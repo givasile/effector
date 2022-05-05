@@ -9,10 +9,10 @@ import feature_effect as fe
 # DALE
 N = 5
 K = 3
-X = TestExample.generate_samples(N=N, seed=21)
+X = TestExample.generate_samples(n=N, seed=21)
 
 # ALE
-ale_inst = fe.ALE(points=X, f=TestExample.f)
+ale_inst = fe.ALE(data=X, model=TestExample.f)
 ale_inst.fit(features=[0, 1], k=K)
 ale_inst.plot(s=0, block=False)
 

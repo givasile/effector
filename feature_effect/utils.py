@@ -5,65 +5,8 @@ import copy
 import matplotlib.pyplot as plt
 
 
-class PDP:
-    def __init__(self, data, model):
-        self.data = data
-        self.model = model
-
-    @staticmethod
-    def _pdp(x, points, f, s):
-        y = []
-        for i in range(x.shape[0]):
-            points1 = copy.deepcopy(points)
-            points1[:, s] = x[i]
-            y.append(np.mean(f(points1)))
-        return np.array(y)
-
-    def eval(self, x, feature):
-        return self._pdp(x, self.data, self.model, feature)
-
-    def plot(self, feature, step=1000):
-        min_x = np.min(self.data[:, feature])
-        max_x = np.max(self.data[:, feature])
-
-        x = np.linspace(min_x, max_x, step)
-        y = self.eval(x, feature)
-
-        plt.figure()
-        plt.title("PDP for feature %d" % (feature+1))
-        plt.plot(x, y, "b-")
-        plt.show(block=False)
 
 
-class MPlot:
-    def __init__(self, data, model):
-        self.data = data
-        self.model = model
-
-    @staticmethod
-    def _mplot(x, points, f, s, tau):
-        y = []
-        for i in range(x.shape[0]):
-            points1 = copy.deepcopy(points)
-            points1 = points1[np.abs(points[:, s] - x[i]) < tau, :]
-            points1[:, s] = x[i]
-            y.append(np.mean(f(points1)))
-        return np.array(y)
-
-    def eval(self, x, feature, tau):
-        return self._mplot(x, self.data, self.model, feature, tau)
-
-    def plot(self, feature, tau=0.5, step=1000):
-        min_x = np.min(self.data[:, feature])
-        max_x = np.max(self.data[:, feature])
-
-        x = np.linspace(min_x, max_x, step)
-        y = self.eval(x, feature, tau)
-
-        plt.figure()
-        plt.title("MPlot for feature %d" % (feature+1))
-        plt.plot(x, y, "b-")
-        plt.show(block=False)
 
 
 # # ale1
@@ -373,3 +316,37 @@ def compute_normalizer(xs: np.ndarray, limits: np.ndarray, bin_effect: np.ndarra
     y = compute_accumulated_effect(xs, limits, bin_effect, dx)
     z = np.mean(y)
     return z
+
+
+def compute_fe_parameters(data, data_effect, limits, dx):
+    # compute mean effect on each bin
+    bin_effect_nans, points_per_bin = compute_bin_effect_mean(data, data_effect, limits)
+
+    # add empty bins
+    is_bin_empty = bin_effect_nans == np.NaN
+
+    # compute effect variance in each bin
+    bin_variance_nans, bin_estimator_variance_nans = compute_bin_effect_variance(data, data_effect, limits, bin_effect_nans)
+
+    # interpolate NaNs
+    bin_effect = fill_nans(bin_effect_nans)
+    bin_variance = fill_nans(bin_variance_nans)
+    bin_estimator_variance = fill_nans(bin_estimator_variance_nans)
+
+    # first empty bin
+    first_empty_bin = find_first_nan_bin(bin_effect_nans)
+
+    # compute Z
+    z = compute_normalizer(data, limits, bin_effect, dx)
+
+    parameters = {"limits": limits,
+                  "dx": dx,
+                  "points_per_bin": points_per_bin,
+                  "is_bin_empty": is_bin_empty,
+                  "bin_effect": bin_effect,
+                  "bin_variance": bin_variance,
+                  "bin_estimator_variance": bin_estimator_variance,
+                  "z": z,
+                  "first_empty_bin": first_empty_bin}
+    return parameters
+
