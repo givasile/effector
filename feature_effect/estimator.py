@@ -51,10 +51,10 @@ class Estimator:
         elif method == "MPlot":
             return self.mplot.eval(x, feature, tau=0.5)
 
-    def plot(self, feature, method: str = 'DALE'):
+    def plot(self, feature, method: str = 'DALE', ale_gt=None):
         assert method in ["DALE", "ALE", "PDP", "MPlot", "all"]
         if method == "all":
-            vis.fe_all(self.dale, self.ale, self.pdp, self.mplot, feature)
+            vis.fe_all(self.dale, self.ale, self.pdp, self.mplot, feature, ale_gt)
         elif method == "DALE":
             self.dale.plot(feature, block=False)
         elif method == "ALE":

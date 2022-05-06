@@ -5,7 +5,7 @@ import feature_effect as fe
 np.random.seed(21)
 
 
-class TestExample:
+class TestExample1:
     """Simple example, where ground-truth can be computed in closed-form.
 
     Notes
@@ -23,6 +23,9 @@ class TestExample:
     .. math:: 0
 
     """
+    atol = 1.e-2
+    n = 100000
+    k = 100
 
     @staticmethod
     def generate_samples(n: int, seed: int = None) -> np.array:
@@ -167,10 +170,8 @@ class TestExample:
     def test_mplot(self):
         """Test MPlot approximation is close, i.e. tolerance=10^-2, to the ground-truth.
         """
-        n = 1000
-        k = 100
-        samples = self.generate_samples(n)
-        tau = (np.max(samples) - np.min(samples)) / k
+        samples = self.generate_samples(self.n)
+        tau = (np.max(samples) - np.min(samples)) / self.k
 
         mplot = fe.MPlot(data=samples, model=self.f)
         x = np.linspace(0, 1, 1000)
@@ -181,31 +182,27 @@ class TestExample:
     def test_ale_functional(self):
         """Test ALE approximation is close, i.e. tolerance=10^-2, to the ground-truth.
         """
-        n = 1000
-        k = 100
-        samples = self.generate_samples(n)
+        samples = self.generate_samples(self.n)
 
         x = np.linspace(0, 1, 1000)
 
         # feature 1
-        y_pred, _ = fe.ale(x, data=samples, model=self.f, feature=0, k=k)
+        y_pred, _ = fe.ale(x, data=samples, model=self.f, feature=0, k=self.k)
         y_gt = self.ale(x)
         np.allclose(y_pred, y_gt, atol=1.e-3)
 
         # feature 2
-        y_pred, _ = fe.ale(x, data=samples, model=self.f, feature=1, k=k)
+        y_pred, _ = fe.ale(x, data=samples, model=self.f, feature=1, k=self.k)
         y_gt = self.ale(x)
         np.allclose(y_pred, y_gt, atol=1.e-3)
 
     def test_ale_class(self):
         # generate data
-        n = 1000
-        k = 100
-        samples = self.generate_samples(n)
+        samples = self.generate_samples(self.n)
 
         # prediction
         ale = fe.ALE(data=samples, model=self.f)
-        ale.fit(features=[0, 1], k=k)
+        ale.fit(features=[0, 1], k=self.k)
 
         # feature 1
         x = np.linspace(0, 1, 1000)
@@ -219,34 +216,30 @@ class TestExample:
         assert np.allclose(pred, gt, atol=1.e-2)
 
     def test_dale_functional(self):
-        n = 1000
-        k = 100
-        samples = self.generate_samples(n)
+        samples = self.generate_samples(self.n)
         x_der = self.f_der(samples)
 
         # dale
         x = np.linspace(0, 1, 1000)
 
         # feature 1
-        y_pred, _ = fe.dale(x, data=samples, data_effect=x_der, feature=0, k=k)
+        y_pred, _ = fe.dale(x, data=samples, data_effect=x_der, feature=0, k=self.k)
         y_gt = self.ale(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
         # feature 2
-        y_pred, _ = fe.dale(x, data=samples, data_effect=x_der, feature=1, k=k)
+        y_pred, _ = fe.dale(x, data=samples, data_effect=x_der, feature=1, k=self.k)
         y_gt = self.ale(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
     def test_dale_class(self):
         # generate data
-        n = 1000
-        k = 100
-        samples = self.generate_samples(n)
+        samples = self.generate_samples(self.n)
         # X_der = self.f_der(samples)
 
         # prediction
         dale = fe.DALE(data=samples, model=self.f, model_jac=self.f_der)
-        dale.fit(features=[0, 1], k=k)
+        dale.fit(features=[0, 1], k=self.k)
 
         # feature 1
         x = np.linspace(0, 1, 1000)
@@ -260,11 +253,260 @@ class TestExample:
         assert np.allclose(pred, gt, atol=1.e-2)
 
 
-if __name__ == "__main__":
-    test_example = TestExample()
-    test_example.test_pdp()
-    test_example.test_mplot()
-    test_example.test_ale_functional()
-    test_example.test_ale_class()
-    test_example.test_dale_functional()
-    test_example.test_dale_class()
+class TestExample2:
+    """Simple example, where ground-truth can be computed in closed-form.
+
+    Notes
+    -----
+    The black-box function is
+
+    .. math:: f(x_1, x_2) = x_1^2 + x_1^2x_2
+
+    """
+
+    atol = 1.e-2
+    n = 100000
+    k = 100
+
+    @staticmethod
+    def generate_samples(n: int, seed: int = None) -> np.array:
+        """Generate N samples
+
+        Parameters
+        ----------
+        n: int
+          nof samples
+        seed: int or None
+          seed for generating samples
+
+        Returns
+        -------
+        y: ndarray, shape: [N,2]
+          the samples
+        """
+        if seed is not None:
+            np.random.seed(seed)
+
+        x1 = np.random.uniform(size=n)
+        x2 = np.random.normal(size=n)
+        return np.stack([x1, x2]).T
+
+    @staticmethod
+    def f(x: np.array) -> np.array:
+        """Evaluate the black-box function;
+
+        Parameters
+        ----------
+        x: ndarray
+          array with the points to evaluate
+
+        Returns
+        -------
+        y: ndarray with shape (N,)
+         array with function evaluation on x
+
+        """
+
+        return x[:, 0] ** 2 + x[:, 0] ** 2 * x[:, 1]
+
+    @staticmethod
+    def f_der(x):
+        """Evaluate the Jacobian of the black-box function.
+
+        :param x: (N,2)
+        :returns: (N,2)
+
+        Parameters
+        ----------
+        x: ndarray with shape (N,2)
+          array with the points to evaluate the Jacobian
+
+        Returns
+        -------
+        y: ndarray with shape (N,2)
+         array with the Jacobian on points x
+        """
+
+        return np.stack([2 * x[:, 0] * (1 + x[:, 1]), x[:, 0] ** 2], axis=-1)
+
+    # @staticmethod
+    # def pdp(x):
+    #     """Ground-truth PDP
+    #
+    #     :param x: (N,)
+    #     :returns: (N,)
+    #
+    #     Parameters
+    #     ----------
+    #     x: ndarray (N,)
+    #       array the points to evaluate the PDP function
+    #
+    #     Returns
+    #     -------
+    #     y: ndarray with shape (N,)
+    #       the PDP effect evaluation
+    #
+    #     """
+    #     return (1 - x) ** 2 / 2
+    #
+    # @staticmethod
+    # def mplot(x):
+    #     """Ground-truth MPlot
+    #
+    #     :param x: (N,)
+    #     :returns: (N,)
+    #
+    #     Parameters
+    #     ----------
+    #     x: ndarray (N,)
+    #       array the points to evaluate the MPlot
+    #
+    #     Returns
+    #     -------
+    #     y: ndarray with shape (N,)
+    #       the PDP effect evaluation
+    #
+    #     """
+    #     y = 1 - 2 * x
+    #     y[x > 0.5] = 0
+    #     return y
+
+    @staticmethod
+    def ale_1(x):
+        """Ground-truth ALE
+
+        :param x: (N,)
+        :returns: (N,)
+
+        Parameters
+        ----------
+        x: ndarray (N,)
+          array the points to evaluate the ALE function
+
+        Returns
+        -------
+        y: ndarray with shape (N,)
+          the ALE effect evaluation
+
+        """
+        z = 1/3
+        return x**2 - z
+
+    @staticmethod
+    def ale_2(x):
+        """Ground-truth ALE
+
+        :param x: (N,)
+        :returns: (N,)
+
+        Parameters
+        ----------
+        x: ndarray (N,)
+          array the points to evaluate the ALE function
+
+        Returns
+        -------
+        y: ndarray with shape (N,)
+          the ALE effect evaluation
+
+        """
+        z = 0
+        return x/3 - z
+
+    # def test_pdp(self):
+    #     """Test PDP approximation is close, i.e. tolerance=10^-2, to the ground-truth.
+    #     """
+    #     n = 1000
+    #     samples = self.generate_samples(n)
+    #
+    #     pdp = fe.PDP(data=samples, model=self.f)
+    #     x = np.linspace(0, 1, 1000)
+    #     y_pred = pdp.eval(x, feature=0)
+    #     y_gt = self.pdp(x)
+    #     assert np.allclose(y_pred, y_gt, atol=1.e-2)
+    #
+    # def test_mplot(self):
+    #     """Test MPlot approximation is close, i.e. tolerance=10^-2, to the ground-truth.
+    #     """
+    #     n = 1000
+    #     k = 100
+    #     samples = self.generate_samples(n)
+    #     tau = (np.max(samples) - np.min(samples)) / k
+    #
+    #     mplot = fe.MPlot(data=samples, model=self.f)
+    #     x = np.linspace(0, 1, 1000)
+    #     y_pred = mplot.eval(x, feature=0, tau=tau)
+    #     y_gt = self.mplot(x)
+    #     assert np.allclose(y_pred, y_gt, atol=1.e-2)
+
+    def test_ale_functional(self):
+        """Test ALE approximation is close, i.e. tolerance=10^-2, to the ground-truth.
+        """
+        samples = self.generate_samples(self.n)
+
+        x = np.linspace(0, 1, 1000)
+
+        # feature 1
+        y_pred, _ = fe.ale(x, data=samples, model=self.f, feature=0, k=self.k)
+        y_gt = self.ale_1(x)
+        np.allclose(y_pred, y_gt, atol=self.atol)
+
+        # feature 2
+        y_pred, _ = fe.ale(x, data=samples, model=self.f, feature=1, k=self.k)
+        y_gt = self.ale_2(x)
+        np.allclose(y_pred, y_gt, atol=self.atol)
+
+    def test_ale_class(self):
+        # generate data
+        samples = self.generate_samples(self.n)
+
+        # prediction
+        ale = fe.ALE(data=samples, model=self.f)
+        ale.fit(features=[0, 1], k=self.k)
+
+        # feature 1
+        x = np.linspace(0, 1, 1000)
+        pred, _ = ale.eval(x, s=0)
+        gt = self.ale_1(x)
+        assert np.allclose(pred, gt, atol=self.atol)
+
+        # feature 2
+        pred, _ = ale.eval(x, s=1)
+        gt = self.ale_2(x)
+        assert np.allclose(pred, gt, atol=self.atol)
+
+    def test_dale_functional(self):
+        samples = self.generate_samples(self.n)
+        x_der = self.f_der(samples)
+
+        # dale
+        x = np.linspace(0, 1, 1000)
+
+        # feature 1
+        y_pred, _ = fe.dale(x, data=samples, data_effect=x_der, feature=0, k=self.k)
+        y_gt = self.ale_1(x)
+        assert np.allclose(y_pred, y_gt, atol=self.atol)
+
+        # feature 2
+        y_pred, _ = fe.dale(x, data=samples, data_effect=x_der, feature=1, k=self.k)
+        y_gt = self.ale_2(x)
+        assert np.allclose(y_pred, y_gt, atol=self.atol)
+
+    def test_dale_class(self):
+        # generate data
+        samples = self.generate_samples(self.n)
+
+        # prediction
+        dale = fe.DALE(data=samples, model=self.f, model_jac=self.f_der)
+        dale.fit(features=[0, 1], k=self.k)
+
+        # feature 1
+        x = np.linspace(0, 1, 1000)
+        pred, _ = dale.eval(x, s=0)
+        gt = self.ale_1(x)
+        assert np.allclose(pred, gt, atol=self.atol)
+
+        # feature 2
+        pred, _ = dale.eval(x, s=1)
+        gt = self.ale_2(x)
+        assert np.allclose(pred, gt, atol=self.atol)

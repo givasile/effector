@@ -154,6 +154,6 @@ class DALE:
         y, var = func(x)
         return y, var
 
-    def plot(self, s: int, block=True):
+    def plot(self, s: int, block=True, gt=None):
         title = "DALE: Effect of feature %d" % (s + 1)
-        vis.feature_effect_plot(self.parameters["feature_"+str(s)], self.eval, s, title=title, block=block)
+        vis.feature_effect_plot(self.parameters["feature_"+str(s)], self.eval, s, title=title, block=block, gt=gt)
