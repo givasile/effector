@@ -38,10 +38,12 @@ def feature_effect(ax1, x, y, var, limits, first_empty_bin, gt):
     ax1.set_title("Plot")
     ax1.plot(x, y, "b-", label="feature effect")
 
-    first_empty = first_empty_bin
-    if first_empty is not None:
-        ax1.axvspan(xmin=limits[first_empty], xmax=x[-1], ymin=np.min(y), ymax=np.max(y), alpha=.2, color="red",
-                    label="not-trusted-area")
+    # first_empty = first_empty_bin
+    # if first_empty is not None:
+    #     ax1.axvspan(xmin=limits[first_empty], xmax=x[-1], ymin=np.min(y), ymax=np.max(y), alpha=.2,
+    #                 color="red",
+    #                 edgecolor=None,
+    #                 label="not-trusted-area")
 
     ax1.fill_between(x, y-np.sqrt(var), y+np.sqrt(var), color='green', alpha=0.8, label="standard error")
     # ax1.fill_between(x, y - 2*np.sqrt(var), y + 2*np.sqrt(var), color='green', alpha=0.4)
@@ -64,7 +66,7 @@ def effects_per_bin(ax2, bin_effects, bin_estimator_variance, is_bin_empty, limi
     ax2.legend()
 
 
-def fe_all(dale, ale, pdp, mplot, feature, ale_gt):
+def fe_all(dale, ale, pdp, mplot, feature, ale_gt=None):
     dale_first_empty_bin = dale.parameters["feature_" + str(feature)]["first_empty_bin"]
     dale_limits = dale.parameters["feature_" + str(feature)]["limits"]
 
@@ -83,9 +85,10 @@ def fe_all(dale, ale, pdp, mplot, feature, ale_gt):
 
 
     # ALE gt
-    x = np.linspace(left_lim-.01, right_lim+.01, 10000)
-    y = ale_gt(x)
-    plt.plot(x, y, "r--", label="ALE gt")
+    x = np.linspace(left_lim - .01, right_lim + .01, 10000)
+    if ale_gt is not None:
+        y = ale_gt(x)
+        plt.plot(x, y, "r--", label="ALE gt")
 
     # DALE
     y, var = dale.eval(x, feature)
