@@ -1,39 +1,9 @@
 import typing
-
 import numpy as np
 import copy
-import matplotlib.pyplot as plt
 
 
-
-
-
-
-# # ale1
-# def ale(X, f_bb, s, K, feature_type="auto"):
-#     X_df = pd.DataFrame(X, columns=["feat_" + str(i) for i in range(X.shape[-1])])
-#
-#     class model():
-#         def __init__(self, f, X_df):
-#             self.predict = self.func
-#             self.f_bb = f
-#
-#         def func(self, X_df):
-#             return self.f_bb(X_df.to_numpy())
-#
-#     model_bb = model(f_bb, X_df)
-#
-#     ale_computation = PyALE.ale(X_df, model_bb, feature= ["feat_" + str(s)],
-#                                 feature_type=feature_type,
-#                                 grid_size=K,
-#                                 plot=False)
-#
-#     x = ale_computation["eff"].index.to_numpy()
-#     y = ale_computation["eff"].to_numpy()
-#     return x, y
-
-
-def create_bins(data: np.array, k: int) -> typing.Tuple[np.ndarray, float]:
+def create_fix_size_bins(data: np.array, k: int) -> typing.Tuple[np.ndarray, float]:
     """Find the bin limits.
 
     Parameters
@@ -56,6 +26,7 @@ def create_bins(data: np.array, k: int) -> typing.Tuple[np.ndarray, float]:
     z_start = np.min(data)
     z_stop = np.max(data)
     assert z_stop > z_start, "The dataset must contain more than one discrete points."
+
     limits, dx = np.linspace(z_start, z_stop, num=k + 1, endpoint=True, retstep=True)
     return limits, dx
 
@@ -105,6 +76,38 @@ def compute_data_effect(data: np.ndarray, model: typing.Callable,
     left_lim[:, feature] = limits[ind-1]
     data_effect = (model(right_lim) - model(left_lim))/dx
     return data_effect
+
+
+def filter_points_belong_to_bin(data: np.ndarray, data_effect: np.ndarray, limits: np.ndarray):
+    filt = np.logical_and(limits[0] <= data, data <= limits[1])
+    data_effect = data_effect[filt]
+    data = data[filt]
+    return data, data_effect
+
+
+def compute_data_effect_single_bin(data: np.ndarray, model: typing.Callable, limits: np.ndarray,
+                                   dx: float, feature: int) -> np.ndarray:
+
+    # compute effect
+    right_lim = copy.deepcopy(data)
+    left_lim = copy.deepcopy(data)
+    right_lim[:, feature] = limits[-1]
+    left_lim[:, feature] = limits[0]
+    data_effect = (model(right_lim) - model(left_lim))/dx
+    return data_effect
+
+
+def compute_cost_of_bin(data_effect: np.ndarray) -> float:
+    """Compute the cost of creating a bin with the specified limits"""
+
+    big_cost = 1e+10
+
+    # compute cost
+    if data_effect.size == 0:
+        cost = big_cost
+    else:
+        cost = np.var(data_effect)
+    return cost
 
 
 def compute_bin_effect_mean(data: np.ndarray, data_effect: np.ndarray, limits: np.ndarray) -> typing.Tuple[np.ndarray, np.ndarray]:
@@ -339,7 +342,8 @@ def compute_fe_parameters(data, data_effect, limits, dx):
     # compute Z
     z = compute_normalizer(data, limits, bin_effect, dx)
 
-    parameters = {"limits": limits,
+    parameters = {"nof_bins": limits.shape[0] - 1,
+                  "limits": limits,
                   "dx": dx,
                   "points_per_bin": points_per_bin,
                   "is_bin_empty": is_bin_empty,

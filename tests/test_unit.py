@@ -13,7 +13,7 @@ def test_create_bins_1():
     k = 10
     data = np.array([1.])
     with pytest.raises(AssertionError):
-        utils.create_bins(data, k)
+        utils.create_fix_size_bins(data, k)
 
 
 def test_create_bins_2():
@@ -27,7 +27,7 @@ def test_create_bins_2():
     k = 10
     data = np.ones(1000)
     with pytest.raises(AssertionError):
-        utils.create_bins(data, k)
+        utils.create_fix_size_bins(data, k)
 
 
 def test_create_bins_3():
@@ -39,7 +39,7 @@ def test_create_bins_3():
     """
     k = 4
     data = np.array([0, 1])
-    limits, dx = utils.create_bins(data, k=k)
+    limits, dx = utils.create_fix_size_bins(data, k=k)
     assert dx == .25
     limits_gt = np.array([0., .25, .5, .75, 1.])
     assert np.array_equal(limits_gt, limits)

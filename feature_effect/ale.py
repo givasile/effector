@@ -22,7 +22,7 @@ def compute_ale_parameters(data: np.ndarray, model: np.ndarray, feature: int, k:
 
     """
     # create bins
-    limits, dx = utils.create_bins(data[:, feature], k)
+    limits, dx = utils.create_fix_size_bins(data[:, feature], k)
 
     # compute local data effects, based on the bins
     data_effect = utils.compute_data_effect(data, model, limits, dx, feature)

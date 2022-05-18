@@ -1,10 +1,12 @@
+import functools
 import typing
 import feature_effect.utils as utils
 import feature_effect.visualization as vis
+import feature_effect.bin_estimation as be
 import numpy as np
 
 
-def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: int, k: int) -> typing.Dict:
+def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: int, k: int, method: str) -> typing.Dict:
     """Compute the DALE parameters for a single feature.
 
     Performs all actions to compute the parameters that are required for
@@ -29,15 +31,20 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
       - dx: float, bin length
       - z: float, the normalizer
     """
+    assert method in ["fix-size", "variable-size"]
     # create bins
-    limits, dx = utils.create_bins(data[:, feature], k)
+    if method == "fix-size":
+        limits, dx = utils.create_fix_size_bins(data[:, feature], k)
+        parameters = utils.compute_fe_parameters(data[:, feature], data_effect[:, feature], limits, dx)
+    elif method == "variable-size":
+        bin_estimator = be.BinEstimator(data, data_effect, None, feature, k)
+        limits, dx = bin_estimator.solve_dp()
+        parameters = utils.compute_fe_parameters(data[:, feature], data_effect[:, feature], limits, dx[0])
 
-    # compute parameters
-    parameters = utils.compute_fe_parameters(data[:, feature], data_effect[:, feature], limits, dx)
     return parameters
 
 
-def dale(x: np.ndarray, data: np.ndarray, data_effect: np.ndarray, feature: int, k: int = 100):
+def dale(x: np.ndarray, data: np.ndarray, data_effect: np.ndarray, feature: int, k: int = 100, method: str = "fix-size"):
     """Compute DALE at points x.
 
     Functional implementation of DALE at a single feature. Computation is
@@ -61,7 +68,7 @@ def dale(x: np.ndarray, data: np.ndarray, data_effect: np.ndarray, feature: int,
     y: ndarray, shape (N,)
       Feature effect evaluation at points x.
     """
-    parameters = compute_dale_parameters(data, data_effect, feature, k)
+    parameters = compute_dale_parameters(data, data_effect, feature, k, method)
     y = utils.compute_accumulated_effect(x,
                                          limits=parameters["limits"],
                                          bin_effect=parameters["bin_effect"],
@@ -86,7 +93,7 @@ class DALE:
         self.parameters = None
 
     @staticmethod
-    def _dale_func(points, point_effects, s, k):
+    def _dale_func(points, point_effects, s, k, method):
         """Returns the DALE function on for the s-th feature.
 
         Parameters
@@ -111,7 +118,7 @@ class DALE:
           - z: float, the normalizer
 
         """
-        parameters = compute_dale_parameters(points, point_effects, s, k)
+        parameters = compute_dale_parameters(points, point_effects, s, k, method)
 
         def dale_function(x):
             y = utils.compute_accumulated_effect(x,
@@ -134,7 +141,7 @@ class DALE:
             # TODO add numerical approximation
             pass
 
-    def fit(self, features: list, k: int):
+    def fit(self, features: list, k: int, method="fix-size"):
         if self.data_effect is None:
             self.compile()
 
@@ -142,7 +149,7 @@ class DALE:
         funcs = {}
         parameters = {}
         for s in features:
-            func, param = self._dale_func(self.data, self.data_effect, s, k)
+            func, param = self._dale_func(self.data, self.data_effect, s, k, method)
             funcs["feature_" + str(s)] = func
             parameters["feature_" + str(s)] = param
 
