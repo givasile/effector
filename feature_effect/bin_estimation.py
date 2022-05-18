@@ -4,9 +4,6 @@ import feature_effect.utils as utils
 
 class BinEstimator:
     def __init__(self, data, data_effect, model, feature, K):
-        # if cost_of_bin is not None:
-        #     self._cost_of_bin = cost_of_bin
-
         self.x_min = np.min(data[:, feature])
         self.x_max = np.max(data[:, feature])
         self.K = K
@@ -28,8 +25,15 @@ class BinEstimator:
         data, data_effect = utils.filter_points_belong_to_bin(data,
                                                               data_effect,
                                                               np.array([start, stop]))
-        return utils.compute_cost_of_bin(data_effect) * (stop-start)
 
+        big_cost = 1e+10
+
+        # compute cost
+        if data_effect.size <= 0:
+            cost = big_cost
+        else:
+            cost = np.std(data_effect) * (stop-start) / data_effect.size
+        return cost
 
     def _index_to_position(self, index_start, index_stop):
         start = self.x_min + index_start * self.dx

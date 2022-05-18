@@ -97,19 +97,6 @@ def compute_data_effect_single_bin(data: np.ndarray, model: typing.Callable, lim
     return data_effect
 
 
-def compute_cost_of_bin(data_effect: np.ndarray) -> float:
-    """Compute the cost of creating a bin with the specified limits"""
-
-    big_cost = 1e+10
-
-    # compute cost
-    if data_effect.size == 0:
-        cost = big_cost
-    else:
-        cost = np.var(data_effect)
-    return cost
-
-
 def compute_bin_effect_mean(data: np.ndarray, data_effect: np.ndarray, limits: np.ndarray) -> typing.Tuple[np.ndarray, np.ndarray]:
     """Compute the mean effect in each bin.
 

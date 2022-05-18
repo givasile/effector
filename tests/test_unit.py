@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 import feature_effect.utils as utils
+import feature_effect.bin_estimation as be
 
 
 def test_create_bins_1():
@@ -171,6 +172,63 @@ def test_compute_normalizer_1():
     pred = utils.compute_normalizer(x, limits, bin_effect, dx)
     gt = 10
     assert np.allclose(pred, gt)
+
+
+class TestBinEstimator:
+    def test_1(self):
+        np.random.seed(21)
+        N1 = 1000
+        data = np.expand_dims(
+            np.concatenate((np.random.uniform(low=0., high=.25, size=N1),
+                            np.random.uniform(low=0.25, high=.5, size=N1),
+                            np.random.uniform(low=0.5, high=.75, size=N1),
+                            np.random.uniform(low=0.75, high=1., size=N1))
+                           ),
+            axis=-1
+        )
+
+        data_effect = np.expand_dims(
+            np.concatenate((1*np.ones(N1) + np.random.normal(size=N1)*0.1,
+                            -2*np.ones(N1) + np.random.normal(size=N1)*0.1,
+                            2*np.ones(N1) + np.random.normal(size=N1)*0.1,
+                            -1*np.ones(N1) + np.random.normal(size=N1)*0.1)
+                           ),
+            axis=-1
+        )
+
+        bin_estimator = be.BinEstimator(data, data_effect, None, feature=0, K=70)
+        limits, dx_list = bin_estimator.solve_dp()
+
+        assert np.allclose(limits, np.array([0., .25, .5, .75, 1]), atol=.1)
+        assert np.allclose(dx_list, np.ones(4)*.25, atol=.1)
+
+
+    def test_2(self):
+        np.random.seed(21)
+        N1 = 100
+        data = np.expand_dims(
+            np.concatenate((np.random.uniform(low=0., high=.1, size=N1),
+                            np.random.uniform(low=0.1, high=.6, size=N1),
+                            np.random.uniform(low=0.6, high=.61, size=N1),
+                            np.random.uniform(low=0.61, high=.8, size=N1))
+                           ),
+            axis=-1
+        )
+
+        data_effect = np.expand_dims(
+            np.concatenate((1*np.ones(N1) + np.random.normal(size=N1)*0.1,
+                            -2*np.ones(N1) + np.random.normal(size=N1)*0.1,
+                            2*np.ones(N1) + np.random.normal(size=N1)*0.1,
+                            -1*np.ones(N1) + np.random.normal(size=N1)*0.1)
+                           ),
+            axis=-1
+        )
+
+        bin_estimator = be.BinEstimator(data, data_effect, None, feature=0, K=70)
+        limits, dx_list = bin_estimator.solve_dp()
+
+        assert np.allclose(limits, np.array([0., .1, .6, .61, .8]), atol=.1)
+        assert np.allclose(dx_list, np.array([.1, .5, .01, .19]), atol=.1)
 
 
 if __name__ == "__main__":
