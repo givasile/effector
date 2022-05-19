@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def feature_effect_plot(params, eval, feature, title=None, block=False, gt=False):
+def feature_effect_plot(params, eval, feature, title=None, block=False, gt=False, gt_bins=None):
     assert all(name in params for name in ["first_empty_bin", "limits", "dx", "is_bin_empty", "bin_estimator_variance", "bin_effect"])
 
     first_empty_bin = params["first_empty_bin"]
@@ -12,7 +12,7 @@ def feature_effect_plot(params, eval, feature, title=None, block=False, gt=False
     bin_estimator_variance = params["bin_estimator_variance"]
     bin_effect = params["bin_effect"]
 
-    x = np.linspace(params["limits"][0] - .01, params["limits"][-1] + .01, 10000)
+    x = np.linspace(params["limits"][0], params["limits"][-1], 10000)
     y, var = eval(x, feature)
 
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
@@ -26,14 +26,14 @@ def feature_effect_plot(params, eval, feature, title=None, block=False, gt=False
     feature_effect(ax1, x, y, var, limits, first_empty_bin, gt=gt)
 
     # second subplot
-    effects_per_bin(ax2, bin_effect, bin_estimator_variance, is_bin_empty, limits, dx)
+    effects_per_bin(ax2, bin_effect, bin_estimator_variance, is_bin_empty, limits, dx, gt_bins)
     if block is False:
         plt.show(block=False)
     else:
         plt.show()
 
 
-def feature_effect(ax1, x, y, var, limits, first_empty_bin, gt):
+def feature_effect(ax1, x, y, var, limits, first_empty_bin, gt=None):
     # first subplot
     ax1.set_title("Plot")
     ax1.plot(x, y, "b-", label="feature effect")
@@ -54,7 +54,7 @@ def feature_effect(ax1, x, y, var, limits, first_empty_bin, gt):
     ax1.legend()
 
 
-def effects_per_bin(ax2, bin_effects, bin_estimator_variance, is_bin_empty, limits, dx):
+def effects_per_bin(ax2, bin_effects, bin_estimator_variance, is_bin_empty, limits, dx, gt_bins=None):
     ax2.set_title("Effects per bin")
     bin_centers = limits[:-1] + dx / 2
     is_bin_full = ~np.array(is_bin_empty)
@@ -63,6 +63,14 @@ def effects_per_bin(ax2, bin_effects, bin_estimator_variance, is_bin_empty, limi
     data1 = bin_effects[is_bin_full]
     ax2.bar(x=positions, height=data1, width=dx, color=(0.1, 0.1, 0.1, 0.1), edgecolor='blue', yerr=std_err,
             label="bin effect")
+
+    if gt_bins is not None:
+        lims = gt_bins["limits"]
+        positions = [(lims[i] + lims[i+1])/2 for i in range(len(lims) - 1)]
+        dx = lims[1] - lims[0]
+        ax2.bar(x=positions, height=gt_bins["height"], width=dx, color=(0.1, 0.1, 0.1, 0.1), edgecolor='red',
+                label="bin effect gt")
+
     ax2.legend()
 
 
