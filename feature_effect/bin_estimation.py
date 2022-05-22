@@ -29,10 +29,10 @@ class BinEstimator:
         big_cost = 1e+10
 
         # compute cost
-        if data_effect.size <= 0:
+        if data_effect.size <= 1:
             cost = big_cost
         else:
-            cost = np.std(data_effect) * (stop-start) / data_effect.size
+            cost = np.var(data_effect) * (stop-start)**2
         return cost
 
     def _index_to_position(self, index_start, index_stop):

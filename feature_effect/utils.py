@@ -336,6 +336,7 @@ def compute_fe_parameters(data, data_effect, limits, dx):
                   "is_bin_empty": is_bin_empty,
                   "bin_effect": bin_effect,
                   "bin_variance": bin_variance,
+                  "bin_variance_nans": bin_variance_nans,
                   "bin_estimator_variance": bin_estimator_variance,
                   "z": z,
                   "first_empty_bin": first_empty_bin}

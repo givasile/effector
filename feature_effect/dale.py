@@ -40,6 +40,7 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
         bin_estimator = be.BinEstimator(data, data_effect, None, feature, k)
         limits, dx = bin_estimator.solve_dp()
         parameters = utils.compute_fe_parameters(data[:, feature], data_effect[:, feature], limits, dx[0])
+        parameters["bin_estimator"] = bin_estimator
 
     return parameters
 
