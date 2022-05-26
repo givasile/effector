@@ -66,7 +66,7 @@ def effects_per_bin(ax2, bin_effects, bin_estimator_variance, is_bin_empty, limi
 
     if gt_bins is not None:
         lims = gt_bins["limits"]
-        positions = [(lims[i] + lims[i+1])/2 for i in range(len(lims) - 1)]
+        positions = [(lims[i] + lims[i + 1]) / 2 for i in range(len(lims) - 1)]
         dx = lims[1] - lims[0]
         ax2.bar(x=positions, height=gt_bins["height"], width=dx, color=(0.1, 0.1, 0.1, 0.1), edgecolor='red',
                 label="bin effect gt")

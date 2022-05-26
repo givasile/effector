@@ -196,7 +196,7 @@ def test_compute_normalizer_1():
 #             axis=-1
 #         )
 #
-#         bin_estimator = be.BinEstimator(data, data_effect, None, feature=0, K=70)
+#         bin_estimator = be.BinEstimatorDP(data, data_effect, None, feature=0, K=70)
 #         limits, dx_list = bin_estimator.solve_dp()
 #
 #         assert np.allclose(limits, np.array([0., .25, .5, .75, 1]), atol=.1)
@@ -224,7 +224,7 @@ def test_compute_normalizer_1():
 #             axis=-1
 #         )
 #
-#         bin_estimator = be.BinEstimator(data, data_effect, None, feature=0, K=70)
+#         bin_estimator = be.BinEstimatorDP(data, data_effect, None, feature=0, K=70)
 #         limits, dx_list = bin_estimator.solve_dp()
 #
 #         assert np.allclose(limits, np.array([0., .1, .6, .61, .8]), atol=.1)

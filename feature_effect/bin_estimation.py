@@ -2,7 +2,7 @@ import numpy as np
 import feature_effect.utils as utils
 
 
-class BinEstimator:
+class BinEstimatorDP:
     def __init__(self, data, data_effect, model, feature, K):
         self.x_min = np.min(data[:, feature])
         self.x_max = np.max(data[:, feature])
@@ -19,7 +19,7 @@ class BinEstimator:
         self.matrix = None
         self.argmatrix = None
 
-    def _cost_of_bin(self, start, stop):
+    def _cost_of_bin(self, start, stop, min_points):
         data = self.data[:, self.feature]
         data_effect = self.data_effect[:, self.feature]
         data, data_effect = utils.filter_points_belong_to_bin(data,
@@ -29,10 +29,10 @@ class BinEstimator:
         big_cost = 1e+10
 
         # compute cost
-        if data_effect.size <= 1:
+        if data_effect.size < min_points:
             cost = big_cost
         else:
-            cost = np.var(data_effect) * (stop-start)**2
+            cost = np.std(data_effect) * (stop-start) / np.sqrt(data_effect.size)
         return cost
 
     def _index_to_position(self, index_start, index_stop):
@@ -40,7 +40,7 @@ class BinEstimator:
         stop = self.x_min + index_stop * self.dx
         return start, stop
 
-    def _cost_of_move(self, index_before, index_next):
+    def _cost_of_move(self, index_before, index_next, min_points):
         """Compute the cost of move.
 
         Computes the cost for moving from the index of the previous bin (index_before)
@@ -54,7 +54,7 @@ class BinEstimator:
             cost = 0
         else:
             start, stop = self._index_to_position(index_before, index_next)
-            cost = self._cost_of_bin(start, stop)
+            cost = self._cost_of_bin(start, stop, min_points)
 
         return cost
 
@@ -84,47 +84,43 @@ class BinEstimator:
         dx_list = np.array([limits[i+1] - limits[i] for i in range(limits.shape[0]-1)])
         return limits, dx_list
 
-    def solve_dp(self):
+    def solve_dp(self, min_points):
         K = self.K
         big_M = self.big_M
         nof_limits = K + 1
         nof_bins = K
 
-        # init matrices
-        matrix = np.ones((nof_limits, nof_bins)) * big_M
-        argmatrix = np.ones((nof_limits, nof_bins)) * np.nan
+        if K == 1:
+            self.limits = np.array([self.x_min, self.x_max])
+            self.dx_list = np.array([self.x_max - self.x_min])
+        else:
+            # init matrices
+            matrix = np.ones((nof_limits, nof_bins)) * big_M
+            argmatrix = np.ones((nof_limits, nof_bins)) * np.nan
 
-        # init first bin_index
-        bin_index = 0
-        for lim_index in range(nof_limits):
-            matrix[lim_index, bin_index] = self._cost_of_move(bin_index, lim_index)
+            # init first bin_index
+            bin_index = 0
+            for lim_index in range(nof_limits):
+                matrix[lim_index, bin_index] = self._cost_of_move(bin_index, lim_index, min_points)
 
-        # for all other bins
-        for bin_index in range(1, K):
-            for lim_index_next in range(K + 1):
+            # for all other bins
+            for bin_index in range(1, K):
+                for lim_index_next in range(K + 1):
 
-                # find best solution
-                tmp = []
-                for lim_index_before in range(K + 1):
-                    tmp.append(matrix[lim_index_before, bin_index - 1] + self._cost_of_move(lim_index_before, lim_index_next))
+                    # find best solution
+                    tmp = []
+                    for lim_index_before in range(K + 1):
+                        tmp.append(matrix[lim_index_before, bin_index - 1] + self._cost_of_move(lim_index_before, lim_index_next, min_points))
 
-                # store best solution
-                matrix[lim_index_next, bin_index] = np.min(tmp)
-                argmatrix[lim_index_next, bin_index] = np.argmin(tmp)
+                    # store best solution
+                    matrix[lim_index_next, bin_index] = np.min(tmp)
+                    argmatrix[lim_index_next, bin_index] = np.argmin(tmp)
 
-        # store solution matrices
-        self.matrix = matrix
-        self.argmatrix = argmatrix
+            # store solution matrices
+            self.matrix = matrix
+            self.argmatrix = argmatrix
 
-        # find indices
-        self.limits, self.dx_list = self._argmatrix_to_limits()
+            # find indices
+            self.limits, self.dx_list = self._argmatrix_to_limits()
 
         return self.limits, self.dx_list
-
-#
-# K = 100
-# x_min = 0
-# x_max = 10
-#
-# bin_estimator = BinEstimator(x_min=x_min, x_max=x_max, K=K)
-# limits, dx_list = bin_estimator.solve_dp()
