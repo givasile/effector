@@ -59,11 +59,10 @@ For Variable-size bins:
 * Finds good bins base on standard mse_fixed_size
 
 """
-
 import numpy as np
 import examples.example_utils as utils
 
-
+# define piecewise linear function
 def f_params():
     def find_a(params, x_start):
         params[0]["a"] = x_start
@@ -93,45 +92,48 @@ def generate_samples(N):
     x = np.expand_dims(np.concatenate((np.array([0.0]), x, np.array([100. - eps]))), axis=-1)
     return x
 
+
 # parameters
 N = 10000
-noise_level = 0.
+noise_level = 3.
 K_max_fixed = 50
 K_max_variable = 40
+min_points_per_bin = 10
 
 # init functions
-seed = 48375
+seed = 4834545
 np.random.seed(seed)
 
-f1_center = utils.create_f1_center(f_params)
-f1 = utils.create_f1(f_params)
-f1_jac = utils.create_data_effect(f_params, noise_level, seed)
-x = generate_samples(N=N)
-y = f1_center(x)
-data = x
-data_effect = f1_jac(x)
+model = utils.create_f1_center(f_params)
+model_jac = utils.create_data_effect(f_params, noise_level, seed)
+data = generate_samples(N=N)
+y = model(data)
+data_effect = model_jac(data)
 
-# show gt effect
+# plot data effects and gt effect
 utils.plot_gt_effect(data, y)
-
-# show data effect
 utils.plot_data_effect(data, data_effect)
 
-# count loss and mse
-fixed_params = utils.count_loss_mse_fixed(K_max_fixed, f1_center, data, f1, f1_jac)
-k_list_fixed, mse_fixed_size, loss_fixed_size, dale_list_fixed = fixed_params
-
-variable_params = utils.count_loss_mse_variable(K_max_variable, f1_center, data, f1, f1_jac)
-k_list_variable, mse_variable_size, loss_variable_size, dale_list_variable = variable_params
+# compute loss and mse for many different K
+k_list_fixed, mse_fixed, loss_fixed, dale_fixed = utils.count_loss_mse(K_max_fixed, model, data, model, model_jac,
+                                                                       min_points_per_bin, method="fixed-size")
+k_list_var, mse_var, loss_var, dale_var = utils.count_loss_mse(K_max_var, model, data, model, model_jac,
+                                                               min_points_per_bin, method="variable-size")
 
 # plot
-utils.plot_mse(k_list_variable, mse_variable_size, mse_fixed_size)
-utils.plot_loss(k_list_variable, loss_variable_size, loss_fixed_size)
+utils.plot_mse(k_list_var, mse_var, mse_fixed)
+utils.plot_loss(k_list_var, loss_var, loss_fixed)
 
 # plot best fixed solution
-best_fixed_index = np.argmin(mse_fixed_size)
-dale_list_fixed[best_fixed_index].plot(s=0, gt=f1_center, gt_bins=utils.create_gt_bins(f_params))
+best_fixed = np.nanargmin(loss_fixed)
+dale_fixed[best_fixed].plot(s=0,
+                            gt=model,
+                            gt_bins=utils.create_gt_bins(f_params),
+                            block=False)
 
 # plot best variable size solution
-best_variable_index = np.argmin(mse_variable_size)
-dale_list_variable[best_variable_index].plot(s=0, gt=f1_center, gt_bins=utils.create_gt_bins(f_params))
+best_var = np.nanargmin(loss_var)
+dale_var[best_var].plot(s=0,
+                        gt=model,
+                        gt_bins=utils.create_gt_bins(f_params),
+                        block=False)

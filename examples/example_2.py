@@ -4,7 +4,6 @@ This is not feasible in all cases. Piecewise linear regions, under normal circum
 
 import numpy as np
 import examples.example_utils as utils
-import feature_effect as fe
 
 # define piecewise linear function
 def f_params():
@@ -50,13 +49,13 @@ data = generate_samples(N=N)
 y = model(data)
 data_effect = model_jac(data)
 
+# plot data effects and gt effect
 utils.plot_gt_effect(data, y)
 utils.plot_data_effect(data, data_effect)
 
-min_points_per_bin = 10
-
+# compute loss and mse for many different K
 k_list_fixed, mse_fixed, loss_fixed, dale_fixed = utils.count_loss_mse(K_max_fixed, model, data, model, model_jac,
-                                                                       min_points_per_bin, method="fix-size")
+                                                                       min_points_per_bin, method="fixed-size")
 k_list_var, mse_var, loss_var, dale_var = utils.count_loss_mse(K_max_var, model, data, model, model_jac,
                                                                min_points_per_bin, method="variable-size")
 

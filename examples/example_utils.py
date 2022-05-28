@@ -74,9 +74,12 @@ def count_loss_mse(K_max, gt_func, data, model, model_jac, min_points_per_bin, m
     dale = []
     for k in k_list:
         dale.append(fe.DALE(data=data, model=model, model_jac=model_jac))
-        dale[-1].fit(features=[0], k=k, method=method, min_points_per_bin=min_points_per_bin)
+        if method == "fixed-size":
+            dale[-1].fit(method=method, alg_params={"nof_bins": k, "min_points_per_bin": min_points_per_bin})
+        elif method == "variable-size":
+            dale[-1].fit(method=method, alg_params={"max_nof_bins": k, "min_points_per_bin": min_points_per_bin})
         mse.append(compute_mse(dale[-1], gt_func))
-        loss.append(dale[-1].parameters["feature_0"]["loss"])
+        loss.append(dale[-1].dale_params["feature_0"]["loss"])
 
     return k_list, mse, loss, dale
 
