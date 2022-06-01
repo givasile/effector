@@ -4,26 +4,25 @@ import matplotlib.pyplot as plt
 import feature_effect as fe
 
 
-def create_f1(f_params):
-    params = f_params()
-    limits = [param["from"] for param in params]
-    limits.append(params[-1]["to"])
+def create_model(params):
+    def create_f1(params):
+        limits = [param["from"] for param in params]
+        limits.append(params[-1]["to"])
 
-    def f1(x):
-        """Piece-wise linear feature-effect"""
-        ind = np.squeeze(np.digitize(x, limits))
-        y = []
-        for i, point in enumerate(x):
-            res = params[ind[i] - 1]["a"] + \
-                (point - params[ind[i] - 1]["from"])*params[ind[i] - 1]["b"]
+        def f1(x):
+            """Piece-wise linear feature-effect"""
+            ind = np.squeeze(np.digitize(x, limits))
+            y = []
+            for i, point in enumerate(x):
+                res = params[ind[i] - 1]["a"] + \
+                      (point - params[ind[i] - 1]["from"]) * params[ind[i] - 1]["b"]
 
-            y.append(res)
-        return np.array(y)
-    return f1
+                y.append(res)
+            return np.array(y)
 
+        return f1
 
-def create_f1_center(f_params):
-    f1 = create_f1(f_params)
+    f1 = create_f1(params)
     z = np.mean(f1(np.linspace(0.0, 99.99999, 100000)))
 
     def f1_center(x):
@@ -31,8 +30,7 @@ def create_f1_center(f_params):
     return f1_center
 
 
-def create_data_effect(f_params, noise_level, seed):
-    params = f_params()
+def create_noisy_jacobian(params, noise_level, seed):
     limits = [param["from"] for param in params]
     limits.append(params[-1]["to"])
 
@@ -51,8 +49,7 @@ def create_data_effect(f_params, noise_level, seed):
     return compute_data_effect
 
 
-def create_gt_bins(f_params):
-    params = f_params()
+def create_gt_bins(params):
     gt_bins = {}
     gt_bins["height"] = [par["b"] for par in params]
     gt_bins["limits"] = [par["from"] for par in params]
@@ -61,33 +58,28 @@ def create_gt_bins(f_params):
 
 
 def compute_mse(dale, gt_func):
-    xx = np.linspace(0., 99.9999, 10000)
+    xx = np.linspace(0., 99.9999, 1000)
     y_pred = dale.eval(xx, s=0)[0]
     y_gt = gt_func(xx)
-    return np.sum(np.abs(y_pred - y_gt)) * .01
+    return np.sum(np.abs(y_pred - y_gt)) * .001
 
 
-def count_loss_mse(K_max, gt_func, data, model, model_jac, min_points_per_bin, method):
+def fit_multiple_K(data, model, model_jac, K_max, min_points_per_bin, method):
     k_list = np.arange(1, K_max + 1)
-    mse = []
-    loss = []
-    dale = []
+    dale_list = []
     for k in k_list:
-        dale.append(fe.DALE(data=data, model=model, model_jac=model_jac))
+        dale_list.append(fe.DALE(data=data, model=model, model_jac=model_jac))
         if method == "fixed-size":
-            dale[-1].fit(method=method, alg_params={"nof_bins": k, "min_points_per_bin": min_points_per_bin})
+            dale_list[-1].fit(method=method, alg_params={"nof_bins": k, "min_points_per_bin": min_points_per_bin})
         elif method == "variable-size":
-            dale[-1].fit(method=method, alg_params={"max_nof_bins": k, "min_points_per_bin": min_points_per_bin})
-        mse.append(compute_mse(dale[-1], gt_func))
-        loss.append(dale[-1].dale_params["feature_0"]["loss"])
-
-    return k_list, mse, loss, dale
+            dale_list[-1].fit(method=method, alg_params={"max_nof_bins": k, "min_points_per_bin": min_points_per_bin})
+    return dale_list
 
 
 def plot_gt_effect(points, y):
     plt.figure()
     plt.title("gt feature effect")
-    plt.plot(points, y, "ro")
+    plt.plot(points, y, "bo--")
     plt.xlabel("points")
     plt.ylabel("feature effect")
     plt.show(block=False)
@@ -96,25 +88,31 @@ def plot_gt_effect(points, y):
 def plot_data_effect(data, data_effect):
     plt.figure()
     plt.title("effect per point")
-    plt.plot(data, data_effect, "ro")
+    plt.plot(data, data_effect, "bo")
     plt.xlabel("points")
     plt.ylabel("data effect")
     plt.show(block=False)
 
 
-def plot_mse(k_list_variable, mse_variable_size, mse_fixed_size):
-    plt.figure()
-    plt.title("MSE vs K")
-    plt.plot(k_list_variable, mse_variable_size, "ro-", label="variable size")
-    plt.plot(k_list_variable, mse_fixed_size[:len(k_list_variable)], "bo-", label="fixed size")
-    plt.legend()
-    plt.show(block=False)
+# def plot_mse(k_list_variable, mse_variable_size, mse_fixed_size):
+#     plt.figure()
+#     plt.title("MSE vs K")
+#     plt.plot(k_list_variable, mse_variable_size, "ro-", label="variable size")
+#     plt.plot(k_list_variable, mse_fixed_size[:len(k_list_variable)], "bo-", label="fixed size")
+#     plt.legend()
+#     plt.show(block=False)
 
 
-def plot_loss(k_list_variable, loss_variable_size, loss_fixed_size):
+def plot_loss(dale_list):
     plt.figure()
-    plt.title("Loss vs K")
-    plt.plot(k_list_variable, loss_variable_size, "ro-", label="variable size")
-    plt.plot(k_list_variable, loss_fixed_size[:len(k_list_variable)], "bo-", label="fixed size")
-    plt.legend()
+    loss = [dale.dale_params["feature_0"]["loss"] for dale in dale_list]
+    nof_bins = [dale.dale_params["feature_0"]["nof_bins"] for dale in dale_list]
+    plt.plot(nof_bins, loss, "ro--")
+    if dale_list[0].dale_params["feature_0"]["method"] == "fixed-size":
+        plt.title("Loss vs number of bins (fixed-size)")
+        plt.xlabel("number of bins")
+    else:
+        plt.title("Loss vs max number of bins (variable-size)")
+        plt.xlabel("maximum number of bins")
+    plt.ylabel("loss")
     plt.show(block=False)

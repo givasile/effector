@@ -36,7 +36,7 @@ def feature_effect_plot(params, eval, feature, title=None, block=False, gt=False
 def feature_effect(ax1, x, y, var, limits, first_empty_bin, gt=None):
     # first subplot
     ax1.set_title("Plot")
-    ax1.plot(x, y, "b-", label="feature effect")
+    ax1.plot(x, y, "b--", label="feature effect")
 
     # first_empty = first_empty_bin
     # if first_empty is not None:
@@ -50,7 +50,7 @@ def feature_effect(ax1, x, y, var, limits, first_empty_bin, gt=None):
 
     if gt is not None:
         y = gt(x)
-        ax1.plot(x, y, "r-", label="ground truth")
+        ax1.plot(x, y, "r--", label="ground truth")
     ax1.legend()
 
 

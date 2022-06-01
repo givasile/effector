@@ -47,9 +47,9 @@ K_max_variable = 30
 seed = 4834545
 np.random.seed(seed)
 
-f1_center = utils.create_f1_center(f_params)
+f1_center = utils.create_model(f_params)
 f1 = utils.create_f1(f_params)
-f1_jac = utils.create_data_effect(f_params, noise_level, seed)
+f1_jac = utils.create_noisy_jacobian(f_params, noise_level, seed)
 x = generate_samples(N=N)
 y = f1_center(x)
 data = x

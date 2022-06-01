@@ -43,12 +43,12 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
 
         # compute dale params
         dale_params = utils.compute_fe_parameters(data[:, feature], data_effect[:, feature], limits, min_points_per_bin)
+        dale_params["method"] = method
     elif method == "variable-size":
         # alg params
         K = alg_params["max_nof_bins"] if "max_nof_bins" in alg_params.keys() else 30
         min_points_per_bin = alg_params["min_points_per_bin"] if "min_points_per_bin" in alg_params.keys() else 10
         bin_estimator = be.BinEstimatorDP(data, data_effect, None, feature, K)
-
 
         # estimate bins
         limits, dx = bin_estimator.solve_dp(min_points_per_bin)
@@ -56,47 +56,8 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
         # compute dale parameters
         dale_params = utils.compute_fe_parameters(data[:, feature], data_effect[:, feature], limits, min_points_per_bin)
         dale_params["bin_estimator"] = bin_estimator
-
+        dale_params["method"] = method
     return dale_params
-
-
-def dale(x: np.ndarray, data: np.ndarray, data_effect: np.ndarray, feature: int, k: int = 100,
-         min_points_per_bin: int = 10, method: str = "fix-size"):
-    """Compute DALE at points x.
-
-    Functional implementation of DALE at a single feature. Computation is
-    made on-the-fly.
-
-    Parameters
-    ----------
-    x: ndarray, shape (N,)
-      The points we want to evaluate the feature effect plot
-    data: ndarray
-      The training-set points, shape: (N,D)
-    data_effect: ndarray
-      The feature effect contribution of the training-set points, shape: (N,)
-    feature: int
-      Index of the feature of interest
-    k: int
-      Number of bins
-
-    Returns
-    -------
-    y: ndarray, shape (N,)
-      Feature effect evaluation at points x.
-    """
-    parameters = compute_dale_parameters(data, data_effect, feature, k, min_points_per_bin, method)
-    y = utils.compute_accumulated_effect(x,
-                                         limits=parameters["limits"],
-                                         bin_effect=parameters["bin_effect"],
-                                         dx=parameters["dx"][0])
-    y -= parameters["z"]
-    var = utils.compute_accumulated_effect(x,
-                                           limits=parameters["limits"],
-                                           bin_effect=parameters["bin_estimator_variance"],
-                                           dx=parameters["dx"][0],
-                                           square=True)
-    return y, var
 
 
 class DALE:

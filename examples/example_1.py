@@ -97,15 +97,15 @@ def generate_samples(N):
 N = 10000
 noise_level = 3.
 K_max_fixed = 50
-K_max_variable = 40
+K_max_var = 40
 min_points_per_bin = 10
 
 # init functions
 seed = 4834545
 np.random.seed(seed)
 
-model = utils.create_f1_center(f_params)
-model_jac = utils.create_data_effect(f_params, noise_level, seed)
+model = utils.create_model(f_params)
+model_jac = utils.create_noisy_jacobian(f_params, noise_level, seed)
 data = generate_samples(N=N)
 y = model(data)
 data_effect = model_jac(data)
@@ -115,9 +115,9 @@ utils.plot_gt_effect(data, y)
 utils.plot_data_effect(data, data_effect)
 
 # compute loss and mse for many different K
-k_list_fixed, mse_fixed, loss_fixed, dale_fixed = utils.count_loss_mse(K_max_fixed, model, data, model, model_jac,
+k_list_fixed, mse_fixed, loss_fixed, dale_fixed = utils.fit_multiple_K(K_max_fixed, model, data, model, model_jac,
                                                                        min_points_per_bin, method="fixed-size")
-k_list_var, mse_var, loss_var, dale_var = utils.count_loss_mse(K_max_var, model, data, model, model_jac,
+k_list_var, mse_var, loss_var, dale_var = utils.fit_multiple_K(K_max_var, model, data, model, model_jac,
                                                                min_points_per_bin, method="variable-size")
 
 # plot
