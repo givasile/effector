@@ -40,8 +40,7 @@ def test_create_bins_3():
     """
     k = 4
     data = np.array([0, 1])
-    limits, dx = utils.create_fix_size_bins(data, k=k)
-    assert dx == .25
+    limits = utils.create_fix_size_bins(data, k=k)
     limits_gt = np.array([0., .25, .5, .75, 1.])
     assert np.array_equal(limits_gt, limits)
 
@@ -143,11 +142,22 @@ def test_fill_nans_3():
 def test_compute_accumulated_effect_1():
     # predict
     x = np.array([-1., -.5, 0., 0.5, 1., 1.5, 2., 2.5, 3.])
-    limits = np.array([0, 1, 2.])
-    bin_effect = np.array([1., 1.])
-    dx = 1.
+    limits = np.array([0, 1.5, 2.])
+    bin_effect = np.array([1., -1.])
+    dx = np.array([1.5, .5])
     predict = utils.compute_accumulated_effect(x, limits, bin_effect, dx)
-    gt = np.array([0., 0., 0., .5, 1., 1.5, 2., 2., 2.])
+    gt = np.array([0., 0., 0., .5, 1., 1.5, 1.0, 1.0, 1.0])
+    assert np.array_equal(predict, gt)
+
+
+def test_compute_accumulated_effect_2():
+    # predict
+    x = np.array([-1., -.5, 0., 0.5, 1., 1.5, 2., 2.5, 3.])
+    limits = np.array([0, 1.5, 2.])
+    bin_effect = np.array([1., 1.])
+    dx = np.array([1.5, .5])
+    predict = utils.compute_accumulated_effect(x, limits, bin_effect, dx)
+    gt = np.array([0., 0., 0., .5, 1., 1.5, 2, 2, 2])
     assert np.array_equal(predict, gt)
 
 
@@ -164,13 +174,26 @@ def test_find_first_nan_bin_2():
 
 
 def test_compute_normalizer_1():
-    x = np.array([0.5, 1.5])
-    limits = np.array([0, 1, 2])
-    bin_effect = np.array([10, 10])
-    dx = 1
+    limits = np.array([0, 1])
+    bin_effect = np.array([10])
+    pred = utils.compute_normalizer(limits, bin_effect)
+    gt = 5
+    assert np.allclose(pred, gt)
 
-    pred = utils.compute_normalizer(x, limits, bin_effect, dx)
-    gt = 10
+
+def test_compute_normalizer_2():
+    limits = np.array([0, 1, 2])
+    bin_effect = np.array([1, 3])
+    pred = utils.compute_normalizer(limits, bin_effect)
+    gt = 1.5
+    assert np.allclose(pred, gt, atol=1e-2)
+
+
+def test_compute_normalizer_3():
+    limits = np.array([0, 1, 2, 3, 4])
+    bin_effect = np.array([1, -1, -1, 1])
+    pred = utils.compute_normalizer(limits, bin_effect)
+    gt = 0.0
     assert np.allclose(pred, gt)
 
 

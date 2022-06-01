@@ -39,7 +39,7 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
         min_points_per_bin = alg_params["min_points_per_bin"] if "min_points_per_bin" in alg_params.keys() else 10
 
         # estimate bins
-        limits, dx = utils.create_fix_size_bins(data[:, feature], K)
+        limits = utils.create_fix_size_bins(data[:, feature], K)
 
         # compute dale params
         dale_params = utils.compute_fe_parameters(data[:, feature], data_effect[:, feature], limits, min_points_per_bin)
@@ -51,7 +51,7 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
         bin_estimator = be.BinEstimatorDP(data, data_effect, None, feature, K)
 
         # estimate bins
-        limits, dx = bin_estimator.solve_dp(min_points_per_bin)
+        limits = bin_estimator.solve_dp(min_points_per_bin)
 
         # compute dale parameters
         dale_params = utils.compute_fe_parameters(data[:, feature], data_effect[:, feature], limits, min_points_per_bin)
@@ -86,12 +86,12 @@ class DALE:
         """
         def dale_function(x):
             y = utils.compute_accumulated_effect(x, limits=params["limits"], bin_effect=params["bin_effect"],
-                                                 dx=params["dx"][0])
+                                                 dx=params["dx"])
             y -= params["z"]
             var = utils.compute_accumulated_effect(x,
                                                    limits=params["limits"],
                                                    bin_effect=params["bin_estimator_variance"],
-                                                   dx=params["dx"][0],
+                                                   dx=params["dx"],
                                                    square=True)
             return y, var
         return dale_function

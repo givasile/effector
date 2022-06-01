@@ -28,7 +28,7 @@ def create_fix_size_bins(data: np.array, k: int) -> typing.Tuple[np.ndarray, flo
     assert z_stop > z_start, "The dataset must contain more than one discrete points."
 
     limits, dx = np.linspace(z_start, z_stop, num=k + 1, endpoint=True, retstep=True)
-    return limits, dx
+    return limits
 
 
 def compute_data_effect(data: np.ndarray, model: typing.Callable,
@@ -248,12 +248,14 @@ def compute_accumulated_effect(x: np.ndarray, limits: np.ndarray, bin_effect: np
     ind = np.digitize(x, limits)
 
     # find for each point, the accumulated full-bin effect
-    x_cumsum = bin_effect.cumsum()
-    tmp = np.concatenate([[0, 0], x_cumsum])
     if square:
-        full_bin_effect = tmp[ind] * dx**2
+        x_cumsum = bin_effect.cumsum() * dx**2
+        tmp = np.concatenate([[0, 0], x_cumsum])
+        full_bin_effect = tmp[ind] # * tmp2[ind] ** 2
     else:
-        full_bin_effect = tmp[ind] * dx
+        x_cumsum = (bin_effect * dx).cumsum()
+        tmp = np.concatenate([[0, 0], x_cumsum])
+        full_bin_effect = tmp[ind] # * tmp2[ind]
 
     # find for each point, the remaining effect
     tmp = np.concatenate([[limits[0]], limits[:-1], [big_m]])
@@ -282,7 +284,7 @@ def find_first_nan_bin(x: np.ndarray):
     return first_empty_bin
 
 
-def compute_normalizer(xs: np.ndarray, limits: np.ndarray, bin_effect: np.ndarray, dx: float):
+def compute_normalizer(limits: np.ndarray, bin_effect: np.ndarray):
     """Compute the feature effect normalizer.
 
     # TODO do it with using the bin values instead of evaluating all points.
@@ -303,8 +305,13 @@ def compute_normalizer(xs: np.ndarray, limits: np.ndarray, bin_effect: np.ndarra
       The normalizer
 
     """
-    y = compute_accumulated_effect(xs, limits, bin_effect, dx)
-    z = np.mean(y)
+    dx = np.array([limits[i + 1] - limits[i] for i in range(len(limits) - 1)])
+    # eff_on_lims = compute_accumulated_effect((limits[:-1]+ limits[1:])/2, limits, bin_effect, dx)
+    # z = np.sum(eff_on_lims[:-1]*(limits[1:] - limits[:-1]) + bin_effect/2 * ((limits[1:] - limits[:-1])**2))
+
+
+    x = np.linspace(limits[0], limits[-1], 10000)
+    z = np.sum(compute_accumulated_effect(x, limits, bin_effect, dx)*.0001)
     return z
 
 
@@ -342,7 +349,7 @@ def compute_fe_parameters(data, data_effect, limits, min_points_per_bin):
     loss = compute_loss(points_per_bin, bin_variance_nans, dx, min_points_per_bin)
 
     # TODO fix compute Z
-    z = compute_normalizer(data, limits, bin_effect, dx[0])
+    z = compute_normalizer(limits, bin_effect)
 
     parameters = {"nof_bins": limits.shape[0] - 1,
                   "limits": limits,

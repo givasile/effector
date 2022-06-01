@@ -4,6 +4,7 @@ This is not feasible in all cases. Piecewise linear regions, under normal circum
 
 import numpy as np
 import examples.example_utils as utils
+import feature_effect as fe
 
 # define piecewise linear function
 def create_model_params():
@@ -36,7 +37,7 @@ def generate_samples(N):
 N = 5000
 noise_level = 3.
 K_max_fixed = 30
-K_max_var = 30
+K_max_var = 20
 min_points_per_bin = 10
 
 # set seed
@@ -57,17 +58,23 @@ data_effect = model_jac(data)
 utils.plot_gt_effect(data, y)
 utils.plot_data_effect(data, data_effect)
 
-# compute loss and mse for many different K
-dale_fixed = utils.fit_multiple_K(data, model, model_jac, K_max_fixed, min_points_per_bin, method="fixed-size")
-dale_variable = utils.fit_multiple_K(data, model, model_jac, K_max_var, min_points_per_bin, method="variable-size")
 
-# plot loss
-utils.plot_loss(dale_fixed)
+dale = fe.DALE(data=data, model=model, model_jac=model_jac)
+dale.fit(method="fixed-size", alg_params={"max_nof_bins": 20})
+dale.plot()
+# # compute loss and mse for many different K
+# dale_fixed = utils.fit_multiple_K(data, model, model_jac, K_max_fixed, min_points_per_bin, method="fixed-size")
+# dale_variable = utils.fit_multiple_K(data, model, model_jac, K_max_var, min_points_per_bin, method="variable-size")
 
-# plot best fixed solution
-best_fixed = np.nanargmin([dale.dale_params["feature_0"]["loss"] for dale in dale_fixed])
-dale_fixed[best_fixed].plot(s=0, gt=model, gt_bins=utils.create_gt_bins(model_params), block=False)
+# dale_variable[-5].plot()
 
-# plot best variable size solution
-best_var = np.nanargmin([dale.dale_params["feature_0"]["loss"] for dale in dale_variable])
-dale_variable[best_var].plot(s=0, gt=model, gt_bins=utils.create_gt_bins(model_params), block=False)
+# # plot loss
+# utils.plot_loss(dale_fixed)
+
+# # plot best fixed solution
+# best_fixed = np.nanargmin([dale.dale_params["feature_0"]["loss"] for dale in dale_fixed])
+# dale_fixed[best_fixed].plot(s=0, gt=model, gt_bins=utils.create_gt_bins(model_params), block=False)
+
+# # plot best variable size solution
+# best_var = np.nanargmin([dale.dale_params["feature_0"]["loss"] for dale in dale_variable])
+# dale_variable[best_var].plot(s=0, gt=model, gt_bins=utils.create_gt_bins(model_params), block=False)

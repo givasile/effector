@@ -123,4 +123,4 @@ class BinEstimatorDP:
             # find indices
             self.limits, self.dx_list = self._argmatrix_to_limits()
 
-        return self.limits, self.dx_list
+        return self.limits
