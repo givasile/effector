@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import feature_effect as fe
 
@@ -179,24 +180,32 @@ class TestExample1:
         y_gt = self.mplot(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
-    # def test_ale(self):
-    #     # generate data
-    #     samples = self.generate_samples(self.n)
-    #
-    #     # prediction
-    #     ale = fe.ALE(data=samples, model=self.f)
-    #     ale.fit(features=[0, 1], k=self.k)
-    #
-    #     # feature 1
-    #     x = np.linspace(0, 1, 1000)
-    #     pred, _ = ale.eval(x, s=0)
-    #     gt = self.ale(x)
-    #     assert np.allclose(pred, gt, atol=1.e-2)
-    #
-    #     # feature 2
-    #     pred, _ = ale.eval(x, s=1)
-    #     gt = self.ale(x)
-    #     assert np.allclose(pred, gt, atol=1.e-2)
+    def test_ale(self):
+        # generate data
+        samples = self.generate_samples(self.n)
+
+        # prediction
+        ale = fe.ALE(data=samples, model=self.f)
+        ale.fit(alg_params={"nof_bins": self.k})
+
+        # feature 1
+        x = np.linspace(0, 1, 1000)
+        pred, _ = ale.eval(x, s=0)
+
+        # plt.figure()
+        # plt.plot(x, pred, "ro-")
+        # plt.plot(x, self.ale(x), "bo-")
+        # plt.show(block=False)
+
+        print(pred)
+
+        gt = self.ale(x)
+        assert np.allclose(pred, gt, atol=1.e-2)
+
+        # feature 2
+        pred, _ = ale.eval(x, s=1)
+        gt = self.ale(x)
+        assert np.allclose(pred, gt, atol=1.e-2)
 
     def test_dale(self):
         # generate data
@@ -336,24 +345,24 @@ class TestExample2:
         z = 0
         return x/3 - z
 
-    # def test_ale(self):
-    #     # generate data
-    #     samples = self.generate_samples(self.n)
-    #
-    #     # prediction
-    #     ale = fe.ALE(data=samples, model=self.f)
-    #     ale.fit(features=[0, 1], k=self.k)
-    #
-    #     # feature 1
-    #     x = np.linspace(0, 1, 1000)
-    #     pred, _ = ale.eval(x, s=0)
-    #     gt = self.ale_1(x)
-    #     assert np.allclose(pred, gt, atol=self.atol)
-    #
-    #     # feature 2
-    #     pred, _ = ale.eval(x, s=1)
-    #     gt = self.ale_2(x)
-    #     assert np.allclose(pred, gt, atol=self.atol)
+    def test_ale(self):
+        # generate data
+        samples = self.generate_samples(self.n)
+
+        # prediction
+        ale = fe.ALE(data=samples, model=self.f)
+        ale.fit(alg_params={"nof_bins": self.k})
+
+        # feature 1
+        x = np.linspace(0, 1, 1000)
+        pred, _ = ale.eval(x, s=0)
+        gt = self.ale_1(x)
+        assert np.allclose(pred, gt, atol=self.atol)
+
+        # feature 2
+        pred, _ = ale.eval(x, s=1)
+        gt = self.ale_2(x)
+        assert np.allclose(pred, gt, atol=self.atol)
 
     def test_dale(self):
         # generate data

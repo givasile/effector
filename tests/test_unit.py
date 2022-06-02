@@ -1,7 +1,6 @@
 import pytest
 import numpy as np
 import feature_effect.utils as utils
-import feature_effect.bin_estimation as be
 
 
 def test_create_bins_1():
@@ -54,14 +53,14 @@ def test_compute_data_effect_1():
     # feature 0
     dx = 1.
     limits = np.array([1., 2.])
-    data_effect = utils.compute_data_effect(data, model, limits, dx, feature=0)
+    data_effect = utils.compute_data_effect(data, model, limits, feature=0)
     data_effect_gt = np.array([1., 1.])
     assert np.allclose(data_effect_gt, data_effect, atol=1.e-5)
 
     # feature 1
     dx = 1.
     limits = np.array([2., 3.])
-    data_effect = utils.compute_data_effect(data, model, limits, dx, feature=1)
+    data_effect = utils.compute_data_effect(data, model, limits, feature=1)
     data_effect_gt = np.array([1., 1.])
     assert np.allclose(data_effect_gt, data_effect, atol=1.e-5)
 
@@ -75,14 +74,14 @@ def test_compute_data_effect_2():
     # feature 0
     dx = 100.
     limits = np.array([0., 100.])
-    data_effect = utils.compute_data_effect(data, model, limits, dx, feature=0)
+    data_effect = utils.compute_data_effect(data, model, limits, feature=0)
     data_effect_gt = np.array([1., 1.])
     assert np.allclose(data_effect_gt, data_effect, atol=1.e-5)
 
     # feature 1
     dx = 100.
     limits = np.array([0., 100.])
-    data_effect = utils.compute_data_effect(data, model, limits, dx, feature=1)
+    data_effect = utils.compute_data_effect(data, model, limits, feature=1)
     data_effect_gt = np.array([1., 1.])
     assert np.allclose(data_effect_gt, data_effect, atol=1.e-5)
 
@@ -176,7 +175,8 @@ def test_find_first_nan_bin_2():
 def test_compute_normalizer_1():
     limits = np.array([0, 1])
     bin_effect = np.array([10])
-    pred = utils.compute_normalizer(limits, bin_effect)
+    x = np.linspace(limits[0], limits[-1], 10000)
+    pred = utils.compute_normalizer(limits, bin_effect, x)
     gt = 5
     assert np.allclose(pred, gt)
 
@@ -184,7 +184,8 @@ def test_compute_normalizer_1():
 def test_compute_normalizer_2():
     limits = np.array([0, 1, 2])
     bin_effect = np.array([1, 3])
-    pred = utils.compute_normalizer(limits, bin_effect)
+    x = np.linspace(limits[0], limits[-1], 10000)
+    pred = utils.compute_normalizer(limits, bin_effect, x)
     gt = 1.5
     assert np.allclose(pred, gt, atol=1e-2)
 
@@ -192,7 +193,8 @@ def test_compute_normalizer_2():
 def test_compute_normalizer_3():
     limits = np.array([0, 1, 2, 3, 4])
     bin_effect = np.array([1, -1, -1, 1])
-    pred = utils.compute_normalizer(limits, bin_effect)
+    x = np.linspace(limits[0], limits[-1], 10000)
+    pred = utils.compute_normalizer(limits, bin_effect, x)
     gt = 0.0
     assert np.allclose(pred, gt)
 

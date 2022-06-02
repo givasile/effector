@@ -4,7 +4,7 @@ import feature_effect.visualization as vis
 import numpy as np
 
 
-def compute_ale_parameters(data: np.ndarray, model: np.ndarray, feature: int, k: int) -> typing.Dict:
+def compute_ale_parameters(data: np.ndarray, model: np.ndarray, feature: int, alg_params: typing.Dict) -> typing.Dict:
     """Compute the ALE parameters for the s-th feature
 
     Performs all actions to compute the parameters that are required for
@@ -21,52 +21,54 @@ def compute_ale_parameters(data: np.ndarray, model: np.ndarray, feature: int, k:
     -------
 
     """
-    # create bins
-    limits, dx = utils.create_fix_size_bins(data[:, feature], k)
+    K = alg_params["nof_bins"] if "nof_bins" in alg_params.keys() else 30
+    min_points_per_bin = alg_params["min_points_per_bin"] if "min_points_per_bin" in alg_params.keys() else 10
+    limits = utils.create_fix_size_bins(data[:, feature], K)
 
     # compute local data effects, based on the bins
-    data_effect = utils.compute_data_effect(data, model, limits, dx, feature)
+    data_effect = utils.compute_data_effect(data, model, limits, feature)
 
     # compute parameters
-    parameters = utils.compute_fe_parameters(data[:, feature], data_effect, limits, dx)
-    return parameters
+    ale_params = utils.compute_fe_parameters(data[:, feature], data_effect, limits, min_points_per_bin)
+    ale_params["method"] = "fixed-size"
+    return ale_params
 
 
-def ale(x: np.ndarray, data: np.ndarray, model: typing.Callable, feature: int, k: int = 100):
-    """Compute ALE at points x.
-
-    Functional implementation of DALE at the s-th feature. Computation is
-    made on-the-fly.
-
-    Parameters
-    ----------
-    x: ndarray, shape (N,)
-      The points to evaluate DALE on
-    data: ndarray, shape (N,D)
-      The training set
-    model: Callable
-    feature: int
-      Index of the feature
-    k: int
-      number of bins
-
-    Returns
-    -------
-
-    """
-    # compute
-    parameters = compute_ale_parameters(data, model, feature, k)
-    y = utils.compute_accumulated_effect(x,
-                                         limits=parameters["limits"],
-                                         bin_effect=parameters["bin_effect"],
-                                         dx=parameters["dx"])
-    y -= parameters["z"]
-    var = utils.compute_accumulated_effect(x,
-                                           limits=parameters["limits"],
-                                           bin_effect=parameters["bin_estimator_variance"],
-                                           dx=parameters["dx"],
-                                           square=True)
-    return y, var
+# def ale(x: np.ndarray, data: np.ndarray, model: typing.Callable, feature: int, k: int = 100):
+#     """Compute ALE at points x.
+#
+#     Functional implementation of DALE at the s-th feature. Computation is
+#     made on-the-fly.
+#
+#     Parameters
+#     ----------
+#     x: ndarray, shape (N,)
+#       The points to evaluate DALE on
+#     data: ndarray, shape (N,D)
+#       The training set
+#     model: Callable
+#     feature: int
+#       Index of the feature
+#     k: int
+#       number of bins
+#
+#     Returns
+#     -------
+#
+#     """
+#     # compute
+#     parameters = compute_ale_parameters(data, model, feature, k)
+#     y = utils.compute_accumulated_effect(x,
+#                                          limits=parameters["limits"],
+#                                          bin_effect=parameters["bin_effect"],
+#                                          dx=parameters["dx"])
+#     y -= parameters["z"]
+#     var = utils.compute_accumulated_effect(x,
+#                                            limits=parameters["limits"],
+#                                            bin_effect=parameters["bin_estimator_variance"],
+#                                            dx=parameters["dx"],
+#                                            square=True)
+#     return y, var
 
 
 class ALE:
@@ -79,7 +81,7 @@ class ALE:
         self.parameters = None
 
     @staticmethod
-    def _ale_func(points, f, s, k):
+    def _ale_func(params):
         """Returns the DALE function on for the s-th feature.
 
         Parameters
@@ -104,40 +106,45 @@ class ALE:
           - z: float, the normalizer
 
         """
-        parameters = compute_ale_parameters(points, f, s, k)
-
         def ale_function(x):
             y = utils.compute_accumulated_effect(x,
-                                                 limits=parameters["limits"],
-                                                 bin_effect=parameters["bin_effect"],
-                                                 dx=parameters["dx"])
-            y -= parameters["z"]
+                                                 limits=params["limits"],
+                                                 bin_effect=params["bin_effect"],
+                                                 dx=params["dx"])
+            y -= params["z"]
             var = utils.compute_accumulated_effect(x,
-                                                   limits=parameters["limits"],
-                                                   bin_effect=parameters["bin_estimator_variance"],
-                                                   dx=parameters["dx"],
+                                                   limits=params["limits"],
+                                                   bin_effect=params["bin_estimator_variance"],
+                                                   dx=params["dx"],
                                                    square=True)
             return y, var
-        return ale_function, parameters
+        return ale_function
 
     def compile(self):
         pass
 
-    def fit(self, features: list, k: int):
-        funcs = {}
-        parameters = {}
-        for s in features:
-            func, param = self._ale_func(self.data, self.model, s, k)
-            funcs["feature_" + str(s)] = func
-            parameters["feature_" + str(s)] = param
+    def fit(self, features: typing.Union[str, list] = "all", alg_params={}):
+        assert features == "all" or type(features) == list
+        if features == "all":
+            features = [i for i in range(self.data.shape[1])]
 
+        # fit and store dale parameters
+        funcs = {}
+        ale_params = {}
+        for s in features:
+            ale_params["feature_" + str(s)] = compute_ale_parameters(self.data,
+                                                                     self.model,
+                                                                     s,
+                                                                     alg_params)
+            funcs["feature_" + str(s)] = self._ale_func(ale_params["feature_" + str(s)])
+
+        # TODO change it to append, instead of overwriting
         self.feature_effect = funcs
-        self.parameters = parameters
+        self.ale_params = ale_params
 
     def eval(self, x: np.ndarray, s: int):
-        func = self.feature_effect["feature_" + str(s)]
-        return func(x)
+        return self.feature_effect["feature_" + str(s)](x)
 
-    def plot(self, s: int, block=False, gt=None):
+    def plot(self, s: int, block=False, gt=None, gt_bins=None):
         title = "ALE: Effect of feature %d" % (s + 1)
-        vis.feature_effect_plot(self.parameters["feature_" + str(s)], self.eval, s, title=title, block=block, gt=gt)
+        vis.feature_effect_plot(self.ale_params["feature_" + str(s)], self.eval, s, title=title, block=block, gt=gt, gt_bins=gt_bins)

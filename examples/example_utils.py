@@ -79,7 +79,7 @@ def fit_multiple_K(data, model, model_jac, K_max, min_points_per_bin, method):
 def plot_gt_effect(points, y):
     plt.figure()
     plt.title("gt feature effect")
-    plt.plot(points, y, "bo--")
+    plt.plot(points, y, "b--")
     plt.xlabel("points")
     plt.ylabel("feature effect")
     plt.show(block=False)

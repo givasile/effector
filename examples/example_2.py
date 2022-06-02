@@ -5,6 +5,7 @@ This is not feasible in all cases. Piecewise linear regions, under normal circum
 import numpy as np
 import examples.example_utils as utils
 import feature_effect as fe
+import matplotlib.pyplot as plt
 
 # define piecewise linear function
 def create_model_params():
@@ -50,7 +51,7 @@ model = utils.create_model(model_params)
 model_jac = utils.create_noisy_jacobian(model_params, noise_level, seed)
 
 # generate data and data effect
-data = generate_samples(N=N)
+data = np.sort(generate_samples(N=N), axis=0)
 y = model(data)
 data_effect = model_jac(data)
 
@@ -59,9 +60,20 @@ utils.plot_gt_effect(data, y)
 utils.plot_data_effect(data, data_effect)
 
 
-dale = fe.DALE(data=data, model=model, model_jac=model_jac)
-dale.fit(method="fixed-size", alg_params={"max_nof_bins": 20})
-dale.plot()
+# dale = fe.DALE(data=data, model=model, model_jac=model_jac)
+# dale.fit(method="variable-size", alg_params={"max_nof_bins": 80})
+# dale.plot(gt=model)
+
+# dale1 = fe.DALE(data=data, model=model, model_jac=model_jac)
+# dale1.fit(method="fixed-size", alg_params={"nof_bins": 1600})
+# dale1.plot(gt=model)
+
+
+
+ale1 = fe.ALE(data=data, model=model)
+ale1.fit(alg_params={"nof_bins": 50})
+ale1.plot(s=0)
+
 # # compute loss and mse for many different K
 # dale_fixed = utils.fit_multiple_K(data, model, model_jac, K_max_fixed, min_points_per_bin, method="fixed-size")
 # dale_variable = utils.fit_multiple_K(data, model, model_jac, K_max_var, min_points_per_bin, method="variable-size")
