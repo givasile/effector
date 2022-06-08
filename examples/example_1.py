@@ -60,17 +60,11 @@ For Variable-size bins:
 
 """
 import numpy as np
+import feature_effect as fe
 import examples.example_utils as utils
+import matplotlib.pyplot as plt
 
-# define piecewise linear function
-def f_params():
-    def find_a(params, x_start):
-        params[0]["a"] = x_start
-        for i, param in enumerate(params):
-            if i < len(params) - 1:
-                a_next = param["a"] + (param["to"] - param["from"]) * param["b"]
-                params[i + 1]["a"] = a_next
-
+def gen_model_params():
     params = [{"b":0.3, "from": 0., "to": 10.},
               {"b":7., "from": 10, "to": 20},
               {"b":-1.5, "from": 20, "to": 30},
@@ -82,7 +76,7 @@ def f_params():
               {"b":0., "from": 80, "to": 90},
               {"b":-5., "from": 90, "to": 100}]
     x_start = -1
-    find_a(params, x_start)
+    utils.find_a(params, x_start)
     return params
 
 
@@ -95,45 +89,62 @@ def generate_samples(N):
 
 # parameters
 N = 10000
-noise_level = 3.
-K_max_fixed = 50
+noise_level = 4.
+K_max_fixed = 40
 K_max_var = 40
-min_points_per_bin = 10
+min_points_per_bin = 20
 
 # init functions
 seed = 4834545
 np.random.seed(seed)
 
-model = utils.create_model(f_params)
-model_jac = utils.create_noisy_jacobian(f_params, noise_level, seed)
-data = generate_samples(N=N)
+# define functions
+model_params = gen_model_params()
+model_jac = utils.create_noisy_jacobian(model_params, noise_level, seed)
+
+# generate data and data effect
+data = np.sort(generate_samples(N=N), axis=0)
+model = utils.create_model(model_params, data)
 y = model(data)
 data_effect = model_jac(data)
 
+# check bin creation
+bin_est = fe.bin_estimation.BinEstimatorDP(data, data_effect, feature=0, K=74)
+limits = bin_est.solve_dp(min_points=min_points_per_bin)
+clusters = np.squeeze(np.digitize(data, limits))
+
+plt.figure()
+plt.title("Dynamic programming")
+plt.plot(data, data_effect, "bo")
+plt.vlines(limits, ymin=np.min(data_effect), ymax=np.max(data_effect))
+plt.show(block=False)
+
 # plot data effects and gt effect
 utils.plot_gt_effect(data, y)
-utils.plot_data_effect(data, data_effect)
+
+dale = fe.DALE(data, model, model_jac)
+dale.fit(method="variable-size", alg_params={"min_points_per_bin": 10,
+                                             "max_nof_bins": 50})
+dale.plot()
 
 # compute loss and mse for many different K
-k_list_fixed, mse_fixed, loss_fixed, dale_fixed = utils.fit_multiple_K(K_max_fixed, model, data, model, model_jac,
-                                                                       min_points_per_bin, method="fixed-size")
-k_list_var, mse_var, loss_var, dale_var = utils.fit_multiple_K(K_max_var, model, data, model, model_jac,
-                                                               min_points_per_bin, method="variable-size")
+dale_fixed = utils.fit_multiple_K(data, model, model_jac, K_max_fixed, min_points_per_bin, method="fixed-size")
+dale_variable = utils.fit_multiple_K(data, model, model_jac, K_max_var, min_points_per_bin, method="variable-size")
 
-# plot
-utils.plot_mse(k_list_var, mse_var, mse_fixed)
-utils.plot_loss(k_list_var, loss_var, loss_fixed)
+# plot loss
+utils.plot_loss(dale_variable)
+utils.plot_loss(dale_fixed)
 
+utils.plot_combined_loss(dale_fixed, dale_variable)
+
+# plot mae
+utils.plot_mse(dale_fixed, model)
+utils.plot_mse(dale_variable, model)
+utils.plot_combined_mse(dale_fixed, dale_variable, model)
 # plot best fixed solution
-best_fixed = np.nanargmin(loss_fixed)
-dale_fixed[best_fixed].plot(s=0,
-                            gt=model,
-                            gt_bins=utils.create_gt_bins(f_params),
-                            block=False)
+best_fixed = np.nanargmin([dale.dale_params["feature_0"]["loss"] for dale in dale_fixed])
+dale_fixed[best_fixed].plot(s=0, gt=model, gt_bins=utils.create_gt_bins(model_params), block=False)
 
 # plot best variable size solution
-best_var = np.nanargmin(loss_var)
-dale_var[best_var].plot(s=0,
-                        gt=model,
-                        gt_bins=utils.create_gt_bins(f_params),
-                        block=False)
+best_var = np.nanargmin([dale.dale_params["feature_0"]["loss"] for dale in dale_variable])
+dale_variable[best_var].plot(s=0, gt=model, gt_bins=utils.create_gt_bins(model_params), block=False)

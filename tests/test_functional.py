@@ -217,12 +217,12 @@ class TestExample1:
 
         # feature 1
         x = np.linspace(0, 1, 1000)
-        pred, _ = dale.eval(x, s=0)
+        pred, _, _ = dale.eval(x, s=0)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
         # feature 2
-        pred, _ = dale.eval(x, s=1)
+        pred, _, _ = dale.eval(x, s=1)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
@@ -374,11 +374,11 @@ class TestExample2:
 
         # feature 1
         x = np.linspace(0, 1, 1000)
-        pred, _ = dale.eval(x, s=0)
+        pred, _, _ = dale.eval(x, s=0)
         gt = self.ale_1(x)
         assert np.allclose(pred, gt, atol=self.atol)
 
         # feature 2
-        pred, _ = dale.eval(x, s=1)
+        pred, _, _ = dale.eval(x, s=1)
         gt = self.ale_2(x)
         assert np.allclose(pred, gt, atol=self.atol)

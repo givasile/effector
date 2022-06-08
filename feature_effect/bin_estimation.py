@@ -3,16 +3,16 @@ import feature_effect.utils as utils
 
 
 class BinEstimatorDP:
-    def __init__(self, data, data_effect, model, feature, K):
+    def __init__(self, data, data_effect, feature, K):
         self.x_min = np.min(data[:, feature])
         self.x_max = np.max(data[:, feature])
         self.K = K
         self.dx = (self.x_max - self.x_min) / K
         self.big_M = 1.e+10
         self.data = data
+        self.nof_points = data.shape[0]
         self.data_effect = data_effect
         self.feature = feature
-        self.model = model
 
         self.limits = None
         self.dx_list = None
@@ -32,7 +32,9 @@ class BinEstimatorDP:
         if data_effect.size < min_points:
             cost = big_cost
         else:
-            cost = np.std(data_effect) * (stop-start) / np.sqrt(data_effect.size)
+            # cost = np.std(data_effect) * (stop-start) / np.sqrt(data_effect.size)
+            discount_for_more_points = (1 - .3*(data_effect.size / self.nof_points))
+            cost = np.var(data_effect) * (stop-start) * discount_for_more_points
         return cost
 
     def _index_to_position(self, index_start, index_stop):

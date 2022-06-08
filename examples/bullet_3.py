@@ -43,15 +43,18 @@ def generate_samples(N):
                                        x2,
                                        np.array([41.0, 44., 50., 53, 57]),
                                        x3,
+                                       np.array([87, 92]),
                                        np.array([100-eps]))), axis=-1)
     return x
+
+example_dir = "./examples/bullet_3/"
 
 # experiment parameters
 N = 500
 noise_level = 4.
 K_max_fixed = 40
 K_max_var = 40
-min_points_per_bin = 20
+min_points_per_bin = 10
 
 # set seed
 seed = 4854894
@@ -67,49 +70,60 @@ model = utils.create_model(model_params, data)
 y = model(data)
 data_effect = model_jac(data)
 
-
 # check bin creation
-bin_est = fe.bin_estimation.BinEstimatorDP(data, data_effect, feature=0, K=45)
+bin_est = fe.BinEstimatorDP(data, data_effect, feature=0, K=45)
 limits = bin_est.solve_dp(min_points=min_points_per_bin)
 clusters = np.squeeze(np.digitize(data, limits))
 
 plt.figure()
-plt.title("Dynamic programming")
+plt.title("Local effect")
 plt.plot(data, data_effect, "bo")
-plt.vlines(limits, ymin=np.min(data_effect), ymax=np.max(data_effect))
+# plt.vlines(limits, ymin=np.min(data_effect), ymax=np.max(data_effect))
+plt.savefig(example_dir + "im_2.png")
 plt.show(block=False)
 
 # plot data effects and gt effect
-utils.plot_gt_effect(data, y)
-
-
-dale0 = fe.DALE(data, model, model_jac)
-dale0.fit(method="fixed-size", alg_params={"nof_bins": 301, "min_points_per_bin": min_points_per_bin})
-dale0.plot(gt=model)
-
-
-dale1 = fe.DALE(data, model, model_jac)
-dale1.fit(method="variable-size", alg_params={"max_nof_bins": 40, "min_points_per_bin": min_points_per_bin})
-dale1.plot(gt=model)
+utils.plot_gt_effect(data, y, savefig=example_dir + "im_1.png")
 
 # compute loss and mse for many different K
 dale_fixed = utils.fit_multiple_K(data, model, model_jac, K_max_fixed, min_points_per_bin, method="fixed-size")
+utils.plot_loss(dale_fixed, savefig=example_dir + "im_3.png")
+
+dale0 = fe.DALE(data, model, model_jac)
+dale0.fit(method="fixed-size", alg_params={"nof_bins": 4, "min_points_per_bin": min_points_per_bin})
+dale0.plot(gt=model, savefig=example_dir + "im_4.png")
+
+# check bin creation
+bin_est = fe.bin_estimation.BinEstimatorDP(data, data_effect, feature=0, K=40)
+limits = bin_est.solve_dp(min_points=min_points_per_bin)
+clusters = np.squeeze(np.digitize(data, limits))
+
+plt.figure()
+plt.title("Local effect")
+plt.plot(data, data_effect, "bo")
+plt.vlines(limits, ymin=np.min(data_effect), ymax=np.max(data_effect))
+plt.savefig(example_dir + "im_5.png")
+plt.show(block=False)
+
+
 dale_variable = utils.fit_multiple_K(data, model, model_jac, K_max_var, min_points_per_bin, method="variable-size")
+utils.plot_loss(dale_variable, savefig=example_dir + "im_6.png")
+
+dale1 = fe.DALE(data, model, model_jac)
+dale1.fit(method="variable-size", alg_params={"max_nof_bins": 10, "min_points_per_bin": min_points_per_bin})
+dale1.plot(gt=model, savefig=example_dir + "im_7.png")
 
 # plot loss
-utils.plot_loss(dale_variable)
-utils.plot_loss(dale_fixed)
-
-utils.plot_combined_loss(dale_fixed, dale_variable)
-
-# plot mae
-utils.plot_mse(dale_fixed, model)
-utils.plot_mse(dale_variable, model)
-utils.plot_combined_mse(dale_fixed, dale_variable, model)
-# plot best fixed solution
-best_fixed = np.nanargmin([dale.dale_params["feature_0"]["loss"] for dale in dale_fixed])
-dale_fixed[best_fixed].plot(s=0, gt=model, gt_bins=utils.create_gt_bins(model_params), block=False)
-
-# plot best variable size solution
-best_var = np.nanargmin([dale.dale_params["feature_0"]["loss"] for dale in dale_variable])
-dale_variable[best_var].plot(s=0, gt=model, gt_bins=utils.create_gt_bins(model_params), block=False)
+# utils.plot_combined_loss(dale_fixed, dale_variable)
+#
+# # plot mae
+# utils.plot_mse(dale_fixed, model)
+# utils.plot_mse(dale_variable, model)
+# utils.plot_combined_mse(dale_fixed, dale_variable, model)
+# # plot best fixed solution
+# best_fixed = np.nanargmin([dale.dale_params["feature_0"]["loss"] for dale in dale_fixed])
+# dale_fixed[best_fixed].plot(s=0, gt=model, gt_bins=utils.create_gt_bins(model_params), block=False)
+#
+# # plot best variable size solution
+# best_var = np.nanargmin([dale.dale_params["feature_0"]["loss"] for dale in dale_variable])
+# dale_variable[best_var].plot(s=0, gt=model, gt_bins=utils.create_gt_bins(model_params), block=False)

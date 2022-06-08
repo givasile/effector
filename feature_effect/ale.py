@@ -31,45 +31,8 @@ def compute_ale_parameters(data: np.ndarray, model: np.ndarray, feature: int, al
     # compute parameters
     ale_params = utils.compute_fe_parameters(data[:, feature], data_effect, limits, min_points_per_bin)
     ale_params["method"] = "fixed-size"
+    ale_params["min_points_per_bin"] = min_points_per_bin
     return ale_params
-
-
-# def ale(x: np.ndarray, data: np.ndarray, model: typing.Callable, feature: int, k: int = 100):
-#     """Compute ALE at points x.
-#
-#     Functional implementation of DALE at the s-th feature. Computation is
-#     made on-the-fly.
-#
-#     Parameters
-#     ----------
-#     x: ndarray, shape (N,)
-#       The points to evaluate DALE on
-#     data: ndarray, shape (N,D)
-#       The training set
-#     model: Callable
-#     feature: int
-#       Index of the feature
-#     k: int
-#       number of bins
-#
-#     Returns
-#     -------
-#
-#     """
-#     # compute
-#     parameters = compute_ale_parameters(data, model, feature, k)
-#     y = utils.compute_accumulated_effect(x,
-#                                          limits=parameters["limits"],
-#                                          bin_effect=parameters["bin_effect"],
-#                                          dx=parameters["dx"])
-#     y -= parameters["z"]
-#     var = utils.compute_accumulated_effect(x,
-#                                            limits=parameters["limits"],
-#                                            bin_effect=parameters["bin_estimator_variance"],
-#                                            dx=parameters["dx"],
-#                                            square=True)
-#     return y, var
-
 
 class ALE:
     def __init__(self, data: np.ndarray, model: typing.Callable):
@@ -78,7 +41,7 @@ class ALE:
 
         self.data_effect = None
         self.feature_effect = None
-        self.parameters = None
+        self.ale_params = None
 
     @staticmethod
     def _ale_func(params):
@@ -145,6 +108,15 @@ class ALE:
     def eval(self, x: np.ndarray, s: int):
         return self.feature_effect["feature_" + str(s)](x)
 
-    def plot(self, s: int, block=False, gt=None, gt_bins=None):
+    def plot(self, s: int = 0, std: bool = True, block=False, gt=None, gt_bins=None):
         title = "ALE: Effect of feature %d" % (s + 1)
-        vis.feature_effect_plot(self.ale_params["feature_" + str(s)], self.eval, s, title=title, block=block, gt=gt, gt_bins=gt_bins)
+        vis.feature_effect_plot(self.ale_params["feature_" + str(s)],
+                                self.eval,
+                                s,
+                                std=std,
+                                min_points_per_bin=self.ale_params["min_points_per_bin"],
+                                title=title,
+                                block=block,
+                                gt=gt,
+                                gt_bins=gt_bins,
+                                savefig=savefig)

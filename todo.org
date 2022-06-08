@@ -1,0 +1,1 @@
+* change the color of the bin, when it has less points than a predefined threshold
