@@ -99,7 +99,7 @@ dale2.fit(method="variable-size", alg_params={"max_nof_bins": 50})
 dale2.plot(gt=gt_effect_norm, savefig=example_dir + "im_4.png")
 
 
-limits = np.concatenate((np.linspace(0, 2.65, 99), np.array([5.01])))
-dale3 = fe.DALE(data, model, model_jac)
-dale3.fit(features=[0], method="variable-size", alg_params={"limits": limits})
-dale3.plot(gt=gt_effect_norm)
+# limits = np.concatenate((np.linspace(0, 2.65, 99), np.array([5.01])))
+# dale3 = fe.DALE(data, model, model_jac)
+# dale3.fit(features=[0], method="variable-size", alg_params={"limits": limits})
+# dale3.plot(gt=gt_effect_norm)

@@ -1,0 +1,15 @@
+\BOOKMARK [1][-]{section.0.1}{Introduction}{}% 1
+\BOOKMARK [1][-]{section.0.2}{Related Work}{}% 2
+\BOOKMARK [1][-]{section.0.3}{Probabilistic ALE plots}{}% 3
+\BOOKMARK [2][-]{subsection.0.3.1}{The ALE method}{section.0.3}% 4
+\BOOKMARK [2][-]{subsection.0.3.2}{ALE plots with uncertainty quantification}{section.0.3}% 5
+\BOOKMARK [2][-]{subsection.0.3.3}{Unsupervised metric for assessing the quality of ALE plots}{section.0.3}% 6
+\BOOKMARK [2][-]{subsection.0.3.4}{ALE plots with variable-size bins}{section.0.3}% 7
+\BOOKMARK [2][-]{subsection.0.3.5}{Variable-size bins as an optimization problem}{section.0.3}% 8
+\BOOKMARK [1][-]{section.0.4}{Experiments}{}% 9
+\BOOKMARK [2][-]{subsection.0.4.1}{Synthetic Data sets}{section.0.4}% 10
+\BOOKMARK [2][-]{subsection.0.4.2}{Real Data sets}{section.0.4}% 11
+\BOOKMARK [1][-]{section.0.5}{Conclusion}{}% 12
+\BOOKMARK [2][-]{subsection.0.5.1}{Subsection Title}{section.0.5}% 13
+\BOOKMARK [1][-]{section.0.A}{Derivations}{}% 14
+\BOOKMARK [1][-]{section.0.B}{Second Appendix}{}% 15

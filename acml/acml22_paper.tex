@@ -1,0 +1,285 @@
+%\documentclass[wcp,gray]{jmlr} % test grayscale version
+\documentclass[wcp]{jmlr}
+
+
+% givasile packages
+\usepackage{bbm}
+\usepackage{xfrac}
+
+% givasile commands
+\newcommand{\xc}{\mathbf{x}_c}
+\newcommand{\Xc}{\mathbf{X}_c}
+\newcommand{\X}{\mathbf{X}}
+\newcommand{\Ysloc}{Y_{s}^{\text{local}}}
+\newcommand{\ysloc}{y_{s}^{\text{local}}}
+\newcommand{\x}{\mathbf{x}}
+\newcommand{\xii}{\mathbf{x}^{(i)}}
+\newcommand{\yi}{y^{(i)}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\var}{\mathrm{Var}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\1}{\mathbbm{1}}
+\newcommand{\D}{\mathcal{D}}
+
+% The following packages will be automatically loaded:
+% amsmath, amssymb, natbib, graphicx, url, algorithm2e
+
+%\usepackage{rotating}% for sideways figures and tables
+\usepackage{longtable}% for long tables
+
+% The booktabs package is used by this sample document
+% (it provides \toprule, \midrule and \bottomrule).
+% Remove the next line if you don't require it.
+\usepackage{booktabs}
+% The siunitx package is used by this sample document
+% to align numbers in a column by their decimal point.
+% Remove the next line if you don't require it.
+%\usepackage[load-configurations=version-1]{siunitx} % newer version
+%\usepackage{siunitx}
+%\usepackage{natbib}
+
+% Do not comment the following commands:
+\pagenumbering{gobble}
+\newcommand{\cs}[1]{\texttt{\char`\\#1}}
+\makeatletter
+\let\Ginclude@graphics\@org@Ginclude@graphics 
+\makeatother
+
+\jmlrvolume{}
+\jmlryear{2022}
+\jmlrworkshop{ACML 2022}
+
+\title[Short Title]{Full Title of Article}
+
+ % Use \Name{Author Name} to specify the name.
+ % If the surname contains spaces, enclose the surname
+ % in braces, e.g. \Name{John {Smith Jones}} similarly
+ % if the name has a "von" part, e.g \Name{Jane {de Winter}}.
+ % If the first letter in the forenames is a diacritic
+ % enclose the diacritic in braces, e.g. \Name{{\'E}louise Smith}
+
+ % Two authors with the same address
+ % \author{\Name{Author Name1} \Email{abc@sample.com}\and
+ %  \Name{Author Name2} \Email{xyz@sample.com}\\
+ %  \addr Address}
+
+ % Three or more authors with the same address:
+ % \author{\Name{Author Name1} \Email{an1@sample.com}\\
+ %  \Name{Author Name2} \Email{an2@sample.com}\\
+ %  \Name{Author Name3} \Email{an3@sample.com}\\
+ %  \Name{Author Name4} \Email{an4@sample.com}\\
+ %  \Name{Author Name5} \Email{an5@sample.com}\\
+ %  \Name{Author Name6} \Email{an6@sample.com}\\
+ %  \Name{Author Name7} \Email{an7@sample.com}\\
+ %  \Name{Author Name8} \Email{an8@sample.com}\\
+ %  \Name{Author Name9} \Email{an9@sample.com}\\
+ %  \Name{Author Name10} \Email{an10@sample.com}\\
+ %  \Name{Author Name11} \Email{an11@sample.com}\\
+ %  \Name{Author Name12} \Email{an12@sample.com}\\
+ %  \Name{Author Name13} \Email{an13@sample.com}\\
+ %  \Name{Author Name14} \Email{an14@sample.com}\\
+ %  \addr Address}
+
+
+ % Authors with different addresses:
+  \author{\Name{Author Name1} \Email{abc@sample.com}\\
+  \addr Address 1
+  \AND
+  \Name{Author Name2} \Email{xyz@sample.com}\\
+  \addr Address 2
+ }
+
+\editors{Emtiyaz Khan and Mehmet Gonen}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This is the abstract for this article.
+\end{abstract}
+\begin{keywords}
+List of keywords separated by semicolon.
+\end{keywords}
+
+\section{Introduction}
+Main contents here.
+
+\section{Related Work}
+
+
+
+\section{Probabilistic ALE plots}
+
+\subsection{The ALE method}\label{sec:ALE}
+
+In this section, we introduce the reader to the feature effect method
+ALE. Given that \(f: \R^S \rightarrow \R \) is known, we can measure
+the \textit{local} effect of the \(s\)-th feature at a specific point
+\( \x = (\xc, x_s)\) of the input space \(\mathcal{X}\), as
+\(f_s(\x) = \sfrac{\partial f(\x)}{\partial x_s}\). ALE models the
+\textit{local} feature effect at \(x_s\) as an expectation over the
+distribution of the unkown (latent) features
+\(\E_{p(\Xc;x_s)}[f_s(x_s, \xc)]\). Afterwards, ALE measures the
+\textit{global} effect at \(x_s\) as an accumulation of the expected
+\textit{local} effects:
+%
+\begin{equation}
+  \label{eq:ale-definition}
+  f_{\mathtt{ALE}}(x_s) =
+  \int_{x_{s, \text{min}}}^{x_s} \E_{p(\Xc;x_s=z)}[f_s(x_s, \xc)] \partial z
+\end{equation}
+
+In real cases, it is infeasible to compute
+eq.~\eqref{eq:ale-definition} analytically. Therefore, we reside on
+estimating the effect from the training set. Let's denote the
+available dataset as \(\D = \{\xii, \yi \}_{i=1}^N\), where \( \xii \)
+is the \(i\)-th feature vector of the training data and \(\yi\) is the
+\(i\)-th label. Apley et. al proposed spliting the axis into \( K \)
+equal-sized bins, find the set of points that lie in each bin, i.e.
+\( \mathcal{S}_k = \{ \xii : x_s^{(i)} \in [z_{k-1}, z_k) \} \) and,
+finally, find the local effect at each bin as the mean value of the
+population, i.e.
+\(\hat{\mu}_{s,k} = \frac{1}{|\mathcal{S}_k|} \sum_{i:\xii \in
+  \mathcal{S}_k} [f_s(\xii)]\). The global effect at \(x_s\) is then
+estimated through:
+%
+\begin{equation}
+  \label{eq:ale-approximation}
+  \hat{f}_{\mathtt{ALE}}^s(x)
+  = \Delta x \sum_{k=1}^{k_{x_s}} \hat{\mu}_{s,k}
+  = \Delta x \sum_{k=1}^{k_{x_s}} \frac{1}{|\mathcal{S}_k|} \sum_{i:\xii \in \mathcal{S}_k} [f_s(\xii)]
+\end{equation}
+%
+where \(\Delta x\) is the bin size and \(k_{x_s}\) the bin-index of the value \(x_s\).
+%
+%
+\subsection{ALE plots with uncertainty quantification}
+
+ALE directly defines the local effect as an expectation over the
+unknown features and the global effect as integral over the
+expectations. Therefore, both local and global effects are modeled as
+simple variables. In constrast, for integrating ALE plots in a
+probabilistic framework, we model the local effect as a random
+variable, dependent on the random variable \(\Xc\) representing the
+latent features:
+
+\begin{equation}
+    \Ysloc \sim p(\ysloc ; x_s)
+    = \int_{\xc} \delta(\ysloc-f_s(\x)) p(\xc;x_s) \partial \xc
+    \label{eq:local-effect-rv}
+\end{equation}
+%
+Following the core idea of ALE, we define the global feature effect as
+the random variable \(Y_s\) which is the integration of the local
+effects:
+
+\begin{equation}
+  Y_s \sim p(y_s ; x_s) = \int_{x_{s,min}}^{x_s} p(\ysloc;x_s=z) \partial z
+  \label{eq:global-effect-rv}
+\end{equation}
+%
+Through eqs.~(\ref{eq:local-effect-rv}), (\ref{eq:global-effect-rv})
+we formulate the ALE in a fully probabilistic manner. We notice, that
+the definition of ALE as given by~\cite{Apley2020} is simply the
+expected value of \(Y_s\), i.e.
+\(f_{\mathtt{ALE}}(x_s) = \E[Y_s ; x_s]\). For simpler notation we
+denote \(\E[Y_s ; x_s]\) as \(\mu_s (x_s)\).
+
+For measuring the uncertainty, it is also important to capture the
+variance of the global effect. Notating the variance of the feature
+effect \(\var[Y_s ; x_s]\) as \(\sigma_s^2\), we can compute it
+through:
+
+\begin{equation}
+  \sigma_s^2 (x_s)
+  = \int_{x_{s,min}}^{x_s} \int_{\xc} p(\xc|x_s) (f_s(\x) - \mu_s(x_s))^2 \partial \xc (\partial z)^2
+\end{equation}
+
+As before, it is infeasible to compute the the variance
+\(\sigma_s^2(x_s)\) in closed-form. Therefore, we reside on estimating
+them from the available examples of the training set. The estimation
+of the variance can also done through the available points:
+
+\begin{equation}
+  \label{eq:effect-var-approx}
+  \hat{\sigma}_s^2(x_s)
+  = (\Delta x)^2 \sum_{k=1}^{k_{x_s}} \hat{\sigma}_{s,k}^2
+  = (\Delta x)^2 \sum_{k=1}^{k_{x_s}} \frac{1}{|\mathcal{S}_k|} \sum_{i:\xii \in \mathcal{S}_k} (f_s(\xii) - \hat{\mu}_{s,k})^2 
+\end{equation}
+
+\subsection{Unsupervised metric for assessing the quality of ALE plots}
+
+\subsection{ALE plots with variable-size bins}
+
+\subsection{Variable-size bins as an optimization problem}
+
+\section{Experiments}
+
+\subsection{Synthetic Data sets}
+
+A figure in Fig.~\ref{fig:spiral}. Please use high quality graphics
+for your camera-ready submission -- if you can use a vector graphics
+format such as \texttt{.eps} or \texttt{.pdf}.
+\begin{figure}[htp]
+\begin{center}
+\includegraphics[width=0.5\textwidth]{spiral.eps}
+\caption{A spiral.}\label{fig:spiral}
+\end{center}
+\end{figure}
+
+An example of citation~\cite{DBLP:conf/acml/2009}.
+
+\subsection{Real Data sets}
+
+\section{Conclusion}
+
+\subsection{Subsection Title}
+
+
+
+%\acks{Acknowledgements should go at the end, before appendices and references. You can uncomment this for the camera-ready version on paper acceptance.}
+
+%\bibliographystyle{plain}
+\bibliography{acml22}
+
+\appendix
+
+\section{Derivations}\label{apd:first}
+
+Derivations
+
+\begin{multline}
+    \Ysloc \sim p(\ysloc ; x_s)
+    = \int{} p(\ysloc|\xc;x_s) p(\xc;x_s) \partial \xc \\
+    = \int_{\xc} \delta(\ysloc-f_s(\x)) p(\xc;x_s) \partial \xc
+    = \int_{\xc} \1(\ysloc=f_s(\x)) p(\xc;x_s) \partial \xc
+\end{multline}
+
+Some statistics for the local feature effect:
+
+\begin{equation}
+  \E[ \Ysloc ; x_s] = \int_{\xc} p(\xc|x_s) f_s(\x) \partial \xc
+\end{equation}
+
+\begin{equation}
+  \var[ \Ysloc ; x_s] = \int_{\xc} p(\xc|x_s) (f_s(\x) - \E[ \Ysloc ; x_s])^2 \partial \xc
+\end{equation}
+
+Some statistics for the global feature effect:
+
+\begin{equation}
+  \E[Y_s ; x_s] = \int_{x_{s,min}}^{x_s} \E(\ysloc;z) \partial z
+\end{equation}
+
+\begin{equation}
+  \var[Y_s ; x_s] = \int_{x_{s,min}}^{x_s} \var[ \Ysloc ; x_s] (\partial z)^2
+\end{equation}
+
+
+\section{Second Appendix}\label{apd:second}
+
+This is the second appendix.
+
+
+\end{document}

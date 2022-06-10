@@ -18,13 +18,14 @@
 
 \section{Intro}
 
-ALE plots are the best feature effect technique, because
-blablabla. However, they have three drawbacks; Firstly, the do not
-provide a measure of uncertainty about the effect they calculate (in
-other words ). Secondly, they sometimes calculate different depending
-on the number of bins (and we do not have a measure to choose which
-one is closer to reality). Finally, for making accurate ALE plots, we
-sometimes need to use variable-size bins.
+ALE plots are the best feature effect (FE) technique, because ...
+However, they have three drawbacks; Firstly, they do not provide
+uncertainty about the measured effect, i.e.\ how confident to be that
+the provided effect is the correct one. Secondly, in many cases, the
+provide different effect depending on the number of bins (and we do
+not have a measure to choose which one is closer to reality). Finally,
+there are cases where it is impossible to create accurate ALE plots,
+with fixed-size bins.
 
 
 \section{Can we trust the ALE plot?}
@@ -38,10 +39,10 @@ hyperparameters:
 \item \(\texttt{min\_points\_per\_bin}\)
 \end{itemize}
 %
-which have `1-1' relation:
+There is `1-1' relation between these hyperparameters:
 
 \begin{equation*}
- dx \Leftrightarrow K \Leftrightarrow \texttt{min\_points\_per\_bin}
+ dx \leftrightarrow K \leftrightarrow \texttt{min\_points\_per\_bin}
 \end{equation*}
 %
 Therefore, we refer to them interchangeably.
@@ -49,10 +50,8 @@ Therefore, we refer to them interchangeably.
 
 \subsubsection*{Statement}
 
-Altering the number of bins \( (K) \), leads to different ALE
-plots. Depending on \(K\), we receive quite different ALE without any
-indicator which one is the correct. In other words, we need a metric
-to evaluate each plot.
+Altering the number of bins \( (K) \) leads to different ALE plots and
+we do not have any indicator which plot is closest to the truth.
 
 \subsubsection*{Example}
 
@@ -318,5 +317,105 @@ which is almost perfect.
 \subsubsection*{Conclusion}
 
 \section{Variable-size bins in case of non-linear feautre effects}
+
+\subsubsection*{Statement}
+
+The combination of non-linear and linear parts makes variable-size
+feature effect even more important.
+
+\begin{itemize}
+\item If we have enough samples, we need small bins to approach
+  accurately the non-linear parts.
+\item We need wider bins for robust estimation of the linear parts
+\end{itemize}
+
+\subsubsection*{Example}
+
+We define the following model:
+
+\begin{equation} \label{eq:bullet-4-model}
+  f(x_1, x_2) = 10x_1x_2 +
+  \begin{cases}
+    sinc(\pi x_1^2)  &,  0  \leq x_1 < \tau \\
+    sinc(\pi \tau^2) &, \tau \leq x_1 \leq 5
+  \end{cases}
+\end{equation}
+%
+where \(x_1 \perp x_2 \Rightarrow p(x_1, x_2) = p(x_1)p(x_2)\) and \(\tau = 2.65\). The data generation distribution for \(x_1\) is:
+
+\begin{equation} \label{eq:bullet-4-generative-x-1}
+  p(x_1) =
+  \begin{cases}
+    \mathcal{U}(x_1; 0 , \tau)/2  &,  0  \leq x_1 < \tau \\
+    \mathcal{N}(x_1; \mu = (5 + \tau)/2 , \sigma=0.3)/2 &, \tau \leq x_1 \leq 5
+  \end{cases}
+\end{equation}
+
+and for \(x_2\):
+
+\begin{equation} \label{eq:bullet-4-generative-x-2}
+  p(x_2) = \mathcal{N}(x_2; \mu = 0 , \sigma=0.1)
+\end{equation}
+
+Therefore, the gradients wrt. \(x_1\) are:
+
+\begin{equation} \label{eq:bullet-4-data-effect}
+  \frac{\partial f}{ \partial x_1} (x_1) = 10x_2 +
+  \begin{cases}
+    2 \frac{\cos(\pi x_1^2)}{x_1} - 2 \frac{\sin(\pi x_1^2)}{\pi x_1^3}  &,  0  \leq x_1 < \tau \\
+    0   &, \tau \leq x_1 \leq 5
+  \end{cases}
+\end{equation}
+%
+where \(x_2 \sim \mathcal{N}(\mu=0, \sigma=4)\). The ground truth ALE is:
+
+\begin{equation} \label{eq:bullet-4-gt-ale}
+  f_{\mathtt{ALE}}(x_s) = c +
+  \begin{cases}
+    sinc(\pi x_1^2)  &,  0  \leq x_1 < \tau \\
+    sinc(\pi \tau^2)  &,  0  \leq x_1 < \tau \\
+  \end{cases}
+\end{equation}
+%
+where \(c\) is a normalizing constant. We generate N = 1000 data
+points. In figure~\ref{fig:bullet-4-im-1}, we see the data points with
+their respective gradients. In figure~\ref{fig:bullet-4-im-2}, we see
+the fixed-size ALE plots; if we set \(K=50\), we capture the
+non-linear parts in the first half, but we fail in linear second
+part. Furthermore, we have empty bins, so we cannot trust the plot and
+the standard error on the second half. The largest number of bins with
+more than ten points in each bin, is \(K=5\) which fails to capture
+the high-resolution effects. Variable size bins solves both problems
+and provides the correct feature-effect.
+
+\begin{figure}[!h]
+  \centering
+  \includegraphics[width=.49\linewidth]{bullet_4/im_1.png}
+  \caption{Data points with their gradients}
+  \label{fig:bullet-4-im-1}
+\end{figure}
+
+\begin{figure}[!h]
+  \centering
+  \includegraphics[width=.48\linewidth]{bullet_4/im_2.png}
+  \includegraphics[width=.48\linewidth]{bullet_4/im_3.png}
+  \caption{Fixed-size bins feature effect. Left: with K=50 and Right: with K=5.}
+  \label{fig:bullet-4-im-2}
+\end{figure}
+
+\begin{figure}[!h]
+  \centering
+  \includegraphics[width=.75\linewidth]{bullet_4/im_4.png}
+  \caption{Variable-size bins.}
+  \label{fig:bullet-4-im-3}
+\end{figure}
+
+
+\subsubsection*{Proposal}
+
+
+
+
+\subsubsection*{Conclusion}
 
 \end{document}
