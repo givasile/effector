@@ -14,6 +14,8 @@
 \newcommand{\ysloc}{y_{s}^{\text{local}}}
 \newcommand{\x}{\mathbf{x}}
 \newcommand{\xii}{\mathbf{x}^{(i)}}
+\newcommand{\xsi}{x_s^{(i)}}
+\newcommand{\xci}{\mathbf{x}_c^{(i)}}
 \newcommand{\yi}{y^{(i)}}
 \newcommand{\E}{\mathbb{E}}
 \newcommand{\var}{\mathrm{Var}}
@@ -105,29 +107,36 @@ List of keywords separated by semicolon.
 \section{Introduction}
 Main contents here.
 
+The decision about the bin size has major influence in the feature
+effect plot. Therefore, it is very important (a) to inform the user to
+what extend they should trust the ALE plot and, consequently, decide
+the bin size with the optimal effect. In the end, we will see that it i
+
+\newpage
+~\newpage
+
 \section{Related Work}
 
+\newpage
 
+\section{Probabilistic formulation of ALE plots}
 
-\section{Probabilistic ALE plots}
+\subsection{ALE background}\label{sec:ALE}
 
-\subsection{The ALE method}\label{sec:ALE}
-
-In this section, we introduce the reader to the feature effect method
-ALE. Given that \(f: \R^S \rightarrow \R \) is known, we can measure
-the \textit{local} effect of the \(s\)-th feature at a specific point
-\( \x = (\xc, x_s)\) of the input space \(\mathcal{X}\), as
+This section introduces the reader to the ALE formulation of feature
+effect. Given that \(f: \R^S \rightarrow \R \) is known, we can
+measure the effect of the \(s\)-th feature at a specific point
+\( \x = (\xc, x_s)\) of the input space \(\mathcal{X}\) as
 \(f_s(\x) = \sfrac{\partial f(\x)}{\partial x_s}\). ALE models the
-\textit{local} feature effect at \(x_s\) as an expectation over the
-distribution of the unkown (latent) features
-\(\E_{p(\Xc;x_s)}[f_s(x_s, \xc)]\). Afterwards, ALE measures the
-\textit{global} effect at \(x_s\) as an accumulation of the expected
-\textit{local} effects:
+\textit{local} effect at \(x_s\) as the expected effect over the
+distribution of the unkown (latent) features \(\Xc\), i.e.
+\(\E_{p(\xc;x_s)}[f_s(x_s, \xc)]\). Afterwards, the \textit{global}
+effect at \(x_s\) is the accumulation of the \textit{local} effects:
 %
 \begin{equation}
   \label{eq:ale-definition}
   f_{\mathtt{ALE}}(x_s) =
-  \int_{x_{s, \text{min}}}^{x_s} \E_{p(\Xc;x_s=z)}[f_s(x_s, \xc)] \partial z
+  \int_{x_{s, \text{min}}}^{x_s} \E_{p(\xc;x_s=z)}[f_s(x_s, \xc)] \partial z
 \end{equation}
 
 In real cases, it is infeasible to compute
@@ -135,88 +144,127 @@ eq.~\eqref{eq:ale-definition} analytically. Therefore, we reside on
 estimating the effect from the training set. Let's denote the
 available dataset as \(\D = \{\xii, \yi \}_{i=1}^N\), where \( \xii \)
 is the \(i\)-th feature vector of the training data and \(\yi\) is the
-\(i\)-th label. Apley et. al proposed spliting the axis into \( K \)
-equal-sized bins, find the set of points that lie in each bin, i.e.
-\( \mathcal{S}_k = \{ \xii : x_s^{(i)} \in [z_{k-1}, z_k) \} \) and,
-finally, find the local effect at each bin as the mean value of the
-population, i.e.
-\(\hat{\mu}_{s,k} = \frac{1}{|\mathcal{S}_k|} \sum_{i:\xii \in
-  \mathcal{S}_k} [f_s(\xii)]\). The global effect at \(x_s\) is then
-estimated through:
+\(i\)-th label.~\cite{Apley2020} proposed spliting the axis into
+\( K \) equal-sized bins, find the set of points that lie in each bin,
+i.e.  \( \mathcal{S}_k = \{ \xii : x_s^{(i)} \in [z_{k-1}, z_k) \} \)
+and, finally, find the local effect at each bin as the mean value of
+the population \(\hat{\mu}_{s,k}\). The global effect is then
+estimated through the following formula:
 %
 \begin{equation}
   \label{eq:ale-approximation}
-  \hat{f}_{\mathtt{ALE}}^s(x)
+  \hat{f}_{\mathtt{ALE}}(x_s)
   = \Delta x \sum_{k=1}^{k_{x_s}} \hat{\mu}_{s,k}
-  = \Delta x \sum_{k=1}^{k_{x_s}} \frac{1}{|\mathcal{S}_k|} \sum_{i:\xii \in \mathcal{S}_k} [f_s(\xii)]
+  = \sum_{k=1}^{k_{x_s}} \frac{1}{|\mathcal{S}_k|} \sum_{i:\xsi \in \mathcal{S}_k} [f(z_k, \xci) - f(z_{k-1}, \xci)]
 \end{equation}
 %
-where \(\Delta x\) is the bin size and \(k_{x_s}\) the bin-index of the value \(x_s\).
+where \(\Delta x\) is the bin size and \(k_{x_s}\) the index of the
+bin that includes \(x_s\).
 %
-%
-\subsection{ALE plots with uncertainty quantification}
 
-ALE directly defines the local effect as an expectation over the
-unknown features and the global effect as integral over the
-expectations. Therefore, both local and global effects are modeled as
-simple variables. In constrast, for integrating ALE plots in a
-probabilistic framework, we model the local effect as a random
-variable, dependent on the random variable \(\Xc\) representing the
-latent features:
+\subsection{Quantification of the uncertainty of the estimation}
+
+We propose an alternative estimation of the feature effect inside each
+bin. The alternative estimation is better because it (a) separates the
+decision about the bin limits from the local effect of each point, (b)
+secures from out-of-distribution sampling and (c) provides better
+variance estimation inside the bin. The alternative estimation is:
 
 \begin{equation}
-    \Ysloc \sim p(\ysloc ; x_s)
-    = \int_{\xc} \delta(\ysloc-f_s(\x)) p(\xc;x_s) \partial \xc
-    \label{eq:local-effect-rv}
+  \label{eq:1}
+  \tilde{f}_{\texttt{ALE}}(x_s) =
+  \Delta x \sum_{k=1}^{k_{x_s}} \tilde{\mu}_{s,k} =
+  \Delta x \sum_{k=1}^{k_{x_s}} \frac{1}{|\mathcal{S}_k|} \sum_{i:\xsi \in \mathcal{S}_k} f_s(\xii)
 \end{equation}
 %
-Following the core idea of ALE, we define the global feature effect as
-the random variable \(Y_s\) which is the integration of the local
-effects:
-
-\begin{equation}
-  Y_s \sim p(y_s ; x_s) = \int_{x_{s,min}}^{x_s} p(\ysloc;x_s=z) \partial z
-  \label{eq:global-effect-rv}
-\end{equation}
-%
-Through eqs.~(\ref{eq:local-effect-rv}), (\ref{eq:global-effect-rv})
-we formulate the ALE in a fully probabilistic manner. We notice, that
-the definition of ALE as given by~\cite{Apley2020} is simply the
-expected value of \(Y_s\), i.e.
-\(f_{\mathtt{ALE}}(x_s) = \E[Y_s ; x_s]\). For simpler notation we
-denote \(\E[Y_s ; x_s]\) as \(\mu_s (x_s)\).
-
-For measuring the uncertainty, it is also important to capture the
-variance of the global effect. Notating the variance of the feature
-effect \(\var[Y_s ; x_s]\) as \(\sigma_s^2\), we can compute it
-through:
-
-\begin{equation}
-  \sigma_s^2 (x_s)
-  = \int_{x_{s,min}}^{x_s} \int_{\xc} p(\xc|x_s) (f_s(\x) - \mu_s(x_s))^2 \partial \xc (\partial z)^2
-\end{equation}
-
-As before, it is infeasible to compute the the variance
-\(\sigma_s^2(x_s)\) in closed-form. Therefore, we reside on estimating
-them from the available examples of the training set. The estimation
-of the variance can also done through the available points:
+Our goal is to inform the user to what extent they should trust the
+ALE plot. For this purpose, we introduce two metrics; the variance and
+the standard error of the estimation. The variance of the estimation
+is:
 
 \begin{equation}
   \label{eq:effect-var-approx}
-  \hat{\sigma}_s^2(x_s)
-  = (\Delta x)^2 \sum_{k=1}^{k_{x_s}} \hat{\sigma}_{s,k}^2
-  = (\Delta x)^2 \sum_{k=1}^{k_{x_s}} \frac{1}{|\mathcal{S}_k|} \sum_{i:\xii \in \mathcal{S}_k} (f_s(\xii) - \hat{\mu}_{s,k})^2 
+  \tilde{\sigma}_s^2(x_s)
+  = (\Delta x)^2 \sum_{k=1}^{k_{x_s}} \tilde{\sigma}_{s,k}^2
+  = (\Delta x)^2 \sum_{k=1}^{k_{x_s}} \frac{1}{|\mathcal{S}_k|} \sum_{i:\xii \in \mathcal{S}_k} (f_s(\xii) - \tilde{\mu}_{s,k})^2 
 \end{equation}
+%
+The standard error of the estimation is:
+
+\begin{equation}
+  \label{eq:effect-std-error}
+  \text{SE}(x_s) = \Delta x \sum_{k=1}^{k_{x_s}} (\frac{\hat{\sigma}_{s,k}^2}{|\mathcal{S}_k|})^\frac{1}{2}
+\end{equation}
+
+
+The two metrics, (\ref{eq:effect-var-approx}) and
+(\ref{eq:effect-std-error}), should be trusted only in case they
+respect some contstraints. Under these constraints, the user can be
+confident that the correct feature effect is inside two or three
+standard errors errors around the mean estimation.
+
+
+Our computations are based on the hypothesis that inside
+all bins \textbf{the gradient wrt. to the feature of interest doesn't
+  depend on the value feature of interest}. Unfortunately, we cannot
+when this is the case. We just know that as the bins grow larger, it
+is more possible to violated this hypothesis. In this case both the
+ALE effect and the standard error are wrong.
+
+The standard error should be trusted when it is estimated by a large
+of data points. For example, in plots (c) and (d), there are bins with
+less than 10 points. Therefore, in these cases, we cannot trust the
+plot or the standard error.
 
 \subsection{Unsupervised metric for assessing the quality of ALE plots}
 
+Based on the observations of the previous chapter, we want to create a
+single metric for choosing the best feature effect plot. Our goal is
+to minimize the variance, given that we have points inside eac bin 
+
+We propose the minimization of the accumulated standard deviation (or
+accumulated variance). For ALE with K bins, let's notate as:
+
+\begin{itemize}
+\item \(dx^K\) the length of each bin
+\item \(p_i^K \) the number of the training points inside the \(i-th\) bin
+\item \(\sigma_i^K \) the std of the local effects of the training points inside the \(i-th\) bin
+\end{itemize}
+%
+We will minimize:
+
+\begin{align} \label{eq:min-criterion}
+  K_{min} &= \text{argmin}_{K} \quad  [dx^K  \sum_i^K \sigma_i^K * (1 - d_i^K)]\\
+  & \text{s.t. } p_i^K \geq \texttt{min\_points\_per\_bin } \forall i
+\end{align}
+%
+where \(d_i^K = 0.2 * \frac{p_i^K}{N} \in [0,0.1] \) works as a `discount', favoring the
+creation of bigger bins in cases of similar standard deviation.
+
 \subsection{ALE plots with variable-size bins}
 
-\subsection{Variable-size bins as an optimization problem}
+\newpage
+~\newpage
 
 \section{Experiments}
 
 \subsection{Synthetic Data sets}
+
+\begin{enumerate}
+\item One example to show that (a) variance and (b) standard error are
+  good estimates to what extend to trust the ALE plot.
+\item One example to show the importance of variable size bins
+\end{enumerate}
+
+\newpage
+~\newpage
+
+\subsection{Real Data sets}
+
+\newpage
+
+\section{Conclusion}
+
 
 A figure in Fig.~\ref{fig:spiral}. Please use high quality graphics
 for your camera-ready submission -- if you can use a vector graphics
@@ -230,22 +278,44 @@ format such as \texttt{.eps} or \texttt{.pdf}.
 
 An example of citation~\cite{DBLP:conf/acml/2009}.
 
-\subsection{Real Data sets}
-
-\section{Conclusion}
-
-\subsection{Subsection Title}
-
-
+\newpage
 
 %\acks{Acknowledgements should go at the end, before appendices and references. You can uncomment this for the camera-ready version on paper acceptance.}
 
 %\bibliographystyle{plain}
 \bibliography{acml22}
+\newpage
 
 \appendix
 
-\section{Derivations}\label{apd:first}
+\section{Symbols}\label{apd:symbols}
+
+Spaces and points:
+
+\begin{itemize}
+\item \(\mathcal{X} \subseteq \R^S \): the input space
+\item \(\x = (x_s, \xc) \in \mathcal{X}\)
+\item \(x_s \in \R \)
+\item \(\xc \in \R^{S-1}\)
+\item
+\end{itemize}
+%
+Functions:
+\begin{itemize}
+\item \(f: \R^S \rightarrow \R\): black-box function
+\item \(f_s(\x) = \sfrac{\partial f(\x)}{\partial x_s}: \R^S \rightarrow \R\): effect at point \(\x\)
+\item 
+\end{itemize}
+%
+ALE:
+\begin{itemize}
+\item \(\sfrac{f(z_{k_x}) - f(z_{k_x-1})}{\Delta x}\): effect of \(x_s\) at \(\x\)
+\item \(\E_{p(\xc;x_s)}[f_s(x_s, \xc)]\): local effect of \(x_s\) at \(x_s\)
+\item \(f_{\texttt{ALE}}(x_s): \R \rightarrow \R\): global effect of \(x_s\) at \(x_s\)
+\item \(\hat{f}_{\texttt{ALE}}(x_s): \R \rightarrow \R\): \textit{estimator} of global effect of \(x_s\) at \(x_s\)
+\end{itemize}
+
+\section{Derivations}\label{apd:derivations}
 
 Derivations
 
@@ -283,3 +353,66 @@ This is the second appendix.
 
 
 \end{document}
+
+
+
+% \subsection{Probabilistic formulation of ALE plots}
+
+% In this section, we will introduce a probabilistic formulation for ALE
+% plots. As discussed before, ALE directly defines the local effect as
+% the expectated value over the unknown features,
+% i.e. \(\E_{p(\xc;x_s)}[f_s(x_s, \xc)]\). Therefore, the local and the
+% global effect, which is the integration of the local effects, are
+% modeled as deterministic variables.
+
+% For adjusting ALE plots into a probabilistic framework, we model the
+% local effect with a random variable conditioned on feature \(x_s\),
+% i.e., \(\Ysloc \sim p(\ysloc ; x_s)\):
+
+% \begin{equation}
+%     p(\ysloc ; x_s)
+%     = \int_{\xc} \delta(\ysloc-f_s(\x)) p(\xc;x_s) \partial \xc
+%     \label{eq:local-effect-rv}
+% \end{equation}
+% %
+% Following the core idea of ALE, we define the global feature effect as
+% the accumulation of the local effects. Therefore, the feature effect
+% of the \(s\)-th feature is \(Y_s \sim p(y_s ; x_s) \):
+% \begin{equation}
+%   p(y_s ; x_s) = \int_{x_{s,min}}^{x_s} p(\ysloc;x_s=z) \partial z
+%   \label{eq:global-effect-rv}
+% \end{equation}
+% %
+% In eqs.~(\ref{eq:local-effect-rv}), (\ref{eq:global-effect-rv}) we
+% reformulate ALE plots in a fully probabilistic manner. We are
+% particularly interested into two summary statistics of \(Y_s\), the
+% expected value \(\mu_s (x_s) = \E[Y_s ; x_s]\) and the variance
+% \(\sigma_s^2(x_s) = \var[Y_s ; x_s]\). In the appendix, we show that
+% the expected value coincides with the definition of ALE plots in
+% eq.~(\ref{eq:ale-definition}), i.e.
+% \(\mu_s (x_s) = f_{\texttt{ALE}(x)s}\). The variance can be computed
+% as:
+
+% \begin{equation}
+%   \sigma_s^2 (x_s)
+%   = \int_{x_{s,min}}^{x_s} \E_{p(\xc|x_s = z)}[(f_s(\x) - \mu_s(z))^2](\partial z)^2
+% \end{equation}
+
+
+% As before, it is infeasible to compute the the variance
+% \(\sigma_s^2(x_s)\) in analytically. Therefore, we reside on
+% estimating them from the available examples of the training set:
+
+% \begin{equation}
+%   \label{eq:effect-var-approx}
+%   \hat{\sigma}_s^2(x_s)
+%   = (\Delta x)^2 \sum_{k=1}^{k_{x_s}} \hat{\sigma}_{s,k}^2
+%   = (\Delta x)^2 \sum_{k=1}^{k_{x_s}} \frac{1}{|\mathcal{S}_k|} \sum_{i:\xii \in \mathcal{S}_k} (f_s(\xii) - \hat{\mu}_{s,k})^2 
+% \end{equation}
+
+% .. add a description for standard error
+
+% \begin{equation}
+%   \label{eq:effect-std-error}
+%   \text{SE}(x_s) = \Delta x \sum_{k=1}^{k_{x_s}} (\frac{\hat{\sigma}_{s,k}^2}{|\mathcal{S}_k|})^\frac{1}{2}
+% \end{equation}
