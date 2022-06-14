@@ -1,81 +1,14 @@
-"""Goal: show that if uniformly distributed data, the biggest K wins in fix-length bins.
-
-The set-up
-==========
-* The data points are uniformly distributed in [0,100]
-* The feature-effect is made from 10 piece-wise linear parts of length 10;
-
-For different values of parameters:
-* N: nof points
-* noise_level: how much noise to add in the data_effect estimation
-
-Questions to be addressed
-=========================
-For fixed-size bins:
-* what is the best K in terms of accuracy?
-* Does standard mse_fixed_size or variance estimator chooses the best K?
-For variable-sized bins:
-* what is the best (a) number and (b) size of bins, in terms of mse_fixed_size?
-* does dynamic programming based on mse_fixed_size finds them and for which K?
-* does dynamic programming based on standard mse_fixed_size finds them and for which K?
-
-Final Goals
-===========
-* show that choosing the correct bin-size K is crucial
-* in cases of uniformly distributed data, choosing a big K is always a good option - or even the best option
- (independently of noise level and nof points)
-* show that variable-size bins, has equivalent accuracy with fixed-bin in case of fixed-size piecewise linear effect
- and our algorithm is able to find variable-sizes with equivalent accuracy in this case
-* show that standard mse_fixed_size is a good estimator of the best bin size
-
-Experiments
-===========
-
-(a) For noise_level = 0
-=======================
-For fixed-size bins:
-* The best K are the ones that permit changing bin every 10
-i.e. K = {10, 20, 30, ..., 100} or dx = {10, 10/2=5 ,10/3=3.33, ... , 10/10=1}
-* but in the range of big K, all choices have good accuracy
-* Standard mse_fixed_size perfectly chooses the best candidates
-For Variable-size bins:
-* Finds good bins based on accuracy
-* Finds good bins base on standard mse_fixed_size
-
-
-The conclusions above, hold independently of the number of points. In case of limited points, variable-size bins can be
-"wrong" but this is due to the absence of points, not a problem of the method.
-
-
-(b) For noise_level = 3.0
-=======================
-For fixed-size bins:
-* The best K are the ones that permit changing bin every 10
-i.e. K = {10, 20, 30, ..., 100} or dx = {10, 10/2=5 ,10/3=3.33, ... , 10/10=1}
-* but in the range of big K, all choices have good accuracy
-* Standard mse_fixed_size perfectly chooses the best candidates
-For Variable-size bins:
-* Finds good bins based on accuracy
-* Finds good bins base on standard mse_fixed_size
-
-"""
 import numpy as np
 import feature_effect as fe
 import examples.example_utils as utils
-import matplotlib.pyplot as plt
 
 def gen_model_params():
-    params = [{"b":0.3, "from": 0., "to": 10.},
-              {"b":7., "from": 10, "to": 20},
-              {"b":-1.5, "from": 20, "to": 30},
-              {"b":0., "from": 30, "to": 40},
-              {"b":-5., "from": 40, "to": 50},
-              {"b":0.3, "from": 50, "to": 60},
-              {"b":7., "from": 60, "to": 70},
-              {"b":-1.5, "from": 70, "to": 80},
-              {"b":0., "from": 80, "to": 90},
-              {"b":-5., "from": 90, "to": 100}]
-    x_start = -1
+    params = [{"b": 0, "from": 0., "to": 20.},
+              {"b": 5., "from": 20, "to": 40},
+              {"b": -5, "from": 40, "to": 60},
+              {"b": 1., "from": 60, "to": 80},
+              {"b": -1., "from": 80, "to": 100}]
+    x_start = -5
     utils.find_a(params, x_start)
     return params
 
@@ -87,12 +20,13 @@ def generate_samples(N):
     return x
 
 
+example_dir = "./examples/example_1/"
+
 # parameters
-N = 10000
-noise_level = 4.
-K_max_fixed = 40
-K_max_var = 40
-min_points_per_bin = 20
+N = 100
+noise_level = 1.
+K_max_fixed = 200
+min_points_per_bin = 10
 
 # init functions
 seed = 4834545
@@ -108,43 +42,71 @@ model = utils.create_model(model_params, data)
 y = model(data)
 data_effect = model_jac(data)
 
-# check bin creation
-bin_est = fe.bin_estimation.BinEstimatorDP(data, data_effect, feature=0, K=74)
-limits = bin_est.solve_dp(min_points=min_points_per_bin)
-clusters = np.squeeze(np.digitize(data, limits))
+# dale without standard error
+dale = fe.DALE(data, model, model_jac=model_jac)
+dale.fit(alg_params={"nof_bins": 5, "min_points_per_bin": min_points_per_bin})
+dale.plot(error="standard error",  savefig=example_dir + "im_1.png", gt=model, gt_bins=utils.create_gt_bins(model_params))
 
-plt.figure()
-plt.title("Dynamic programming")
-plt.plot(data, data_effect, "bo")
-plt.vlines(limits, ymin=np.min(data_effect), ymax=np.max(data_effect))
-plt.show(block=False)
+dale = fe.DALE(data, model, model_jac=model_jac)
+dale.fit(alg_params={"nof_bins": 5, "min_points_per_bin": min_points_per_bin})
+dale.plot(error="std",  savefig=example_dir + "im_2.png", gt=model, gt_bins=utils.create_gt_bins(model_params))
 
-# plot data effects and gt effect
-utils.plot_gt_effect(data, y)
 
-dale = fe.DALE(data, model, model_jac)
-dale.fit(method="variable-size", alg_params={"min_points_per_bin": 10,
-                                             "max_nof_bins": 50})
-dale.plot()
+# parameters
+N = 1000
+noise_level = 1.
+K_max_fixed = 200
+min_points_per_bin = 10
 
-# compute loss and mse for many different K
-dale_fixed = utils.fit_multiple_K(data, model, model_jac, K_max_fixed, min_points_per_bin, method="fixed-size")
-dale_variable = utils.fit_multiple_K(data, model, model_jac, K_max_var, min_points_per_bin, method="variable-size")
+# init functions
+seed = 4834545
+np.random.seed(seed)
 
-# plot loss
-utils.plot_loss(dale_variable)
-utils.plot_loss(dale_fixed)
+# define functions
+model_params = gen_model_params()
+model_jac = utils.create_noisy_jacobian(model_params, noise_level, seed)
 
-utils.plot_combined_loss(dale_fixed, dale_variable)
+# generate data and data effect
+data = np.sort(generate_samples(N=N), axis=0)
+model = utils.create_model(model_params, data)
+y = model(data)
+data_effect = model_jac(data)
 
-# plot mae
-utils.plot_mse(dale_fixed, model)
-utils.plot_mse(dale_variable, model)
-utils.plot_combined_mse(dale_fixed, dale_variable, model)
-# plot best fixed solution
-best_fixed = np.nanargmin([dale.dale_params["feature_0"]["loss"] for dale in dale_fixed])
-dale_fixed[best_fixed].plot(s=0, gt=model, gt_bins=utils.create_gt_bins(model_params), block=False)
+# dale without standard error
+dale = fe.DALE(data, model, model_jac=model_jac)
+dale.fit(alg_params={"nof_bins": 5, "min_points_per_bin": min_points_per_bin})
+dale.plot(error="standard error",  savefig=example_dir + "im_3.png", gt=model, gt_bins=utils.create_gt_bins(model_params))
 
-# plot best variable size solution
-best_var = np.nanargmin([dale.dale_params["feature_0"]["loss"] for dale in dale_variable])
-dale_variable[best_var].plot(s=0, gt=model, gt_bins=utils.create_gt_bins(model_params), block=False)
+dale = fe.DALE(data, model, model_jac=model_jac)
+dale.fit(alg_params={"nof_bins": 5, "min_points_per_bin": min_points_per_bin})
+dale.plot(error="std",  savefig=example_dir + "im_4.png", gt=model, gt_bins=utils.create_gt_bins(model_params))
+
+
+# parameters
+N = 10000
+noise_level = 1.
+K_max_fixed = 200
+min_points_per_bin = 10
+
+# init functions
+seed = 4834545
+np.random.seed(seed)
+
+# define functions
+model_params = gen_model_params()
+model_jac = utils.create_noisy_jacobian(model_params, noise_level, seed)
+
+# generate data and data effect
+data = np.sort(generate_samples(N=N), axis=0)
+model = utils.create_model(model_params, data)
+y = model(data)
+data_effect = model_jac(data)
+
+dale = fe.DALE(data, model, model_jac=model_jac)
+dale.fit(alg_params={"nof_bins": 5, "min_points_per_bin": min_points_per_bin})
+dale.plot(error="standard error",  savefig=example_dir + "im_5.png", gt=model, gt_bins=utils.create_gt_bins(model_params))
+
+dale = fe.DALE(data, model, model_jac=model_jac)
+dale.fit(alg_params={"nof_bins": 5, "min_points_per_bin": min_points_per_bin})
+dale.plot(error="std",  savefig=example_dir + "im_6.png", gt=model, gt_bins=utils.create_gt_bins(model_params))
+

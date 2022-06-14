@@ -6,6 +6,9 @@
 \usepackage{bbm}
 \usepackage{xfrac}
 
+\usepackage{graphicx}
+\graphicspath{{../examples/}}
+
 % givasile commands
 \newcommand{\xc}{\mathbf{x}_c}
 \newcommand{\Xc}{\mathbf{X}_c}
@@ -250,16 +253,57 @@ creation of bigger bins in cases of similar standard deviation.
 
 \subsection{Synthetic Data sets}
 
-\begin{enumerate}
-\item One example to show that (a) variance and (b) standard error are
-  good estimates to what extend to trust the ALE plot.
-\item One example to show the importance of variable size bins
-\end{enumerate}
+
+\subsubsection{Case 1}
+
+One example to show that (a) variance and (b) standard error are good
+estimates to what extend to trust the ALE plot. More specifically; (a)
+the variance shows how far away from the ALE plot the global effect
+can be and (b) the standard error shows how wrong the ALE plot can be.
+Test to see how it changes with different sample size.
+
+\begin{figure}[htp]
+\begin{center}
+  \includegraphics[width=0.3\textwidth]{example_1/im_1.png}
+  \includegraphics[width=0.3\textwidth]{example_1/im_3.png}
+  \includegraphics[width=0.3\textwidth]{example_1/im_5.png}\\
+  \includegraphics[width=0.3\textwidth]{example_1/im_2.png}
+  \includegraphics[width=0.3\textwidth]{example_1/im_4.png}
+  \includegraphics[width=0.3\textwidth]{example_1/im_6.png}
+\caption{A spiral.}\label{fig:edfd}
+\end{center}
+\end{figure}
+
+
 
 \newpage
-~\newpage
 
-\subsection{Real Data sets}
+\subsubsection{Case 2}
+
+One example to show that (a) variance minimization is a good criterion
+in case of linear feature and fixed-size feature effect and (b)
+variable-size bins estimates as well as the best fixed-size.
+
+\newpage
+
+\subsubsection{Case 3}
+
+One example to show that variance minimization is a good criterion in
+case of linear feature and variable-size feature effect. In this case,
+variable-size bins estimates better than any possible fixed size.
+
+\newpage
+
+\subsubsection{Case 4}
+
+One example to show that (a) variance minimization is a good criterion
+in case of non-linear feature effect. In this case, show that
+variable-size bins estimates better than any possible fixed size.
+
+\newpage
+
+\subsection{Real Dataset}
+
 
 \newpage
 
@@ -280,7 +324,9 @@ An example of citation~\cite{DBLP:conf/acml/2009}.
 
 \newpage
 
-%\acks{Acknowledgements should go at the end, before appendices and references. You can uncomment this for the camera-ready version on paper acceptance.}
+% \acks{Acknowledgements should go at the end, before appendices and
+% references. You can uncomment this for the camera-ready version on
+% paper acceptance.}
 
 %\bibliographystyle{plain}
 \bibliography{acml22}
