@@ -168,3 +168,12 @@ def fe_all(dale, ale, pdp, mplot, feature, ale_gt=None):
                     label="not-trusted-area")
     plt.legend()
     plt.show(block=False)
+
+
+def plot_local_effects(s, xs, data_effect, limits, block):
+    plt.figure()
+    plt.title("Local effect for feature " + str(s+1))
+    plt.plot(xs, data_effect, "bo")
+    if limits is not False:
+        plt.vlines(limits, ymin=np.min(data_effect), ymax=np.max(data_effect))
+    plt.show(block=block)

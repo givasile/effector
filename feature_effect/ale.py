@@ -75,12 +75,18 @@ class ALE:
                                                  bin_effect=params["bin_effect"],
                                                  dx=params["dx"])
             y -= params["z"]
+            estimator_var = utils.compute_accumulated_effect(x,
+                                                             limits=params["limits"],
+                                                             bin_effect=params["bin_estimator_variance"],
+                                                             dx=params["dx"],
+                                                             square=True)
+
             var = utils.compute_accumulated_effect(x,
                                                    limits=params["limits"],
-                                                   bin_effect=params["bin_estimator_variance"],
+                                                   bin_effect=params["bin_variance"],
                                                    dx=params["dx"],
                                                    square=True)
-            return y, var
+            return y, estimator_var, var
         return ale_function
 
     def compile(self):
@@ -108,15 +114,31 @@ class ALE:
     def eval(self, x: np.ndarray, s: int):
         return self.feature_effect["feature_" + str(s)](x)
 
-    def plot(self, s: int = 0, std: bool = True, block=False, gt=None, gt_bins=None):
+    def plot(self, s: int = 0, error="standard error", block=False, gt=None, gt_bins=None, savefig=None):
         title = "ALE: Effect of feature %d" % (s + 1)
         vis.feature_effect_plot(self.ale_params["feature_" + str(s)],
                                 self.eval,
                                 s,
-                                std=std,
-                                min_points_per_bin=self.ale_params["min_points_per_bin"],
+                                error=error,
+                                min_points_per_bin=self.ale_params["feature_" + str(s)]["min_points_per_bin"],
                                 title=title,
                                 block=block,
                                 gt=gt,
                                 gt_bins=gt_bins,
                                 savefig=savefig)
+
+    def plot_local_effects(self, s: int = 0, K: int = 10, limits=True, block=False):
+        data = self.data
+        model = self.model
+
+        # compute local effects
+        bin_limits = utils.create_fix_size_bins(data[:, s], K)
+
+        # compute local data effects, based on the bins
+        data_effect = utils.compute_data_effect(data, model, bin_limits, s)
+
+        # plot
+        xs = self.data[:, s]
+        if limits:
+            limits = bin_limits
+        vis.plot_local_effects(s, xs, data_effect, limits, block)

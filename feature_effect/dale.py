@@ -153,3 +153,10 @@ class DALE:
                                 gt=gt,
                                 gt_bins=gt_bins,
                                 savefig=savefig)
+
+    def plot_local_effects(self, s: int = 0, limits=True, block=False):
+        xs = self.data[:, s]
+        data_effect = self.data_effect[:, s]
+        if limits:
+            limits = self.dale_params["feature_" + str(s)]["limits"]
+        vis.plot_local_effects(s, xs, data_effect, limits, block)
