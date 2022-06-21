@@ -5,11 +5,14 @@ import matplotlib
 import numpy as np
 from tensorflow import keras
 import tensorflow as tf
-import random as python_random
+import random as python_randomy
 import timeit
+import tikzplotlib as tplt
 matplotlib.rcParams['text.usetex'] = True
 save_fig = True
 import feature_effect as fe
+
+savefig = True
 
 np.random.seed(1232)
 python_random.seed(12343)
@@ -26,12 +29,14 @@ Y = data.iloc[:, -1].to_numpy()
 
 big_nn = keras.Sequential([keras.layers.Input(shape=[X.shape[1]]),
                            keras.layers.Dense(2048, activation='relu', use_bias=True),
-                           keras.layers.Dense(2048, activation='relu', use_bias=True),
                            keras.layers.Dense(1024, activation='relu', use_bias=True),
+                           keras.layers.Dense(512, activation='relu', use_bias=True),
+                           keras.layers.Dense(256, activation='relu', use_bias=True),
                            keras.layers.Dense(128, activation='relu', use_bias=True),
                            keras.layers.Dense(64, activation='relu', use_bias=True),
                            keras.layers.Dense(32, activation='relu', use_bias=True),
                            keras.layers.Dense(1, use_bias=True)])
+
 
 
 big_nn.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.01),
@@ -65,7 +70,8 @@ def model(X):
 
 time_ale = []
 time_dale = []
-for nof_features in range(1, X.shape[1] + 1):
+D = np.arange(1, X.shape[1] + 1)
+for nof_features in D:
     K = 100
 
     features = list(np.arange(nof_features))
@@ -81,6 +87,13 @@ for nof_features in range(1, X.shape[1] + 1):
     time_dale.append(timeit.default_timer() - a)
 
 plt.figure()
-plt.plot(D, time_ale, "b--o", label="ALE")
-plt.plot(D, time_dale, "c--o", label="DALE")
+plt.plot(D, time_ale, "--o", color="dodgerblue", label="$\hat{f}_{\mathtt{ALE}}$")
+plt.plot(D, time_dale, "--o", color="black", label="$f_{\mathtt{DALE}}$")
+plt.xlabel("$D$")
+plt.ylabel("time (seconds)")
+plt.legend()
+plt.title("Execution time")
+if savefig:
+    tplt.clean_figure()
+    tplt.save("/home/givasile/projects-org/org-feature-effect/paper-acml/images/bike-dataset-exec-time.tex")
 plt.show(block=False)
