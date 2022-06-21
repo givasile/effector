@@ -1,14 +1,9 @@
-import copy
-import time
 import numpy as np
-import importlib
 import matplotlib.pyplot as plt
 import feature_effect as fe
 import timeit
-import pandas as pd
 import random as python_random
 from tensorflow import keras
-from tensorflow.keras.models import Sequential
 import tensorflow as tf
 import tikzplotlib as tplt
 savefig = True
@@ -18,8 +13,9 @@ np.random.seed(1232)
 python_random.seed(12343)
 tf.random.set_seed(1234)
 
+
 def create_nn(X, nof_layers):
-    nn = Sequential()
+    nn = keras.Sequential()
     nn.add(keras.Input(shape=(X.shape[1])))
     for _ in range(nof_layers):
         nn.add(keras.layers.Dense(units=1024, activation='tanh'))
@@ -100,12 +96,11 @@ def systematic_evaluation(layers_list, D_list, N_list):
     return time_dale, time_ale, time_forward, time_backward
 
 
-################# plot 1
+# plot 1
 layers_list = [2]
 N_list = [1000]
 D_list = [5, 10, 15, 20, 25, 50, 100]
-time_dale, time_ale, time_forward, time_backward = \
-systematic_evaluation(layers_list, D_list, N_list)
+time_dale, time_ale, time_forward, time_backward = systematic_evaluation(layers_list, D_list, N_list)
 
 plt.figure()
 plt.plot(D_list, time_forward[0][0], "r--o", label="$f(x)$")
@@ -122,12 +117,11 @@ if savefig:
 plt.show(block=False)
 
 
-################# plot 2
+# plot 2
 layers_list = [4]
 N_list = [100000]
 D_list = [5, 10, 15, 20, 25, 50, 100]
-time_dale, time_ale, time_forward, time_backward = \
-systematic_evaluation(layers_list, D_list, N_list)
+time_dale, time_ale, time_forward, time_backward = systematic_evaluation(layers_list, D_list, N_list)
 
 plt.figure()
 plt.plot(D_list, time_forward[0][0], "r--o", label="$f(x)$")
@@ -144,8 +138,7 @@ if savefig:
 plt.show(block=False)
 
 
-
-########################## plots 3 - 4
+# plots 3 - 4
 layers_list = [2]
 N_list = [100, 1000, 10000, 50000, 100000]
 D_list = [5, 10, 15, 20, 25, 100]
@@ -168,7 +161,6 @@ if savefig:
     tplt.save("/home/givasile/projects-org/org-feature-effect/paper-acml/images/case-1-plot-3.tex")
 plt.show(block=False)
 
-
 plt.figure()
 for ii, N in enumerate(N_list):
     plt.plot(D_list, time_dale[0][ii], linestyle='--',
@@ -183,9 +175,7 @@ if savefig:
     tplt.save("/home/givasile/projects-org/org-feature-effect/paper-acml/images/case-1-plot-4.tex")
 plt.show(block=False)
 
-
-
-################# plot 5 - 6
+# plot 5 - 6
 layers_list = [2, 3, 5, 8, 10]
 N_list = [1000]
 D_list = [5, 10, 15, 20, 25, 50, 100]
@@ -207,10 +197,6 @@ if savefig:
     tplt.save("/home/givasile/projects-org/org-feature-effect/paper-acml/images/case-1-plot-5.tex")
 plt.show(block=False)
 
-
-
-mark = ['s', 'o', 'D', 'v', 'x']
-col = ['r', 'g', 'b', 'y', 'purple']
 plt.figure()
 for ii, L in enumerate(layers_list):
     plt.plot(D_list, time_dale[ii][0], linestyle='--',
