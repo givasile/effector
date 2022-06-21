@@ -54,7 +54,7 @@ tf.random.set_seed(12434)
 
 def model(X: np.array) -> np.array:
     tau_2 = 1.2
-    a = 10
+    a = 7
     y = []
 
     diff = X[:,0] - X[:,1]
@@ -113,8 +113,8 @@ def generate_samples(N: int, samples_range) -> np.array:
     x1 = np.random.normal(1.5, std, size=int(N/5))
     x2 = np.random.normal(3., std, size=int(N/5))
     x3 = np.random.normal(5, std, size=int(N/5))
-    x4 = np.random.normal(6.3, std, size=int(N/5))
-    x5 = np.random.normal(8.2, std, size=int(N/5))
+    x4 = np.random.normal(7, std, size=int(N/5))
+    x5 = np.random.normal(8.5, std, size=int(N/5))
     # x1 = np.random.uniform(0, samples_range, size=N-2)
     x1 = np.concatenate([np.zeros(int(1)),
                          x1,
@@ -140,7 +140,7 @@ def plot_f(model, samples, nof_points, samples_range, savefig):
     z = model(np.concatenate([positions, np.zeros((positions.shape[0], 1))], axis=-1))
     zz = np.reshape(z, [x.shape[0], y.shape[0]])
     fig, ax = plt.subplots()
-    cs = ax.contourf(xx, yy, zz, levels=400, vmin=-0, vmax=100., cmap=cm.viridis, extend='both')
+    cs = ax.contourf(xx, yy, zz, levels=400, vmin=-100, vmax=200., cmap=cm.viridis, extend='both')
     ax.plot(samples[:, 0], samples[:, 1], 'ro', label="samples")
     ax.plot(np.linspace(0, samples_range, 10), np.linspace(0, samples_range, 10), "r-")
     fig.colorbar(cs)
@@ -180,31 +180,30 @@ X = generate_samples(N, samples_range)
 plot_f(model=model, samples=X, nof_points=60, samples_range=samples_range, savefig=savefig)
 ale_gt_0 = create_gt_effect(s=0)
 
-# dale gt
-dale_gt = fe.DALE(data=X, model=model, model_jac=model_jac)
-dale_gt.fit(alg_params={"nof_bins": 5})
-dale_gt.plot(s=0, gt=ale_gt_0, error=None)
+# dale estimation
+dale = fe.DALE(data=X, model=model, model_jac=model_jac)
+dale.fit(alg_params={"nof_bins": 6})
+dale.plot(s=0, gt=ale_gt_0, error=None)
 
 # ale estimation
 ale = fe.ALE(data=X, model=model)
 ale.fit(alg_params={"nof_bins": 6})
 ale.plot(s=0, gt=ale_gt_0, error=None)
 
-# dale estimation
-dale_gt = fe.DALE(data=X, model=model, model_jac=model_jac)
-dale_gt.fit(alg_params={"nof_bins": 6})
-dale_gt.plot(s=0, gt=ale_gt_0, error=None)
-
 # ale estimation
 ale = fe.ALE(data=X, model=model)
 ale.fit(alg_params={"nof_bins": 15})
 ale.plot(s=0, gt=ale_gt_0, error=None)
 
+# dale estimation
+dale = fe.DALE(data=X, model=model, model_jac=model_jac)
+dale.fit(alg_params={"nof_bins": 15})
+dale.plot(s=0, gt=ale_gt_0, error=None)
 
 # dale estimation
-dale_gt = fe.DALE(data=X, model=model, model_jac=model_jac)
-dale_gt.fit(alg_params={"nof_bins": 50})
-dale_gt.plot(s=0, gt=ale_gt_0, error=None)
+dale = fe.DALE(data=X, model=model, model_jac=model_jac)
+dale.fit(alg_params={"nof_bins": 50})
+dale.plot(s=0, gt=ale_gt_0, error=None)
 
 # ale estimation
 ale = fe.ALE(data=X, model=model)
