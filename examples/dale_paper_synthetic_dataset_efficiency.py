@@ -140,13 +140,13 @@ plt.show(block=False)
 
 # plots 3 - 4
 layers_list = [2]
-N_list = [100, 1000, 10000, 50000, 100000]
+N_list = [100, 1000, 10000]
 D_list = [5, 10, 15, 20, 25, 100]
 time_dale, time_ale, time_forward, time_backward = systematic_evaluation(layers_list, D_list, N_list)
 
-mark = ['s', 'o', 'D', 'v', 'x']
-col = ['r', 'g', 'b', 'y', 'purple']
-N_lab = ['10^2', '10^3', '10^4', '2 x 10^4', '4 x 10^4']
+mark = ['o', 'D', 'x']
+col = ['g', 'b', 'purple']
+N_lab = ['10^2', '10^3', '10^4']
 plt.figure()
 for ii, N in enumerate(N_list):
     plt.plot(D_list, time_ale[0][ii], linestyle='--',
@@ -176,13 +176,13 @@ if savefig:
 plt.show(block=False)
 
 # plot 5 - 6
-layers_list = [2, 3, 5, 8, 10]
+mark = ['s', 'o', 'D', 'x']
+col = ['r', 'g', 'b', 'purple']
+layers_list = [3, 5, 8, 10]
 N_list = [1000]
 D_list = [5, 10, 15, 20, 25, 50, 100]
 time_dale, time_ale, time_forward, time_backward = systematic_evaluation(layers_list, D_list, N_list)
 
-mark = ['s', 'o', 'D', 'v', 'x']
-col = ['r', 'g', 'b', 'y', 'purple']
 plt.figure()
 for ii, L in enumerate(layers_list):
     plt.plot(D_list, time_ale[ii][0], linestyle='--',

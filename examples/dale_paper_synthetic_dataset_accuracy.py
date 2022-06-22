@@ -10,7 +10,7 @@ y = f_0 + e^((x_1-x_2)^2) - e^(.1^2)  ,if   tau <= x1 - x2 <= 2*tau
 y = f_0 + e^((2*tau)^2) - e^(tau^2)   ,if 2*tau <= x1 - x2
 """
 
-from sklearn.preprocessing import PolynomialFeatures
+# from sklearn.preprocessing import PolynomialFeatures
 import random as python_random
 import copy
 import keras
@@ -29,28 +29,10 @@ import matplotlib
 savefig = False
 
 
-np.random.seed(1232)
+np.random.seed(12532)
 python_random.seed(1323)
 tf.random.set_seed(12434)
 
-
-# def model(X: np.array) -> np.array:
-#     tau_2 = .7
-#     tau_3 = 2.
-#     a = 30
-#     y = []
-
-#     diff = X[:,0] - X[:,1]
-#     ind1 = np.abs(diff) < tau_2
-#     ind2 = np.logical_and(np.abs(diff) >= tau_2, np.abs(diff) < tau_3)
-#     ind3 = np.abs(diff) >= tau_3
-
-#     y = .5*X[:,0]**2 + .5*X[:,1]**2 + X[:,0]*X[:,1]
-#     if np.sum(ind2) > 0:
-#         y[ind2] = y[ind2] + a*(X[ind2,0] - X[ind2,1])**2 - a*tau_2**2
-#     if np.sum(ind3) > 0:
-#         y[ind3] = y[ind3] + a*(tau_3)**2 - a*tau_2**2
-#     return y
 
 def model(X: np.array) -> np.array:
     tau_2 = 1.2
@@ -113,8 +95,8 @@ def generate_samples(N: int, samples_range) -> np.array:
     x1 = np.random.normal(1.5, std, size=int(N/5))
     x2 = np.random.normal(3., std, size=int(N/5))
     x3 = np.random.normal(5, std, size=int(N/5))
-    x4 = np.random.normal(7, std, size=int(N/5))
-    x5 = np.random.normal(8.5, std, size=int(N/5))
+    x4 = np.random.normal(6.3, std, size=int(N/5))
+    x5 = np.random.normal(8.2, std, size=int(N/5))
     # x1 = np.random.uniform(0, samples_range, size=N-2)
     x1 = np.concatenate([np.zeros(int(1)),
                          x1,
@@ -133,8 +115,8 @@ def generate_samples(N: int, samples_range) -> np.array:
 
 
 def plot_f(model, samples, nof_points, samples_range, savefig):
-    x = np.linspace(-.2*samples_range, 1.2*samples_range, nof_points)
-    y = np.linspace(-.2*samples_range, 1.2*samples_range, nof_points)
+    x = np.linspace(-.1*samples_range, 1.1*samples_range, nof_points)
+    y = np.linspace(-.1*samples_range, 1.1*samples_range, nof_points)
     xx, yy = np.meshgrid(x, y)
     positions = np.vstack([xx.ravel(), yy.ravel()]).T
     z = model(np.concatenate([positions, np.zeros((positions.shape[0], 1))], axis=-1))
@@ -142,14 +124,13 @@ def plot_f(model, samples, nof_points, samples_range, savefig):
     fig, ax = plt.subplots()
     cs = ax.contourf(xx, yy, zz, levels=400, vmin=-100, vmax=200., cmap=cm.viridis, extend='both')
     ax.plot(samples[:, 0], samples[:, 1], 'ro', label="samples")
-    ax.plot(np.linspace(0, samples_range, 10), np.linspace(0, samples_range, 10), "r-")
-    fig.colorbar(cs)
-    plt.title(r"$f_{\mathtt{gt}}(x_1, x_2)$")
+    ax.plot(np.linspace(0, 10, 10), np.linspace(0, samples_range, 10), "r--")
+    plt.title(r"$f(x_1, x_2, x_3=0)$")
     plt.xlabel("$x_1$")
     plt.ylabel("$x_2$")
     plt.legend()
     if savefig:
-        tplt.save("./paper-ijcai/images/example-2-black-box.tex")
+        tplt.save("/home/givasile/projects-org/org-feature-effect/paper-acml/images/case-2-f-gt.tex")
     plt.show(block=False)
 
 
@@ -163,52 +144,51 @@ def create_gt_effect(s):
         return dale_gt.eval(x, s)[0]
     return tmp
 
+def plot_effect(K, savefig):
+    plt.figure()
+    plt.title("Effect Estimation: K = " + str(K))
+    x = np.linspace(0,10, 1000)
+    y_gt = ale_gt_0(x)
 
-savefig = False
+    # dale estimation
+    dale = fe.DALE(data=X, model=model, model_jac=model_jac)
+    dale.fit(alg_params={"nof_bins": K})
+    y_dale = dale.eval(x=x, s=0)[0]
 
-# gt truth effect
-samples_range = 10
-X_big = generate_samples(N=1000000, samples_range=samples_range)
-dale_gt = fe.DALE(data=X_big, model=model, model_jac=model_jac)
-dale_gt.fit(alg_params={"nof_bins": 5})
-dale_gt.plot(s=0)
+    # ale estimation
+    ale = fe.ALE(data=X, model=model)
+    ale.fit(alg_params={"nof_bins": K})
+    y_ale = ale.eval(x=x, s=0)[0]
 
+    plt.plot(x, y_gt, "r--", label="$f_{gt}$")
+    plt.plot(x, y_ale, "--", color="dodgerblue", label="$\hat{f}_{\mathtt{ALE}}$")
+    plt.plot(x, y_dale, "--", color="black", label="$f_{\mathtt{DALE}}$")
+    plt.xlabel("$x_1$")
+    plt.legend()
+    if savefig:
+        tplt.save("/home/givasile/projects-org/org-feature-effect/paper-acml/images/case-2-fe-bins-" + str(K) + ".tex")
+    plt.show(block=False)
+
+
+savefig = True
+# create gt effect
+ale_gt_0 = create_gt_effect(s=0)
 
 # generate and plot points
 N = 1000
+samples_range = 10
 X = generate_samples(N, samples_range)
-plot_f(model=model, samples=X, nof_points=60, samples_range=samples_range, savefig=savefig)
-ale_gt_0 = create_gt_effect(s=0)
+# plot_f(model=model, samples=X, nof_points=30, samples_range=samples_range, savefig=savefig)
 
-# dale estimation
-dale = fe.DALE(data=X, model=model, model_jac=model_jac)
-dale.fit(alg_params={"nof_bins": 6})
-dale.plot(s=0, gt=ale_gt_0, error=None)
+K = 5
+plot_effect(K, savefig)
 
-# ale estimation
-ale = fe.ALE(data=X, model=model)
-ale.fit(alg_params={"nof_bins": 6})
-ale.plot(s=0, gt=ale_gt_0, error=None)
+K = 15
+plot_effect(K, savefig)
 
-# ale estimation
-ale = fe.ALE(data=X, model=model)
-ale.fit(alg_params={"nof_bins": 15})
-ale.plot(s=0, gt=ale_gt_0, error=None)
+K = 50
+plot_effect(K, savefig)
 
-# dale estimation
-dale = fe.DALE(data=X, model=model, model_jac=model_jac)
-dale.fit(alg_params={"nof_bins": 15})
-dale.plot(s=0, gt=ale_gt_0, error=None)
-
-# dale estimation
-dale = fe.DALE(data=X, model=model, model_jac=model_jac)
-dale.fit(alg_params={"nof_bins": 50})
-dale.plot(s=0, gt=ale_gt_0, error=None)
-
-# ale estimation
-ale = fe.ALE(data=X, model=model)
-ale.fit(alg_params={"nof_bins": 50})
-ale.plot(s=0, gt=ale_gt_0, error=None)
 
 def evaluate_many_K(K_list, X):
     x = np.linspace(0, 10, 1000)
@@ -234,3 +214,11 @@ def evaluate_many_K(K_list, X):
 
 K_list = np.arange(1, 51)
 dale_err, ale_err = evaluate_many_K(K_list, X)
+print(np.array(ale_err) < .1)
+print(np.array(dale_err) < .1)
+
+# plot gt
+N = 100
+samples_range = 10
+X = generate_samples(N, samples_range)
+plot_f(model=model, samples=X, nof_points=30, samples_range=samples_range, savefig=savefig)
