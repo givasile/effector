@@ -1,16 +1,3 @@
-"""
-Artificial example 2 of the paper, the goal is to show that ALE approximation
-is vulnerable to OOD sampling in cases of rare samples.
-
-Black box function;
-tau = 1.2
-f_0 = .5*x_1^2 + .5x_2^2 + x_1*x_2
-y = f_0                               ,if          x1 - x2 <= tau
-y = f_0 + e^((x_1-x_2)^2) - e^(.1^2)  ,if   tau <= x1 - x2 <= 2*tau
-y = f_0 + e^((2*tau)^2) - e^(tau^2)   ,if 2*tau <= x1 - x2
-"""
-
-# from sklearn.preprocessing import PolynomialFeatures
 import random as python_random
 import copy
 import keras
@@ -203,7 +190,6 @@ def evaluate_many_K(K_list, X):
         y2 = dale.eval(x, s=0)[0]
         mse = np.mean((y2 - y1)**2)
         err_dale.append(mse/norm)
-
         ale = fe.ALE(data=X, model=model)
         ale.fit(alg_params={"nof_bins": k})
         y2 = ale.eval(x, s=0)[0]
