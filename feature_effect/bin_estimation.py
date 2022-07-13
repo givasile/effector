@@ -1,8 +1,27 @@
 import numpy as np
 import feature_effect.utils as utils
+import matplotlib.pyplot as plt
+
+class BinEstimator:
+    def __init__(self, data, data_effect):
+        self.limits = None
+        self.data = data
+        self.data_effect = data_effect
+
+    def plot(self, s=0, block=False):
+        limits = self.limits
+        data_effect = self.data_effect
+
+        plt.figure()
+        plt.title("Local effect for feature " + str(s+1))
+        plt.plot(self.data[:, s], self.data_effect[:,s], "bo", label="local effects")
+        if limits is not None:
+            plt.vlines(limits, ymin=np.min(data_effect), ymax=np.max(data_effect))
+        plt.show(block=block)
 
 
-class BinEstimatorDP:
+
+class BinEstimatorDP(BinEstimator):
     def __init__(self, data, data_effect, feature, K):
         self.x_min = np.min(data[:, feature])
         self.x_max = np.max(data[:, feature])
@@ -129,18 +148,44 @@ class BinEstimatorDP:
 
 
 
-class BinEstimatorGreedy:
-
-    def __init__(self, data, data_effect, feature, K):
-        self.x_min = np.min(data[:, feature])
-        self.x_max = np.max(data[:, feature])
-        self.K = K
-        self.dx = (self.x_max - self.x_min) / K
+class BinEstimatorGreedy(BinEstimator):
+    def __init__(self, data, data_effect):
         self.big_M = 1.e+10
         self.data = data
-        self.nof_points = data.shape[0]
         self.data_effect = data_effect
-        self.feature = feature
 
-    def solve():
-        limits = utils.create_fix_size_bins(data[:, feature], K)
+    def solve(self, s=0, tau=10, K=1000):
+        xs = self.data[:, s]
+        dy_dxs = self.data_effect[:, s]
+
+        # limits with high resolution
+        limits = utils.create_fix_size_bins(xs, K)
+
+        # bin merging
+        i = 0
+        merged_limits = [limits[0]]
+        while (i < K):
+            # left limit is always the last item of merged_limits
+            left_lim = merged_limits[-1]
+
+            # choose whether to close the bin
+            if i == K - 1:
+                close_bin = True
+            else:
+                # compare the added loss from closing or keep open in a greedy manner
+                _, effect_1 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([left_lim, limits[i+1]]))
+                _, effect_2 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([left_lim, limits[i+2]]))
+                loss_1 = np.var(effect_1) if effect_1.size > tau else self.big_M
+                loss_2 = np.var(effect_2) if effect_2.size > tau else self.big_M
+
+                if loss_1 == self.big_M:
+                    close_bin = False
+                else:
+                    close_bin = False if (loss_2 / loss_1 <= 1.05) else True
+
+            if close_bin:
+                merged_limits.append(limits[i+1])
+            i += 1
+
+        self.limits = merged_limits
+        return merged_limits
