@@ -126,3 +126,21 @@ class BinEstimatorDP:
             self.limits, self.dx_list = self._argmatrix_to_limits()
 
         return self.limits
+
+
+
+class BinEstimatorGreedy:
+
+    def __init__(self, data, data_effect, feature, K):
+        self.x_min = np.min(data[:, feature])
+        self.x_max = np.max(data[:, feature])
+        self.K = K
+        self.dx = (self.x_max - self.x_min) / K
+        self.big_M = 1.e+10
+        self.data = data
+        self.nof_points = data.shape[0]
+        self.data_effect = data_effect
+        self.feature = feature
+
+    def solve():
+        limits = utils.create_fix_size_bins(data[:, feature], K)

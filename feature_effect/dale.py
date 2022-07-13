@@ -33,7 +33,7 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
     """
     assert method in ["fixed-size", "variable-size"]
     if method == "fixed-size":
-        # alg params
+        # get hyperparameters
         K = alg_params["nof_bins"] if "nof_bins" in alg_params.keys() else 30
         min_points_per_bin = alg_params["min_points_per_bin"] if "min_points_per_bin" in alg_params.keys() else 10
 
@@ -42,11 +42,13 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
 
         # compute dale params
         dale_params = utils.compute_fe_parameters(data[:, feature], data_effect[:, feature], limits, min_points_per_bin)
+
+        # store dale parameters
         dale_params["method"] = method
         dale_params["min_points_per_bin"] = min_points_per_bin
         dale_params["nof_bins"] = K
     elif method == "variable-size":
-        # alg params
+        # get hyperparameters
         K = alg_params["max_nof_bins"] if "max_nof_bins" in alg_params.keys() else 30
         min_points_per_bin = alg_params["min_points_per_bin"] if "min_points_per_bin" in alg_params.keys() else 10
 
@@ -62,6 +64,7 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
         if "limits" not in alg_params.keys():
             dale_params["bin_estimator"] = bin_estimator
 
+        # store dale parameters
         dale_params["method"] = method
         dale_params["max_nof_bins"] = K
         dale_params["min_points_per_bin"] = min_points_per_bin
