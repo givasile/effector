@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-import examples.example_utils as example_utils
+from scipy.stats import norm
 import feature_effect.utils as utils
 import matplotlib.pyplot as plt
 import feature_effect as fe
@@ -11,7 +11,13 @@ def gen_model_params():
               {"b":0., "from": .6, "to": .8},
               {"b":-3., "from": .8, "to": 1}]
     x_start = 0.
-    example_utils.find_a(params, x_start)
+
+
+    params[0]["a"] = x_start
+    for i, param in enumerate(params):
+        if i < len(params) - 1:
+            a_next = param["a"] + (param["to"] - param["from"]) * param["b"]
+            params[i + 1]["a"] = a_next
     return params
 
 
@@ -22,6 +28,26 @@ def generate_samples(N):
     x = np.expand_dims(x, axis=-1)
     return x
 
+
+def create_noisy_jacobian(params, noise_level, seed):
+    limits = [param["from"] for param in params]
+    limits.append(params[-1]["to"])
+
+    def compute_data_effect(x):
+        """Piece-wise linear"""
+
+        x = np.squeeze(x)
+        ind = np.squeeze(np.digitize(x, limits))
+        res1 = np.array(params)[ind-1]
+        y = np.array([r['b'] for r in res1])
+
+        # add noise
+        rv = norm(loc=0, scale=noise_level)
+        noise = rv.rvs(size=y.shape[0], random_state=seed)
+        return np.expand_dims(y+noise, -1)
+    return compute_data_effect
+
+
 # make process deterministic
 seed = 4834545
 np.random.seed(seed)
@@ -29,7 +55,7 @@ np.random.seed(seed)
 # create data, data_effects
 N = 10000
 noise_level = 2
-model_jac = example_utils.create_noisy_jacobian(gen_model_params(),noise_level, seed)
+model_jac = create_noisy_jacobian(gen_model_params(),noise_level, seed)
 data = generate_samples(N=N)
 data_effect = model_jac(data)
 
