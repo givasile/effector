@@ -49,39 +49,52 @@ class BinEstimatorGreedy(BinEstimator):
         super(BinEstimatorGreedy, self).__init__(data, data_effect, feature)
 
     def solve(self, min_points=10, K=1000):
+        assert min_points >= 2, "We need at least two points per bin to estimate the variance"
         xs = self.data[:, self.feature]
         dy_dxs = self.data_effect[:, self.feature]
 
-        # limits with high resolution
-        limits = utils.create_fix_size_bins(xs, K)
+        # TODO make sure there are enough points to fulfill the constraint
+        if dy_dxs.size < min_points:
+            self.limits = False
+        elif dy_dxs.size < 2*min_points:
+            self.limits = np.array([xs.min(), xs.max()])
+        else:
+            # limits with high resolution
+            limits = utils.create_fix_size_bins(xs, K)
+            # bin merging
+            i = 0
+            merged_limits = [limits[0]]
+            while (i < K):
+                # left limit is always the last item of merged_limits
+                left_lim = merged_limits[-1]
 
-        # bin merging
-        i = 0
-        merged_limits = [limits[0]]
-        while (i < K):
-            # left limit is always the last item of merged_limits
-            left_lim = merged_limits[-1]
-
-            # choose whether to close the bin
-            if i == K - 1:
-                close_bin = True
-            else:
-                # compare the added loss from closing or keep open in a greedy manner
-                _, effect_1 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([left_lim, limits[i+1]]))
-                _, effect_2 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([left_lim, limits[i+2]]))
-                loss_1 = np.var(effect_1) if effect_1.size > min_points else self.big_M
-                loss_2 = np.var(effect_2) if effect_2.size > min_points else self.big_M
-
-                if loss_1 == self.big_M:
-                    close_bin = False
+                # choose whether to close the bin
+                if i == K - 1:
+                    close_bin = True
                 else:
-                    close_bin = False if (loss_2 / loss_1 <= 1.05) else True
+                    # compare the added loss from closing or keep open in a greedy manner
+                    _, effect_1 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([left_lim, limits[i+1]]))
+                    _, effect_2 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([left_lim, limits[i+2]]))
+                    loss_1 = np.var(effect_1) if effect_1.size >= min_points else self.big_M
+                    loss_2 = np.var(effect_2) if effect_2.size >= min_points else self.big_M
 
-            if close_bin:
-                merged_limits.append(limits[i+1])
-            i += 1
+                    if loss_1 == self.big_M:
+                        close_bin = False
+                    else:
+                        close_bin = False if (loss_2 / loss_1 <= 1.05) else True
 
-        self.limits = np.array(merged_limits)
+                if close_bin:
+                    merged_limits.append(limits[i+1])
+                i += 1
+
+
+            # if last bin is without enough points, merge it with the previous
+            _, last_bin_effect = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([limits[-2], limits[-1]]))
+            if last_bin_effect.size < min_points:
+                if len(merged_limits) > 2:
+                    merged_limits = merged_limits[:-2] + merged_limits[-1:]
+            self.limits = np.array(merged_limits)
+
         self.min_points = min_points
         return self.limits
 

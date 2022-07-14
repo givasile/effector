@@ -7,10 +7,10 @@ import feature_effect as fe
 import numdifftools
 
 # piecewise linear function (a + bx) parameters
-params = [{"a": 0., "b":10, "from": 0., "to": .3},
-          {"a": 3., "b":-10., "from": .3, "to": .6},
-          {"a": 0., "b": 5., "from": .6, "to": .8},
-          {"a": 1., "b":-5., "from": .8, "to": 1}]
+params = [{"a": 0., "b":10, "from": 0., "to": .25},
+          {"a": 3., "b":-10., "from": .25, "to": .5},
+          {"a": 0., "b": 5., "from": .5, "to": .75},
+          {"a": 1., "b":-5., "from": .75, "to": 1}]
 
 
 def model(x):
@@ -59,21 +59,60 @@ def generate_samples(N, noise_level):
     return x
 
 
-# generate data
-N = 100
-noise_level = 0.5
-x = generate_samples(N, noise_level)
+
+# test case 1 - only five points
+x1 = np.array([0., 0.2, 0.8, 1.])
+x2 = np.random.normal(loc=0, scale=0.01, size=(int(x1.shape[0])))
+x = np.stack((x1, x2), axis=-1)
 y = model(x)
 y_grad = model_jac(x)
 
 
-# Bin creation - dynamic programming
-bin_1 = fe.bin_estimation.BinEstimatorDP(x, y_grad, feature=0)
-bin_1.solve(min_points=5, K=30)
-bin_1.plot(block=False)
+min_points = 2
+gt_limits = np.array([0, 1.])
+est = fe.bin_estimation.BinEstimatorGreedy(x, y_grad, feature=0)
+limits = est.solve(min_points)
+assert np.allclose(gt_limits, limits)
 
-# Bin creation - with merging
-bin_2 = fe.bin_estimation.BinEstimatorGreedy(x, y_grad, feature=0)
-bin_2.solve(min_points=5, K=100)
-bin_2.plot(block=False)
-bin_2.compute_statistics()
+min_points = 3
+gt_limits = np.array([0, 1.])
+est = fe.bin_estimation.BinEstimatorGreedy(x, y_grad, feature=0)
+limits = est.solve(min_points)
+assert np.allclose(gt_limits, limits)
+
+min_points = 4
+gt_limits = np.array([0, 1.])
+est = fe.bin_estimation.BinEstimatorGreedy(x, y_grad, feature=0)
+limits = est.solve(min_points)
+assert np.allclose(gt_limits, limits)
+
+min_points = 10
+est = fe.bin_estimation.BinEstimatorGreedy(x, y_grad, feature=0)
+limits = est.solve(min_points)
+assert limits is False
+
+
+
+# est_1.plot(block=False)
+
+
+
+# x1 = np.array([.1, .1, .5, .5, .9, .9])
+# x2 = np.random.normal(loc=0, scale=0.01, size=(int(x1.shape[0])))
+
+# # generate data
+# N = 100
+# noise_level = 0.5
+# x = generate_samples(N, noise_level)
+
+
+# # Bin creation - dynamic programming
+# bin_1 = fe.bin_estimation.BinEstimatorDP(x, y_grad, feature=0)
+# bin_1.solve(min_points=5, K=30)
+# bin_1.plot(block=False)
+
+# # Bin creation - with merging
+# bin_2 = fe.bin_estimation.BinEstimatorGreedy(x, y_grad, feature=0)
+# bin_2.solve(min_points=5, K=100)
+# bin_2.plot(block=False)
+# bin_2.compute_statistics()
