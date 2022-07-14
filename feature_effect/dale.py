@@ -56,8 +56,8 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
         if "limits" in alg_params.keys():
             limits = alg_params["limits"]
         else:
-            bin_estimator = be.BinEstimatorDP(data, data_effect, feature, K)
-            limits = bin_estimator.solve_dp(min_points_per_bin)
+            bin_estimator = be.BinEstimatorDP(data, data_effect, feature)
+            limits = bin_estimator.solve(min_points_per_bin, K)
 
         # compute dale parameters
         dale_params = utils.compute_fe_parameters(data[:, feature], data_effect[:, feature], limits, min_points_per_bin)

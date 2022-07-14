@@ -2,31 +2,94 @@ import numpy as np
 import feature_effect.utils as utils
 import matplotlib.pyplot as plt
 
+
 class BinEstimator:
-    def __init__(self, data, data_effect):
-        self.limits = None
+    big_M = 1.e+10
+
+    def __init__(self, data, data_effect, feature):
+        # set immediately
         self.data = data
         self.data_effect = data_effect
+        self.feature = feature
+
+        # will be set after execution
+        self.min_points = None
+        self.limits = None
+        self.statistics = None
+
+
+    def compute_statistics(self):
+        assert self.limits is not None
+        assert self.min_points is not None
+
+        xs = self.data[:, self.feature]
+        dy_dxs = self.data_effect[:, self.feature]
+        limits = self.limits
+        min_points = self.min_points
+        self.statistics = utils.compute_fe_parameters(xs, dy_dxs, limits, min_points)
+        return self.statistics
+
 
     def plot(self, s=0, block=False):
+        xs = self.data[:, self.feature]
+        dy_dxs = self.data_effect[:, self.feature]
         limits = self.limits
-        data_effect = self.data_effect
 
         plt.figure()
         plt.title("Local effect for feature " + str(s+1))
-        plt.plot(self.data[:, s], self.data_effect[:,s], "bo", label="local effects")
+        plt.plot(xs, dy_dxs, "bo", label="local effects")
         if limits is not None:
-            plt.vlines(limits, ymin=np.min(data_effect), ymax=np.max(data_effect))
+            plt.vlines(limits, ymin=np.min(dy_dxs), ymax=np.max(dy_dxs))
         plt.show(block=block)
 
 
 
+class BinEstimatorGreedy(BinEstimator):
+    def __init__(self, data, data_effect, feature):
+        super(BinEstimatorGreedy, self).__init__(data, data_effect, feature)
+
+    def solve(self, min_points=10, K=1000):
+        xs = self.data[:, self.feature]
+        dy_dxs = self.data_effect[:, self.feature]
+
+        # limits with high resolution
+        limits = utils.create_fix_size_bins(xs, K)
+
+        # bin merging
+        i = 0
+        merged_limits = [limits[0]]
+        while (i < K):
+            # left limit is always the last item of merged_limits
+            left_lim = merged_limits[-1]
+
+            # choose whether to close the bin
+            if i == K - 1:
+                close_bin = True
+            else:
+                # compare the added loss from closing or keep open in a greedy manner
+                _, effect_1 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([left_lim, limits[i+1]]))
+                _, effect_2 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([left_lim, limits[i+2]]))
+                loss_1 = np.var(effect_1) if effect_1.size > min_points else self.big_M
+                loss_2 = np.var(effect_2) if effect_2.size > min_points else self.big_M
+
+                if loss_1 == self.big_M:
+                    close_bin = False
+                else:
+                    close_bin = False if (loss_2 / loss_1 <= 1.05) else True
+
+            if close_bin:
+                merged_limits.append(limits[i+1])
+            i += 1
+
+        self.limits = np.array(merged_limits)
+        self.min_points = min_points
+        return self.limits
+
+
 class BinEstimatorDP(BinEstimator):
-    def __init__(self, data, data_effect, feature, K):
+    def __init__(self, data, data_effect, feature):
         self.x_min = np.min(data[:, feature])
         self.x_max = np.max(data[:, feature])
-        self.K = K
-        self.dx = (self.x_max - self.x_min) / K
         self.big_M = 1.e+10
         self.data = data
         self.nof_points = data.shape[0]
@@ -56,12 +119,13 @@ class BinEstimatorDP(BinEstimator):
             cost = np.var(data_effect) * (stop-start) * discount_for_more_points
         return cost
 
-    def _index_to_position(self, index_start, index_stop):
-        start = self.x_min + index_start * self.dx
-        stop = self.x_min + index_stop * self.dx
+    def _index_to_position(self, index_start, index_stop, K):
+        dx = (self.x_max - self.x_min) / K
+        start = self.x_min + index_start * dx
+        stop = self.x_min + index_stop * dx
         return start, stop
 
-    def _cost_of_move(self, index_before, index_next, min_points):
+    def _cost_of_move(self, index_before, index_next, min_points, K):
         """Compute the cost of move.
 
         Computes the cost for moving from the index of the previous bin (index_before)
@@ -74,19 +138,19 @@ class BinEstimatorDP(BinEstimator):
         elif index_before == index_next:
             cost = 0
         else:
-            start, stop = self._index_to_position(index_before, index_next)
+            start, stop = self._index_to_position(index_before, index_next, K)
             cost = self._cost_of_bin(start, stop, min_points)
 
         return cost
 
-    def _argmatrix_to_limits(self):
+    def _argmatrix_to_limits(self, K):
         assert self.argmatrix is not None
         argmatrix = self.argmatrix
-        dx = self.dx
+        dx = (self.x_max - self.x_min) / K
         x_min = self.x_min
 
         lim_indices = [int(argmatrix[-1, -1])]
-        for j in range(self.K - 2, 0, -1):
+        for j in range(K - 2, 0, -1):
             lim_indices.append(int(argmatrix[int(lim_indices[-1]), j]))
         lim_indices.reverse()
 
@@ -105,8 +169,7 @@ class BinEstimatorDP(BinEstimator):
         dx_list = np.array([limits[i+1] - limits[i] for i in range(limits.shape[0]-1)])
         return limits, dx_list
 
-    def solve_dp(self, min_points):
-        K = self.K
+    def solve(self, min_points, K):
         big_M = self.big_M
         nof_limits = K + 1
         nof_bins = K
@@ -122,7 +185,7 @@ class BinEstimatorDP(BinEstimator):
             # init first bin_index
             bin_index = 0
             for lim_index in range(nof_limits):
-                matrix[lim_index, bin_index] = self._cost_of_move(bin_index, lim_index, min_points)
+                matrix[lim_index, bin_index] = self._cost_of_move(bin_index, lim_index, min_points, K)
 
             # for all other bins
             for bin_index in range(1, K):
@@ -131,7 +194,7 @@ class BinEstimatorDP(BinEstimator):
                     # find best solution
                     tmp = []
                     for lim_index_before in range(K + 1):
-                        tmp.append(matrix[lim_index_before, bin_index - 1] + self._cost_of_move(lim_index_before, lim_index_next, min_points))
+                        tmp.append(matrix[lim_index_before, bin_index - 1] + self._cost_of_move(lim_index_before, lim_index_next, min_points, K))
 
                     # store best solution
                     matrix[lim_index_next, bin_index] = np.min(tmp)
@@ -142,50 +205,6 @@ class BinEstimatorDP(BinEstimator):
             self.argmatrix = argmatrix
 
             # find indices
-            self.limits, self.dx_list = self._argmatrix_to_limits()
+            self.limits, self.dx_list = self._argmatrix_to_limits(K)
 
         return self.limits
-
-
-
-class BinEstimatorGreedy(BinEstimator):
-    def __init__(self, data, data_effect):
-        self.big_M = 1.e+10
-        self.data = data
-        self.data_effect = data_effect
-
-    def solve(self, s=0, tau=10, K=1000):
-        xs = self.data[:, s]
-        dy_dxs = self.data_effect[:, s]
-
-        # limits with high resolution
-        limits = utils.create_fix_size_bins(xs, K)
-
-        # bin merging
-        i = 0
-        merged_limits = [limits[0]]
-        while (i < K):
-            # left limit is always the last item of merged_limits
-            left_lim = merged_limits[-1]
-
-            # choose whether to close the bin
-            if i == K - 1:
-                close_bin = True
-            else:
-                # compare the added loss from closing or keep open in a greedy manner
-                _, effect_1 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([left_lim, limits[i+1]]))
-                _, effect_2 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([left_lim, limits[i+2]]))
-                loss_1 = np.var(effect_1) if effect_1.size > tau else self.big_M
-                loss_2 = np.var(effect_2) if effect_2.size > tau else self.big_M
-
-                if loss_1 == self.big_M:
-                    close_bin = False
-                else:
-                    close_bin = False if (loss_2 / loss_1 <= 1.05) else True
-
-            if close_bin:
-                merged_limits.append(limits[i+1])
-            i += 1
-
-        self.limits = merged_limits
-        return merged_limits

@@ -315,15 +315,17 @@ def compute_normalizer(limits: np.ndarray, bin_effect: np.ndarray, x):
 
 
 def compute_loss(points_per_bin, bin_variance_nans, dx, min_points_per_bin):
+    # discount_for_more_points = .2*(points_per_bin / np.sum(points_per_bin))
+    normalized_error_per_bin = bin_variance_nans
+    aggregated_error_per_bin = bin_variance_nans * dx # (1. - discount_for_more_points)
+
     if np.sum(points_per_bin < min_points_per_bin) > 0:
-        error = np.NaN
+        total_error = np.NaN
     else:
-        discount_for_more_points = .2*(points_per_bin / np.sum(points_per_bin))
-        error_per_bin = bin_variance_nans * (1. - discount_for_more_points) * dx
-        error = np.sqrt(np.sum(error_per_bin))
+        total_error = np.sqrt(np.sum(aggregated_error_per_bin))
         # error_per_bin = np.sqrt(bin_variance_nans) * dx / np.sqrt(points_per_bin)
         # error = np.sum(error_per_bin)
-    return error
+    return total_error, normalized_error_per_bin, aggregated_error_per_bin
 
 
 def compute_fe_parameters(data, data_effect, limits, min_points_per_bin):
@@ -347,7 +349,7 @@ def compute_fe_parameters(data, data_effect, limits, min_points_per_bin):
     # first empty bin
     first_empty_bin = find_first_nan_bin(bin_effect_nans)
 
-    loss = compute_loss(points_per_bin, bin_variance_nans, dx, min_points_per_bin)
+    loss, normalized_loss_per_bin, aggregated_loss_per_bin = compute_loss(points_per_bin, bin_variance_nans, dx, min_points_per_bin)
 
     z = compute_normalizer(limits, bin_effect, data)
 
@@ -355,6 +357,8 @@ def compute_fe_parameters(data, data_effect, limits, min_points_per_bin):
                   "limits": limits,
                   "dx": dx,
                   "loss": loss,
+                  "normalized_loss_per_bin": normalized_loss_per_bin,
+                  "aggregated_loss_per_bin": aggregated_loss_per_bin,
                   "points_per_bin": points_per_bin,
                   "is_bin_empty": is_bin_empty,
                   "bin_effect": bin_effect,

@@ -80,10 +80,10 @@ y = model(data)
 y_grad = model_jac(data)
 
 # bin estimation
-bin_est = fe.bin_estimation.BinEstimator(data, y_grad)
+bin_est = fe.bin_estimation.BinEstimator(data, y_grad, feature=0)
 bin_est.plot()
 
-bin_est_1 = fe.bin_estimation.BinEstimatorGreedy(data, y_grad)
+bin_est_1 = fe.bin_estimation.BinEstimatorGreedy(data, y_grad, feature=0)
 bin_est_1.solve()
 bin_est_1.plot()
 
