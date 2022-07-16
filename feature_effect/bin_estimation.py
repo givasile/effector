@@ -78,7 +78,7 @@ class BinEstimatorGreedy(BinEstimator):
                     loss_1 = np.var(effect_1) if effect_1.size >= min_points else self.big_M
                     loss_2 = np.var(effect_2) if effect_2.size >= min_points else self.big_M
 
-                    if loss_1 == self.big_M:
+                    if loss_1 == self.big_M or loss_1 == 0:
                         close_bin = False
                     else:
                         close_bin = False if (loss_2 / loss_1 <= 1.05) else True

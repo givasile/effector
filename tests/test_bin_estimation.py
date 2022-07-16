@@ -55,9 +55,9 @@ class TestCase1:
         """
         eps = 1e-03
         stop = 5
-        x1 = np.concatenate((np.array([0. + eps]),
+        x1 = np.concatenate((np.array([0.]),
                              np.random.uniform(0., 1., size=int(N-2)),
-                             np.array([1. - eps]))
+                             np.array([1.]))
                             )
 
         x2 = np.random.normal(loc=0, scale=noise_level, size=(int(x1.shape[0])))
@@ -159,3 +159,38 @@ class TestCase1:
         est = fe.bin_estimation.BinEstimatorDP(x, y_grad, feature=0)
         limits_DP = est.solve(min_points)
         assert limits_DP is False
+
+
+    def test_many_points(self):
+        params = [{"a": 0., "b":10, "from": 0., "to": .25},
+                  {"a": 3., "b":-10., "from": .25, "to": .5},
+                  {"a": 0., "b": 5., "from": .5, "to": .75},
+                  {"a": 1., "b":-5., "from": .75, "to": 1}]
+
+        tol = .05
+        N = 1e4
+        noise_level = 0
+        x = self.generate_samples(N, noise_level)
+        y = self.model(x, params)
+        y_grad = self.model_jac(x, params)
+        gt_limits = np.array([0., .25, .5, .75, 1])
+
+        # test Greedy
+        min_points = 10
+        est = fe.bin_estimation.BinEstimatorGreedy(x, y_grad, feature=0)
+        limits_Greedy = est.solve(min_points)
+        assert  np.sum(np.logical_and(limits_Greedy >= 0 - tol, limits_Greedy <= 0 + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_Greedy >= .25 - tol, limits_Greedy <= .25 + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_Greedy >= .5 - tol, limits_Greedy <= .5 + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_Greedy >= .75 - tol, limits_Greedy <= .75 + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_Greedy >= 1. - tol, limits_Greedy <= 1. + tol, )) >= 1
+
+        # test DP
+        min_points = 10
+        est = fe.bin_estimation.BinEstimatorDP(x, y_grad, feature=0)
+        limits_DP = est.solve(min_points)
+        assert  np.sum(np.logical_and(limits_DP >= 0 - tol, limits_DP <= 0 + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_DP >= .25 - tol, limits_DP <= .25 + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_DP >= .5 - tol, limits_DP <= .5 + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_DP >= .75 - tol, limits_DP <= .75 + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_DP >= 1. - tol, limits_DP <= 1. + tol, )) >= 1
