@@ -89,7 +89,7 @@ class BinEstimatorGreedy(BinEstimator):
 
 
             # if last bin is without enough points, merge it with the previous
-            _, last_bin_effect = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([limits[-2], limits[-1]]))
+            _, last_bin_effect = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([merged_limits[-2], merged_limits[-1]]))
             if last_bin_effect.size < min_points:
                 if len(merged_limits) > 2:
                     merged_limits = merged_limits[:-2] + merged_limits[-1:]
@@ -182,12 +182,14 @@ class BinEstimatorDP(BinEstimator):
         dx_list = np.array([limits[i+1] - limits[i] for i in range(limits.shape[0]-1)])
         return limits, dx_list
 
-    def solve(self, min_points, K):
+    def solve(self, min_points, K=30):
         big_M = self.big_M
         nof_limits = K + 1
         nof_bins = K
 
-        if K == 1:
+        if self.nof_points < min_points:
+            self.limits = False
+        elif K == 1:
             self.limits = np.array([self.x_min, self.x_max])
             self.dx_list = np.array([self.x_max - self.x_min])
         else:
