@@ -159,7 +159,7 @@ class TestExample1:
     def test_pdp(self):
         """Test PDP approximation is close, i.e. tolerance=10^-2, to the ground-truth.
         """
-        n = 1000
+        n = 10000
         samples = self.generate_samples(n)
 
         pdp = fe.PDP(data=samples, model=self.f)

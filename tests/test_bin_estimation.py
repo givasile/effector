@@ -65,7 +65,6 @@ class TestCase1:
         return x
 
 
-
     # test case 1 - only five points
     def create_data(self, params):
         x1 = np.array([0., 0.2, 0.8, 1.])

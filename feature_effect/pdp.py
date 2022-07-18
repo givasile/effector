@@ -133,8 +133,11 @@ class PDPNumerical(PDPBase):
         y = []
         for i in range(x.shape[0]):
             xs = x[i]
-            start = self.start["feature_" + str(s)]
-            stop = self.stop["feature_" + str(s)]
-            res = utils_integrate.expectation_1D(xs, self.model, self.p_xc, s, start, stop)[0]
-            y.append(res)
+            # start = self.start["feature_" + str(s)]
+            # stop = self.stop["feature_" + str(s)]
+            start = -np.Inf
+            stop = np.Inf
+            res = utils_integrate.expectation_1D(xs, self.model, self.p_xc, s, start, stop)
+            print(res[1])
+            y.append(res[0])
         return np.array(y)
