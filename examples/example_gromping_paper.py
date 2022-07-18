@@ -130,35 +130,32 @@ gen_dist = GenerativeDistribution(D, x1_min, x1_max, x2_sigma)
 # gen_dist.plot_pdf("pdf_x2")
 
 # generate points
-X = gen_dist.generate(N=100)
-# model.plot(X)
+X = gen_dist.generate(N=10)
 
-
-#
-#
-#
-
+# pdp monte carlo approximation
 s = 0
 pdp = fe.PDP(data=X, model=model.predict)
 # pdp.plot(s)
 
+# pdp numerical approximation
 p_xc = gen_dist.pdf_x2
-pdp_1 = fe.PDPNumerical(p_xc, model.predict, D=2, start=0, stop=1)
-# pdp_1.plot(s)
+pdp_numerical = fe.PDPNumerical(p_xc, model.predict, s=0, D=2, start=0, stop=1)
+# pdp_numerical.plot(s)
 
+# ground truth
+y_gt_unnorm = lambda x: (b1 + b3*.5)*x
+y_gt = lambda x: y_gt_unnorm(x) - 0.5*(b1 + b3*.5)
 
-# y_gt = pdp.eval_gt(xs, func=lambda x: (b1 + b3*.5)*xs)
-
-
+# plot all together
 plt.figure()
 plt.title("PDP")
-# plt.plot(xs, y_gt, "r-", label="closed_form")
-# plt.plot(xs, y_num, "g--", label="numerical approx")
 xs = np.linspace(0, 1, 100)
 plt.plot(xs, pdp.eval_unnorm(xs, s), "b--", label="on dataset (unnorm)")
 plt.plot(xs, pdp.eval(xs, s), "b-", label="on dataset (norm)")
-plt.plot(xs, pdp_1.eval_unnorm(xs, s), "r--", label="numerical (unnorm)")
-plt.plot(xs, pdp.eval(xs, s), "r-", label="numerical (norm)")
+plt.plot(xs, pdp_numerical.eval_unnorm(xs, s), "g--", label="numerical (unnorm)")
+plt.plot(xs, pdp_numerical.eval(xs, s), "g-", label="numerical (norm)")
+plt.plot(xs, y_gt_unnorm(xs), "r--", label="gt (unnorm)")
+plt.plot(xs, y_gt(xs), "r-", label="gt (norm)")
 plt.xlabel("x1")
 plt.ylabel("f_PDP")
 plt.legend()
