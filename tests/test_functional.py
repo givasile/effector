@@ -164,7 +164,7 @@ class TestExample1:
 
         pdp = fe.PDP(data=samples, model=self.f)
         x = np.linspace(0, 1, 1000)
-        y_pred = pdp.eval(x, feature=0)
+        y_pred = pdp.eval_unnorm(x, s=0)
         y_gt = self.pdp(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
