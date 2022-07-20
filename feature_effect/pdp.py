@@ -1,11 +1,12 @@
 import typing
 import numpy as np
 import scipy.integrate as integrate
+import feature_effect.visualization as viz
 from feature_effect import utils_integrate
 import copy
 import matplotlib.pyplot as plt
-
-
+from functools import partial
+from feature_effect import helpers
 
 class PDPBase:
     big_M = 1e8
@@ -16,33 +17,19 @@ class PDPBase:
 
         self.z = np.ones([dim])*self.big_M
 
+
     def eval_unnorm(self,):
         raise NotImplementedError
 
+
     def fit(self, features: typing.Union[str, list] = "all"):
-        # compute normalization constannt for each feature
-        if features == "all":
-            features = [i for i in range(self.D)]
-        elif type(features) == int:
-            features = [features]
-
+        # compute normalization constant for each feature
+        features = helpers.prep_features(features)
         for s in features:
-            self.z[s] = self._normalize(s, self.axis_limits[0, s], self.axis_limits[1, s])
-
-    def _normalize(self, s, start, stop):
-        """Computes normalization constant of PDP of feature
-
-        :param s: index of feature
-        :returns:
-
-        """
-
-        def wrapper(x):
-            x = np.array([[x]])
-            return self.eval_unnorm(x, s)
-
-        y = utils_integrate.mean_value_1D(wrapper, start, stop)[0]
-        return y
+            func = partial(self.eval_unnorm, s=s)
+            start = self.axis_limits[0, s]
+            stop = self.axis_limits[1, s]
+            self.z[s] = utils_integrate.normalization_constant_1D(func, start, stop)
 
 
     def eval(self, x, s):
@@ -70,20 +57,13 @@ class PDPBase:
 
     def plot(self, s, normalized=True, step=100):
         # getters
-        min_x = self.axis_limits[0, s]
-        max_x = self.axis_limits[1, s]
-
-        # main
-        x = np.linspace(min_x, max_x, step)
+        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], step)
         if normalized:
             y = self.eval(x, s)
         else:
             y = self.eval_unnorm(x, s)
+        vis.plot_1d_pdp(x, y, s)
 
-        plt.figure()
-        plt.title("PDP for feature %d" % (s+1))
-        plt.plot(x, y, "b-")
-        plt.show(block=False)
 
 
 class PDP(PDPBase):
@@ -164,6 +144,14 @@ class PDPNumerical(PDPBase):
                 y.append(res[0])
             return np.array(y)
         elif self.D == 3:
-            pass
+            y = []
+            for i in range(x.shape[0]):
+                xs = x[i]
+                c = 1 if s == 0 else 0
+                start = self.axis_limits[0, c]
+                stop = self.axis_limits[1, c]
+                res = utils_integrate.expecation_2D(xs, self.model, self.p_xc, s, self.axis_limits)
+                y.append(res[0])
+            return np.array(y)
         else:
             raise NotImplementedError

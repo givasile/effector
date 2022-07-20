@@ -7,6 +7,7 @@ import pytest
 
 np.random.seed(21)
 
+
 class OpaqueModel:
     def __init__(self, b0, b1, b2, b3):
         self.b0 = b0
@@ -14,8 +15,9 @@ class OpaqueModel:
         self.b2 = b2
         self.b3 = b3
 
+
     def predict(self, x):
-        y = self.b0 + self.b1*x[:, 0] + self.b2*x[:, 1] + self.b3*x[:, 0]*x[:, 1]
+        y = self.b0 + self.b1*np.sinc(np.pi*x[:, 0]) + self.b2*x[:, 1] + self.b3*x[:, 0]*x[:, 1]
         return y
 
     def jacobian(self, x):
@@ -79,31 +81,26 @@ class GenerativeDistribution:
 class TestCase1:
     def create_model_data(self):
         # define model and distribution
-        b0 = -4
-        b1 = 100
-        b2 = -100
-        b3 = -10
+        b0 = 5
+        b1 = 10
+        b2 = -10
+        b3 = -100
         model = OpaqueModel(b0=b0, b1=b1, b2=b2, b3=b3)
 
         D = 2
         x1_min = 0
         x1_max = 1
-        x2_sigma = 10.
+        x2_sigma = 0.1
         gen_dist = GenerativeDistribution(D, x1_min, x1_max, x2_sigma)
 
         # generate points
         X = gen_dist.generate(N=10000)
 
-        # ground truth
-        y_gt_unnorm = lambda x: (b1 + b3*.5)*x
-        y_gt = lambda x: y_gt_unnorm(x) - 0.5*(b1 + b3*.5)
-
-        return model, gen_dist, X, y_gt_unnorm, y_gt
+        return model, gen_dist, X
 
 
     def test_pdp(self):
-        model, gen_dist, X, y_gt_unnorm, y_gt = self.create_model_data()
-
+        model, gen_dist, X = self.create_model_data()
 
         # pdp monte carlo approximation
         s = 0
@@ -116,19 +113,53 @@ class TestCase1:
         pdp_numerical.fit(features=0)
 
         xs = np.linspace(0, 1, 100)
-        assert np.allclose(pdp.eval(xs, s=0), y_gt(xs), rtol=0.1, atol=0.1)
-        assert np.allclose(pdp_numerical.eval(xs, s=0), y_gt(xs), rtol=0.1, atol=0.1)
+        assert np.allclose(pdp.eval(xs, s=0), pdp_numerical.eval(xs, s=0), rtol=1., atol=1.)
 
+
+
+# def create_model_data():
+#     # define model and distribution
+#     b0 = 5
+#     b1 = 100
+#     b2 = -100
+#     b3 = -10
+#     model = OpaqueModel(b0=b0, b1=b1, b2=b2, b3=b3)
+
+#     D = 2
+#     x1_min = 0
+#     x1_max = 1
+#     x2_sigma = 10.
+#     gen_dist = GenerativeDistribution(D, x1_min, x1_max, x2_sigma)
+
+#     # generate points
+#     X = gen_dist.generate(N=10000)
+
+#     return model, gen_dist, X
+
+
+
+# # main part
+# model, gen_dist, X = create_model_data()
+
+# s = 0
+# pdp = fe.PDP(data=X, model=model.predict, axis_limits=gen_dist.axis_limits)
+# pdp.fit(features=0)
+
+# # pdp numerical approximation
+# p_xc = gen_dist.pdf_x2
+# pdp_numerical = fe.PDPNumerical(p_xc, model.predict, gen_dist.axis_limits, s=0, D=2)
+# pdp_numerical.fit(features=0)
+
+# xs = np.linspace(0, 1, 100)
+# # assert np.allclose(pdp.eval(xs, s=0), y_gt(xs), rtol=0.1, atol=0.1)
+# # assert np.allclose(pdp_numerical.eval(xs, s=0), y_gt(xs), rtol=0.1, atol=0.1)
 
 # # plot all together
 # plt.figure()
 # plt.title("PDP")
 # xs = np.linspace(0, 1, 100)
-# plt.plot(xs, pdp.eval_unnorm(xs, s), "b--", label="on dataset (unnorm)")
 # plt.plot(xs, pdp.eval(xs, s), "b-", label="on dataset (norm)")
-# plt.plot(xs, pdp_numerical.eval_unnorm(xs, s), "g--", label="numerical (unnorm)")
 # plt.plot(xs, pdp_numerical.eval(xs, s), "g-", label="numerical (norm)")
-# plt.plot(xs, y_gt_unnorm(xs), "r--", label="gt (unnorm)")
 # plt.plot(xs, y_gt(xs), "r-", label="gt (norm)")
 # plt.xlabel("x1")
 # plt.ylabel("f_PDP")

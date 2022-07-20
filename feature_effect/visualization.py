@@ -177,3 +177,10 @@ def plot_local_effects(s, xs, data_effect, limits, block):
     if limits is not False:
         plt.vlines(limits, ymin=np.min(data_effect), ymax=np.max(data_effect))
     plt.show(block=block)
+
+
+def plot_1D_pdp(x, y, s):
+    plt.figure()
+    plt.title("PDP for feature %d" % (s+1))
+    plt.plot(x, y, "b-")
+    plt.show(block=False)
