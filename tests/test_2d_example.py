@@ -47,6 +47,8 @@ class GenerativeDistribution:
         self.x1_max = x1_max
         self.x2_sigma = x2_sigma
 
+        self.axis_limits = np.array([[0, 1], [-4*x2_sigma, 1 + 4 * x2_sigma]]).T
+
     def generate(self, N):
 
         x1 = np.concatenate((np.array([0]),
@@ -77,10 +79,10 @@ class GenerativeDistribution:
 class TestCase1:
     def create_model_data(self):
         # define model and distribution
-        b0 = 0
-        b1 = 10
-        b2 = 10
-        b3 = 10
+        b0 = -4
+        b1 = 100
+        b2 = -100
+        b3 = -10
         model = OpaqueModel(b0=b0, b1=b1, b2=b2, b3=b3)
 
         D = 2
@@ -100,16 +102,18 @@ class TestCase1:
 
 
     def test_pdp(self):
-
         model, gen_dist, X, y_gt_unnorm, y_gt = self.create_model_data()
+
 
         # pdp monte carlo approximation
         s = 0
-        pdp = fe.PDP(data=X, model=model.predict)
+        pdp = fe.PDP(data=X, model=model.predict, axis_limits=gen_dist.axis_limits)
+        pdp.fit(features=0)
 
         # pdp numerical approximation
         p_xc = gen_dist.pdf_x2
-        pdp_numerical = fe.PDPNumerical(p_xc, model.predict, s=0, D=2, start=0, stop=1)
+        pdp_numerical = fe.PDPNumerical(p_xc, model.predict, gen_dist.axis_limits, s=0, D=2)
+        pdp_numerical.fit(features=0)
 
         xs = np.linspace(0, 1, 100)
         assert np.allclose(pdp.eval(xs, s=0), y_gt(xs), rtol=0.1, atol=0.1)

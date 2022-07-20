@@ -8,8 +8,26 @@ import matplotlib.pyplot as plt
 
 
 class PDPBase:
-    def __init__(self, model):
+    big_M = 1e8
+    def __init__(self, model, dim, axis_limits):
         self.model = model
+        self.D = dim
+        self.axis_limits = axis_limits
+
+        self.z = np.ones([dim])*self.big_M
+
+    def eval_unnorm(self,):
+        raise NotImplementedError
+
+    def fit(self, features: typing.Union[str, list] = "all"):
+        # compute normalization constannt for each feature
+        if features == "all":
+            features = [i for i in range(self.D)]
+        elif type(features) == int:
+            features = [features]
+
+        for s in features:
+            self.z[s] = self._normalize(s, self.axis_limits[0, s], self.axis_limits[1, s])
 
     def _normalize(self, s, start, stop):
         """Computes normalization constant of PDP of feature
@@ -24,7 +42,7 @@ class PDPBase:
             return self.eval_unnorm(x, s)
 
         y = utils_integrate.mean_value_1D(wrapper, start, stop)[0]
-        self.z["feature_" + str(s)] = y
+        return y
 
 
     def eval(self, x, s):
@@ -35,17 +53,27 @@ class PDPBase:
         :returns: np.array (N,)
 
         """
-        start = self.start["feature_" + str(s)]
-        stop = self.stop["feature_" + str(s)]
-        if "feature_" + str(s) not in self.z.keys():
+
+        # assertions
+        assert self.axis_limits[0, s] < self.axis_limits[1, s]
+
+        # getters
+        start = self.axis_limits[0, s]
+        stop = self.axis_limits[1, s]
+
+        # main part
+        if self.z[s] == self.big_M:
             self._normalize(s, start, stop)
-        return self.eval_unnorm(x, s) - self.z["feature_" + str(s)]
+        y = self.eval_unnorm(x, s) - self.z[s]
+        return y
 
 
     def plot(self, s, normalized=True, step=100):
-        min_x = self.start["feature_" + str(s)]
-        max_x = self.stop["feature_" + str(s)]
+        # getters
+        min_x = self.axis_limits[0, s]
+        max_x = self.axis_limits[1, s]
 
+        # main
         x = np.linspace(min_x, max_x, step)
         if normalized:
             y = self.eval(x, s)
@@ -59,26 +87,32 @@ class PDPBase:
 
 
 class PDP(PDPBase):
-    def __init__(self, data, model):
+    def __init__(self, data, model, axis_limits=None):
         """
 
         :param data: np.array (N, D), the design matrix
         :param model: Callable (N, D) -> (N,)
 
         """
-        super(PDP, self).__init__(model)
 
+        # assertions
         assert data.ndim == 2
+
+        # setters
         self.data = data
         self.D = data.shape[1]
+        dim = data.shape[1]
+        axis_limits = self._set_axis_limits() if axis_limits is None else axis_limits
+        super(PDP, self).__init__(model, dim, axis_limits)
 
-        self.start = {}
-        self.stop = {}
-        for d in range(data.shape[1]):
-            self.start["feature_" + str(d)] = data[:, d].min()
-            self.stop["feature_" + str(d)] = data[:, d].max()
 
-        self.z = {}
+    def _set_axis_limits(self):
+        axis_limits = np.zeros([2, self.D])
+        for d in range(self.D):
+            axis_limits[0, d] = self.data[:, d].min()
+            axis_limits[1, d] = self.data[:, d].max()
+        return axis_limits
+
 
     def eval_unnorm(self, x, s):
         """Evaluate the unnormalized PDP at positions x
@@ -96,31 +130,20 @@ class PDP(PDPBase):
             y.append(np.mean(self.model(data1)))
         return np.array(y)
 
-        return self._pdp(x, self.data, self.model, s)
-
-
 
 class PDPNumerical(PDPBase):
-    def __init__(self, p_xc: typing.Callable, model, s, D, start, stop):
+    def __init__(self, p_xc: typing.Callable, model, axis_limits, s, D):
         """
 
         :param p_xc: Callable (D,) -> ()
         :param s: int, index of feature of interest
         :param D: int, dimensionality
-        :param start: float, xs_min
-        :param stop: float, xs_max
-
         """
-        super(PDPNumerical, self).__init__(model)
+        super(PDPNumerical, self).__init__(model, D, axis_limits)
 
+        # add assertions
         self.p_xc = p_xc
-        self.D = 2
-
-        self.start = {"feature_" + str(s) : start}
-        self.stop = {"feature_" + str(s) : stop}
-
-        self.z = {}
-
+        self.s = s
 
     def eval_unnorm(self, x, s):
         """Evaluate the unnormalized PDP at positions x
@@ -130,14 +153,17 @@ class PDPNumerical(PDPBase):
         :returns: np.array (N,)
 
         """
-        y = []
-        for i in range(x.shape[0]):
-            xs = x[i]
-            # start = self.start["feature_" + str(s)]
-            # stop = self.stop["feature_" + str(s)]
-            start = -np.Inf
-            stop = np.Inf
-            res = utils_integrate.expectation_1D(xs, self.model, self.p_xc, s, start, stop)
-            print(res[1])
-            y.append(res[0])
-        return np.array(y)
+        if self.D == 2:
+            y = []
+            for i in range(x.shape[0]):
+                xs = x[i]
+                c = 1 if s == 0 else 0
+                start = self.axis_limits[0, c]
+                stop = self.axis_limits[1, c]
+                res = utils_integrate.expectation_1D(xs, self.model, self.p_xc, s, start, stop)
+                y.append(res[0])
+            return np.array(y)
+        elif self.D == 3:
+            pass
+        else:
+            raise NotImplementedError
