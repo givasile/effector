@@ -2,7 +2,36 @@ import typing
 import feature_effect.utils as utils
 import feature_effect.visualization as vis
 import feature_effect.bin_estimation as be
+from feature_effect.pdp import FeatureEffectBase
 import numpy as np
+
+
+class DALEGroundTruth(FeatureEffectBase):
+    def __init__(self, mean, mean_int, var, var_int, axis_limits):
+        super(DALEGroundTruth, self).__init__(axis_limits)
+        self.mean = mean
+        self.mean_int = mean_int
+        self.var = var
+        self.var_int = var_int
+
+    def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+        return {}
+
+    def eval_unnorm(self, x: np.ndarray, s: int):
+        return self.mean_int(x)
+
+    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+        """Plot the s-th feature
+        """
+        # getters
+        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+        if normalized:
+            y = self.eval(x, s)
+        else:
+            y = self.eval_unnorm(x, s)
+        vis.plot_1D(x, y, title="Ground-truth ALE for feature %d" % (s+1))
+
+
 
 
 def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: int, method: str, alg_params: typing.Dict) -> typing.Dict:

@@ -179,8 +179,8 @@ def plot_local_effects(s, xs, data_effect, limits, block):
     plt.show(block=block)
 
 
-def plot_1D_pdp(x, y, s):
+def plot_1D(x, y, title):
     plt.figure()
-    plt.title("PDP for feature %d" % (s+1))
+    plt.title(title)
     plt.plot(x, y, "b-")
     plt.show(block=False)

@@ -79,10 +79,10 @@ class GenerativeDistribution:
 class TestCase1:
     def create_model_data(self):
         # define model and distribution
-        b0 = 5
-        b1 = 100
-        b2 = -100
-        b3 = -10
+        b0 = 1
+        b1 = 1
+        b2 = 2
+        b3 = 10
         model = OpaqueModel(b0=b0, b1=b1, b2=b2, b3=b3)
 
         D = 2
@@ -95,13 +95,17 @@ class TestCase1:
         X = gen_dist.generate(N=10000)
 
         # ground truth
-        y_gt_unnorm = lambda x: (b1 + b3*.5)*x
+        self.pdp_gt = lambda x: (b1 + b3*.5)*x
 
-        return model, gen_dist, X, y_gt_unnorm
+        self.dale_mean = lambda x: b2 + b3*x
+        self.dale_mean_int = lambda x: b2*x + b3/2*x**2
+        self.dale_var = lambda x: (b3*x) ** 2
+        self.dale_var_int = lambda x: b3**2 * x**3 / 3
 
+        return model, gen_dist, X
 
     def test_pdp(self):
-        model, gen_dist, X, y_gt_unnorm = self.create_model_data()
+        model, gen_dist, X = self.create_model_data()
 
         # pdp monte carlo approximation
         s = 0
@@ -114,9 +118,60 @@ class TestCase1:
         pdp_numerical.fit(features=0)
 
         # pdp ground truth
-        pdp_gt = fe.PDPGroundTruth(y_gt_unnorm, gen_dist.axis_limits, D=2)
+        pdp_gt = fe.PDPGroundTruth(self.pdp_gt, gen_dist.axis_limits)
         pdp_gt.fit(features=0)
 
-        xs = np.linspace(0, 1, 100)
+        xs = np.linspace(gen_dist.axis_limits[0, 0], gen_dist.axis_limits[1, 0], 100)
         assert np.allclose(pdp.eval(xs, s=0), pdp_gt.eval(xs, s=0), rtol=0.1, atol=0.1)
         assert np.allclose(pdp_numerical.eval(xs, s=0), pdp_gt.eval(xs, s=0), rtol=0.1, atol=0.1)
+
+
+    def test_ale(self):
+        model, gen_dist, X = self.create_model_data()
+
+        # dale monte carlo approximation
+        s = 0
+        # dale = fe.DALE(data=X, model=model.predict, model_jac=model.jacobian)
+        # dale.fit(features=0, method="fixed-size", alg_params={"nof_bins": 1000})
+
+
+        # dale ground truth
+        dale_gt = fe.DALEGroundTruth(self.dale_mean, self.dale_mean_int, self.dale_var,
+                                     self.dale_var_int, gen_dist.axis_limits)
+        dale_gt.fit(features=0)
+
+        xs = np.linspace(0, 1, 100)
+        assert np.allclose(dale_gt.eval(xs, s=0), dale_gt.eval(xs, s=0), rtol=0.1, atol=0.1)
+
+
+
+case1 = TestCase1()
+model, gen_dist, X = case1.create_model_data()
+
+
+s = 0
+pdp = fe.PDP(data=X, model=model.predict, axis_limits=gen_dist.axis_limits)
+pdp.fit(features=0)
+
+# pdp numerical approximation
+p_xc = gen_dist.pdf_x2
+pdp_numerical = fe.PDPNumerical(p_xc, model.predict, gen_dist.axis_limits, s=0, D=2)
+pdp_numerical.fit(features=0)
+
+# pdp ground truth
+pdp_gt = fe.PDPGroundTruth(case1.pdp_gt, gen_dist.axis_limits)
+pdp_gt.fit(features=0)
+
+dale_gt = fe.DALEGroundTruth(case1.dale_mean, case1.dale_mean_int, case1.dale_var,
+                             case1.dale_var_int, gen_dist.axis_limits)
+dale_gt.fit(features=0)
+# dale_gt.plot(s=0)
+
+
+plt.figure()
+xs = np.linspace(gen_dist.axis_limits[0, 0], gen_dist.axis_limits[1, 0], 20)
+plt.plot(xs, pdp.eval_unnorm(xs, s=0), label="pdp (monte carlo)")
+plt.plot(xs, pdp_gt.eval_unnorm(xs, s=0), label="pdp (gt)")
+plt.plot(xs, dale_gt.eval_unnorm(xs, s=0), label="ale (gt)")
+plt.legend()
+plt.show(block=False)

@@ -2,29 +2,47 @@ import typing
 import copy
 import numpy as np
 from functools import partial
-import feature_effect.visualization as viz
+import feature_effect.visualization as vis
 import feature_effect.helpers as helpers
 import feature_effect.utils_integrate as utils_integrate
 
 
-class PDPBase:
+class FeatureEffectBase:
     empty_symbol = 1e8
-    def __init__(self, dim: int, axis_limits: np.ndarray) -> None:
+    def __init__(self, axis_limits: np.ndarray) -> None:
         """
         :param dim: int
         :param axis_limits: np.ndarray (2, D)
 
         """
-        self.D: int = dim
+        # setters
         self.axis_limits: np.ndarray = axis_limits
+        dim = self.axis_limits.shape[1]
+
+        # init
         self.z: np.ndarray = np.ones([dim])*self.empty_symbol
+        self.feature_effect: typing.Dict = {}
+        self.fitted: np.ndarray = np.ones([dim]) * False
 
-
-    def eval_unnorm(self,):
+    def eval_unnorm(self, x: np.ndarray, s: int) -> np.ndarray:
+        """Must be a callable with signature: (np.ndarray (N,D), int) -> np.ndarray (N,)
+        """
         raise NotImplementedError
 
 
-    def fit(self, features: typing.Union[str, list] = "all") -> None:
+    def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+        raise NotImplementedError
+
+
+    def compute_z(self, s: int) -> float:
+        func = partial(self.eval_unnorm, s=s)
+        start = self.axis_limits[0, s]
+        stop = self.axis_limits[1, s]
+        z = utils_integrate.normalization_constant_1D(func, start, stop)
+        return z
+
+
+    def fit(self, features: typing.Union[str, list] = "all", compute_z: bool = True) -> None:
         """Compute normalization constants for asked features
 
         :param features: list of features to compute the normalization constant
@@ -33,10 +51,10 @@ class PDPBase:
         """
         features = helpers.prep_features(features)
         for s in features:
-            func = partial(self.eval_unnorm, s=s)
-            start = self.axis_limits[0, s]
-            stop = self.axis_limits[1, s]
-            self.z[s] = utils_integrate.normalization_constant_1D(func, start, stop)
+            self.feature_effect["feature" + str(s)] = self.fit_feature(s)
+            if compute_z:
+                self.z[s] = self.compute_z(s)
+            self.fitted[s] = True
 
 
     def eval(self, x: np.ndarray, s: int) -> np.ndarray:
@@ -49,26 +67,17 @@ class PDPBase:
         """
         assert self.axis_limits[0, s] < self.axis_limits[1, s]
 
-        if self.z[s] == self.empty_symbol:
+        if not self.fitted[s]:
             self.fit(features=s)
         y = self.eval_unnorm(x, s) - self.z[s]
         return y
 
 
     def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
-        """Plot the s-th feature
-        """
-        # getters
-        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
-        if normalized:
-            y = self.eval(x, s)
-        else:
-            y = self.eval_unnorm(x, s)
-        vis.plot_1d_pdp(x, y, s)
+        raise NotImplementedError
 
 
-
-class PDP(PDPBase):
+class PDP(FeatureEffectBase):
     def __init__(self, data: np.ndarray, model: callable, axis_limits: typing.Union[None, np.ndarray]=None):
         """
 
@@ -84,9 +93,12 @@ class PDP(PDPBase):
         self.model = model
         self.data = data
         self.D = data.shape[1]
-        dim = data.shape[1]
         axis_limits = helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
-        super(PDP, self).__init__(dim, axis_limits)
+        super(PDP, self).__init__(axis_limits)
+
+
+    def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+        return {}
 
 
     def eval_unnorm(self, x: np.ndarray, s: int) -> np.ndarray:
@@ -105,8 +117,19 @@ class PDP(PDPBase):
             y.append(np.mean(self.model(data1)))
         return np.array(y)
 
+    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+        """Plot the s-th feature
+        """
+        # getters
+        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+        if normalized:
+            y = self.eval(x, s)
+        else:
+            y = self.eval_unnorm(x, s)
+        vis.plot_1D(x, y, title="PDP Monte Carlo feature %d" % (s+1))
 
-class PDPNumerical(PDPBase):
+
+class PDPNumerical(FeatureEffectBase):
     def __init__(self, p_xc: callable, model: callable, axis_limits: np.ndarray, s: int, D: int):
         """
 
@@ -117,11 +140,16 @@ class PDPNumerical(PDPBase):
         :param D: int, dimensionality of the problem
 
         """
-        super(PDPNumerical, self).__init__(D, axis_limits)
-
+        super(PDPNumerical, self).__init__(axis_limits)
+        self.D = D
         self.model = model
         self.p_xc = p_xc
         self.s = s
+
+
+    def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+        return {}
+
 
     def eval_unnorm(self, x: np.ndarray, s: int) -> np.ndarray:
         """Evaluate the unnormalized PDP at positions x
@@ -154,11 +182,25 @@ class PDPNumerical(PDPBase):
         else:
             raise NotImplmentedError
 
+    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+        """Plot the s-th feature
+        """
+        # getters
+        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+        if normalized:
+            y = self.eval(x, s)
+        else:
+            y = self.eval_unnorm(x, s)
+        vis.plot_1D(x, y, title="PDP Numerical Approximation feature %d" % (s+1))
 
-class PDPGroundTruth(PDPBase):
-    def __init__(self, func: np.ndarray, axis_limits: np.ndarray, D: int):
+
+class PDPGroundTruth(FeatureEffectBase):
+    def __init__(self, func: np.ndarray, axis_limits: np.ndarray):
         self.func = func
-        super(PDPGroundTruth, self).__init__(D, axis_limits)
+        super(PDPGroundTruth, self).__init__(axis_limits)
+
+    def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+        return {}
 
     def eval_unnorm(self, x: np.ndarray, s: int) -> np.ndarray:
         """
@@ -168,3 +210,15 @@ class PDPGroundTruth(PDPBase):
 
         """
         return self.func(x)
+
+
+    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+        """Plot the s-th feature
+        """
+        # getters
+        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+        if normalized:
+            y = self.eval(x, s)
+        else:
+            y = self.eval_unnorm(x, s)
+        vis.plot_1D(x, y, title="Ground-truth PDP for feature %d" % (s+1))
