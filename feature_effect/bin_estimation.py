@@ -44,20 +44,35 @@ class BinEstimator:
 
 
 
-class BinEstimatorGreedy(BinEstimator):
-    def __init__(self, data, data_effect, feature):
-        super(BinEstimatorGreedy, self).__init__(data, data_effect, feature)
+class GreedyBase:
+    def __init__(self, feature):
+        self.feature = feature
+        self.big_M = 1e9
+
+
+    def bin_loss(self, start, stop):
+        return NotImplementedError
+
+    def bin_valid(self, start, stop):
+        return NotImplementedError
+
+    def none_bin_possible(self):
+        return NotImplementedError
+
+    def one_bin_possible(self):
+        return NotImplementedError
 
     def solve(self, min_points=10, K=1000):
         assert min_points >= 2, "We need at least two points per bin to estimate the variance"
         xs = self.data[:, self.feature]
         dy_dxs = self.data_effect[:, self.feature]
+        self.min_points = min_points
 
         # TODO make sure there are enough points to fulfill the constraint
-        if dy_dxs.size < min_points:
+        if self.none_bin_possible():
             self.limits = False
-        elif dy_dxs.size < 2*min_points:
-            self.limits = np.array([xs.min(), xs.max()])
+        elif self.one_bin_possible():
+            self.limits = np.array([self.xs_min, self.xs_max])
         else:
             # limits with high resolution
             limits = utils.create_fix_size_bins(xs, K)
@@ -73,10 +88,8 @@ class BinEstimatorGreedy(BinEstimator):
                     close_bin = True
                 else:
                     # compare the added loss from closing or keep open in a greedy manner
-                    _, effect_1 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([left_lim, limits[i+1]]))
-                    _, effect_2 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([left_lim, limits[i+2]]))
-                    loss_1 = np.var(effect_1) if effect_1.size >= min_points else self.big_M
-                    loss_2 = np.var(effect_2) if effect_2.size >= min_points else self.big_M
+                    loss_1 = self.bin_loss(left_lim, limits[i+1])
+                    loss_2 = self.bin_loss(left_lim, limits[i+2])
 
                     if loss_1 == self.big_M or loss_1 == 0:
                         close_bin = False
@@ -87,16 +100,45 @@ class BinEstimatorGreedy(BinEstimator):
                     merged_limits.append(limits[i+1])
                 i += 1
 
-
             # if last bin is without enough points, merge it with the previous
-            _, last_bin_effect = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([merged_limits[-2], merged_limits[-1]]))
-            if last_bin_effect.size < min_points:
+            if not self.bin_valid(merged_limits[-2], merged_limits[-1]):
                 if len(merged_limits) > 2:
                     merged_limits = merged_limits[:-2] + merged_limits[-1:]
             self.limits = np.array(merged_limits)
-
-        self.min_points = min_points
         return self.limits
+
+
+class Greedy(GreedyBase):
+    def __init__(self, data, data_effect, feature):
+        super(Greedy, self).__init__(feature)
+        self.data = data
+        self.data_effect = data_effect
+        self.xs_min = data[:, self.feature].min()
+        self.xs_max = data[:, self.feature].max()
+
+    def bin_loss(self, start, stop):
+        xs = self.data[:, self.feature]
+        dy_dxs = self.data_effect[:, self.feature]
+        _, effect_1 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([start, stop]))
+        loss = np.var(effect_1) if effect_1.size >= self.min_points else self.big_M
+        return loss
+
+    def bin_valid(self, start, stop):
+        xs = self.data[:, self.feature]
+        dy_dxs = self.data_effect[:, self.feature]
+        _, effect_1 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([start, stop]))
+        valid = effect_1.size >= self.min_points
+        return valid
+
+    def none_bin_possible(self):
+        dy_dxs = self.data_effect[:, self.feature]
+        return dy_dxs.size < self.min_points
+
+    def one_bin_possible(self):
+        dy_dxs = self.data_effect[:, self.feature]
+        return self.min_points <= dy_dxs.size < 2*self.min_points
+
+
 
 
 class BinEstimatorDP(BinEstimator):

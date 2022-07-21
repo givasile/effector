@@ -86,7 +86,7 @@ class TestCase1:
 
         # test Greedy
         min_points = 2
-        est = fe.bin_estimation.BinEstimatorGreedy(x, y_grad, feature=0)
+        est = fe.bin_estimation.Greedy(x, y_grad, feature=0)
         limits_Greedy = est.solve(min_points)
 
         assert limits_Greedy.size == 3
@@ -114,7 +114,7 @@ class TestCase1:
         gt_limits = np.array([0, 1.])
 
         min_points = 3
-        est = fe.bin_estimation.BinEstimatorGreedy(x, y_grad, feature=0)
+        est = fe.bin_estimation.Greedy(x, y_grad, feature=0)
         limits_Greedy = est.solve(min_points)
         assert np.allclose(gt_limits, limits_Greedy)
 
@@ -133,7 +133,7 @@ class TestCase1:
         gt_limits = np.array([0, 1.])
 
         min_points = 4
-        est = fe.bin_estimation.BinEstimatorGreedy(x, y_grad, feature=0)
+        est = fe.bin_estimation.Greedy(x, y_grad, feature=0)
         limits_Greedy = est.solve(min_points)
         assert np.allclose(gt_limits, limits_Greedy)
 
@@ -150,7 +150,7 @@ class TestCase1:
         x, y_grad = self.create_data(params)
 
         min_points = 5
-        est = fe.bin_estimation.BinEstimatorGreedy(x, y_grad, feature=0)
+        est = fe.bin_estimation.Greedy(x, y_grad, feature=0)
         limits_Greedy = est.solve(min_points)
         assert limits_Greedy is False
 
@@ -176,7 +176,7 @@ class TestCase1:
 
         # test Greedy
         min_points = 10
-        est = fe.bin_estimation.BinEstimatorGreedy(x, y_grad, feature=0)
+        est = fe.bin_estimation.Greedy(x, y_grad, feature=0)
         limits_Greedy = est.solve(min_points)
         assert  np.sum(np.logical_and(limits_Greedy >= 0 - tol, limits_Greedy <= 0 + tol, )) >= 1
         assert  np.sum(np.logical_and(limits_Greedy >= .25 - tol, limits_Greedy <= .25 + tol, )) >= 1
