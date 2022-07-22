@@ -145,33 +145,33 @@ class TestCase1:
 
 
 
-case1 = TestCase1()
-model, gen_dist, X = case1.create_model_data()
+# case1 = TestCase1()
+# model, gen_dist, X = case1.create_model_data()
 
 
-s = 0
-pdp = fe.PDP(data=X, model=model.predict, axis_limits=gen_dist.axis_limits)
-pdp.fit(features=0)
+# s = 0
+# pdp = fe.PDP(data=X, model=model.predict, axis_limits=gen_dist.axis_limits)
+# pdp.fit(features=0)
 
-# pdp numerical approximation
-p_xc = gen_dist.pdf_x2
-pdp_numerical = fe.PDPNumerical(p_xc, model.predict, gen_dist.axis_limits, s=0, D=2)
-pdp_numerical.fit(features=0)
+# # pdp numerical approximation
+# p_xc = gen_dist.pdf_x2
+# pdp_numerical = fe.PDPNumerical(p_xc, model.predict, gen_dist.axis_limits, s=0, D=2)
+# pdp_numerical.fit(features=0)
 
-# pdp ground truth
-pdp_gt = fe.PDPGroundTruth(case1.pdp_gt, gen_dist.axis_limits)
-pdp_gt.fit(features=0)
+# # pdp ground truth
+# pdp_gt = fe.PDPGroundTruth(case1.pdp_gt, gen_dist.axis_limits)
+# pdp_gt.fit(features=0)
 
-dale_gt = fe.DALEGroundTruth(case1.dale_mean, case1.dale_mean_int, case1.dale_var,
-                             case1.dale_var_int, gen_dist.axis_limits)
-dale_gt.fit(features=0)
-# dale_gt.plot(s=0)
+# dale_gt = fe.DALEGroundTruth(case1.dale_mean, case1.dale_mean_int, case1.dale_var,
+#                              case1.dale_var_int, gen_dist.axis_limits)
+# dale_gt.fit(features=0)
+# # dale_gt.plot(s=0)
 
 
-plt.figure()
-xs = np.linspace(gen_dist.axis_limits[0, 0], gen_dist.axis_limits[1, 0], 20)
-plt.plot(xs, pdp.eval_unnorm(xs, s=0), label="pdp (monte carlo)")
-plt.plot(xs, pdp_gt.eval_unnorm(xs, s=0), label="pdp (gt)")
-plt.plot(xs, dale_gt.eval_unnorm(xs, s=0), label="ale (gt)")
-plt.legend()
-plt.show(block=False)
+# plt.figure()
+# xs = np.linspace(gen_dist.axis_limits[0, 0], gen_dist.axis_limits[1, 0], 20)
+# plt.plot(xs, pdp.eval_unnorm(xs, s=0), label="pdp (monte carlo)")
+# plt.plot(xs, pdp_gt.eval_unnorm(xs, s=0), label="pdp (gt)")
+# plt.plot(xs, dale_gt.eval_unnorm(xs, s=0), label="ale (gt)")
+# plt.legend()
+# plt.show(block=False)

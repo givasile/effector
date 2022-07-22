@@ -75,6 +75,19 @@ class TestCase1:
         return x, y_grad
 
 
+    # def create_ale_mu(self, x):
+    #     ind_1 = np.logical_and(x[:, 0] >= params[0]["from"], x[:, 0] < params[0]["to"])
+    #     ind_2 = np.logical_and(x[:, 0] >= params[1]["from"], x[:, 0] < params[1]["to"])
+    #     ind_3 = np.logical_and(x[:, 0] >= params[2]["from"], x[:, 0] < params[2]["to"])
+    #     ind_4 = np.logical_and(x[:, 0] >= params[3]["from"], x[:, 0] <= params[3]["to"])
+
+    #     y = params[0]["b"]
+    #     y[ind_2] = params[1]["b"]
+    #     y[ind_3] = params[2]["b"]
+    #     y[ind_4] = params[3]["b"]
+    #     return y
+
+
     def test_min_points_2(self):
         """Must create two bins
         """
@@ -193,3 +206,28 @@ class TestCase1:
         assert  np.sum(np.logical_and(limits_DP >= .5 - tol, limits_DP <= .5 + tol, )) >= 1
         assert  np.sum(np.logical_and(limits_DP >= .75 - tol, limits_DP <= .75 + tol, )) >= 1
         assert  np.sum(np.logical_and(limits_DP >= 1. - tol, limits_DP <= 1. + tol, )) >= 1
+
+
+
+# case1 = TestCase1()
+# x = case1.generate_samples(N=100, noise_level=.2)
+# params = [{"a": 0., "b":10, "from": 0., "to": .25},
+#           {"a": 3., "b":-10., "from": .25, "to": .5},
+#           {"a": 0., "b": 5., "from": .5, "to": .75},
+#           {"a": 1., "b":-5., "from": .75, "to": 1}]
+# y_grad = case1.model_jac(x, params)
+
+# gt_limits = np.array([0, 1.])
+
+# min_points = 4
+# est = fe.bin_estimation.Greedy(x, y_grad, feature=0)
+# limits_Greedy = est.solve(min_points)
+# # assert np.allclose(gt_limits, limits_Greedy)
+
+# min_points = 4
+# est = fe.bin_estimation.BinEstimatorDP(x, y_grad, feature=0)
+# est.plot()
+
+
+# limits_DP = est.solve(min_points)
+# # assert np.allclose(gt_limits, limits_DP)

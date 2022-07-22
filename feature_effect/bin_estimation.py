@@ -1,5 +1,6 @@
 import numpy as np
 import feature_effect.utils as utils
+import feature_effect.utils_integrate as integrate
 import matplotlib.pyplot as plt
 
 
@@ -49,7 +50,6 @@ class GreedyBase:
         self.feature = feature
         self.big_M = 1e9
 
-
     def bin_loss(self, start, stop):
         return NotImplementedError
 
@@ -64,8 +64,8 @@ class GreedyBase:
 
     def solve(self, min_points=10, K=1000):
         assert min_points >= 2, "We need at least two points per bin to estimate the variance"
-        xs = self.data[:, self.feature]
-        dy_dxs = self.data_effect[:, self.feature]
+        xs_min = self.xs_min
+        xs_max = self.xs_max
         self.min_points = min_points
 
         # TODO make sure there are enough points to fulfill the constraint
@@ -75,7 +75,7 @@ class GreedyBase:
             self.limits = np.array([self.xs_min, self.xs_max])
         else:
             # limits with high resolution
-            limits = utils.create_fix_size_bins(xs, K)
+            limits, _ = np.linspace(xs_min, xs_max, num=K+1, endpoint=True, retstep=True)
             # bin merging
             i = 0
             merged_limits = [limits[0]]
@@ -139,6 +139,33 @@ class Greedy(GreedyBase):
         return self.min_points <= dy_dxs.size < 2*self.min_points
 
 
+class GreedyGroundTruth(GreedyBase):
+    def __init__(self, mean: callable, var: callable, axis_limits: np.ndarray, feature: int):
+        super(GreedyGroundTruth, self).__init__(feature)
+        self.mean = mean
+        self.var = var
+        self.axis_limits = axis_limits
+        self.xs_min = axis_limits[0, feature]
+        self.xs_max = axis_limits[1, feature]
+
+
+    def bin_loss(self, start, stop):
+        mu_bin = integrate.normalization_constant_1D(self.mean, start, stop) / (stop-start)
+        mean_var = lambda x: (self.mean(x) - mu_bin)**2
+        var1 = integrate.normalization_constant_1D(self.var, start, stop)
+        var1 = var1 / (stop-start)
+        var2 = integrate.normalization_constant_1D(mean_var, start, stop)
+        var2 = var2 / (stop-start)
+        return var1 + var2
+
+    def bin_valid(self, start, stop):
+        return True
+
+    def none_bin_possible(self):
+        return False
+
+    def one_bin_possible(self):
+        return False
 
 
 class BinEstimatorDP(BinEstimator):
