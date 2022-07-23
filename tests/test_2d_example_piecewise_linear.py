@@ -14,17 +14,17 @@ class OpaqueModel:
         self.params = params
         self.s2 = 0.1
 
-    def linear_part(self, x, a, b, x0):
+    def _linear_part(self, x, a, b, x0):
         return a + b*(x[:, 0]-x0) + x[:, 0]*x[:, 1]
 
-    def create_cond(self, x, i, s):
+    def _create_cond(self, x, i, s):
         par = self.params
         if x.ndim >= 2:
             return np.logical_and(x[:, s] >= par[i]["from"], x[:, s] <= par[i]["to"])
         elif x.ndim == 1:
             return np.logical_and(x >= par[i]["from"], x <= par[i]["to"])
 
-    def create_func(self, i, func):
+    def _create_func(self, i, func):
         par = self.params
         return partial(func, a=par[i]["a"], b=par[i]["b"], x0=par[i]["from"])
 
@@ -32,8 +32,8 @@ class OpaqueModel:
         """f(x1, x2) = a + b*x1 + x1x2
         """
         par = self.params
-        condlist = [self.create_cond(x, i, s=0) for i in range(4)]
-        funclist = [self.create_func(i, self.linear_part) for i in range(4)]
+        condlist = [self._create_cond(x, i, s=0) for i in range(4)]
+        funclist = [self._create_func(i, self._linear_part) for i in range(4)]
 
         y = np.zeros(x.shape[0])
         for i, cond in enumerate(condlist):
@@ -42,7 +42,7 @@ class OpaqueModel:
 
     def jacobian(self, x):
         par = self.params
-        condlist = [self.create_cond(x, i, s=0) for i in range(4)]
+        condlist = [self._create_cond(x, i, s=0) for i in range(4)]
 
         def df_dx1(x, a, b, x0):
             return b + x[:, 1]
@@ -50,8 +50,8 @@ class OpaqueModel:
         def df_dx2(x, a, b, x0):
             return x[:, 0]
 
-        funclist1 = [self.create_func(i, df_dx1) for i in range(4)]
-        funclist2 = [self.create_func(i, df_dx2) for i in range(4)]
+        funclist1 = [self._create_func(i, df_dx1) for i in range(4)]
+        funclist2 = [self._create_func(i, df_dx2) for i in range(4)]
         y1 = np.zeros(x.shape[0])
         y2 = np.zeros(x.shape[0])
         for i, cond in enumerate(condlist):
@@ -66,8 +66,8 @@ class OpaqueModel:
             return b
 
         par = self.params
-        condlist = [self.create_cond(x, i, s=0) for i in range(4)]
-        funclist = [self.create_func(i, mu) for i in range(4)]
+        condlist = [self._create_cond(x, i, s=0) for i in range(4)]
+        funclist = [self._create_func(i, mu) for i in range(4)]
 
         y = np.zeros(x.shape[0])
         for i, cond in enumerate(condlist):
@@ -84,7 +84,7 @@ class OpaqueModel:
         x2 = np.linspace(-.5, .5, 30)
         XX, YY = np.meshgrid(x1, x2)
         x = np.vstack([XX.ravel(), YY.ravel()]).T
-        Z = self.predict(x)
+        Z = self._predict(x)
         ZZ = Z.reshape([30, 30])
 
         plt.figure()
@@ -162,7 +162,7 @@ class TestCase1:
 
 
     def test_bin_greedy(self):
-        tol = 0.5
+        tol = 0.1
         gt_list = [.0, .25, .5, .75, 1]
         model, gen_dist, X, X_jac = self.create_model_data()
 
@@ -178,6 +178,27 @@ class TestCase1:
         greedy.solve()
         for i, point in enumerate(gt_list):
             assert self._bin_limit_in_region(greedy.limits, point, tol)
+
+
+    def test_bin_dp(self):
+        tol = 0.05
+        gt_list = [.0, .25, .5, .75, 1]
+        model, gen_dist, X, X_jac = self.create_model_data()
+
+        # test greedy GT
+        dp = fe.bin_estimation.DPGroundTruth(model.ale_mu, model.ale_var,
+                                             gen_dist.axis_limits, feature=0)
+        dp.solve(K=20)
+        for i, point in enumerate(gt_list):
+            assert self._bin_limit_in_region(dp.limits, point, tol)
+
+        # test Greedy on points
+        dp = fe.bin_estimation.DP(X, X_jac, feature=0)
+        dp.solve()
+        for i, point in enumerate(gt_list):
+            assert self._bin_limit_in_region(dp.limits, point, tol)
+
+
 
 # case1 = TestCase1()
 # model, gen_dist, X, X_jac = case1.create_model_data()

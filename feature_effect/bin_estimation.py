@@ -46,9 +46,11 @@ class BinEstimator:
 
 
 class GreedyBase:
-    def __init__(self, feature):
+    def __init__(self, feature, xs_min, xs_max):
         self.feature = feature
         self.big_M = 1e9
+        self.xs_min = xs_min
+        self.xs_max = xs_max
 
     def bin_loss(self, start, stop):
         return NotImplementedError
@@ -104,17 +106,18 @@ class GreedyBase:
             if not self.bin_valid(merged_limits[-2], merged_limits[-1]):
                 if len(merged_limits) > 2:
                     merged_limits = merged_limits[:-2] + merged_limits[-1:]
+
             self.limits = np.array(merged_limits)
         return self.limits
 
 
 class Greedy(GreedyBase):
     def __init__(self, data, data_effect, feature):
-        super(Greedy, self).__init__(feature)
         self.data = data
         self.data_effect = data_effect
-        self.xs_min = data[:, self.feature].min()
-        self.xs_max = data[:, self.feature].max()
+        xs_min = data[:, feature].min()
+        xs_max = data[:, feature].max()
+        super(Greedy, self).__init__(feature, xs_min, xs_max)
 
     def bin_loss(self, start, stop):
         xs = self.data[:, self.feature]
@@ -141,12 +144,12 @@ class Greedy(GreedyBase):
 
 class GreedyGroundTruth(GreedyBase):
     def __init__(self, mean: callable, var: callable, axis_limits: np.ndarray, feature: int):
-        super(GreedyGroundTruth, self).__init__(feature)
         self.mean = mean
         self.var = var
         self.axis_limits = axis_limits
-        self.xs_min = axis_limits[0, feature]
-        self.xs_max = axis_limits[1, feature]
+        xs_min = axis_limits[0, feature]
+        xs_max = axis_limits[1, feature]
+        super(GreedyGroundTruth, self).__init__(feature, xs_min, xs_max)
 
 
     def bin_loss(self, start, stop):
@@ -168,15 +171,13 @@ class GreedyGroundTruth(GreedyBase):
         return False
 
 
-class BinEstimatorDP(BinEstimator):
-    def __init__(self, data, data_effect, feature):
-        self.x_min = np.min(data[:, feature])
-        self.x_max = np.max(data[:, feature])
-        self.big_M = 1.e+10
-        self.data = data
-        self.nof_points = data.shape[0]
-        self.data_effect = data_effect
+
+class DPBase:
+    def __init__(self, feature, xs_min, xs_max):
+        self.big_M = 1.e9
         self.feature = feature
+        self.xs_min = xs_min
+        self.xs_max = xs_max
 
         self.limits = None
         self.dx_list = None
@@ -184,27 +185,15 @@ class BinEstimatorDP(BinEstimator):
         self.argmatrix = None
 
     def _cost_of_bin(self, start, stop, min_points):
-        data = self.data[:, self.feature]
-        data_effect = self.data_effect[:, self.feature]
-        data, data_effect = utils.filter_points_belong_to_bin(data,
-                                                              data_effect,
-                                                              np.array([start, stop]))
+        raise NotImplementedError
 
-        big_cost = 1e+10
-
-        # compute cost
-        if data_effect.size < min_points:
-            cost = big_cost
-        else:
-            # cost = np.std(data_effect) * (stop-start) / np.sqrt(data_effect.size)
-            discount_for_more_points = (1 - .3*(data_effect.size / self.nof_points))
-            cost = np.var(data_effect) * (stop-start) * discount_for_more_points
-        return cost
+    def _none_bin_possible(self):
+        return NotImplementedError
 
     def _index_to_position(self, index_start, index_stop, K):
-        dx = (self.x_max - self.x_min) / K
-        start = self.x_min + index_start * dx
-        stop = self.x_min + index_stop * dx
+        dx = (self.xs_max - self.xs_min) / K
+        start = self.xs_min + index_start * dx
+        stop = self.xs_min + index_stop * dx
         return start, stop
 
     def _cost_of_move(self, index_before, index_next, min_points, K):
@@ -222,14 +211,12 @@ class BinEstimatorDP(BinEstimator):
         else:
             start, stop = self._index_to_position(index_before, index_next, K)
             cost = self._cost_of_bin(start, stop, min_points)
-
         return cost
 
     def _argmatrix_to_limits(self, K):
         assert self.argmatrix is not None
         argmatrix = self.argmatrix
-        dx = (self.x_max - self.x_min) / K
-        x_min = self.x_min
+        dx = (self.xs_max - self.xs_min) / K
 
         lim_indices = [int(argmatrix[-1, -1])]
         for j in range(K - 2, 0, -1):
@@ -247,20 +234,22 @@ class BinEstimatorDP(BinEstimator):
                 lim_indices_1.append(lim)
                 before = lim
 
-        limits = x_min + np.array(lim_indices_1) * dx
+        limits = self.xs_min + np.array(lim_indices_1) * dx
         dx_list = np.array([limits[i+1] - limits[i] for i in range(limits.shape[0]-1)])
         return limits, dx_list
 
-    def solve(self, min_points, K=30):
+
+    def solve(self, min_points=10, K=30):
+        self.min_points = min_points
         big_M = self.big_M
         nof_limits = K + 1
         nof_bins = K
 
-        if self.nof_points < min_points:
+        if self._none_bin_possible():
             self.limits = False
         elif K == 1:
-            self.limits = np.array([self.x_min, self.x_max])
-            self.dx_list = np.array([self.x_max - self.x_min])
+            self.limits = np.array([self.xs_min, self.xs_max])
+            self.dx_list = np.array([self.xs_max - self.xs_min])
         else:
             # init matrices
             matrix = np.ones((nof_limits, nof_bins)) * big_M
@@ -292,3 +281,62 @@ class BinEstimatorDP(BinEstimator):
             self.limits, self.dx_list = self._argmatrix_to_limits(K)
 
         return self.limits
+
+
+class DP(DPBase):
+    def __init__(self, data, data_effect, feature):
+        self.data = data
+        self.data_effect = data_effect
+        xs_min = np.min(data[:, feature])
+        xs_max = np.max(data[:, feature])
+        self.nof_points = data.shape[0]
+        self.feature = feature
+        super(DP, self).__init__(feature, xs_min, xs_max)
+
+    def _none_bin_possible(self):
+        dy_dxs = self.data_effect[:, self.feature]
+        return dy_dxs.size < self.min_points
+
+    def _cost_of_bin(self, start, stop, min_points):
+        data = self.data[:, self.feature]
+        data_effect = self.data_effect[:, self.feature]
+        data, data_effect = utils.filter_points_belong_to_bin(data,
+                                                              data_effect,
+                                                              np.array([start, stop]))
+
+        # compute cost
+        if data_effect.size < min_points:
+            cost = self.big_M
+        else:
+            # cost = np.std(data_effect) * (stop-start) / np.sqrt(data_effect.size)
+            discount_for_more_points = (1 - .3*(data_effect.size / self.nof_points))
+            cost = np.var(data_effect) * (stop-start) * discount_for_more_points
+        return cost
+
+
+class DPGroundTruth(DPBase):
+    def __init__(self, mean: callable, var: callable, axis_limits: np.ndarray, feature: int):
+        self.mean = mean
+        self.var = var
+        self.axis_limits = axis_limits
+        xs_min = axis_limits[0, feature]
+        xs_max = axis_limits[1, feature]
+        super(DPGroundTruth, self).__init__(feature, xs_min, xs_max)
+
+    def _none_bin_possible(self):
+        return False
+
+    def _cost_of_bin(self, start, stop, min_points):
+        mu_bin = integrate.normalization_constant_1D(self.mean, start, stop) / (stop-start)
+        mean_var = lambda x: (self.mean(x) - mu_bin)**2
+        var1 = integrate.normalization_constant_1D(self.var, start, stop)
+        var1 = var1 / (stop-start)
+        var2 = integrate.normalization_constant_1D(mean_var, start, stop)
+        var2 = var2 / (stop-start)
+        total_var = var1 + var2
+
+        # cost = np.std(data_effect) * (stop-start) / np.sqrt(data_effect.size)
+        bin_length_pcg = (stop - start) / (self.xs_max - self.xs_min)
+        discount_for_more_points = (1 - .3*bin_length_pcg)
+        cost = total_var * (stop-start) * discount_for_more_points
+        return cost

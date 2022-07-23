@@ -109,7 +109,7 @@ class TestCase1:
 
         # test DP
         min_points = 2
-        est = fe.bin_estimation.BinEstimatorDP(x, y_grad, feature=0)
+        est = fe.bin_estimation.DP(x, y_grad, feature=0)
         limits_DP = est.solve(min_points, K=10)
 
         assert limits_DP.size == 3
@@ -132,7 +132,7 @@ class TestCase1:
         assert np.allclose(gt_limits, limits_Greedy)
 
         min_points = 3
-        est = fe.bin_estimation.BinEstimatorDP(x, y_grad, feature=0)
+        est = fe.bin_estimation.DP(x, y_grad, feature=0)
         limits_DP = est.solve(min_points)
         assert np.allclose(gt_limits, limits_DP)
 
@@ -151,7 +151,7 @@ class TestCase1:
         assert np.allclose(gt_limits, limits_Greedy)
 
         min_points = 4
-        est = fe.bin_estimation.BinEstimatorDP(x, y_grad, feature=0)
+        est = fe.bin_estimation.DP(x, y_grad, feature=0)
         limits_DP = est.solve(min_points)
         assert np.allclose(gt_limits, limits_DP)
 
@@ -168,7 +168,7 @@ class TestCase1:
         assert limits_Greedy is False
 
         min_points = 5
-        est = fe.bin_estimation.BinEstimatorDP(x, y_grad, feature=0)
+        est = fe.bin_estimation.DP(x, y_grad, feature=0)
         limits_DP = est.solve(min_points)
         assert limits_DP is False
 
@@ -199,7 +199,7 @@ class TestCase1:
 
         # test DP
         min_points = 10
-        est = fe.bin_estimation.BinEstimatorDP(x, y_grad, feature=0)
+        est = fe.bin_estimation.DP(x, y_grad, feature=0)
         limits_DP = est.solve(min_points)
         assert  np.sum(np.logical_and(limits_DP >= 0 - tol, limits_DP <= 0 + tol, )) >= 1
         assert  np.sum(np.logical_and(limits_DP >= .25 - tol, limits_DP <= .25 + tol, )) >= 1
