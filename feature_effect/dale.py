@@ -17,8 +17,11 @@ class DALEGroundTruth(FeatureEffectBase):
     def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
         return {}
 
-    def eval_unnorm(self, x: np.ndarray, s: int):
-        return self.mean_int(x)
+    def eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
+        if not uncertainty:
+            return self.mean_int(x)
+        else:
+            return self.mean_int(x), self.var_int(x)
 
     def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
         """Plot the s-th feature

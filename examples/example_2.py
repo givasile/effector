@@ -119,101 +119,27 @@ class GenerativeDistribution:
 
 
 
-class TestCase1:
-
-    def create_model_data(self):
-        params = [{"a": 0., "b":10, "from": 0., "to": .25},
-                  {"a": 2.5, "b":-10., "from": .25, "to": .5},
-                  {"a": 0., "b": 5., "from": .5, "to": .75},
-                  {"a": 1.25, "b":-5., "from": .75, "to": 1}]
-
-        model = OpaqueModel(params)
-
-        D = 2
-        x1_min = 0
-        x1_max = 1
-        x2_sigma = .1
-        gen_dist = GenerativeDistribution(D, x1_min, x1_max, x2_sigma)
-
-        X = gen_dist.generate(N=10000)
-        X_jac = model.jacobian(X)
-
-        return model, gen_dist, X, X_jac
-
-    def test_pdp(self):
-        model, gen_dist, X, X_jac = self.create_model_data()
-
-        # pdp monte carlo approximation
-        s = 0
-        pdp = fe.PDP(data=X, model=model.predict, axis_limits=gen_dist.axis_limits)
-        pdp.fit(features=0)
-
-        # pdp numerical approximation
-        p_xc = gen_dist.pdf_x2
-        pdp_numerical = fe.PDPNumerical(p_xc, model.predict, gen_dist.axis_limits, s=0, D=2)
-        pdp_numerical.fit(features=0)
-
-        xs = np.linspace(gen_dist.axis_limits[0, 0], gen_dist.axis_limits[1, 0], 100)
-        assert np.allclose(pdp.eval(xs, s=0), pdp_numerical.eval(xs, s=0), rtol=0.1, atol=0.1)
 
 
-    def test_dale(self):
-        model, gen_dist, X, X_jac = self.create_model_data()
+params = [{"a": 0., "b":10, "from": 0., "to": .25},
+          {"a": 2.5, "b":-10., "from": .25, "to": .5},
+          {"a": 0., "b": 5., "from": .5, "to": .75},
+          {"a": 1.25, "b":-5., "from": .75, "to": 1}]
 
-        # dale monte carlo
-        dale = fe.DALE(data=X, model=model.predict, model_jac=model.jacobian)
-        dale.fit(features=[0])
+model = OpaqueModel(params)
 
-        # dale ground truth with bins
+D = 2
+x1_min = 0
+x1_max = 1
+x2_sigma = .1
+gen_dist = GenerativeDistribution(D, x1_min, x1_max, x2_sigma)
 
+X = gen_dist.generate(N=10000)
+X_jac = model.jacobian(X)
 
-    def _bin_limit_in_region(self, limits, point, tol):
-        return np.sum(np.logical_and(limits >= point - tol, limits <= point + tol, )) >= 1
-
-
-    def test_bin_greedy(self):
-        tol = 0.1
-        gt_list = [.0, .25, .5, .75, 1]
-        model, gen_dist, X, X_jac = self.create_model_data()
-
-        # test greedy GT
-        greedy = fe.bin_estimation.GreedyGroundTruth(model.ale_mu, model.ale_var,
-                                             gen_dist.axis_limits, feature=0)
-        greedy.solve()
-        for i, point in enumerate(gt_list):
-            assert self._bin_limit_in_region(greedy.limits, point, tol)
-
-        # test Greedy on points
-        greedy = fe.bin_estimation.Greedy(X, X_jac, feature=0)
-        greedy.solve()
-        for i, point in enumerate(gt_list):
-            assert self._bin_limit_in_region(greedy.limits, point, tol)
-
-
-    def test_bin_dp(self):
-        tol = 0.05
-        gt_list = [.0, .25, .5, .75, 1]
-        model, gen_dist, X, X_jac = self.create_model_data()
-
-        # test greedy GT
-        dp = fe.bin_estimation.DPGroundTruth(model.ale_mu, model.ale_var,
-                                             gen_dist.axis_limits, feature=0)
-        dp.solve(K=20)
-        for i, point in enumerate(gt_list):
-            assert self._bin_limit_in_region(dp.limits, point, tol)
-
-        # test Greedy on points
-        dp = fe.bin_estimation.DP(X, X_jac, feature=0)
-        dp.solve()
-        for i, point in enumerate(gt_list):
-            assert self._bin_limit_in_region(dp.limits, point, tol)
-
-
-
-# case1 = TestCase1()
-# model, gen_dist, X, X_jac = case1.create_model_data()
-
-# greedy = fe.bin_estimation.GreedyGroundTruth(model.ale_mu, model.ale_var,
-#                                              gen_dist.axis_limits, feature=0)
-# greedy.solve()
-# print(greedy.limits)
+# DALE normal
+dale = fe.DALE(data=X, model=model.predict, model_jac=model.jacobian)
+dale.fit(features="all", method="fixed-size", alg_params={"nof_bins":4})
+xs = np.linspace(0,1, 10000)
+y = dale.eval(xs, s=0)[0]
+dale.plot(s=0)

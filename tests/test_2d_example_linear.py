@@ -131,9 +131,8 @@ class TestCase1:
 
         # dale monte carlo approximation
         s = 0
-        # dale = fe.DALE(data=X, model=model.predict, model_jac=model.jacobian)
-        # dale.fit(features=0, method="fixed-size", alg_params={"nof_bins": 1000})
-
+        dale = fe.DALE(data=X, model=model.predict, model_jac=model.jacobian)
+        dale.fit(features=[0], method="fixed-size", alg_params={"nof_bins": 1000})
 
         # dale ground truth
         dale_gt = fe.DALEGroundTruth(self.dale_mean, self.dale_mean_int, self.dale_var,

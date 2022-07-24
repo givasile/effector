@@ -24,7 +24,7 @@ class FeatureEffectBase:
         self.feature_effect: typing.Dict = {}
         self.fitted: np.ndarray = np.ones([dim]) * False
 
-    def eval_unnorm(self, x: np.ndarray, s: int) -> np.ndarray:
+    def eval_unnorm(self, x: np.ndarray, s: int, uncertainty: int = False) -> np.ndarray:
         """Must be a callable with signature: (np.ndarray (N,D), int) -> np.ndarray (N,)
         """
         raise NotImplementedError
@@ -34,8 +34,12 @@ class FeatureEffectBase:
         raise NotImplementedError
 
 
+    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+        raise NotImplementedError
+
+
     def compute_z(self, s: int) -> float:
-        func = partial(self.eval_unnorm, s=s)
+        func = partial(self.eval_unnorm, s=s, uncertainty=False)
         start = self.axis_limits[0, s]
         stop = self.axis_limits[1, s]
         z = utils_integrate.normalization_constant_1D(func, start, stop)
@@ -57,7 +61,7 @@ class FeatureEffectBase:
             self.fitted[s] = True
 
 
-    def eval(self, x: np.ndarray, s: int) -> np.ndarray:
+    def eval(self, x: np.ndarray, s: int, uncertainty: bool = False) -> np.ndarray:
         """Evaluate the normalized PDP at positions x
 
         :param x: np.array (N,)
@@ -69,12 +73,16 @@ class FeatureEffectBase:
 
         if not self.fitted[s]:
             self.fit(features=s)
-        y = self.eval_unnorm(x, s) - self.z[s]
-        return y
+
+        if not uncertainty:
+            y = self.eval_unnorm(x, s, uncertainty=False) - self.z[s]
+            return y
+        else:
+            tup = self.eval_unnorm(x, s, uncertainty=True)
+            tup[0] = tup[0] - self.z[s]
+            return tup
 
 
-    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
-        raise NotImplementedError
 
 
 class PDP(FeatureEffectBase):
@@ -101,7 +109,7 @@ class PDP(FeatureEffectBase):
         return {}
 
 
-    def eval_unnorm(self, x: np.ndarray, s: int) -> np.ndarray:
+    def eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False) -> np.ndarray:
         """Evaluate the unnormalized PDP at positions x
 
         :param x: np.array (N,)
@@ -151,7 +159,7 @@ class PDPNumerical(FeatureEffectBase):
         return {}
 
 
-    def eval_unnorm(self, x: np.ndarray, s: int) -> np.ndarray:
+    def eval_unnorm(self, x: np.ndarray, s: int, uncertainty=False) -> np.ndarray:
         """Evaluate the unnormalized PDP at positions x
 
         :param x: np.array (N,)
@@ -202,7 +210,7 @@ class PDPGroundTruth(FeatureEffectBase):
     def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
         return {}
 
-    def eval_unnorm(self, x: np.ndarray, s: int) -> np.ndarray:
+    def eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False) -> np.ndarray:
         """
 
         :param x: np.ndarray (N, D)
