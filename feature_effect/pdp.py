@@ -18,6 +18,7 @@ class FeatureEffectBase:
         # setters
         self.axis_limits: np.ndarray = axis_limits
         dim = self.axis_limits.shape[1]
+        self.dim = dim
 
         # init
         self.z: np.ndarray = np.ones([dim])*self.empty_symbol
@@ -46,16 +47,19 @@ class FeatureEffectBase:
         return z
 
 
-    def fit(self, features: typing.Union[str, list] = "all", compute_z: bool = True) -> None:
+    def fit(self,
+            features: typing.Union[str, list] = "all",
+            alg_params: typing.Union[None, dict] = {},
+            compute_z: bool = True) -> None:
         """Compute normalization constants for asked features
 
         :param features: list of features to compute the normalization constant
         :returns: None
 
         """
-        features = helpers.prep_features(features)
+        features = helpers.prep_features(features, self.dim)
         for s in features:
-            self.feature_effect["feature" + str(s)] = self.fit_feature(s)
+            self.feature_effect["feature_" + str(s)] = self.fit_feature(s, alg_params)
             if compute_z:
                 self.z[s] = self.compute_z(s)
             self.fitted[s] = True
@@ -73,6 +77,9 @@ class FeatureEffectBase:
 
         if not self.fitted[s]:
             self.fit(features=s)
+
+        if self.z[s] == self.empty_symbol:
+            self.z[s] = self.compute_z(s)
 
         if not uncertainty:
             y = self.eval_unnorm(x, s, uncertainty=False) - self.z[s]

@@ -142,4 +142,15 @@ dale = fe.DALE(data=X, model=model.predict, model_jac=model.jacobian)
 dale.fit(features="all", method="fixed-size", alg_params={"nof_bins":4})
 xs = np.linspace(0,1, 10000)
 y = dale.eval(xs, s=0)[0]
-dale.plot(s=0)
+# dale.plot(s=0)
+
+dale_bins = fe.DALEBinsGT(model.ale_mu, model.ale_var, gen_dist.axis_limits)
+dale_bins.fit(compute_z = False)
+xs = np.linspace(0,1, 10000)
+ys = dale_bins.eval(xs, s=0)
+
+plt.figure()
+plt.plot(xs, ys, "r", label="ground truth bins")
+plt.plot(xs, y, "b--", label="samples")
+plt.legend()
+plt.show(block=False)

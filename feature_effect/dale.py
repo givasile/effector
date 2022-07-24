@@ -2,6 +2,7 @@ import typing
 import feature_effect.utils as utils
 import feature_effect.visualization as vis
 import feature_effect.bin_estimation as be
+import feature_effect.helpers as helpers
 from feature_effect.pdp import FeatureEffectBase
 import numpy as np
 
@@ -34,6 +35,73 @@ class DALEGroundTruth(FeatureEffectBase):
             y = self.eval_unnorm(x, s)
         vis.plot_1D(x, y, title="Ground-truth ALE for feature %d" % (s+1))
 
+
+class DALEBinsGT(FeatureEffectBase):
+    def __init__(self, mean, var, axis_limits):
+        super(DALEBinsGT, self).__init__(axis_limits)
+        self.mean = mean
+        self.var = var
+
+    def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+        alg_params = helpers.prep_dale_fit_params(alg_params)
+
+        # bin estimation
+        if alg_params["bin_method"] == "fixed":
+            bin_est = be.FixedSizeGT(self.axis_limits, feature=s)
+            bin_est.solve(min_points = alg_params["min_points_per_bin"],
+                          K = alg_params["nof_bins"])
+        elif alg_params["bin_method"] == "greedy":
+            bin_est = be.GreedyGroundTruth(self.mean, self.var, self.axis_limits, feature=s)
+        elif alg_params["bin_method"] == "dp":
+            bin_est = be.DPGroundTruth(self.mean, self.var, self.axis_limits, feature=s)
+        self.bin_est = bin_est
+
+        # stats per bin
+        dale_params = utils.compute_bin_statistics_gt(self.mean, self.var, bin_est.limits)
+        dale_params["limits"] = bin_est.limits
+        return dale_params
+
+
+    def eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
+        params = self.feature_effect["feature_" + str(s)]
+        y = utils.compute_accumulated_effect(x,
+                                             limits=params["limits"],
+                                             bin_effect=params["bin_effect"],
+                                             dx=params["dx"])
+        if uncertainty:
+            var = utils.compute_accumulated_effect(x,
+                                                   limits=params["limits"],
+                                                   bin_effect=params["bin_variance"],
+                                                   dx=params["dx"],
+                                                   square=True)
+            return y, var
+        else:
+            return y
+
+    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+        if normalized:
+            y = self.eval(x, s)
+        else:
+            y = self.eval_unnorm(x, s)
+        vis.plot_1D(x, y, title="ALE GT Bins for feature %d" % (s+1))
+
+    # def plot_local_effects(self, s: int = 0, limits=True, block=False):
+    #     xs = self.data[:, s]
+    #     data_effect = self.data_effect[:, s]
+    #     if limits:
+    #         limits = self.bin_est.limits
+    #     vis.plot_local_effects(s, xs, data_effect, limits, block)
+
+        # """Plot the s-th feature
+        # """
+        # # getters
+        # x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+        # if normalized:
+        #     y = self.eval(x, s)
+        # else:
+        #     y = self.eval_unnorm(x, s)
+        # vis.plot_1D(x, y, title="Ground-truth ALE for feature %d" % (s+1))
 
 
 

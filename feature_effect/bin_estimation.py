@@ -340,3 +340,61 @@ class DPGroundTruth(DPBase):
         discount_for_more_points = (1 - .3*bin_length_pcg)
         cost = total_var * (stop-start) * discount_for_more_points
         return cost
+
+
+class FixedSizeBase:
+    def __init__(self, feature, xs_min, xs_max):
+        self.feature = feature
+        self.big_M = 1e9
+        self.xs_min = xs_min
+        self.xs_max = xs_max
+
+    def bin_valid(self, start, stop):
+        return NotImplementedError
+
+    def solve(self, min_points, K):
+        self.min_points = min_points
+        self.K = K
+        assert min_points >= 2, "We need at least two points per bin to estimate the variance"
+
+        limits, dx = np.linspace(self.xs_min, self.xs_max, num=K + 1, endpoint=True, retstep=True)
+        valid_binning = True
+        for i in range(K):
+            start = limits[i]
+            stop = limits[i+1]
+            if not self.bin_valid(start, stop):
+                valid_binning = False
+
+        if not valid_binning:
+            self.limits = False
+        else:
+            self.limits = limits
+        return self.limits
+
+
+class FixedSize(FixedSizeBase):
+    def __init__(self, data, data_effect, feature):
+        self.data = data
+        self.data_effect = data_effect
+        xs_min = data[:, feature].min()
+        xs_max = data[:, feature].max()
+        super(FixedSize, self).__init__(feature, xs_min, xs_max)
+
+    def bin_valid(self, start, stop):
+        xs = self.data[:, self.feature]
+        dy_dxs = self.data_effect[:, self.feature]
+        _, effect_1 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([start, stop]))
+        valid = effect_1.size >= self.min_points
+        return valid
+
+
+class FixedSizeGT(FixedSizeBase):
+    def __init__(self, axis_limits, feature):
+        self.axis_limits = axis_limits
+        xs_min = axis_limits[0, feature]
+        xs_max = axis_limits[1, feature]
+        super(FixedSizeGT, self).__init__(feature, xs_min, xs_max)
+
+
+    def bin_valid(self, start, stop):
+        return True

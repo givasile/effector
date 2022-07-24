@@ -1,3 +1,4 @@
+import feature_effect.utils_integrate as integrate
 import typing
 import numpy as np
 import copy
@@ -367,4 +368,29 @@ def compute_fe_parameters(data, data_effect, limits, min_points_per_bin):
                   "bin_estimator_variance": bin_estimator_variance,
                   "z": z,
                   "first_empty_bin": first_empty_bin}
+    return parameters
+
+
+def compute_bin_statistics_gt(mean, var, limits):
+    dx = np.array([limits[i + 1] - limits[i] for i in range(len(limits) - 1)])
+
+    bin_mean = []
+    bin_var = []
+    for i in range(limits.shape[0]-1):
+        start = limits[i]
+        stop = limits[i+1]
+        mu_bin = integrate.normalization_constant_1D(mean, start, stop) / (stop-start)
+        mean_var = lambda x: (mean(x) - mu_bin)**2
+        var1 = integrate.normalization_constant_1D(var, start, stop)
+        var1 = var1 / (stop-start)
+        var2 = integrate.normalization_constant_1D(mean_var, start, stop)
+        var2 = var2 / (stop-start)
+        bin_variance = var1 + var2
+
+        bin_mean.append(mu_bin)
+        bin_var.append(bin_variance)
+
+    bin_mean = np.array(bin_mean)
+    bin_var = np.array(bin_var)
+    parameters = {"dx": dx, "bin_effect": bin_mean, "bin_variance": bin_var}
     return parameters
