@@ -9,6 +9,7 @@ import feature_effect.utils_integrate as utils_integrate
 
 class FeatureEffectBase:
     empty_symbol = 1e8
+
     def __init__(self, axis_limits: np.ndarray) -> None:
         """
         :param dim: int

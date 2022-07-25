@@ -64,7 +64,7 @@ effect at point \(x_s\) as the expected change in the output \(y\), if
 we slightly change the value of the feature of interest \(x_s\):
 
 \begin{equation}
-  \label{eq:ALE_expectation}
+  \label{eq:ALE_mean}
   \mu(x_S) = \mathbb{E}_{\mathbf{x_c}|x_s}\left [\frac{\partial
       f}{\partial x_s} \right ]
 \end{equation}
@@ -74,7 +74,7 @@ We argue that it is also crucial to compute the variance of the change
 as a measure of the uncertainty of the local change:
 
 \begin{equation}
-  \label{eq:2}
+  \label{eq:ALE_var}
   \sigma^2(x_S) = \mathrm{Var}_{\mathbf{x_c}|x_s}\left [\frac{\partial
       f}{\partial x_s} \right ]
 \end{equation}
@@ -175,6 +175,62 @@ quantified with two approaches:
   \(\mathrm{std\_error} =
   \frac{\hat{\sigma}_k}{\sqrt{|\mathcal{S}_k|}}\).
 \end{itemize}
+
+\section{Toy Example}
+
+\paragraph{Example 1.} We use the following example:
+
+\begin{equation}
+  \label{eq:model_1}
+  \begin{gathered}
+    f(x_1, x_2) = b_0 + b_1 x_1 + b_2 x_2 + b_3 x_1 x_2\\
+    x_1 \sim \mathcal{U}(0,1) \\
+    x_2 = x_1 + \epsilon, \epsilon \sim \mathcal{N}(\mu=0, \sigma_2^2)
+  \end{gathered}
+\end{equation}
+%
+Therefore, according to Eq.~(\ref{eq:ALE_mean})
+\(\mu_(x_1) = b_1 + b_3 x_1\) and according to Eq.~(\ref{eq:ALE_var})
+\(\sigma^2(x_1) = b_3^2 \sigma_2^2 \Rightarrow \sigma(x_1) = b_3
+\sigma_2 \).
+
+\paragraph{ALE with uncertainty.}
+
+In figure~\ref{fig:bullet-1-im-3} we observe the ALE effect with
+uncertainty for 3 different values of \(\sigma_2 = \{0.01, 0.1,
+1\}\). In all case the mean effect (ALE) is the same, but the
+uncertainty of the global explanation quantifies the impact of the
+heterogeneous effects hiding behing the global explanation.
+
+\begin{figure}[!h]
+  \centering
+  \includegraphics[width=.32\linewidth]{./example_gromping_paper/ALE_gt_s2_0_01.png}
+  \includegraphics[width=.32\linewidth]{./example_gromping_paper/ALE_gt_s2_0_1.png}
+  \includegraphics[width=.32\linewidth]{./example_gromping_paper/ALE_gt_s2_1_0.png}
+  \caption{ALE (a) \(\sigma_2^2 = 0.01\), (b) \(\sigma_2^2 = 0.1\), (c) \(\sigma_2^2 = 1.\)}
+  \label{fig:bullet-1-im-3}
+\end{figure}
+
+
+\paragraph{Bin Splitting.}
+
+In figure~\ref{fig:im2}, set up for
+\(b_0=0, b_1=1, b_2=1, b_3=2, \sigma_2^2 = 0.1\). Therefore, the
+unavoidable uncertainty is \(\sigma^2(x_1) = b_3^2 \sigma_2^2 =
+0.4\). We observe that as the bins become more dense the added
+uncertainty due to binning becomes less. But as the bins become more
+dense, less points lie inside them and the estimation is poor. The
+vertical lines show the maximum number of bins for dataset sizes, if I
+want at least 25 points per bin.
+
+
+\begin{figure}[!h]
+  \centering
+  \includegraphics[width=.7\linewidth]{./example_gromping_paper/bin_varinace.png}
+  \caption{}
+  \label{fig:im2}
+\end{figure}
+
 
 \section{Evaluation}
 

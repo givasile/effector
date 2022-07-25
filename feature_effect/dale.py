@@ -22,7 +22,7 @@ class DALEGroundTruth(FeatureEffectBase):
         if not uncertainty:
             return self.mean_int(x)
         else:
-            return self.mean_int(x), self.var_int(x)
+            return self.mean_int(x), self.var_int(x), None
 
     def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
         """Plot the s-th feature
@@ -47,20 +47,17 @@ class DALEBinsGT(FeatureEffectBase):
 
         # bin estimation
         if alg_params["bin_method"] == "fixed":
-            bin_est = be.FixedSizeGT(self.axis_limits, feature=s)
-            bin_est.solve(min_points = alg_params["min_points_per_bin"],
-                          K = alg_params["nof_bins"])
+            bin_est = be.FixedSizeGT(self.mean, self.var, self.axis_limits, feature=s)
+            bin_est.solve(min_points=alg_params["min_points_per_bin"], K=alg_params["nof_bins"])
         elif alg_params["bin_method"] == "greedy":
             bin_est = be.GreedyGroundTruth(self.mean, self.var, self.axis_limits, feature=s)
         elif alg_params["bin_method"] == "dp":
             bin_est = be.DPGroundTruth(self.mean, self.var, self.axis_limits, feature=s)
-        self.bin_est = bin_est
 
         # stats per bin
         dale_params = utils.compute_bin_statistics_gt(self.mean, self.var, bin_est.limits)
         dale_params["limits"] = bin_est.limits
         return dale_params
-
 
     def eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
         params = self.feature_effect["feature_" + str(s)]
@@ -87,7 +84,6 @@ class DALEBinsGT(FeatureEffectBase):
         vis.plot_1D(x, y, title="ALE GT Bins for feature %d" % (s+1))
 
 
-
 class DALE(FeatureEffectBase):
     def __init__(self, data, model, model_jac, axis_limits=None):
         # assertions
@@ -102,7 +98,6 @@ class DALE(FeatureEffectBase):
         super(DALE, self).__init__(axis_limits)
 
         self.data_effect = None
-
 
     def compile(self):
         if self.model_jac is not None:
@@ -141,7 +136,6 @@ class DALE(FeatureEffectBase):
         dale_params["limits"] = bin_est.limits
         dale_params["alg_params"] = alg_params
         return dale_params
-
 
     def eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
         params = self.feature_effect["feature_" + str(s)]

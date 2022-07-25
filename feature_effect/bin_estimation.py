@@ -90,8 +90,8 @@ class GreedyBase:
                     close_bin = True
                 else:
                     # compare the added loss from closing or keep open in a greedy manner
-                    loss_1 = self.bin_loss(left_lim, limits[i+1])
-                    loss_2 = self.bin_loss(left_lim, limits[i+2])
+                    loss_1 = self.bin_loss(left_lim, limits[i+1])[0]
+                    loss_2 = self.bin_loss(left_lim, limits[i+2])[0]
 
                     if loss_1 == self.big_M or loss_1 == 0:
                         close_bin = False
@@ -124,7 +124,7 @@ class Greedy(GreedyBase):
         dy_dxs = self.data_effect[:, self.feature]
         _, effect_1 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([start, stop]))
         loss = np.var(effect_1) if effect_1.size >= self.min_points else self.big_M
-        return loss
+        return loss, loss
 
     def bin_valid(self, start, stop):
         xs = self.data[:, self.feature]
@@ -159,7 +159,7 @@ class GreedyGroundTruth(GreedyBase):
         var1 = var1 / (stop-start)
         var2 = integrate.normalization_constant_1D(mean_var, start, stop)
         var2 = var2 / (stop-start)
-        return var1 + var2
+        return var1 + var2, var1 + var2
 
     def bin_valid(self, start, stop):
         return True
@@ -210,7 +210,7 @@ class DPBase:
             cost = 0
         else:
             start, stop = self._index_to_position(index_before, index_next, K)
-            cost = self._cost_of_bin(start, stop, min_points)
+            cost = self._cost_of_bin(start, stop, min_points)[0]
         return cost
 
     def _argmatrix_to_limits(self, K):
@@ -311,7 +311,7 @@ class DP(DPBase):
             # cost = np.std(data_effect) * (stop-start) / np.sqrt(data_effect.size)
             discount_for_more_points = (1 - .3*(data_effect.size / self.nof_points))
             cost = np.var(data_effect) * (stop-start) * discount_for_more_points
-        return cost
+        return cost, np.var(data_effect)
 
 
 class DPGroundTruth(DPBase):
@@ -339,7 +339,9 @@ class DPGroundTruth(DPBase):
         bin_length_pcg = (stop - start) / (self.xs_max - self.xs_min)
         discount_for_more_points = (1 - .3*bin_length_pcg)
         cost = total_var * (stop-start) * discount_for_more_points
-        return cost
+        return cost, total_var
+
+
 
 
 class FixedSizeBase:
@@ -387,14 +389,29 @@ class FixedSize(FixedSizeBase):
         valid = effect_1.size >= self.min_points
         return valid
 
+    def cost_of_bin(self, start, stop):
+        _, effect_1 = utils.filter_points_belong_to_bin(xs, dy_dxs, np.array([start, stop]))
+        return np.var(effect_1), np.var(effect_1)
+
 
 class FixedSizeGT(FixedSizeBase):
-    def __init__(self, axis_limits, feature):
+    def __init__(self, mean: callable, var: callable, axis_limits, feature):
         self.axis_limits = axis_limits
+        self.mean = mean
+        self.var = var
         xs_min = axis_limits[0, feature]
         xs_max = axis_limits[1, feature]
         super(FixedSizeGT, self).__init__(feature, xs_min, xs_max)
 
-
     def bin_valid(self, start, stop):
         return True
+
+    def cost_of_bin(self, start, stop):
+        mu_bin = integrate.normalization_constant_1D(self.mean, start, stop) / (stop-start)
+        mean_var = lambda x: (self.mean(x) - mu_bin)**2
+        var1 = integrate.normalization_constant_1D(self.var, start, stop)
+        var1 = var1 / (stop-start)
+        var2 = integrate.normalization_constant_1D(mean_var, start, stop)
+        var2 = var2 / (stop-start)
+        total_var = var1 + var2
+        return total_var, total_var
