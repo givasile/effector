@@ -86,22 +86,114 @@ class DALEBinsGT(FeatureEffectBase):
             y = self.eval_unnorm(x, s)
         vis.plot_1D(x, y, title="ALE GT Bins for feature %d" % (s+1))
 
-    # def plot_local_effects(self, s: int = 0, limits=True, block=False):
-    #     xs = self.data[:, s]
-    #     data_effect = self.data_effect[:, s]
-    #     if limits:
-    #         limits = self.bin_est.limits
-    #     vis.plot_local_effects(s, xs, data_effect, limits, block)
 
-        # """Plot the s-th feature
-        # """
-        # # getters
-        # x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
-        # if normalized:
-        #     y = self.eval(x, s)
-        # else:
-        #     y = self.eval_unnorm(x, s)
-        # vis.plot_1D(x, y, title="Ground-truth ALE for feature %d" % (s+1))
+
+class DALE(FeatureEffectBase):
+    def __init__(self, data, model, model_jac, axis_limits=None):
+        # assertions
+        assert data.ndim == 2
+
+        # setters
+        self.model = model
+        self.model_jac = model_jac
+        self.data = data
+        self.D = data.shape[1]
+        axis_limits = helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+        super(DALE, self).__init__(axis_limits)
+
+        self.data_effect = None
+
+
+    def compile(self):
+        if self.model_jac is not None:
+            self.data_effect = self.model_jac(self.data)
+        else:
+            # TODO add numerical approximation
+            pass
+
+    def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+        alg_params = helpers.prep_dale_fit_params(alg_params)
+
+        if self.data_effect is None:
+            self.compile()
+
+        # bin estimation
+        if alg_params["bin_method"] == "fixed":
+            bin_est = be.FixedSize(self.data, self.data_effect, feature=s)
+            bin_est.solve(min_points = alg_params["min_points_per_bin"],
+                          K = alg_params["nof_bins"])
+        elif alg_params["bin_method"] == "greedy":
+            bin_est = be.Greedy(self.data, self.data_effect, feature=s)
+            bin_est.solve(min_points = alg_params["min_points_per_bin"],
+                          K = alg_params["nof_bins"])
+        elif alg_params["bin_method"] == "dp":
+            bin_est = be.DP(self.data, self.data_effect, feature=s)
+            bin_est.solve(min_points = alg_params["min_points_per_bin"],
+                          K = alg_params["max_nof_bins"])
+        self.bin_est = bin_est
+
+        # stats per bin
+        assert bin_est.limits is not False, "Impossible to compute bins with enough points for feature " + str(s+1) + " and binning strategy: " + alg_params["bin_method"] + ". Change bin strategy or method parameters."
+        dale_params = utils.compute_fe_parameters(self.data[:, s],
+                                                  self.data_effect[:, s],
+                                                  bin_est.limits,
+                                                  min_points_per_bin=alg_params["min_points_per_bin"])
+        dale_params["limits"] = bin_est.limits
+        dale_params["alg_params"] = alg_params
+        return dale_params
+
+
+    def eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
+        params = self.feature_effect["feature_" + str(s)]
+        y = utils.compute_accumulated_effect(x,
+                                             limits=params["limits"],
+                                             bin_effect=params["bin_effect"],
+                                             dx=params["dx"])
+        if uncertainty:
+            var = utils.compute_accumulated_effect(x,
+                                                   limits=params["limits"],
+                                                   bin_effect=params["bin_variance"],
+                                                   dx=params["dx"],
+                                                   square=True)
+            estimator_var = utils.compute_accumulated_effect(x,
+                                                   limits=params["limits"],
+                                                   bin_effect=params["bin_estimator_variance"],
+                                                   dx=params["dx"],
+                                                   square=True)
+
+            return y, var, estimator_var
+        else:
+            return y
+
+    # def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+    #     x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+    #     if normalized:
+    #         y = self.eval(x, s)
+    #     else:
+    #         y = self.eval_unnorm(x, s)
+    #     vis.plot_1D(x, y, title="ALE (Monte Carlo) for feature %d" % (s+1))
+
+
+    def plot(self, s: int = 0, error="standard error", block=False, gt=None, gt_bins=None, savefig=False):
+        title = "DALE: Effect of feature %d" % (s + 1)
+        vis.feature_effect_plot(self.feature_effect["feature_"+str(s)],
+                                self.eval,
+                                s,
+                                error=error,
+                                min_points_per_bin=self.feature_effect["feature_"+str(s)]["alg_params"]["min_points_per_bin"],
+                                title=title,
+                                block=block,
+                                gt=gt,
+                                gt_bins=gt_bins,
+                                savefig=savefig)
+
+    def plot_local_effects(self, s: int = 0, limits=True, block=False):
+        xs = self.data[:, s]
+        data_effect = self.data_effect[:, s]
+        if limits:
+            limits = self.feature_effect["feature_" + str(s)]["limits"]
+        vis.plot_local_effects(s, xs, data_effect, limits, block)
+
 
 
 
@@ -171,7 +263,7 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
     return dale_params
 
 
-class DALE:
+class DALE1:
     def __init__(self, data: np.ndarray, model: typing.Callable, model_jac: typing.Union[typing.Callable, None] = None):
         self.data = data
         self.model = model

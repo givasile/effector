@@ -85,9 +85,9 @@ class FeatureEffectBase:
             y = self.eval_unnorm(x, s, uncertainty=False) - self.z[s]
             return y
         else:
-            tup = self.eval_unnorm(x, s, uncertainty=True)
-            tup[0] = tup[0] - self.z[s]
-            return tup
+            y, var, stderr = self.eval_unnorm(x, s, uncertainty=True)
+            y = y - self.z[s]
+            return y, var, stderr
 
 
 

@@ -180,33 +180,6 @@ class TestExample1:
         y_gt = self.mplot(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
-    def test_ale(self):
-        # generate data
-        samples = self.generate_samples(self.n)
-
-        # prediction
-        ale = fe.ALE(data=samples, model=self.f)
-        ale.fit(alg_params={"nof_bins": self.k})
-
-        # feature 1
-        x = np.linspace(0, 1, 1000)
-        pred, _, _ = ale.eval(x, s=0)
-
-        # plt.figure()
-        # plt.plot(x, pred, "ro-")
-        # plt.plot(x, self.ale(x), "bo-")
-        # plt.show(block=False)
-
-        print(pred)
-
-        gt = self.ale(x)
-        assert np.allclose(pred, gt, atol=1.e-2)
-
-        # feature 2
-        pred, _, _ = ale.eval(x, s=1)
-        gt = self.ale(x)
-        assert np.allclose(pred, gt, atol=1.e-2)
-
     def test_dale(self):
         # generate data
         samples = self.generate_samples(self.n)
@@ -216,23 +189,23 @@ class TestExample1:
         dale.fit(alg_params={"nof_bins": self.k})
 
         x = np.linspace(0, 1, 1000)
-        pred, _, _ = dale.eval(x, s=0)
+        pred = dale.eval(x, s=0)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
-        pred, _, _ = dale.eval(x, s=1)
+        pred = dale.eval(x, s=1)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
         # DALE variable-size
-        dale.fit(method="variable-size", alg_params={"max_nof_bins": 30, "min_points_per_bin": 10})
+        dale.fit(alg_params={"bin_method": "dp", "max_nof_bins": 30, "min_points_per_bin": 10})
 
         x = np.linspace(0, 1, 1000)
-        pred, _, _ = dale.eval(x, s=0)
+        pred = dale.eval(x, s=0)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
-        pred, _, _ = dale.eval(x, s=1)
+        pred = dale.eval(x, s=1)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
@@ -356,41 +329,22 @@ class TestExample2:
         z = 0
         return x/3 - z
 
-    def test_ale(self):
-        # generate data
-        samples = self.generate_samples(self.n)
+    # def test_dale(self):
+    #     # generate data
+    #     samples = self.generate_samples(self.n)
 
-        # prediction
-        ale = fe.ALE(data=samples, model=self.f)
-        ale.fit(alg_params={"nof_bins": self.k})
+    #     # prediction
+    #     dale = fe.DALE(data=samples, model=self.f, model_jac=self.f_der)
+    #     dale.fit(alg_params={"nof_bins": self.k})
 
-        # feature 1
-        x = np.linspace(0, 1, 1000)
-        pred, _, _ = ale.eval(x, s=0)
-        gt = self.ale_1(x)
-        assert np.allclose(pred, gt, atol=self.atol)
+    #     x = np.linspace(0, 1, 1000)
+    #     pred = dale.eval(x, s=0)
+    #     gt = self.ale_1(x)
+    #     assert np.allclose(pred, gt, atol=self.atol)
 
-        # feature 2
-        pred, _, _ = ale.eval(x, s=1)
-        gt = self.ale_2(x)
-        assert np.allclose(pred, gt, atol=self.atol)
-
-    def test_dale(self):
-        # generate data
-        samples = self.generate_samples(self.n)
-
-        # prediction
-        dale = fe.DALE(data=samples, model=self.f, model_jac=self.f_der)
-        dale.fit(alg_params={"nof_bins": self.k})
-
-        x = np.linspace(0, 1, 1000)
-        pred, _, _ = dale.eval(x, s=0)
-        gt = self.ale_1(x)
-        assert np.allclose(pred, gt, atol=self.atol)
-
-        pred, _, _ = dale.eval(x, s=1)
-        gt = self.ale_2(x)
-        assert np.allclose(pred, gt, atol=self.atol)
+    #     pred = dale.eval(x, s=1)
+    #     gt = self.ale_2(x)
+    #     assert np.allclose(pred, gt, atol=self.atol)
 
         # # DALE variable-size
         # dale.fit(method="variable-size", alg_params={"max_nof_bins": 30, "min_points_per_bin": 10})

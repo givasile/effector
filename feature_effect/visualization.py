@@ -18,7 +18,7 @@ def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=
         first_empty_bin = None
 
     x = np.linspace(params["limits"][0], params["limits"][-1], 10000)
-    y, estimator_var, var = eval(x, feature)
+    y, estimator_var, var = eval(x, feature, True)
 
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
 
