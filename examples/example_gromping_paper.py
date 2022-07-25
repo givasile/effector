@@ -3,7 +3,7 @@ import numpy as np
 import feature_effect as fe
 import example_models.distributions as dist
 
-
+savefig = False
 path = "/home/givasile/papers/mdale/examples/example_gromping_paper/"
 
 # define distribution
@@ -42,7 +42,8 @@ def plot1(x2_sigma):
     # plt.ylim(-4, 4)
     plt.ylabel("f_ALE")
     plt.legend()
-    plt.savefig(path + "ALE_gt_s2_" + str(x2_sigma).replace(".", "_") + ".png")
+    if savefig:
+        plt.savefig(path + "ALE_gt_s2_" + str(x2_sigma).replace(".", "_") + ".png")
     plt.show(block=False)
 
 
@@ -85,7 +86,8 @@ plt.hlines(b3**2*x2_sigma, 0, 40, label="unavoidable variance")
 plt.xlabel("K")
 plt.ylabel("mean bin variance")
 plt.legend()
-plt.savefig(path + "bin_varinace.png")
+if savefig:
+    plt.savefig(path + "bin_varinace.png")
 plt.show(block=False)
 
 # dale = fe.DALE(X, model.predict, model.jacobian)
