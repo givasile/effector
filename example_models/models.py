@@ -1,12 +1,7 @@
 import matplotlib.pyplot as plt
 import typing
 import numpy as np
-import feature_effect as fe
-import scipy.stats as sps
-import scipy.integrate as integrate
-import pytest
 from functools import partial
-
 
 
 class ModelBase:
@@ -22,7 +17,6 @@ class ModelBase:
         """Callable (x: np.ndarray (N,D)) -> np.ndarray (N, D)
         """
         raise NotImplementedError
-
 
     def plot(self, axis_limits: np.ndarray, nof_points: int,
              X: typing.Union[None, np.ndarray] = None) -> None:
@@ -80,11 +74,11 @@ class SquareWithInteraction(ModelBase):
 
 
 class PiecewiseLinear(ModelBase):
-
     def __init__(self, params):
         self.params = params
 
-    def _linear_part(self, x, a, b, x0):
+    @staticmethod
+    def _linear_part(x, a, b, x0):
         return a + b*(x[:, 0]-x0) + x[:, 0]*x[:, 1]
 
     def _create_cond(self, x, i, s):
@@ -101,7 +95,6 @@ class PiecewiseLinear(ModelBase):
     def predict(self, x):
         """f(x1, x2) = a + b*x1 + x1x2
         """
-        par = self.params
         condlist = [self._create_cond(x, i, s=0) for i in range(4)]
         funclist = [self._create_func(i, self._linear_part) for i in range(4)]
 
@@ -111,7 +104,6 @@ class PiecewiseLinear(ModelBase):
         return y
 
     def jacobian(self, x):
-        par = self.params
         condlist = [self._create_cond(x, i, s=0) for i in range(4)]
 
         def df_dx1(x, a, b, x0):
@@ -129,7 +121,6 @@ class PiecewiseLinear(ModelBase):
             y2[cond] = funclist2[i](x[cond, :])
 
         return np.stack([y1,y2], axis=-1)
-
 
 
 class LinearWithInteraction3D(ModelBase):

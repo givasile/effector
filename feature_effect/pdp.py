@@ -31,14 +31,11 @@ class FeatureEffectBase:
         """
         raise NotImplementedError
 
-
     def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
         raise NotImplementedError
 
-
     def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
         raise NotImplementedError
-
 
     def compute_z(self, s: int) -> float:
         func = partial(self.eval_unnorm, s=s, uncertainty=False)
@@ -47,16 +44,20 @@ class FeatureEffectBase:
         z = utils_integrate.normalization_constant_1D(func, start, stop)
         return z
 
-
     def fit(self,
             features: typing.Union[str, list] = "all",
             alg_params: typing.Union[None, dict] = {},
             compute_z: bool = True) -> None:
         """Compute normalization constants for asked features
 
-        :param features: list of features to compute the normalization constant
+        :param
         :returns: None
 
+        Parameters
+        ----------
+        features: list of features to compute the normalization constant
+        alg_params
+        compute_z
         """
         features = helpers.prep_features(features, self.dim)
         for s in features:
