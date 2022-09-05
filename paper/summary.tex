@@ -26,34 +26,19 @@
 
 \paragraph{Description.}
 
-XAI literature distinguishes between local and global interpretation methods~\cite{Molnar2020}.
-Global interpretation methods aim at explaining the overall behavior of an ML model.
-Many of these global interpretation methods are confounded by feature interactions,
-meaning that they can produce misleading explanations when feature interactions are present.
-In these cases, they often average individual effects of local interpretation methods and thereby obfuscate heterogeneous effects induced by feature interactions~\cite{Herbinger2022}.
+An introductory paragraph for interpretable ML
 
-This so-called aggregation bias~\cite{Mehrabi2019} is responsible for producing global explanations that often conceal that individual instances may deviate from the global explanation.
-Therefore, global methods must quantify and inform about \textit{the uncertainty of the global explanation}, i.e., how certain we are that a global explanation is valid if applied to a local individual drawn at random.
-The uncertainty of the global explanation emerges from the natural characteristics of the experiment, i.e.,~the data generating distribution and the black-box function.
+XAI literature distinguishes between local and global interpretation methods~\cite{Molnar2020}. Local methods explain a specific prediction, whereas global methods explain the entire model behavior. Global methods can provide a universal explanation, summarizing the numerous local explanations into a single interpretable outcome (number or plot). For example, if a user wants to know which features are significant (feature importance) or whether a particular feature has a positive or negative effect on the output (feature effect), they should opt for a global explainability technique. Aggregating the individual explanations for producing a global one comes at a cost. In cases where feature interactions are strong, the global explanation may obfuscate heterogeneous effects~\cite{Herbinger2022} that exist under the hood, a phenomenon called aggregation bias~\cite{Mehrabi2019}.
 
-In real ML scenarios, we do not know the data generating distribution for computing the expectations and the uncertainty.
-The local effects are estimated from the training set's limited instances, and the global effect is computed by aggregating them.
-Many methods, such as ALE, require an appropriate grouping of samples (partitioning of the feature space) for aggregating local effects that are as homogeneous as possible.
-If this grouping is not done correctly, it may erroneously mix heterogeneous local effects, not due to the unavoidable heterogeneity of the data generating mechanism but due to improper grouping.
+Feature effect forms a fundamental category of global explainability methods. The goal of the feature effect is to isolate the average impact of a single feature on the output. Feature effect methods suffer from aggregation bias because the rationale behind the average effect might be unclear. For example, a feature with zero average effect may indicate that the feature has no effect on the output or has a highly positive effect in some cases and a highly negative one in others. There are two widely-used feature effect methods; Partial Dependence Plots (PDPlots) (Friedman, 2001) and Aggregated Local Effects (ALE) (Apley and Zhu, 2020). PDPlots have been criticized for producing erroneous feature effect plots when the input features are correlated due to marginalizing over out-of-distribution synthetic instances. Therefore, ALE has been established as the state-of-the-art feature effect method due to isolating feature effects in situations where input features are highly correlated.
 
-ALE is a SotA method for measuring the global feature effect, but so far, it has two limitations.
-First, it does not quantify the uncertainty of the global explanation.
-Second, like most global explanation methods, it requires grouping together samples before computing the global effect.
-So far, this grouping is done by blindly splitting the feature space in \(K\) fixed-size non-overlapping intervals, where \(K\) is a hyperparameter provided by the user.
+However, ALE faces two crucial drawbacks. First, it lacks a way to inform the user about potential heterogeneous effects that hide behind the average effect. In contrast, in Partial Dependence Plots (PDP), the heterogeneous effects can be spotted by exploring the Individual Conditional Expectations (ICE). Second, ALE require an additional step, where the input space is split in \(K\) fixed-size non-overlapping intervals, where \(K\) is a hyperparameter provided by the user. This splitting is done blindly, which can lead to inconsistent results.
 
-In this paper, first, we extend the ALE definition for quantifying the uncertainty of the global explanation.
-Second, we readjust ALE to work for variable-size bins and formulate the partitioning in non-overlapping intervals as an unsupervised clustering problem.
-In the unsupervised clustering case, we minimize an objective which has as lower-bound the (unavoidable) heterogeneity, i.e.\ the aggregated uncertainty of the global explanation.
-Therefore, we aim to minimize the added uncertainty induced by the wrong grouping of samples.
-In other words, we aim to find the optimal grouping that adds no uncertainty over the unavoidable heterogeneity.
-We finally solve the minimization problem by finding the global optimum using dynamic programming.
-Our method works out of the box without requiring any input by the user.
-We provide a theoretical and empirical evaluation of our method.
+In this paper, we extend ALE with a probabilistic component for measuring the uncertainty of the global explanation. The uncertainty of the global explanation expresses how certain we are that the global (expected) explanation is valid if applied to a local individual drawn at random, or, in other words, to what extent heterogeneous effects are hidden behind the expected explanation. The uncertainty of the global explanation emerges from the natural characteristics of the experiment, i.e.,~the data generating distribution and the black-box function.
+
+Furthermore, we automate the step of splitting the axis into non-overlapping intervals, transforming it into an unsupervised clustering problem, which we solve automatically using dynamic programming. The objective of the clustering problem has as lower-bound the (unavoidable) heterogeneity, i.e., the aggregated uncertainty of the global explanation.
+The restriction of the clustering is to create groups of samples for a robust estimation estimating the feature effect  (expected value) and the uncertainty of the explanation (variance), we reside on the limited instances of the training set. Therefore, we aim to find the optimal grouping of samples that adds the slightest uncertainty over the unavoidable heterogeneity, but with enough samples. We finally solve the minimization problem by finding the global optimum using dynamic programming. Our method works out of the box without requiring any input by the user. We provide a theoretical and empirical evaluation of our method.
+
 % In all cases, to estimate
 % \textit{the uncertainty of the approximation}~(\cite{Molnar2022}),
 % i.e., how certain we are that the limited-samples Monte-Carlo
@@ -61,7 +46,7 @@ We provide a theoretical and empirical evaluation of our method.
 % uncertainty have not been introduced yet for ALE~(\cite{Apley2020}), a
 % SotA method for measuring the global feature effect.
 
-\paragraph{Problem Statement - Contribution.} The contribution of our
+\paragraph{Contribution.} The contribution of our
 paper in bullets:
 
 \begin{itemize}
@@ -120,7 +105,7 @@ effects hiding behind the explanation.
 
 \paragraph{Effect at interval \([z_{k-1}, z_k]\).}
 
-In real scenarios, we have ignorance about the generative distribution \(\p(x_s, \mathbf{x}_c)\),
+In real scenarios, we have ignorance about the generative distribution \(p(x_s, \mathbf{x}_c)\),
 residing to Monte-Carlo approximations of \(\mu(x_s)\), \(\sigma^2(x_s)\) using the samples of the training set.
 Therefore, it is impossible to estimate Eqs.~\eqref{eq:ALE_mean},~\eqref{eq:ALE_var} at the granularity of a
 point \(x_s\)\, since the  possibility to observe a sample in the interval
@@ -348,7 +333,7 @@ Given that:
 \]
 
 \[
-\(\rho(x_s) = \mu(x_s) - \mu_k\)
+\rho(x_s) = \mu(x_s) - \mu_k
 \]
 
 
