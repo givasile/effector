@@ -1,0 +1,318 @@
+\documentclass[twoside]{article}
+
+\usepackage{aistats2023}
+% If your paper is accepted, change the options for the package
+% aistats2023 as follows:
+%
+%\usepackage[accepted]{aistats2023}
+%
+% This option will print headings for the title of your paper and
+% headings for the authors names, plus a copyright note at the end of
+% the first column of the first page.
+
+% If you set papersize explicitly, activate the following three lines:
+%\special{papersize = 8.5in, 11in}
+%\setlength{\pdfpageheight}{11in}
+%\setlength{\pdfpagewidth}{8.5in}
+
+% If you use natbib package, activate the following three lines:
+\usepackage[round]{natbib}
+\renewcommand{\bibname}{References}
+\renewcommand{\bibsection}{\subsubsection*{\bibname}}
+\bibliographystyle{plainnat}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% If you use BibTeX in apalike style, activate the following line:
+%\bibliographystyle{apalike}
+
+
+\newcommand{\dfdx}{\frac{\partial f}{\partial x_s}}
+\newcommand{\xc}{\mathbf{x_c}}
+\newcommand{\DY}{\mathbf{\Delta Y}}
+
+\begin{document}
+
+% If your paper is accepted and the title of your paper is very long,
+% the style will print as headings an error message. Use the following
+% command to supply a shorter title of your paper so that it can be
+% used as headings.
+%
+%\runningtitle{I use this title instead because the last one was very long}
+
+% If your paper is accepted and the number of authors is large, the
+% style will print as headings an error message. Use the following
+% command to supply a shorter version of the authors names so that
+% they can be used as headings (for example, use only the surnames)
+%
+%\runningauthor{Surname 1, Surname 2, Surname 3, ...., Surname n}
+
+\twocolumn[
+
+\aistatstitle{Instructions for Paper Submissions to AISTATS 2023}
+
+\aistatsauthor{ Author 1 \And Author 2 \And  Author 3 }
+
+\aistatsaddress{ Institution 1 \And  Institution 2 \And Institution 3 } ]
+
+\begin{abstract}
+  The Abstract paragraph should be indented 0.25 inch (1.5 picas) on
+  both left and right-hand margins. Use 10~point type, with a vertical
+  spacing of 11~points. The \textbf{Abstract} heading must be centered,
+  bold, and in point size 12. Two line spaces precede the
+  Abstract. The Abstract must be limited to one paragraph.
+\end{abstract}
+
+
+\section{INTRODUCTION}
+
+
+Recently, ML has flourished in critical domains, such as healthcare and finance. In these areas, we need ML models that predict accurately but also with the ability to explain their predictions. Therefore, Explainable AI (XAI) is a rapidly growing field due to the interest in interpreting black box machine learning (ML) models. XAI literature distinguishes between local and global interpretation methods~\citep{Molnar2020interpretable}. Local methods explain a specific prediction, whereas global methods explain the entire model behavior. Global methods provide a universal explanation, summarizing the numerous local explanations into a single interpretable outcome (number or plot). For example, if a user wants to know which features are significant (feature importance) or whether a particular feature has a positive or negative effect on the output (feature effect), they should opt for a global explainability technique. Aggregating the individual explanations for producing a global one comes at a cost. In cases where feature interactions are strong, the global explanation may obfuscate heterogeneous effects~\citep{Herbinger2022repid} that exist under the hood, a phenomenon called aggregation bias~\citep{mehrabi2021survey}.
+
+Feature effect forms a fundamental category of global explainability methods, isolating a single feature's average impact on the output. Feature effect methods suffer from aggregation bias because the rationale behind the average effect might be unclear. For example, a feature with zero average effect may indicate that the feature has no effect on the output or, contrarily, it has a highly positive effect in some cases and a highly negative one in others.
+
+There are two widely-used feature effect methods; Partial Dependence Plots (PDPlots)\citep{friedman2001greedy} and Aggregated Local Effects (ALE)\citep{apley2020visualizing}. PDPlots have been criticized for producing erroneous feature effect plots when the input features are correlated due to marginalizing over out-of-distribution synthetic instances. Therefore, ALE has been established as the state-of-the-art feature effect method since it can isolate feature effects in situations where input features are highly correlated. 
+
+However, ALE faces two crucial drawbacks. First, it does not provide a way to inform the user about potential heterogeneous effects that are hidden behind the average effect. In contrast, in the case of PDPlots, the heterogeneous effects can be spotted by exploring the Individual Conditional Expectations (ICE)\citep{goldstein2015peeking}. Second, ALE requires an additional step, where the axis of the feature of interest is split in \(K\) fixed-size non-overlapping intervals, where \(K\) is a hyperparameter provided by the user. This splitting is done blindly, which can lead to inconsistent explanations.
+
+In this paper, we extend ALE with a probabilistic component for measuring the uncertainty of the global explanation. The uncertainty of the global explanation expresses how certain we are that the global (expected) explanation is valid if applied to an instance drawn at random and informs the user about the level of heterogeneous effects hidden behind the expected explanation. Our method completes ALE, as ICE plots complement PDPlots, for revealing the heterogeneous effects.
+
+Our method also automates the step of axis splitting into non-overlapping intervals. We, firstly, transform the bin splitting step into an unsupervised clustering problem and, second, find the optimal bin splitting for a robust estimation of (a) the global (expected) effect and (b) the uncertainty of the explanation from the limited samples of the training set. We formally prove that the objective of the clustering problem has as lower-bound the aggregated uncertainty of the global explanation. Our method works out of the box without requiring any input from the user.
+
+\paragraph{Contributions.} The contributions of this paper are the following:
+
+\begin{itemize}
+  \item We introduce Uncertainty DALE (UDALE), an extension of DALE that quantifies the uncertainty of the global explanation, i.e.~the level of heterogeneous effects hidden behind the global explanation.\item We provide an algorithm that automatically computes the optimal bin splitting for robustly estimating the explanatory quantities, i.e., the global effect and the uncertainty. 
+  \item We formally prove that our method finds the optimal grouping of samples, minimizing the added uncertainty over the unavoidable heterogeneity that is the lower-bound of the objective.
+  \item We provide empirical evaluation of the method in artificial and real datasets.
+\end{itemize}
+
+
+The implementation of our method and the code for reproducing all the
+experiments is provided in the submission and will become publicly
+available upon acceptance.
+
+
+\section{BACKGROUND AND RELATED WORK}
+
+Some notation for describing the methods afterwards.
+
+It is crucial for feature effect methods to inform about the
+heterogeneous effects. Elaborate.
+
+There are two established feture effect methods PDPlots and ALE. ALE
+has some important advantages. Elaborate.
+
+Interpretation of the heterogeneous effects behind the global effect
+is available only for PDP, with three different approaches; (a) ICE
+and d-ICE plots provide a visual understanding of the heterogeneous
+effects. (b) grouping of ICE in homogeneous clusters, for spliting the
+input space into subspace(s) with homogeneous effects (c) Feature
+Interaction strength indexes, like H-statistic, provide a value
+indicating how much a feature interacts with the others (not the type
+of interaction).
+
+There is no method for quantifying the heterogeneous effects, based on
+ALE. Therefore, no method to exploit the advantages of ALE while, on
+the same time, informing about the heterogeneous effects. We present
+it in the next section.
+
+ALE also has the peculiarity of spliting the axis into intervals,
+allocating the instances of the training set in the intervals and
+compute a single (constant) effect in each interval. With DALE
+extension, bin spliting is decoupled from instant effect
+estimation. With our extension for measuring the heterogeneous
+effects, we transfrom interval spliting from a step to a clustering
+problem with a meaningful objective to minimise. We provide a thorough
+analysis, where we show that our objective has a consistent
+meaning. It can be split in two parts; the first part is the
+unavoidable uncertainty due to the natural characteristics of the
+experiment, i.e.,~the data generating distribution and the black-box
+function. The second part is an added uncertainty due to the
+limited-samples estimation, that enforces to create groups with
+constant main effect. We opt for minimizing the objective, i.e. sum of
+the two uncertainties, that given that the first uncertainty is
+independent of the bin spliting, therefore we want to minimize the
+added uncertainty. To conclude, we transform the axis-spliting into an
+unsupervised clustering problem with a principled objective. We a
+computationally-grounded solution that works out-of-the-box, relaxing
+the user from providing a hyperparameter without any indication which
+one is the correct. This step can be used independently of whether the
+user wants to explore the heterogeneous effects or not.
+
+\section{OUR METHOD}
+
+\subsection{Uncertainty Quantification}
+
+ALE is a state-of-the-art method when it comes to feature effect
+estimation. Unfortunately, there is no method for quantifying the
+heterogeneous effects, based on ALE.
+
+
+% The uncertainty of the global explanation emerges from the natural characteristics of the experiment, i.e.,~the data generating distribution and the black-box function.
+
+\subsubsection{Methodology}
+
+% \paragraph{Effect at point \(x_s\).} In the intro, we described the
+% \textit{uncertainty of the global explanation} as a metric of how
+% certain we are that the global explanation is valid if applied to a
+% randomly-drawn individual.
+% ALE plots measure the \(s\)-th feature
+% effect at point \(x_s\) as the \textbf{expected} change in the output \(y\), if
+% we slightly change the value of the feature of interest \(x_s\):
+
+% \begin{equation}
+%   \label{eq:ALE_mean}
+%   \mu(x_s) = \mathbb{E}_{\xc|x_s}\left [\dfdx (x_s, \xc)\right ]
+% \end{equation}
+
+% \noindent
+% We model the s-th feature effect at point \(x_s\) (change in the output \(y\) wrt a slight change in the feature of interest \(x_s\)) as the random variable $\DY ; x_s $.
+% For notation convenience, we will refer to the s-th feature effect as \(\DY\), ommiting the \(;xs\) part.
+% The randomness has its origins in the ignorance of the values of the rest of the features, denoted with \(\mathbf{X}_c\).
+% Therefore, the s-th feature effect is defined as:
+
+% \begin{equation}
+%   \label{eq:fe_rv}
+%   \DY = g(x_s) = \dfdx (x_s, \mathbf{X}_c)
+% \end{equation}
+% %
+% As shown in Eq.~\eqref{eq:ALE_mean}, ALE is only interested in the expected value of \(\DY\).
+% Instead, we are also interested in the variance of \(\DY\) for measuring the uncertainty of the local change:
+
+% \begin{equation}
+%   \label{eq:ALE_var}
+%   \sigma^2(x_s) = \mathrm{Var}_{\xc|x_s}\left [\dfdx (x_s, \xc) \right ]
+% \end{equation}
+
+% \noindent
+% The variance in Eq.~\eqref{eq:ALE_var} informs us about the heterogeneous
+% effects hiding behind the explanation.
+
+% \paragraph{Effect at interval \([z_{k-1}, z_k]\).}
+
+% In real scenarios, we have ignorance about the generative distribution \(p(x_s, \mathbf{x}_c)\),
+% residing to Monte-Carlo approximations of \(\mu(x_s)\), \(\sigma^2(x_s)\) using the samples of the training set.
+% Therefore, it is impossible to estimate Eqs.~\eqref{eq:ALE_mean},~\eqref{eq:ALE_var} at the granularity of a
+% point \(x_s\)\, since the  possibility to observe a sample in the interval
+% \([x_s - h, x_s + h]\) is zero, in the limit where \(h \to 0\).
+% Therefore, we are obliged to estimate the local effect in larger intervals (\(h>0\)).
+% We refer to the expected value and the variance of the feature effect at the interval \([z_{k-1}, z_k)\), as:
+
+% \begin{equation}
+%   \label{eq:mu_bin}
+%   \mu_k = \mu(z_{k-1}, z_k) = \frac{1}{z_k - z_{k-1}} \int_{z_{k-1}}^{z_k}
+%   \mathbb{E}_{\xc|x_s=z}\left [\frac{\partial f}{\partial x_s} \right ] \partial z
+% \end{equation}
+
+% \noindent
+
+% \begin{equation}
+%   \label{eq:var_bin}
+%   \sigma^2_k = \sigma^2(z_{k-1}, z_k) = \frac{1}{z_k - z_{k-1}} \int_{z_{k-1}}^{z_k}
+%   \mathbb{E}_{\xc|x_s=z} \left [ (\frac{\partial
+%       f}{\partial x_s}(x_s, \xc) - \mu_k )^2 \right] \partial z
+% \end{equation}
+
+% \noindent
+% We prove that the interval-variance \(\sigma^2_k \) is:
+
+% \begin{equation}
+%  \sigma^2_k = \frac{1}{z_k - z_{k-1}} \int_{z_{k-1}}^{z_k} \sigma^2(z) + \rho^2(z) \partial z
+% \end{equation}
+% %
+% where \(\rho(x_s) = \mu(x_s) - \mu_k\).
+% The proof is at Section \ref{sec:proofs}.
+% We observe that the interval-variance is the mean point-variance of the points
+% inside the interval \([z_{k-1}, z_k]\), plus the mean of the residual term \(\rho\).
+% The mean point-variance is the unavoidable variance, due to the uncertainty of the global explanation.
+% The mean of the residual term is an extra variance (uncertainty) due to limiting the granularity of the effect at
+% the bin level.
+
+% \noindent
+
+% \paragraph{Approximation of effect at interval \([z_{k-1}, z_k]\).}
+% Eqs.~\eqref{eq:mu_bin},~\eqref{eq:var_bin} are
+% approximated by the instances of the training set that lie inside the
+% \(k\)-th interval, i.e.
+% \( \mathcal{S}_k = \{ \mathbf{x}^i : z_{k-1} \leq x^i_s < z_{k} \} \):
+
+% \begin{equation}
+%   \label{eq:mean_estimation}
+%   \hat{\mu}(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^i \in
+%     \mathcal{S}_k} \left [ \dfdx(\mathbf{x}^i) \right ]
+% \end{equation}
+
+% \begin{equation}
+%   \label{eq:variance_estimation}
+%   \hat{\sigma}_k(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^i \in
+%   \mathcal{S}_k} \left [ \dfdx(\mathbf{x}^i) - \hat{\mu}_k(z_{k-1}, z_k) \right ]^2
+% \end{equation}
+
+
+% \paragraph{Uncertainty of the global effect.}
+
+% Eq.~\eqref{eq:variance_estimation} gives an approximation of the
+% uncertainty of the bin effect.
+% The uncertainty of the global effect is
+% simply the sum of the uncertainties in the bin effects.
+% The
+% approximation is unbiased only if the points are uniformly distributed
+% in \([z_{k-1}, z_k]\). (TODOs: Check what happens otherwise).
+
+% \paragraph{Minimizing the uncertainty}
+
+% Solving the problem of finding (a) the optimal number of bins \(K\) and (b) the optimal bin limits for each bin \([z_{k-1}, z_k] \forall k\) to minimize:
+
+% \begin{equation}
+%   \label{eq:1}
+%   \mathcal{L} = \sum_{k=0}^K \hat{\sigma}_k(z_{k-1}, z_k)
+% \end{equation}
+% %
+% The constraints are that all bins must include more than \(\tau\)
+% points, i.e., \(|\mathcal{S}_k| \geq \tau\).
+
+% \noindent
+% TODOS. Show theoretically that \(\mathcal{L} \geq \int_{x_{s, \min}}^{x_{s, \max}}\sigma^2(x_s) \partial x_s\)
+
+% \paragraph{Uncertainty of the approximation.}
+
+% In all experiments, it also important to measure the uncertainty of
+% the approximation.
+% The uncertainty of the approximation can be
+% quantified with two approaches:
+
+% \begin{itemize}
+% \item Splitting the dataset in many folds and (re)estimating
+%   \(\hat{\mu}(z_{k-1}, z_k), \hat{\sigma}_k(z_{k-1}, z_k)\)
+% \item Using the central limit theorem, we can (under assumptions) say
+%   that the standard error of the approximation in
+%   eq.~\eqref{eq:mean_estimation} is
+%   \(\mathrm{std\_error} =
+%   \frac{\hat{\sigma}_k}{\sqrt{|\mathcal{S}_k|}}\).
+% \end{itemize}
+
+
+\subsection{Bin Spliting as a Clustering Problem}
+
+\subsubsection{Methodology}
+
+% Furthermore, we automate the step of splitting the axis into non-overlapping intervals. The need for non-overlapping bins emerges from the ignorance of the data-generating distribution, enforcing all estimations to be based on the limited instances of the training set. Therefore, there is an implicit trade-off behind the formation of bins. Each bin must include enough instances for a robust estimation of the bin feature effect (expected value), and the uncertainty of the explanation (variance). On the other hand, each bin should include points with similar local effects. Therefore, we transform the bin splitting step into an unsupervised clustering problem, encoding the trade-off mentioned above in the objective function. We formally show that the objective of the clustering problem has lower-bound the (unavoidable) heterogeneity, i.e., the aggregated uncertainty of the global explanation. Therefore, we aim to find the optimal grouping of samples that adds the slightest uncertainty over the unavoidable heterogeneity. We finally solve the minimization problem by finding the global optimum using dynamic programming. Our method works out of the box without requiring any input by the user. We provide a theoretical and empirical evaluation of our method.
+
+
+\subsubsection{Algorithms}
+
+\section{SYNTHETIC EXAMPLES}
+
+\section{REAL-WORLD EXAMPLES}
+
+
+\subsubsection*{Acknowledgements}
+All acknowledgments go at the end of the paper, including thanks to reviewers who gave useful comments, to colleagues who contributed to the ideas, and to funding agencies and corporate sponsors that provided financial support. 
+To preserve the anonymity, please include acknowledgments \emph{only} in the camera-ready papers.
+
+\subsubsection*{References}
+
+\bibliography{biblio}
+
+\end{document}
