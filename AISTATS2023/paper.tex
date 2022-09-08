@@ -31,7 +31,7 @@
 \newcommand{\xc}{\mathbf{x_c}}
 \newcommand{\DY}{\mathbf{\Delta Y}}
 \newcommand{\xb}{\mathbf{x}}
-\newcommand{\Xcb}{\mathcal{X}_c}
+\newcommand{\Xcb}{\mathbf{X}_c}
 \newcommand{\Xb}{\mathcal{X}}
 
 \begin{document}
@@ -70,24 +70,86 @@
 \section{INTRODUCTION}
 
 
-Recently, ML has flourished in critical domains, such as healthcare and finance. In these areas, we need ML models that predict accurately but also with the ability to explain their predictions. Therefore, Explainable AI (XAI) is a rapidly growing field due to the interest in interpreting black box machine learning (ML) models. XAI literature distinguishes between local and global interpretation methods~\citep{Molnar2020interpretable}. Local methods explain a specific prediction, whereas global methods explain the entire model behavior. Global methods provide a universal explanation, summarizing the numerous local explanations into a single interpretable outcome (number or plot). For example, if a user wants to know which features are significant (feature importance) or whether a particular feature has a positive or negative effect on the output (feature effect), they should opt for a global explainability technique. Aggregating the individual explanations for producing a global one comes at a cost. In cases where feature interactions are strong, the global explanation may obfuscate heterogeneous effects~\citep{Herbinger2022repid} that exist under the hood, a phenomenon called aggregation bias~\citep{mehrabi2021survey}.
+Recently, ML has flourished in critical domains, such as healthcare
+and finance. In these areas, we need ML models that predict accurately
+but also with the ability to explain their predictions. Therefore,
+Explainable AI (XAI) is a rapidly growing field due to the interest in
+interpreting black box machine learning (ML) models. XAI literature
+distinguishes between local and global interpretation
+methods~\citep{Molnar2020interpretable}. Local methods explain a
+specific prediction, whereas global methods explain the entire model
+behavior. Global methods provide a universal explanation, summarizing
+the numerous local explanations into a single interpretable outcome
+(number or plot). For example, if a user wants to know which features
+are significant (feature importance) or whether a particular feature
+has a positive or negative effect on the output (feature effect), they
+should opt for a global explainability technique. Aggregating the
+individual explanations for producing a global one comes at a cost. In
+cases where feature interactions are strong, the global explanation
+may obfuscate heterogeneous effects~\citep{Herbinger2022repid} that
+exist under the hood, a phenomenon called aggregation
+bias~\citep{mehrabi2021survey}.
 
-Feature effect forms a fundamental category of global explainability methods, isolating a single feature's average impact on the output. Feature effect methods suffer from aggregation bias because the rationale behind the average effect might be unclear. For example, a feature with zero average effect may indicate that the feature has no effect on the output or, contrarily, it has a highly positive effect in some cases and a highly negative one in others.
+Feature effect forms a fundamental category of global explainability
+methods, isolating a single feature's average impact on the
+output. Feature effect methods suffer from aggregation bias because
+the rationale behind the average effect might be unclear. For example,
+a feature with zero average effect may indicate that the feature has
+no effect on the output or, contrarily, it has a highly positive
+effect in some cases and a highly negative one in others.
 
-There are two widely-used feature effect methods; Partial Dependence Plots (PDPlots)\citep{friedman2001greedy} and Aggregated Local Effects (ALE)\citep{apley2020visualizing}. PDPlots have been criticized for producing erroneous feature effect plots when the input features are correlated due to marginalizing over out-of-distribution synthetic instances. Therefore, ALE has been established as the state-of-the-art feature effect method since it can isolate feature effects in situations where input features are highly correlated. 
+There are two widely-used feature effect methods; Partial Dependence
+Plots (PDPlots)\citep{friedman2001greedy} and Aggregated Local Effects
+(ALE)\citep{apley2020visualizing}. PDPlots have been criticized for
+producing erroneous feature effect plots when the input features are
+correlated due to marginalizing over out-of-distribution synthetic
+instances. Therefore, ALE has been established as the state-of-the-art
+feature effect method since it can isolate feature effects in
+situations where input features are highly correlated.
 
-However, ALE faces two crucial drawbacks. First, it does not provide a way to inform the user about potential heterogeneous effects that are hidden behind the average effect. In contrast, in the case of PDPlots, the heterogeneous effects can be spotted by exploring the Individual Conditional Expectations (ICE)\citep{goldstein2015peeking}. Second, ALE requires an additional step, where the axis of the feature of interest is split in \(K\) fixed-size non-overlapping intervals, where \(K\) is a hyperparameter provided by the user. This splitting is done blindly, which can lead to inconsistent explanations.
+However, ALE faces two crucial drawbacks. First, it does not provide a
+way to inform the user about potential heterogeneous effects that are
+hidden behind the average effect. In contrast, in the case of PDPlots,
+the heterogeneous effects can be spotted by exploring the Individual
+Conditional Expectations (ICE)\citep{goldstein2015peeking}. Second,
+ALE requires an additional step, where the axis of the feature of
+interest is split in \(K\) fixed-size non-overlapping intervals, where
+\(K\) is a hyperparameter provided by the user. This splitting is done
+blindly, which can lead to inconsistent explanations.
 
-In this paper, we extend ALE with a probabilistic component for measuring the uncertainty of the global explanation. The uncertainty of the global explanation expresses how certain we are that the global (expected) explanation is valid if applied to an instance drawn at random and informs the user about the level of heterogeneous effects hidden behind the expected explanation. Our method completes ALE, as ICE plots complement PDPlots, for revealing the heterogeneous effects.
+In this paper, we extend ALE with a probabilistic component for
+measuring the uncertainty of the global explanation. The uncertainty
+of the global explanation expresses how certain we are that the global
+(expected) explanation is valid if applied to an instance drawn at
+random and informs the user about the level of heterogeneous effects
+hidden behind the expected explanation. Our method completes ALE, as
+ICE plots complement PDPlots, for revealing the heterogeneous effects.
 
-Our method also automates the step of axis splitting into non-overlapping intervals. We, firstly, transform the bin splitting step into an unsupervised clustering problem and, second, find the optimal bin splitting for a robust estimation of (a) the global (expected) effect and (b) the uncertainty of the explanation from the limited samples of the training set. We formally prove that the objective of the clustering problem has as lower-bound the aggregated uncertainty of the global explanation. Our method works out of the box without requiring any input from the user.
+Our method also automates the step of axis splitting into
+non-overlapping intervals. We, firstly, transform the bin splitting
+step into an unsupervised clustering problem and, second, find the
+optimal bin splitting for a robust estimation of (a) the global
+(expected) effect and (b) the uncertainty of the explanation from the
+limited samples of the training set. We formally prove that the
+objective of the clustering problem has as lower-bound the aggregated
+uncertainty of the global explanation. Our method works out of the box
+without requiring any input from the user.
 
 \paragraph{Contributions.} The contributions of this paper are the following:
 
 \begin{itemize}
-  \item We introduce Uncertainty DALE (UDALE), an extension of DALE that quantifies the uncertainty of the global explanation, i.e.~the level of heterogeneous effects hidden behind the global explanation.\item We provide an algorithm that automatically computes the optimal bin splitting for robustly estimating the explanatory quantities, i.e., the global effect and the uncertainty. 
-  \item We formally prove that our method finds the optimal grouping of samples, minimizing the added uncertainty over the unavoidable heterogeneity that is the lower-bound of the objective.
-  \item We provide empirical evaluation of the method in artificial and real datasets.
+\item We introduce Uncertainty DALE (UDALE), an extension of DALE that
+  quantifies the uncertainty of the global explanation, i.e.~the level
+  of heterogeneous effects hidden behind the global explanation.
+\item
+  We provide an algorithm that automatically computes the optimal bin
+  splitting for robustly estimating the explanatory quantities, i.e.,
+  the global effect and the uncertainty.
+\item We formally prove that our method finds the optimal grouping of
+  samples, minimizing the added uncertainty over the unavoidable
+  heterogeneity that is the lower-bound of the objective.
+\item We provide empirical evaluation of the method in artificial and
+  real datasets.
 \end{itemize}
 
 
@@ -106,34 +168,33 @@ simple variables with plain lowercase \( x \). Bold denotes a vector;
 partition the input vector \(\xb \in \mathbb{R}^D\) to the feature of
 interest \(x_s \in \mathbb{R} \) and the rest of the features
 \(\xc \in \mathbb{R}^{D-1}\). For convenience we denote it as
-\((x_s, \mathbb{x}_c)\), but we clarify that it corresponds to the vector
-\((x_1, \cdots , x_s, \cdots, x_D)\). Equivalently, we denote the
-corresponding rv as \(X = (X_s, \mathbf{X}_c)\). The black-box
+\((x_s, \mathbf{x}_c)\), but we clarify that it corresponds to the
+vector \((x_1, \cdots , x_s, \cdots, x_D)\). Equivalently, we denote
+the corresponding rv as \(X = (X_s, \mathbf{X}_c)\). The black-box
 function is \(f : \mathbb{R}^D \rightarrow \mathbb{R}\) and the
 feature effect of the \(s\)-th feature is
-\(f_{\mathtt{<method>}}(x_s)\), where \(\mathtt{<method>}\) is the
-name of the feature effect method. \footnote{An extensive list of all
+\(f^{\mathtt{<method>}}(x_s)\), where \(\mathtt{<method>}\) is the
+name of the feature effect method.\footnote{An extensive list of all
   symbols used in the paper is provided in the helping material.}
 
 
 \paragraph{Feature Effect Methods.} PDPlots formulate the feature
 effect of the \(s\)-th attribute as an expectation over the marginal
 distribution \(\mathbf{X}_c\), i.e.,
-\(f_{\mathtt{PDP}}(x_s) =
-\mathbb{E}_{\mathbf{X}_c}[f(x_s,\mathbf{X}_c)]\). MPlots formulate
-it as an expectation over the conditional
-\(\mathcal{X}_c|\mathcal{X}_s\), i.e.,
-\(f_{\mathtt{MP}}(x_s) = \mathbb{E}_{\mathcal{X}_c|\mathcal{X}_s = x_s}[f(x_s,
-\mathcal{X}_c)]\). ALE computes the global effect at \(x_s\) as an
+\(f^{\mathtt{PDP}}(x_s) =
+\mathbb{E}_{\mathbf{X}_c}[f(x_s,\mathbf{X}_c)]\). MPlots formulate it
+as an expectation over the conditional \(\mathbf{X}_c|X_s\), i.e.,
+\(f^{\mathtt{MP}}(x_s) = \mathbb{E}_{\mathbf{X}_c|X_s = x_s}[f(x_s,
+\mathbf{X}_c)]\). ALE computes the global effect at \(x_s\) as an
 integration of local effects. The local effects are measured as the
 expected change on the output
-\( \frac{\partial f(x_s, \mathcal{X}_c)}{\partial x_s} \) over the
-conditional distribution \( \Xcb|\mathcal{X}_s\). The formula that
+\( \frac{\partial f(x_s, \mathbf{X}_c)}{\partial x_s} \) over the
+conditional distribution \( \Xcb|X_s\). The formula that
 defines ALE is presented below:
 
 \begin{equation}
-  \label{eq:ALE}
-  f_{\mathtt{ALE}}(x_s) = c + \int_{-\infty}^{x_s} \mathbb{E}_{\Xcb|\mathcal{X}_s=z}\left[\frac{\partial f(z, \mathcal{X}_c)}{\partial z}\right] \partial z
+  \label{eq:ALE_accumulated_mean}
+  f^{\mathtt{ALE}}(x_s) = c + \int_{z_{s,min}}^{x_s} \mathbb{E}_{\Xcb|X_s=z}\left[\frac{\partial f(z, \Xcb)}{\partial z}\right] \partial z
 \end{equation}
 %
 The constant \(c\) is used for centering the ALE plot. PDPlots
@@ -145,19 +206,19 @@ resolve this issue using the conditional distribution
 effects. ALE plots resolve, both they have two drawbacks TODO add more
 info.
 
-\paragraph{Qunatify the Heterogeneous Effects.}
-It is crucial for feature effect methods to inform about the
-heterogeneous effects. Elaborate. Interpretation of the heterogeneous
-effects behind the global effect is available only for PDP, with three
-different approaches; (a) ICE and d-ICE plots provide a visual
-understanding of the heterogeneous effects. (b) grouping of ICE in
-homogeneous clusters, for spliting the input space into subspace(s)
-with homogeneous effects (c) Feature Interaction strength indexes,
-like H-statistic, provide a value indicating how much a feature
-interacts with the others (not the type of interaction). There is no
-method for quantifying the heterogeneous effects, based on
-ALE. Therefore, no method to exploit the advantages of ALE while, on
-the same time, informing about the heterogeneous effects. 
+\paragraph{Qunatify the Heterogeneous Effects.} It is crucial for
+feature effect methods to inform about the heterogeneous
+effects. Elaborate. Interpretation of the heterogeneous effects behind
+the global effect is available only for PDP, with three different
+approaches; (a) ICE and d-ICE plots provide a visual understanding of
+the heterogeneous effects. (b) grouping of ICE in homogeneous
+clusters, for spliting the input space into subspace(s) with
+homogeneous effects (c) Feature Interaction strength indexes, like
+H-statistic, provide a value indicating how much a feature interacts
+with the others (not the type of interaction). There is no method for
+quantifying the heterogeneous effects, based on ALE. Therefore, no
+method to exploit the advantages of ALE while, on the same time,
+informing about the heterogeneous effects.
 
 \paragraph{Bin Spliting.} ALE also has the peculiarity of spliting the
 axis into intervals, allocating the instances of the training set in
@@ -184,6 +245,9 @@ user wants to explore the heterogeneous effects or not.
 
 \section{THE ... METHOD}
 
+The terms \textit{uncertainty of explanation} and \textit{level of
+  heterogeneous effects} refer to the same effect 
+
 \subsection{ALE with Uncertainty Quantification}
 
 ALE defines the local effect of \(x_s\) on \(f(\cdot)\) at
@@ -191,28 +255,26 @@ ALE defines the local effect of \(x_s\) on \(f(\cdot)\) at
 function \(f(\cdot)\) is a deterministic predictor, the local effect
 is also a deterministic quantity. Global methods summarize the local
 explanations into a single quantity. Therefore, ALE summarizes all the
-local explanations at \(x_s\) by averaging the local effects accross
+local explanations at \(x_s\) by averaging the local effects across
 all values of \(\xc\) weighting them by \(p(\xc|x_s)\). In other
-words, ALE globalizes the local explanations at \(x_s\) through the
-expected change in the output \(y\) wrt \(x_s\):
+words, ALE globalizes the local explanations at \(x_s\), computing the
+expected effect at \(x_s\):
 
 \begin{equation}
   \label{eq:ALE_mean}
-  \mu(x_s) = \mathbb{E}_{\xc|x_s}\left [\dfdx (x_s, \xc)\right ]
+  \mu(x_s) = \mathbb{E}_{\Xcb|x_s}\left [\dfdx (x_s, \Xcb)\right ]
 \end{equation}
-%
+\noindent
 As described at the Introduction, limiting the explanation at this
 level does not shed light to possible heterogeneous effects behind the
-averaged explanation. Therefore, we model the model the uncertainty of
-the effect at \(x_s\) as the variance of the local explanations:
+averaged explanation. Therefore, we model the uncertainty of the local
+effects at \(x_s\) as the variance of the local explanations:
 
 \begin{equation}
   \label{eq:ALE_var}
-  \sigma^2(x_s) = \mathrm{Var}_{\xc|x_s}\left [\dfdx (x_s, \xc) \right ]
+  \sigma^2(x_s) = \mathrm{Var}_{\Xcb|x_s}\left [\dfdx (x_s, \Xcb) \right ]
 \end{equation}
-
 \noindent
-%
 The uncertainty of the explanation emerges from the natural
 characteristics of the experiment, i.e.,~the data generating
 distribution and the black-box function. It is important to clarify
@@ -221,46 +283,45 @@ statistical properties can also be used. Elaborate.
 
 ALE computes the final effect at \(x_s\) by accumulating/integrating
 the averaged local effects \(\mu (x_s=z) \) over all values of \(z\)
-from \(x_{min}\) until \(x_s\), as show in Eq.~(\ref{eq:ALE}). The
+from \(x_{min}\) until \(x_s\), as show in Eq.~(\ref{eq:ALE_accumulated_mean}). The
 choice for \(x_{min}\) is not important, as it only affects the
 centering of ALE plot along the vertical axis. Equivalently, we define
-the accumulated uncertainty until the point \(x_s\), as the integral
-of the variance of local effects:
+the accumulated uncertainty (variance) until the point \(x_s\), as the
+integral of the variance of local effects:
 
 \begin{equation}
-  \label{eq:3}
-  f_{\mathtt{ALE}}^{\sigma^2}(x_s) = \int_{z_1, min}^{x_s} \sigma^2(z) \partial z
+  \label{eq:ALE_accumulated_var}
+  f^{\mathtt{ALE}}_{\sigma^2}(x_s) = \int_{z_{s, min}}^{x_s} \sigma^2(z) \partial z
 \end{equation}
+\noindent
+In ALE plots the accumulated effect as absolute value is not an
+interpretable quantity and is only used for better visual
+interpretation\citep{Gromping2020MAEP}. The meaningful interpretation
+is the effect at a specific point, i.e., what happens to the output
+given a small change in the feature of interest. The integration takes
+place only for making the visual interpretation easier, for example,
+to spot larger intervals where the effect of a \textbf{local} change
+is continuously constant. The same stands for the accumulated
+uncertainty. The uncertainty has a meaninful interpretation as the
+level of heterogeneous effects, only at a specific point. In the
+experimental Section, we propose appropriate visualizations to
+communicate to this effect to the user. However, the accumulated
+uncertainty, i.e., the aggregated variance of the local effects, helps
+us define a sensible objective for the interval spliting step. (TODO:
+check here if the idea about whether the accumulated uncertainty is a
+good metric for modeling the interaction strength)
 
-
-In ALE plots the absolute value at a specific point is not an
-interpretable quantity (add ref to paper). The meaningful
-interpretation is the effect at a specific point, i.e. what happens to
-the output given a small change in the feature of interest. The
-integration takes place only for making the visual interpretation
-smooth, for example, to spot larger intervals where the effect of a
-\textbf{local} change is continuously negative. The same stands for
-the accumulated uncertainty. It is meaningful to measure, only, the
-uncertainty at at a specific point to understand the heterogeneous
-effects behind the averaged effect. In the experimental Section, we
-propose appropriate visualizations to concentrate the user to this
-effect. However, the accumulated uncertainty, i.e. the aggregate
-uncertainty allong all the points of the plot, will help us define a
-meaningfull objective for the interval spliting step. (TODO: check
-here if the idea about whether the accumulated uncertainty is a good
-metric for modeling the interaction strength)
-
-
-\subsection{Uncertainty Quantification at an interval}
+\subsection{Uncertainty Quantification and Estimation at an Interval}
 
 In real scenarios, we have ignorance about the data-generating
-distribution \(p(x_s, \mathbf{x}_c)\) and on estimations based on the
-limited instances of the training set. Therefore, it is impossible to
-estimate Eqs.~\eqref{eq:ALE_mean},~\eqref{eq:ALE_var} at the
-granularity of a point \(x_s\)\, since the possibility to observe a
-sample in the interval \([x_s - h, x_s + h]\) is zero, when
-\(h \to 0\). Therefore, for estimation purposes, we are obliged to
-create larger intervals (\(h>0\)). The mean effect at the interval
+distribution \(p(x_s, \mathbf{x}_c)\) and all estimations are based on
+the limited instances of the training set. Unfortunately, it is
+impossible to estimate Eqs.~\eqref{eq:ALE_mean},~\eqref{eq:ALE_var} at
+the granularity of a point \(x_s\), because The possibility to observe
+a sample in the interval \([x_s - h, x_s + h]\) is zero, when
+\(h \to 0\). Therefore, we are obliged split the axis \(x_s\) into a
+sequence of larger non-overlaping intervals and estimate mean and
+variance at the interval resolution. The mean effect at an interval
 \([z_1, z_2)\) is the mean of the expected effects:
 
 \begin{equation}
@@ -270,8 +331,8 @@ create larger intervals (\(h>0\)). The mean effect at the interval
 \end{equation}
 
 \noindent
-Accordingly, the accumulated uncertainty (variance) at the interval
-\([z_1, z_2)\) is:
+Accordingly, the accumulated variance at an interval \([z_1, z_2)\)
+is:
 
 \begin{equation}
   \label{eq:var_bin}
@@ -280,38 +341,12 @@ Accordingly, the accumulated uncertainty (variance) at the interval
       f}{\partial x_s} - \mu(z_1, z_2) )^2 \right] \partial z
 \end{equation}
 
-\noindent
-
-\paragraph{Theorem 1.}
-
-The accumulated variance at the interval \([z_1, z_2)\) is the
-accumulation of the all variances inside the interval plus the
-accumulated squared residuals:
-
-\begin{equation}
- \sigma^2(z_1, z_2) = \int_{z_1}^{z_2} \sigma^2(z) + \rho^2(z) \partial z
-\end{equation}
-%
-where \(\rho(z) = \mu(z) - \mu(z_1, z_2)\). The proof is at the
-Appendix. Theorem 1 decouples the (observable) variance in the
-interval \([z_1, z_2)\) into two terms. The first term
-\(\int_{z_1}^{z_2} \sigma^2(z) \partial z\) accumulates the variance
-of the local explanations (Eq.~(\ref{eq:ALE_var})) for all points
-inside the interval. The second term accumulates the squared
-differences between the mean effect at the interval and mean of the
-local explanations for all points inside the interval. The first term
-accumulates the the uncertainty due to the natural characteristics of
-the experiment, whereas, the second term adds extra uncertainty due to
-limiting the granularity of the effect at the bin level.
-
-\subsection{Estimation of Effect at an Interval}
-
 As stated before, Eqs.~\eqref{eq:mu_bin},~\eqref{eq:var_bin} can be
 estimated from the set \(\mathcal{S}\) of the instances of the
 training set with the \(s\)-th feature lying inside the interval,
 i.e., \( \mathcal{S}= \{ \mathbf{x}^i : z_1 \leq x^i_s < z_2 \}
-\). The mean effect at the interval, Eq.~(\ref{eq:mu_bin}), can be approximated
-by:
+\). The mean effect at the interval, Eq.~(\ref{eq:mu_bin}), can be
+approximated by:
 
 \begin{equation}
   \label{eq:mean_estimation}
@@ -324,15 +359,80 @@ can be approximated by
 
 \begin{equation}
   \label{eq:variance_estimation}
-  \hat{\sigma}_k(z_1, z_2) = \frac{1}{|\mathcal{S}|} \sum_{i:\mathbf{x}^i \in
-  \mathcal{S}} \left ( \dfdx(\mathbf{x}^i) - \hat{\mu}_k(z_1, z_2) \right )^2
+  \hat{\sigma}(z_1, z_2) = \frac{z_2 - z_1}{|\mathcal{S}|} \sum_{i:\mathbf{x}^i \in
+    \mathcal{S}} \left ( \dfdx(\mathbf{x}^i) - \hat{\mu}_k(z_1, z_2) \right )^2
 \end{equation}
 
 The approximation is unbiased only if the points are uniformly
-distributed in \([z_{k-1}, z_k]\). (TODOs: Check what happens
+distributed in \([z_1, z_2]\). (TODOs: Check what happens
 otherwise).
 
 \subsection{Bin Spliting as a Clustering Problem}
+
+ALE authors\citep{apley2020visualizing} proposed an approximation of
+(\ref{eq:ALE_accumulated_mean}) by partitioning the axis of the
+feature of interest into a sequence of non-overlaping bin and
+computing a single effect in each bin. Later, (TODO: add citation to
+us), proposed the DALE (Differential ALE) approximation that decouples
+the two steps. The local effects are computed once using the partial
+derivatives on the available instances of the training set,
+i.e. \(\frac{\partial f}{\partial x_s}\), and the bin-spliting step,
+simply allocates the precomputed local effects into bins, for
+estimating the expected effect in each bin. The formula that estimates
+the accumulate effects is:
+
+\begin{equation}
+  f^{\mathtt{DALE}}(x_s) = \Delta x \sum_{k=1}^{k_x}
+  \frac{1}{|\mathcal{S}_k|} \sum_{i:\xb^i \in \mathcal{S}_k}
+  [f_s(\xb^i)] = \Delta x \sum_{k=1}^{k_x} \hat{\mu}_k
+ \label{eq:DALE}
+\end{equation}
+
+We denote as \(k_x\) the index of the bin that \(x_s\) belongs to,
+i.e. \(k_x: z_{k_x-1} \leq x_s < z_{k_x} \) and \(\mathcal{S}_k\) is
+the set of training instance that lie in the \(k\)-th bin, i.e.
+\( \mathcal{S}_k = \{ \xb^i : z_{k-1} \leq x^i_s < z_{k} \} \). Both
+methods face the limitation that the partitioning into non-overlaping
+intervals is done blindly. The user pass the total number of bins
+\(K\) as a hyperparameter, the bins are defined with equal-size
+spliting, and the training instances are allocated accordingly. This
+approach is vulnerable to non-robust estimations. The mean effect is
+often poorly approximated from a very small number of samples and the
+mean effect of empty bins is interpolated from their
+neighboors. Furthermore, in our case, we need sufficient sample
+populations for estimating the variance of the approximation, apart
+from the mean effect.
+
+\subsubsection{Methodology}
+
+For overcoming this limitations, we reformulate the partitioning as a
+clustering of the training instances into a sequence variable-size
+intervals. The objective of the clustering problem is inspired 
+
+
+ALE requires splittingthe estimation of the 
+
+In this section, we introduce a framework 
+
+\paragraph{Theorem 1.} If we define the residual \(\rho(z)\) as the
+difference between the expected effect at \(x_s\) and the mean
+expected effect at the interval, i.e
+\(\rho(z) = \mu(z) - \mu(z_1, z_2)\), then, the accumulated variance
+at an interval \([z_1, z_2)\) is the accumulation of the all variances
+plus the accumulation of squared residuals inside the interval:
+
+\begin{equation}
+ \sigma^2(z_1, z_2) = \int_{z_1}^{z_2} \sigma^2(z) + \rho^2(z) \partial z
+\end{equation}
+%
+The proof is at the Appendix. Theorem 1 decouples the accumulated
+variance at an interval, the only quantity we can estimate, into two
+terms. The first term \(\int_{z_1}^{z_2} \sigma^2(z) \partial z\),
+quantifies the uncertainty due to the natural characteristics of the
+experiment and the second term adds extra uncertainty due to the
+limited resolution.
+
+
 
 \paragraph{Uncertainty of the global effect.}
 
@@ -357,12 +457,10 @@ points, i.e., \(|\mathcal{S}_k| \geq \tau\).
 TODOS. Show theoretically that \(\mathcal{L} \geq \int_{x_{s, \min}}^{x_{s, \max}}\sigma^2(x_s) \partial x_s\)
 
 
-\subsubsection{Methodology}
-
 % Furthermore, we automate the step of splitting the axis into non-overlapping intervals. The need for non-overlapping bins emerges from the ignorance of the data-generating distribution, enforcing all estimations to be based on the limited instances of the training set. Therefore, there is an implicit trade-off behind the formation of bins. Each bin must include enough instances for a robust estimation of the bin feature effect (expected value), and the uncertainty of the explanation (variance). On the other hand, each bin should include points with similar local effects. Therefore, we transform the bin splitting step into an unsupervised clustering problem, encoding the trade-off mentioned above in the objective function. We formally show that the objective of the clustering problem has lower-bound the (unavoidable) heterogeneity, i.e., the aggregated uncertainty of the global explanation. Therefore, we aim to find the optimal grouping of samples that adds the slightest uncertainty over the unavoidable heterogeneity. We finally solve the minimization problem by finding the global optimum using dynamic programming. Our method works out of the box without requiring any input by the user. We provide a theoretical and empirical evaluation of our method.
 
 
-\subsubsection{Algorithms}
+\subsection{Visualization of ALE with Uncertainty}
 
 \section{SYNTHETIC EXAMPLES}
 

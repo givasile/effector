@@ -1,0 +1,46 @@
+\message{ !name(paper.tex)}\documentclass[twoside]{article}
+
+\usepackage{aistats2023}
+% If your paper is accepted, change the options for the package
+% aistats2023 as follows:
+%
+%\usepackage[accepted]{aistats2023}
+%
+% This option will print headings for the title of your paper and
+% headings for the authors names, plus a copyright note at the end of
+% the first column of the first page.
+
+% If you set papersize explicitly, activate the following three lines:
+%\special{papersize = 8.5in, 11in}
+%\setlength{\pdfpageheight}{11in}
+%\setlength{\pdfpagewidth}{8.5in}
+
+% If you use natbib package, activate the following three lines:
+\usepackage[round]{natbib}
+\renewcommand{\bibname}{References}
+\renewcommand{\bibsection}{\subsubsection*{\bibname}}
+\bibliographystyle{plainnat}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% If you use BibTeX in apalike style, activate the following line:
+%\bibliographystyle{apalike}
+
+
+\newcommand{\dfdx}{\frac{\partial f}{\partial x_s}}
+\newcommand{\xc}{\mathbf{x_c}}
+\newcommand{\DY}{\mathbf{\Delta Y}}
+\newcommand{\xb}{\mathbf{x}}
+\newcommand{\Xcb}{\mathbf{X}_c}
+\newcommand{\Xb}{\mathcal{X}}
+
+\begin{document}
+
+\message{ !name(paper.tex) !offset(252) }
+\begin{equation}
+  \label{eq:3}
+  f^{\mathtt{ALE}}_{\sigma^2}(x_s) = \int_{z_s, min}^{x_s} \sigma^2(z) \partial z
+\end{equation}
+\message{ !name(paper.tex) !offset(398) }
+
+\end{document}

@@ -137,3 +137,7 @@ dmypy.json
 *.out
 
 \paper\out
+
+
+.emacs.desktop
+paper.prv
