@@ -69,7 +69,6 @@
 
 \section{INTRODUCTION}
 
-
 Recently, ML has flourished in critical domains, such as healthcare
 and finance. In these areas, we need ML models that predict accurately
 but also with the ability to explain their predictions. Therefore,
@@ -177,7 +176,6 @@ feature effect of the \(s\)-th feature is
 name of the feature effect method.\footnote{An extensive list of all
   symbols used in the paper is provided in the helping material.}
 
-
 \paragraph{Feature Effect Methods.} PDPlots formulate the feature
 effect of the \(s\)-th attribute as an expectation over the marginal
 distribution \(\mathbf{X}_c\), i.e.,
@@ -205,6 +203,8 @@ resolve this issue using the conditional distribution
 \( \mathcal{X}_2|\mathcal{X}_1 \) but suffer from computing combined
 effects. ALE plots resolve, both they have two drawbacks TODO add more
 info.
+
+TODO: Discuss the interpretation of ALE. The differences from PDP. Analyze both methods as processes.
 
 \paragraph{Qunatify the Heterogeneous Effects.} It is crucial for
 feature effect methods to inform about the heterogeneous
@@ -245,20 +245,12 @@ user wants to explore the heterogeneous effects or not.
 
 \section{THE ... METHOD}
 
-The terms \textit{uncertainty of explanation} and \textit{level of
-  heterogeneous effects} refer to the same effect 
-
 \subsection{ALE with Uncertainty Quantification}
 
-ALE defines the local effect of \(x_s\) on \(f(\cdot)\) at
-\((x_s, \xc)\) as \(\dfdx (x_s, \xc)\). Given that the black-box
-function \(f(\cdot)\) is a deterministic predictor, the local effect
-is also a deterministic quantity. Global methods summarize the local
-explanations into a single quantity. Therefore, ALE summarizes all the
-local explanations at \(x_s\) by averaging the local effects across
-all values of \(\xc\) weighting them by \(p(\xc|x_s)\). In other
-words, ALE globalizes the local explanations at \(x_s\), computing the
-expected effect at \(x_s\):
+ALE defines the local effect of \(x_s\) on \(f(\cdot)\) at a single
+point\((x_s, \xc)\) as \(\dfdx (x_s, \xc)\). All the local
+explanations at \(x_s\) are weigthed by the conditional distribution
+\(p(\xc|x_s)\) and are averaged, to produce the summarized effect:
 
 \begin{equation}
   \label{eq:ALE_mean}
@@ -268,61 +260,48 @@ expected effect at \(x_s\):
 As described at the Introduction, limiting the explanation at this
 level does not shed light to possible heterogeneous effects behind the
 averaged explanation. Therefore, we model the uncertainty of the local
-effects at \(x_s\) as the variance of the local explanations:
+effects at \(\mathcal{H}(x_s)\) as the variance of the local
+explanations:
 
 \begin{equation}
   \label{eq:ALE_var}
-  \sigma^2(x_s) = \mathrm{Var}_{\Xcb|x_s}\left [\dfdx (x_s, \Xcb) \right ]
+  \mathcal{H}(x_s) := \sigma^2(x_s) = \mathrm{Var}_{\Xcb|x_s}\left [\dfdx (x_s, \Xcb) \right ]
 \end{equation}
 \noindent
 The uncertainty of the explanation emerges from the natural
 characteristics of the experiment, i.e.,~the data generating
-distribution and the black-box function. It is important to clarify
-that the variance is only a way to model the uncertainty. Other
-statistical properties can also be used. Elaborate.
-
-ALE computes the final effect at \(x_s\) by accumulating/integrating
-the averaged local effects \(\mu (x_s=z) \) over all values of \(z\)
-from \(x_{min}\) until \(x_s\), as show in Eq.~(\ref{eq:ALE_accumulated_mean}). The
-choice for \(x_{min}\) is not important, as it only affects the
-centering of ALE plot along the vertical axis. Equivalently, we define
-the accumulated uncertainty (variance) until the point \(x_s\), as the
-integral of the variance of local effects:
+distribution and the properties of the black-box function. In Section
+(TODO), we propose appropriate visualizations for easier
+interpretation of Eq.~(\ref{eq:ALE_var}). In ALE, the feature effect
+at \(x_s\) is the accumulation of the averaged local effects from
+\(x_{min}\) until \(x_s\), as show in
+Eq.~(\ref{eq:ALE_accumulated_mean}). Equivalently, we define the
+accumulated uncertainty (variance) until the point \(x_s\), as the
+integral of the variances of local effects:
 
 \begin{equation}
   \label{eq:ALE_accumulated_var}
   f^{\mathtt{ALE}}_{\sigma^2}(x_s) = \int_{z_{s, min}}^{x_s} \sigma^2(z) \partial z
 \end{equation}
 \noindent
-In ALE plots the accumulated effect as absolute value is not an
-interpretable quantity and is only used for better visual
-interpretation\citep{Gromping2020MAEP}. The meaningful interpretation
-is the effect at a specific point, i.e., what happens to the output
-given a small change in the feature of interest. The integration takes
-place only for making the visual interpretation easier, for example,
-to spot larger intervals where the effect of a \textbf{local} change
-is continuously constant. The same stands for the accumulated
-uncertainty. The uncertainty has a meaninful interpretation as the
-level of heterogeneous effects, only at a specific point. In the
-experimental Section, we propose appropriate visualizations to
-communicate to this effect to the user. However, the accumulated
-uncertainty, i.e., the aggregated variance of the local effects, helps
-us define a sensible objective for the interval spliting step. (TODO:
-check here if the idea about whether the accumulated uncertainty is a
-good metric for modeling the interaction strength)
+
+The accumulated uncertainty is not a directly interpretable
+quantity. It only helps us define a sensible objective for the
+interval spliting step, as we discuss in Section TODO: adde ref.
 
 \subsection{Uncertainty Quantification and Estimation at an Interval}
 
 In real scenarios, we have ignorance about the data-generating
 distribution \(p(x_s, \mathbf{x}_c)\) and all estimations are based on
-the limited instances of the training set. Unfortunately, it is
-impossible to estimate Eqs.~\eqref{eq:ALE_mean},~\eqref{eq:ALE_var} at
-the granularity of a point \(x_s\), because The possibility to observe
-a sample in the interval \([x_s - h, x_s + h]\) is zero, when
-\(h \to 0\). Therefore, we are obliged split the axis \(x_s\) into a
-sequence of larger non-overlaping intervals and estimate mean and
-variance at the interval resolution. The mean effect at an interval
-\([z_1, z_2)\) is the mean of the expected effects:
+the limited instances of the training set. Estimating
+Eqs.~\eqref{eq:ALE_mean},~\eqref{eq:ALE_var} at the granularity of a
+point \(x_s\) is impossible, because the probability of observing a
+sample inside the interval \([x_s - h, x_s + h]\) tends to zero, when
+\(h \to 0\). Therefore, we are obliged to split the axis of \(x_s\)
+into a sequence of non-overlaping intervals (bins) and estimate the
+mean and the variance from the samples that lie inside each bin. The
+mean effect at an interval \([z_1, z_2)\) is defined as the mean of
+the expected effects:
 
 \begin{equation}
   \label{eq:mu_bin}
@@ -332,7 +311,7 @@ variance at the interval resolution. The mean effect at an interval
 
 \noindent
 Accordingly, the accumulated variance at an interval \([z_1, z_2)\)
-is:
+is defined as:
 
 \begin{equation}
   \label{eq:var_bin}
@@ -341,12 +320,11 @@ is:
       f}{\partial x_s} - \mu(z_1, z_2) )^2 \right] \partial z
 \end{equation}
 
-As stated before, Eqs.~\eqref{eq:mu_bin},~\eqref{eq:var_bin} can be
-estimated from the set \(\mathcal{S}\) of the instances of the
-training set with the \(s\)-th feature lying inside the interval,
-i.e., \( \mathcal{S}= \{ \mathbf{x}^i : z_1 \leq x^i_s < z_2 \}
-\). The mean effect at the interval, Eq.~(\ref{eq:mu_bin}), can be
-approximated by:
+Eqs.~\eqref{eq:mu_bin},~\eqref{eq:var_bin} can be directly estimated
+from the set \(\mathcal{S}\) of the dataset instances with the
+\(s\)-th feature lying inside the interval, i.e.,
+\( \mathcal{S}= \{ \mathbf{x}^i : z_1 \leq x^i_s < z_2 \} \). The mean
+effect at the interval, Eq.~(\ref{eq:mu_bin}) is approximated by:
 
 \begin{equation}
   \label{eq:mean_estimation}
@@ -354,14 +332,15 @@ approximated by:
     \mathcal{S}} \left [ \dfdx(\mathbf{x}^i) \right ]
 \end{equation}
 
-and the accumulated variance at the interval, Eq.~(\ref{eq:var_bin})
-can be approximated by
+and the accumulated variance, Eq.~(\ref{eq:var_bin}) can be
+approximated by
 
 \begin{equation}
   \label{eq:variance_estimation}
-  \hat{\sigma}(z_1, z_2) = \frac{z_2 - z_1}{|\mathcal{S}|} \sum_{i:\mathbf{x}^i \in
-    \mathcal{S}} \left ( \dfdx(\mathbf{x}^i) - \hat{\mu}_k(z_1, z_2) \right )^2
+  \hat{\sigma}^2(z_1, z_2) = \frac{z_2 - z_1}{|\mathcal{S}|} \sum_{i:\mathbf{x}^i \in
+    \mathcal{S}} \left ( \dfdx(\mathbf{x}^i) - \hat{\mu}(z_1, z_2) \right )^2
 \end{equation}
+
 
 The approximation is unbiased only if the points are uniformly
 distributed in \([z_1, z_2]\). (TODOs: Check what happens
@@ -369,23 +348,20 @@ otherwise).
 
 \subsection{Bin Spliting as a Clustering Problem}
 
-ALE authors\citep{apley2020visualizing} proposed an approximation of
-(\ref{eq:ALE_accumulated_mean}) by partitioning the axis of the
-feature of interest into a sequence of non-overlaping bin and
-computing a single effect in each bin. Later, (TODO: add citation to
-us), proposed the DALE (Differential ALE) approximation that decouples
-the two steps. The local effects are computed once using the partial
-derivatives on the available instances of the training set,
-i.e. \(\frac{\partial f}{\partial x_s}\), and the bin-spliting step,
-simply allocates the precomputed local effects into bins, for
-estimating the expected effect in each bin. The formula that estimates
-the accumulate effects is:
+ALE, Eq.(\ref{eq:ALE_accumulated_mean}), is estimated by spliting the
+axis \(x_s\) into a sequence of non-overlaping bins (TODO: add some
+discussion for ALE, DALE):
 
 \begin{equation}
-  f^{\mathtt{DALE}}(x_s) = \Delta x \sum_{k=1}^{k_x}
-  \frac{1}{|\mathcal{S}_k|} \sum_{i:\xb^i \in \mathcal{S}_k}
-  [f_s(\xb^i)] = \Delta x \sum_{k=1}^{k_x} \hat{\mu}_k
- \label{eq:DALE}
+  \label{eq:ALE_accumulated_mean_est}
+  \hat{f}^{\mathtt{ALE}}_{\mu}(x_s) = \Delta x \sum_{k=1}^{k_x} \hat{\mu}(z_{k-1}, z_k)
+\end{equation}
+
+and 
+
+\begin{equation}
+  \label{eq:ALE_accumulated_var_est}
+  \hat{f}^{\mathtt{ALE}}_{\sigma^2}(x_s) = \sum_{k=1}^{k_x} \hat{\sigma}^2(z_{k-1}, z_k)
 \end{equation}
 
 We denote as \(k_x\) the index of the bin that \(x_s\) belongs to,
