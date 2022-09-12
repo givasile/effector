@@ -22,10 +22,10 @@
 \bibliographystyle{plainnat}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{hyperref}
 
 % If you use BibTeX in apalike style, activate the following line:
 %\bibliographystyle{apalike}
-
 
 \newcommand{\dfdx}{\frac{\partial f}{\partial x_s}}
 \newcommand{\xc}{\mathbf{x_c}}
@@ -70,69 +70,66 @@
 \section{INTRODUCTION}
 
 Recently, ML has flourished in critical domains, such as healthcare
-and finance. In these areas, we need ML models that predict accurately
-but also with the ability to explain their predictions. Therefore,
-Explainable AI (XAI) is a rapidly growing field due to the interest in
-interpreting black box machine learning (ML) models. XAI literature
-distinguishes between local and global interpretation
+and finance. In these areas, we need ML models that not only predict
+accurately but also explain their predictions. Therefore, Explainable
+AI (XAI), the field that provides interpretations for the prediction
+mechanism of complex black-box models, has increased interest. XAI
+literature distinguishes between local and global interpretation
 methods~\citep{Molnar2020interpretable}. Local methods explain a
 specific prediction, whereas global methods explain the entire model
 behavior. Global methods provide a universal explanation, summarizing
-the numerous local explanations into a single interpretable outcome
-(number or plot). For example, if a user wants to know which features
-are significant (feature importance) or whether a particular feature
-has a positive or negative effect on the output (feature effect), they
+the numerous local explanations into a single interpretable outcome,
+usually a number or a plot. If a user wants to know which features are
+significant (feature importance) or whether a particular feature has a
+positive or negative effect on the output (feature effect), they
 should opt for a global explainability technique. Aggregating the
-individual explanations for producing a global one comes at a cost. In
-cases where feature interactions are strong, the global explanation
-may obfuscate heterogeneous effects~\citep{Herbinger2022repid} that
-exist under the hood, a phenomenon called aggregation
+individual explanations for producing a concise global one comes at a
+cost. Under strong feature interactions, the global explanation may
+obfuscate heterogeneous effects~\citep{Herbinger2022repid} that exist
+under the hood; a phenomenon called aggregation
 bias~\citep{mehrabi2021survey}.
 
-Feature effect forms a fundamental category of global explainability
-methods, isolating a single feature's average impact on the
-output. Feature effect methods suffer from aggregation bias because
-the rationale behind the average effect might be unclear. For example,
-a feature with zero average effect may indicate that the feature has
-no effect on the output or, contrarily, it has a highly positive
-effect in some cases and a highly negative one in others.
-
-There are two widely-used feature effect methods; Partial Dependence
-Plots (PDPlots)\citep{friedman2001greedy} and Aggregated Local Effects
-(ALE)\citep{apley2020visualizing}. PDPlots have been criticized for
-producing erroneous feature effect plots when the input features are
-correlated due to marginalizing over out-of-distribution synthetic
-instances. Therefore, ALE has been established as the state-of-the-art
-feature effect method since it can isolate feature effects in
-situations where input features are highly correlated.
+Feature effect\citep{Gromping2020MAEP} forms a fundamental category of
+global explainability methods, isolating a single feature's average
+impact on the output. Feature effect methods suffer from aggregation
+bias because the rationale behind the average effect might be
+unclear. For example, a feature with zero average effect may indicate
+that the feature has no effect on the output or, contrarily, it has a
+highly positive effect in some cases and a highly negative in
+others. There are three widely-used feature effect methods; Partial
+Dependence Plots (PDP)\citep{friedman2001greedy}, Marignal Plots
+(MP)\citep{apley2020visualizing} and Aggregated Local Effects
+(ALE)\citep{apley2020visualizing}. PDP and MP have been criticized for
+computing erroneous effects when the input features are (highly)
+correlated, which is the case in most ML setups. Therefore, ALE has
+been established as the state-of-the-art feature effect method.
 
 However, ALE faces two crucial drawbacks. First, it does not provide a
 way to inform the user about potential heterogeneous effects that are
-hidden behind the average effect. In contrast, in the case of PDPlots,
-the heterogeneous effects can be spotted by exploring the Individual
+hidden behind the average effect. In contrast, in the case of PDP, the
+heterogeneous effects can be spotted by exploring the Individual
 Conditional Expectations (ICE)\citep{goldstein2015peeking}. Second,
 ALE requires an additional step, where the axis of the feature of
 interest is split in \(K\) fixed-size non-overlapping intervals, where
-\(K\) is a hyperparameter provided by the user. This splitting is done
-blindly, which can lead to inconsistent explanations.
+\(K\) is a hyperparameter provided by the user. So far, this splitting
+is done in a blind way, i.e., the user does not have an indication
+about the parameter K, which often leads to inconsistent explanations.
 
 In this paper, we extend ALE with a probabilistic component for
 measuring the uncertainty of the global explanation. The uncertainty
 of the global explanation expresses how certain we are that the global
 (expected) explanation is valid if applied to an instance drawn at
 random and informs the user about the level of heterogeneous effects
-hidden behind the expected explanation. Our method completes ALE, as
-ICE plots complement PDPlots, for revealing the heterogeneous effects.
-
-Our method also automates the step of axis splitting into
-non-overlapping intervals. We, firstly, transform the bin splitting
-step into an unsupervised clustering problem and, second, find the
-optimal bin splitting for a robust estimation of (a) the global
-(expected) effect and (b) the uncertainty of the explanation from the
-limited samples of the training set. We formally prove that the
-objective of the clustering problem has as lower-bound the aggregated
-uncertainty of the global explanation. Our method works out of the box
-without requiring any input from the user.
+behind the expected explanation. The probabilistic extension completes
+ALE, as ICE plots complement PDP, for revealing the heterogeneous
+effects. Our method also transforms the axis-splitting step into an
+unsupervised clustering problem, i.e., we search for the optimal
+splitting given the instances of the training set. We, therefore,
+relieve the user from the obligation of defining a parameter \(K\) by
+providing an automated method for finding the optimal bin splitting to
+robustly estimate (a) the global (expected) effect and (b) the
+uncertainty of the explanation, from the limited samples of the
+training set.
 
 \paragraph{Contributions.} The contributions of this paper are the following:
 
@@ -140,17 +137,15 @@ without requiring any input from the user.
 \item We introduce Uncertainty DALE (UDALE), an extension of DALE that
   quantifies the uncertainty of the global explanation, i.e.~the level
   of heterogeneous effects hidden behind the global explanation.
-\item
-  We provide an algorithm that automatically computes the optimal bin
-  splitting for robustly estimating the explanatory quantities, i.e.,
-  the global effect and the uncertainty.
+\item We provide an algorithm that automatically computes the optimal
+  axis-splitting for robustly estimating the the global effect and the
+  uncertainty.
 \item We formally prove that our method finds the optimal grouping of
   samples, minimizing the added uncertainty over the unavoidable
   heterogeneity that is the lower-bound of the objective.
 \item We provide empirical evaluation of the method in artificial and
   real datasets.
 \end{itemize}
-
 
 The implementation of our method and the code for reproducing all the
 experiments is provided in the submission and will become publicly
@@ -176,33 +171,29 @@ feature effect of the \(s\)-th feature is
 name of the feature effect method.\footnote{An extensive list of all
   symbols used in the paper is provided in the helping material.}
 
-\paragraph{Feature Effect Methods.} PDPlots formulate the feature
-effect of the \(s\)-th attribute as an expectation over the marginal
+\paragraph{Feature Effect Methods.} PDP formulates the feature effect
+of the \(s\)-th attribute as an expectation over the marginal
 distribution \(\mathbf{X}_c\), i.e.,
 \(f^{\mathtt{PDP}}(x_s) =
-\mathbb{E}_{\mathbf{X}_c}[f(x_s,\mathbf{X}_c)]\). MPlots formulate it
-as an expectation over the conditional \(\mathbf{X}_c|X_s\), i.e.,
+\mathbb{E}_{\mathbf{X}_c}[f(x_s,\mathbf{X}_c)]\). MPs formulate it as
+an expectation over the conditional \(\mathbf{X}_c|X_s\), i.e.,
 \(f^{\mathtt{MP}}(x_s) = \mathbb{E}_{\mathbf{X}_c|X_s = x_s}[f(x_s,
-\mathbf{X}_c)]\). ALE computes the global effect at \(x_s\) as an
-integration of local effects. The local effects are measured as the
-expected change on the output
-\( \frac{\partial f(x_s, \mathbf{X}_c)}{\partial x_s} \) over the
-conditional distribution \( \Xcb|X_s\). The formula that
-defines ALE is presented below:
+\mathbf{X}_c)]\). ALE computes the global effect at \(x_s\) as the
+accumulation of the averaged local effects, which are defined as the
+change on the output, i.e.
+\( \frac{\partial f(x_s, \mathbf{X}_c)}{\partial x_s} \):
 
 \begin{equation}
   \label{eq:ALE_accumulated_mean}
   f^{\mathtt{ALE}}(x_s) = c + \int_{z_{s,min}}^{x_s} \mathbb{E}_{\Xcb|X_s=z}\left[\frac{\partial f(z, \Xcb)}{\partial z}\right] \partial z
 \end{equation}
 %
-The constant \(c\) is used for centering the ALE plot. PDPlots
-integrate over unrealistic instances due to the use of the marginal
-distribution \( p(\mathcal{X}_1) \). Therefore, they incorrectly
-result in a quadratic effect in the region \(x_1 \in [0, 1]\). MPlots
-resolve this issue using the conditional distribution
-\( \mathcal{X}_2|\mathcal{X}_1 \) but suffer from computing combined
-effects. ALE plots resolve, both they have two drawbacks TODO add more
-info.
+The constant \(c\) is used for centering the ALE plot. PDP integrates
+over unrealistic instances due to the use of the marginal distribution
+\( \mathbf{X}_c\). MPs resolve this issue using the conditional
+distribution \( \math{C}_2|\mathcal{X}_1 \) but suffer from
+computing combined effects. ALE plots resolve, both they have two
+drawbacks TODO add more info.
 
 TODO: Discuss the interpretation of ALE. The differences from PDP. Analyze both methods as processes.
 
