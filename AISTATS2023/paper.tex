@@ -70,79 +70,82 @@
 \section{INTRODUCTION}
 
 Recently, ML has flourished in critical domains, such as healthcare
-and finance. In these areas, we need ML models that not only predict
-accurately but also explain their predictions. Therefore, Explainable
-AI (XAI), the field that provides interpretations for the prediction
-mechanism of complex black-box models, has increased interest. XAI
-literature distinguishes between local and global interpretation
-methods~\citep{Molnar2020interpretable}. Local methods explain a
+and finance. In these areas, we need ML system with the capability to
+explain their predictions, apart from predicting with accuracy. For
+this reason there is an increased interest in Explainable AI (XAI),
+the field that provides interpretations about the behavior of complex
+black-box models. XAI literature distinguishes between local and
+global explainability
+techniques~\citep{Molnar2020interpretable}. Local methods explain a
 specific prediction, whereas global methods explain the entire model
 behavior. Global methods provide a universal explanation, summarizing
-the numerous local explanations into a single interpretable outcome,
-usually a number or a plot. If a user wants to know which features are
-significant (feature importance) or whether a particular feature has a
-positive or negative effect on the output (feature effect), they
-should opt for a global explainability technique. Aggregating the
-individual explanations for producing a concise global one comes at a
-cost. Under strong feature interactions, the global explanation may
-obfuscate heterogeneous effects~\citep{Herbinger2022repid} that exist
-under the hood; a phenomenon called aggregation
-bias~\citep{mehrabi2021survey}.
+the numerous local ones into a single interpretable outcome, usually a
+number or a plot. If a user wants to get a rough overview about which
+features are significant (feature importance) or whether a particular
+feature has a positive or negative effect on the output (feature
+effect), they should opt for a global explainability technique. On
+ther other hand, aggregating the individual explanations for producing
+a concise global one is vulnerable to misinterpretations; Under strong
+feature interactions, the global explanation may obfuscate
+heterogeneous effects~\citep{Herbinger2022repid} that exist under the
+hood; a phenomenon called aggregation bias~\citep{mehrabi2021survey}.
 
-Feature effect\citep{Gromping2020MAEP} forms a fundamental category of
-global explainability methods, isolating a single feature's average
-impact on the output. Feature effect methods suffer from aggregation
-bias because the rationale behind the average effect might be
-unclear. For example, a feature with zero average effect may indicate
-that the feature has no effect on the output or, contrarily, it has a
-highly positive effect in some cases and a highly negative in
-others. There are three widely-used feature effect methods; Partial
-Dependence Plots (PDP)\citep{friedman2001greedy}, Marignal Plots
+Feature effect (FE) \citep{Gromping2020MAEP} is a fundamental category
+of global explainability methods. The objective of FE is to the
+isolate and visulalize the impact of a single feature on the
+output.~\footnote{FE methods also isolate the effect of a pair of
+  features to the output. Combinations of more than two features are
+  not usual, because they encounter, among others, visualization
+  difficulties.} FE methods suffer from aggregation bias because,
+often, the rationale behind the average effect might be unclear. For
+example, a feature with zero average effect may indicate that the
+feature has no effect on the output or, contrarily, it has a highly
+positive effect in some cases and a highly negative in others. There
+are three widely-used FE methods; Partial Dependence Plots
+(PDP)\citep{friedman2001greedy}, Marignal Plots
 (MP)\citep{apley2020visualizing} and Aggregated Local Effects
 (ALE)\citep{apley2020visualizing}. PDP and MP have been criticized for
 computing erroneous effects when the input features are (highly)
-correlated, which is the case in most ML setups. Therefore, ALE has
-been established as the state-of-the-art feature effect method.
+correlated, which is a frequent scenario in many ML
+problems. Therefore, ALE has been established as the state-of-the-art
+FE method.
 
 However, ALE faces two crucial drawbacks. First, it does not provide a
 way to inform the user about potential heterogeneous effects that are
 hidden behind the average effect. In contrast, in the case of PDP, the
 heterogeneous effects can be spotted by exploring the Individual
 Conditional Expectations (ICE)\citep{goldstein2015peeking}. Second,
-ALE requires an additional step, where the axis of the feature of
-interest is split in \(K\) fixed-size non-overlapping intervals, where
-\(K\) is a hyperparameter provided by the user. So far, this splitting
-is done in a blind way, i.e., the user does not have an indication
-about the parameter K, which often leads to inconsistent explanations.
+ALE requires an additional step where the axis of the feature of
+interest is split in \(K\) fixed-size non-overlapping intervals. So
+far, the user is asked to provide a value for the parameter \(K\)
+blindly, i.e without an indication about whether a big or a small
+value could be more appropriate, which often leads to unstable
+explanations. For convenience, in the rest of the paper we will refer
+to this step using the term bin-splitting problem.
 
 In this paper, we extend ALE with a probabilistic component for
 measuring the uncertainty of the global explanation. The uncertainty
 of the global explanation expresses how certain we are that the global
-(expected) explanation is valid if applied to an instance drawn at
-random and informs the user about the level of heterogeneous effects
-behind the expected explanation. The probabilistic extension completes
-ALE, as ICE plots complement PDP, for revealing the heterogeneous
-effects. Our method also transforms the axis-splitting step into an
-unsupervised clustering problem, i.e., we search for the optimal
-splitting given the instances of the training set. We, therefore,
-relieve the user from the obligation of defining a parameter \(K\) by
-providing an automated method for finding the optimal bin splitting to
-robustly estimate (a) the global (expected) effect and (b) the
-uncertainty of the explanation, from the limited samples of the
-training set.
+(averaged) explanation is valid if applied to an instance drawn at
+random. The probabilistic extension completes ALE, as ICE plots
+complement PDP, for revealing the heterogeneous effects. Furthermore,
+we transform the bin-splitting step into a data-driven clustering
+problem, i.e., we search for the optimal splitting given available
+instances of the training set. We, also, present a
+computationally-grounded algorithm for finding the optimal
+solution.
 
 \paragraph{Contributions.} The contributions of this paper are the following:
 
 \begin{itemize}
-\item We introduce Uncertainty DALE (UDALE), an extension of DALE that
-  quantifies the uncertainty of the global explanation, i.e.~the level
-  of heterogeneous effects hidden behind the global explanation.
-\item We provide an algorithm that automatically computes the optimal
-  axis-splitting for robustly estimating the the global effect and the
-  uncertainty.
+\item We introduce NAME, an extension of ALE that quantifies the
+  uncertainty of the global explanation, i.e.~the level of
+  heterogeneous effects hidden behind the global explanation.
+\item We present an algorithm that automatically computes the optimal
+  bin-splitting
 \item We formally prove that our method finds the optimal grouping of
   samples, minimizing the added uncertainty over the unavoidable
-  heterogeneity that is the lower-bound of the objective.
+  heterogeneity.
 \item We provide empirical evaluation of the method in artificial and
   real datasets.
 \end{itemize}
@@ -165,23 +168,22 @@ uppercase \( X \), whereas to simple variables with plain lowercase
 vector \((x_1, \cdots , x_s, \cdots, x_D)\). Equivalently, we denote
 the corresponding rv as \(X = (X_s, \mathbf{X}_c)\). The black-box
 function is \(f : \mathbb{R}^D \rightarrow \mathbb{R}\) and the
-feature effect of the \(s\)-th feature is
+FE of the \(s\)-th feature is
 \(f^{\mathtt{<method>}}(x_s)\), where \(\mathtt{<method>}\) is the
-name of the feature effect method.\footnote{An extensive list of all
+name of the FE method.\footnote{An extensive list of all
   symbols used in the paper is provided in the helping material.}
 
-\paragraph{Feature Effect Methods.} As stated at the Introduction, the
-three well-known feature effect methods are: PDPs, MPs and ALE. PDPs
-formulate the feature effect of the \(s\)-th attribute as an
-expectation over the marginal distribution \(\mathbf{X}_c\), i.e.,
+\paragraph{Feature Effect Methods.} The three well-known feature
+effect methods are: PDP, MP and ALE. PDP formulates the FE
+of the \(s\)-th attribute as an expectation over the marginal
+distribution \(\mathbf{X}_c\), i.e.,
 \(f^{\mathtt{PDP}}(x_s) =
-\mathbb{E}_{\mathbf{X}_c}[f(x_s,\mathbf{X}_c)]\). MPs formulate it as
-an expectation over the conditional \(\mathbf{X}_c|X_s\), i.e.,
+\mathbb{E}_{\mathbf{X}_c}[f(x_s,\mathbf{X}_c)]\), whereas MP
+formulates it as an expectation over the conditional
+\(\mathbf{X}_c|X_s\), i.e.,
 \(f^{\mathtt{MP}}(x_s) = \mathbb{E}_{\mathbf{X}_c|X_s = x_s}[f(x_s,
 \mathbf{X}_c)]\). ALE computes the global effect at \(x_s\) as the
-accumulation of the averaged local effects, which are defined as the
-change on the output, i.e.
-\( \frac{\partial f(x_s, \mathbf{X}_c)}{\partial x_s} \):
+accumulation of the averaged local effects:
 
 \begin{equation}
   \label{eq:ALE_accumulated_mean}
@@ -189,65 +191,57 @@ change on the output, i.e.
 \end{equation}
 %
 ALE has specific advantages which gain particular value in cases of
-corelated input features. In these cases, PDPs integrate over
+corelated input features. In these cases, PDP integrates over
 unrealistic instances, due to the use of the marginal distribution
-\( p(\mathbf{X}_c) \), and MPlots compute aggregated effects, i.e.,
-impute the combined effect of sets of features to a single
-feature. ALE manages to resolve both issues, and is therefore the only
-trustable method in cases of correlated features.
+\(\mathbf{X}_c \), and MP computes aggregated effects, i.e., imputes
+the combined effect of sets of features to a single feature. ALE
+manages to resolve both issues, and is therefore the only trustable
+FE method in cases of correlated features.
 
 \paragraph{Quantify the Heterogeneous Effects.}
 
-Feature effect methods answer the question \textit{what happens
-  (effect) to the output, if I increase/decrease the value of a
-  specific feature}. Having answered the question above, it comes
-naturally to also wonder \textit{how certain we are about the change
-  on the output}. For this reason, a lot of interest is given lately
-for quantifying the level of uncertainty, along with the expected
-effect. The level of uncertainty is mostly quantified by measuring the
-existence of heterogeneous effects, i.e. whether there are local
-explanations that deviate from the expected global effect. ICE and
-d-ICE plots provide a visual understanding of the heterogeneous
-effects on top of PDPs. Another approach targets on grouping the
-heterogeneous effects, e.g., allocating ICE plots in homogeneous
-clusters, by dividing the input space. Some other approaches, like
-H-Statistic, Greenwel, move a step behind and try to quantify the
-level of interaction between the input features, a possible cause of
+FE methods answer the question \textit{what is expected to happen to
+  the output (expected effect), if the value of a specific feature is
+  increased/decreased}. Having an answer to the question above, it
+comes naturally to also wonder \textit{how certain we are about the
+  expected change (uncertainty)}. For this reason, the quantification
+of the uncertainty along with the expected effect has attracted a lot
+of interest. The level of uncertainty is mostly quantified by
+measuring the existence of heterogeneous effects, i.e. whether there
+are local explanations that deviate from the expected global
+effect. ICE and d-ICE plots provide a visual understanding of the
+heterogeneous effects on top of PDPs. Another approach targets on
+grouping the heterogeneous effects, e.g., allocating ICE plots in
+homogeneous clusters, by dividing the input
+space.\citep{molnar2020model} Some other approaches, like H-Statistic,
+Greenwel, move a step behind and try to quantify the level of
+interaction between the input features, a possible cause of
 heterogeneous effects. In this case, the interpretation is indirect,
 since a strong interaction index is only an indicator of heterogeneous
 effects. The aforementioned approaches face two pathogenies; They
-either do not quantify the uncertainty of the feature effect directly
-or they are based on PDPs, and, therefore, they are subject to the
-failure modes of PDPs in cases of correlated features. To the best of
-our knowledge, no method so far targets on quantify the uncertainty of
-the feature effect as it is modelled by ALE.
+either do not quantify the uncertainty of the FE directly or they are
+based on PDPs, and, therefore, they are subject to the failure modes
+of PDPs in cases of correlated features. To the best of our knowledge,
+no method so far targets on quantifying the uncertainty of ALE.
 
-\paragraph{Cluster Instances with homogeneous effects.}
+\paragraph{Bin-Splitting for ALE estimation.}
 
-In real ML scenarios, the expected feature effect and the uncertainty
-are estimated from the limited instances of the training set. ALE
-approximation requires an additional step, where the axis of the
-\(s\)-th feature is split into a sequence of non-overlaping bins and a
-single effect (expectation and uncertainty) is computed from the
-population of instances that lie inside each
-bin. \citep{apley2020visualizing} proposed estimating the local
-effects in each bin by evaluating the black box-funtion at the bin
-limits:
-
+In real ML scenarios, the expected FE and the uncertainty are
+estimated from the limited instances of the training set.
+\citep{apley2020visualizing} proposed estimating the local effects in
+each bin by evaluating the black box-funtion at the bin limits:
 \begin{equation}
   \label{eq:ALE_accumulated_mean_est}
   \hat{f}^{\mathtt{ALE}}(x_s) = \sum_{k=1}^{k_x} \frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^i \in
     \mathcal{S}_k} \left [ f(z_{k}, \xc^i) - f(z_{k-1}, \xc^i)) \right ]
 \end{equation}
-
 We denote as \(k_x\) the index of the bin that \(x_s\) belongs to,
 i.e. \(k_x: z_{k_x-1} \leq x_s < z_{k_x} \) and \(\mathcal{S}_k\) is
 the set of training instance that lie in the \(k\)-th bin, i.e.
-\( \mathcal{S}_k = \{ \xb^i : z_{k-1} \leq x^i_s < z_{k} \} \). In
-contrast, (cite) proposed the Differential ALE (DALE) estimation for
-quantifying the local effects on the training-set instances, instead
-of the bin limits:
-
+\( \mathcal{S}_k = \{ \xb^i : z_{k-1} \leq x^i_s < z_{k} \}
+\). Afterwards, (cite) proposed the Differential ALE (DALE) that
+exploits differentiaton for computing the local effects on the instances
+training-set, instead of the bin limits:
 \begin{equation}
   \label{eq:DALE_accumulated_mean_est}
   \hat{f}^{\mathtt{DALE}}(x_s) = \Delta x \sum_{k=1}^{k_x} \frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^i \in
@@ -255,38 +249,28 @@ of the bin limits:
 \end{equation}
 %
 Their method has the advantages of remaining on-distribution even when
-bins become wider and, most importantly, it allows the recomputation
-of the accumulated effect with different bin-splitting in near-zero
-computational overhead. However, none of the approximations above
-deals with the crucial problem of the optimal bin-spliting. They
-partition the axis in \(K\) equally-sized bins without considering the
-properties of the underlying data, which can lead to erroneous
-approximations.
+bins become wider and, most importantly, allows the recomputation of
+the accumulated effect with different bin-splitting with near-zero
+computational cost. However, none of the approximations above deals
+with the crucial problem of bin-spliting. As indicated
+by~\citep{molnar2022}, in ALE the effects are computed per interval
+(region) and the interpretation of the effect can only be
+local.
 
-Instead, we propose treating the axis-spliting step as an unsupervised
-clustering problem. The objective of the clustering problem should
-fulfill in the best way to contradictory ojectives. First, secure
-robust estimations of the expected effect and the uncertainty inside
-each bin given the limited instances of the training set and, second,
-create bins with as homogeneous local effects as possible, for not
-losing fine-grain resolution feature effects due to wide bins.
 
 \section{THE NAME METHOD}
 \label{sec:NAME-method}
 
-The NAME method extends the traditional ALE method with a component
-for uncertainty quantification and improves the ALE estimation by
-automatically discovering the optimal bin-splitting. In
-Section~\ref{sec:NAME-definition} we define the component for the
+In Section~\ref{sec:NAME-definition} we define the component for the
 uncertainty quantification. In
 Section~\ref{sec:interval-based-estimation}, we show how to estimate
-NAME from the limited samples of the training set and we make an
-important proof about the aggregated variance defined over a bin. In
-Section~\ref{sec:interval-spliting}, we define and solve the problem
-of optimal bin-splitting. Finally, in Section~\ref{sec:visualization},
-we illustrate the appropriate visualization of NAME for facilitating
-its interpretation by a non-expert and we discuss important aspects of
-the method
+the average effect and the uncertainty from the limited samples of the
+training set and we make an important proof about the aggregated
+variance defined over a bin. In Section~\ref{sec:interval-spliting},
+we define and solve the problem of optimal bin-splitting. Finally, in
+Section~\ref{sec:visualization}, we illustrate the appropriate
+visualization of NAME for facilitating its interpretation by a
+non-expert and we discuss important aspects of the method
 
 \subsection{Uncertainty Quantification}
 \label{sec:NAME-definition}
@@ -302,7 +286,7 @@ summarized effect at \(x_s\):
   \mu(x_s) = \mathbb{E}_{\Xcb|x_s}\left [\dfdx (x_s, \Xcb)\right ]
 \end{equation}
 %
-The feature effect at \(x_s\) is the accumulation of the averaged
+The FE at \(x_s\) is the accumulation of the averaged
 local effects from \(x_{s, min}\) until \(x_s\), i.e.
 \(f^{\mathtt{ALE}}(x_s) = \int_{x_{s, min}}^{x_s} \mu(z) \partial z
 \). As described at the Introduction, limiting the explanation to the
@@ -321,7 +305,7 @@ characteristics of the experiment, i.e.,~the data generating
 distribution and the properties of the black-box function. In
 Section~\ref{sec:visualization}, we propose appropriate visualizations
 for easier interpretation of Eq.~(\ref{eq:ALE_var}). In ALE, the
-feature effect at \(x_s\) is the accumulation of the averaged local
+FE at \(x_s\) is the accumulation of the averaged local
 effects from \(x_{min}\) until \(x_s\), as shown in
 Eq.~(\ref{eq:ALE_accumulated_mean}). Equivalently, we define the
 accumulated uncertainty (variance) until \(x_s\), as the integral of
@@ -424,6 +408,16 @@ distributed in \([z_1, z_2]\). Elaborate.
 \subsection{Interval Spliting As A Clustering Problem}
 \label{sec:interval-spliting}
 
+
+% Instead, we propose treating the axis-spliting step as an unsupervised
+% clustering problem. The objective of the clustering problem should
+% fulfill in the best way to contradictory ojectives. First, secure
+% robust estimations of the expected effect and the uncertainty inside
+% each bin given the limited instances of the training set and, second,
+% create bins with as homogeneous local effects as possible, for not
+% losing fine-grain resolution FEs due to wide bins.
+
+
 We formulate the axis-splitting as an unsupervised clustering
 problem. We search for the optimal bin splitting, i.e., the number and
 size of consecutive non-overlapping intervals that minimizes the
@@ -469,10 +463,13 @@ The constraints are that all bins must include more than \(\tau\)
 points, i.e., \(|\mathcal{S}_k| \geq \tau\).
 
 \noindent
-TODOS. Show theoretically that \(\mathcal{L} \geq \int_{x_{s, \min}}^{x_{s, \max}}\sigma^2(x_s) \partial x_s\)
+
+\begin{itemize}
+\item Computational complexity
+\end{itemize}
 
 
-% Furthermore, we automate the step of splitting the axis into non-overlapping intervals. The need for non-overlapping bins emerges from the ignorance of the data-generating distribution, enforcing all estimations to be based on the limited instances of the training set. Therefore, there is an implicit trade-off behind the formation of bins. Each bin must include enough instances for a robust estimation of the bin feature effect (expected value), and the uncertainty of the explanation (variance). On the other hand, each bin should include points with similar local effects. Therefore, we transform the bin splitting step into an unsupervised clustering problem, encoding the trade-off mentioned above in the objective function. We formally show that the objective of the clustering problem has lower-bound the (unavoidable) heterogeneity, i.e., the aggregated uncertainty of the global explanation. Therefore, we aim to find the optimal grouping of samples that adds the slightest uncertainty over the unavoidable heterogeneity. We finally solve the minimization problem by finding the global optimum using dynamic programming. Our method works out of the box without requiring any input by the user. We provide a theoretical and empirical evaluation of our method.
+% Furthermore, we automate the step of splitting the axis into non-overlapping intervals. The need for non-overlapping bins emerges from the ignorance of the data-generating distribution, enforcing all estimations to be based on the limited instances of the training set. Therefore, there is an implicit trade-off behind the formation of bins. Each bin must include enough instances for a robust estimation of the bin FE (expected value), and the uncertainty of the explanation (variance). On the other hand, each bin should include points with similar local effects. Therefore, we transform the bin splitting step into an unsupervised clustering problem, encoding the trade-off mentioned above in the objective function. We formally show that the objective of the clustering problem has lower-bound the (unavoidable) heterogeneity, i.e., the aggregated uncertainty of the global explanation. Therefore, we aim to find the optimal grouping of samples that adds the slightest uncertainty over the unavoidable heterogeneity. We finally solve the minimization problem by finding the global optimum using dynamic programming. Our method works out of the box without requiring any input by the user. We provide a theoretical and empirical evaluation of our method.
 
 
 \subsection{Visualization of NAME Method and Discussion}
