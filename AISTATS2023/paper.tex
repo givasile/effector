@@ -84,7 +84,7 @@ number or a plot. If a user wants to get a rough overview about which
 features are significant (feature importance) or whether a particular
 feature has a positive or negative effect on the output (feature
 effect), they should opt for a global explainability technique. On
-ther other hand, aggregating the individual explanations for producing
+the other hand, aggregating the individual explanations for producing
 a concise global one is vulnerable to misinterpretations; Under strong
 feature interactions, the global explanation may obfuscate
 heterogeneous effects~\citep{Herbinger2022repid} that exist under the
@@ -92,7 +92,7 @@ hood; a phenomenon called aggregation bias~\citep{mehrabi2021survey}.
 
 Feature effect (FE) \citep{Gromping2020MAEP} is a fundamental category
 of global explainability methods. The objective of FE is to the
-isolate and visulalize the impact of a single feature on the
+isolate and visualize the impact of a single feature on the
 output.~\footnote{FE methods also isolate the effect of a pair of
   features to the output. Combinations of more than two features are
   not usual, because they encounter, among others, visualization
@@ -110,49 +110,48 @@ correlated, which is a frequent scenario in many ML
 problems. Therefore, ALE has been established as the state-of-the-art
 FE method.
 
-However, ALE faces two crucial drawbacks. First, it does not provide a
-way to inform the user about potential heterogeneous effects that are
-hidden behind the average effect. In contrast, in the case of PDP, the
-heterogeneous effects can be spotted by exploring the Individual
-Conditional Expectations (ICE)\citep{goldstein2015peeking}. Second,
-ALE requires an additional step where the axis of the feature of
-interest is split in \(K\) fixed-size non-overlapping intervals. So
-far, the user is asked to provide a value for the parameter \(K\)
-blindly, i.e without an indication about whether a big or a small
-value could be more appropriate, which often leads to unstable
-explanations. For convenience, in the rest of the paper we will refer
-to this step using the term bin-splitting problem.
+However, ALE faces two crucial drawbacks. First, it does not inform
+the user about potential heterogeneous effects hidden behind the
+average effect. In contrast, in the case of PDP, the heterogeneous
+effects can be spotted by exploring the Individual Conditional
+Expectations (ICE)\citep{goldstein2015peeking}. Second, ALE
+approximation from the samples of the training set requires
+partitioning the axis of the feature of interest in a sequence of
+non-overlapping intervals and estimating a single effect from the
+population of samples in each interval. We refer to this step using
+the term \textit{bin-splitting problem}. Deciding on the sequence of
+intervals has important implications because ALE's interpretation in
+cases of correlated features is meaningful only inside each interval
+\citep{molnar2022}. However, this crucial step has not been given the
+appropriate attention, making the approximation vulnerable to
+potential misinterpretations.
 
 In this paper, we extend ALE with a probabilistic component for
-measuring the uncertainty of the global explanation. The uncertainty
-of the global explanation expresses how certain we are that the global
-(averaged) explanation is valid if applied to an instance drawn at
-random. The probabilistic extension completes ALE, as ICE plots
-complement PDP, for revealing the heterogeneous effects. Furthermore,
-we transform the bin-splitting step into a data-driven clustering
-problem, i.e., we search for the optimal splitting given available
-instances of the training set. We, also, present a
-computationally-grounded algorithm for finding the optimal
-solution.
+measuring the uncertainty of the explanation. The uncertainty of the
+global explanation expresses how certain we are that the averaged
+explanation is valid if applied to an instance drawn at random and
+reveals the heterogeneous effects. Given that ALE's interpretation
+(expected effect and uncertainty) is meaningful only inside each
+interval, we design a principled framework, where we treat the
+bin-splitting step as a data-driven clustering problem, searching for
+the optimal splitting given available instances of the training
+set. We, also, present a computationally-grounded algorithm for
+finding the optimal solution.
 
-\paragraph{Contributions.} The contributions of this paper are the following:
+\paragraph{Contributions.} The contribution of this paper is NAME, a
+feature effect method that:
 
 \begin{itemize}
-\item We introduce NAME, an extension of ALE that quantifies the
-  uncertainty of the global explanation, i.e.~the level of
-  heterogeneous effects hidden behind the global explanation.
-\item We present an algorithm that automatically computes the optimal
-  bin-splitting
-\item We formally prove that our method finds the optimal grouping of
-  samples, minimizing the added uncertainty over the unavoidable
-  heterogeneity.
-\item We provide empirical evaluation of the method in artificial and
-  real datasets.
+\item Extends ALE with a probabilistic component to quantify the
+  heterogeneous effects behind the global explanation.
+\item Automatically extracts regions with similar effects, improving
+  the estimation and the interpretability of ALE plots.
 \end{itemize}
 
-The implementation of our method and the code for reproducing all the
-experiments is provided in the submission and will become publicly
-available upon acceptance.
+We provide empirical evaluation of the method in artificial and real
+datasets. The implementation of our method and the code for
+reproducing all the experiments is provided in the submission and will
+become publicly available upon acceptance.
 
 
 \section{BACKGROUND AND RELATED WORK}
@@ -184,19 +183,18 @@ formulates it as an expectation over the conditional
 \(f^{\mathtt{MP}}(x_s) = \mathbb{E}_{\mathbf{X}_c|X_s = x_s}[f(x_s,
 \mathbf{X}_c)]\). ALE computes the global effect at \(x_s\) as the
 accumulation of the averaged local effects:
-
 \begin{equation}
   \label{eq:ALE_accumulated_mean}
   f^{\mathtt{ALE}}(x_s) = \int_{z_{s,min}}^{x_s} \mathbb{E}_{\Xcb|X_s=z}\left[\frac{\partial f(z, \Xcb)}{\partial z}\right] \partial z
 \end{equation}
 %
 ALE has specific advantages which gain particular value in cases of
-corelated input features. In these cases, PDP integrates over
+correlated input features. In these cases, PDP integrates over
 unrealistic instances, due to the use of the marginal distribution
 \(\mathbf{X}_c \), and MP computes aggregated effects, i.e., imputes
 the combined effect of sets of features to a single feature. ALE
-manages to resolve both issues, and is therefore the only trustable
-FE method in cases of correlated features.
+manages to resolve both issues, and is therefore a trust able FE method
+in cases of correlated features.
 
 \paragraph{Quantify the Heterogeneous Effects.}
 
@@ -218,7 +216,7 @@ Greenwel, move a step behind and try to quantify the level of
 interaction between the input features, a possible cause of
 heterogeneous effects. In this case, the interpretation is indirect,
 since a strong interaction index is only an indicator of heterogeneous
-effects. The aforementioned approaches face two pathogenies; They
+effects. The aforementioned approaches are under two limitations; They
 either do not quantify the uncertainty of the FE directly or they are
 based on PDPs, and, therefore, they are subject to the failure modes
 of PDPs in cases of correlated features. To the best of our knowledge,
@@ -226,10 +224,10 @@ no method so far targets on quantifying the uncertainty of ALE.
 
 \paragraph{Bin-Splitting for ALE estimation.}
 
-In real ML scenarios, the expected FE and the uncertainty are
-estimated from the limited instances of the training set.
-\citep{apley2020visualizing} proposed estimating the local effects in
-each bin by evaluating the black box-funtion at the bin limits:
+In real ML scenarios, the FE is estimated from the limited instances
+of the training set.  \citep{apley2020visualizing} proposed dividing
+the \(s\)-th axis in \(K\) bins and estimating the local effects in
+each bin by evaluating the black box-function at the bin limits:
 \begin{equation}
   \label{eq:ALE_accumulated_mean_est}
   \hat{f}^{\mathtt{ALE}}(x_s) = \sum_{k=1}^{k_x} \frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^i \in
@@ -239,9 +237,8 @@ We denote as \(k_x\) the index of the bin that \(x_s\) belongs to,
 i.e. \(k_x: z_{k_x-1} \leq x_s < z_{k_x} \) and \(\mathcal{S}_k\) is
 the set of training instance that lie in the \(k\)-th bin, i.e.
 \( \mathcal{S}_k = \{ \xb^i : z_{k-1} \leq x^i_s < z_{k} \}
-\). Afterwards, (cite) proposed the Differential ALE (DALE) that
-exploits differentiaton for computing the local effects on the instances
-training-set, instead of the bin limits:
+\). Afterwards, (cite) proposed the Differential ALE (DALE) for
+computing the local effects on the training instances using auto-differentiation:
 \begin{equation}
   \label{eq:DALE_accumulated_mean_est}
   \hat{f}^{\mathtt{DALE}}(x_s) = \Delta x \sum_{k=1}^{k_x} \frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^i \in
@@ -252,7 +249,7 @@ Their method has the advantages of remaining on-distribution even when
 bins become wider and, most importantly, allows the recomputation of
 the accumulated effect with different bin-splitting with near-zero
 computational cost. However, none of the approximations above deals
-with the crucial problem of bin-spliting. As indicated
+with the crucial problem of bin-splitting. As indicated
 by~\citep{molnar2022}, in ALE the effects are computed per interval
 (region) and the interpretation of the effect can only be
 local.
@@ -261,40 +258,44 @@ local.
 \section{THE NAME METHOD}
 \label{sec:NAME-method}
 
-In Section~\ref{sec:NAME-definition} we define the component for the
-uncertainty quantification. In
+The NAME method extends ALE for measuring the uncertainty of the
+expected effect and automatically extracts regions with homogeneous
+effects. In Section~\ref{sec:NAME-definition} we define the component
+for the uncertainty quantification. In
 Section~\ref{sec:interval-based-estimation}, we show how to estimate
-the average effect and the uncertainty from the limited samples of the
-training set and we make an important proof about the aggregated
-variance defined over a bin. In Section~\ref{sec:interval-spliting},
-we define and solve the problem of optimal bin-splitting. Finally, in
-Section~\ref{sec:visualization}, we illustrate the appropriate
-visualization of NAME for facilitating its interpretation by a
-non-expert and we discuss important aspects of the method
+the average effect and the uncertainty on a specific interval from the
+limited samples of the training set. We, also, make an important proof
+about the aggregated variance defined over a bin. In
+Section~\ref{sec:interval-spliting}, we define and solve the problem
+of optimal bin-splitting for automatically extract regions with
+homogeneous effects. Finally, in Section~\ref{sec:visualization}, we
+illustrate the appropriate visualization of NAME for facilitating its
+interpretation by a non-expert and we discuss important aspects of the
+method.
 
 \subsection{Uncertainty Quantification}
 \label{sec:NAME-definition}
 
-ALE defines the local effect of the \(s\)-th feature on \(f(\cdot)\)
-at point \((x_s, \xc)\) as \(\dfdx (x_s, \xc)\). All the local
-explanations at \(x_s\) are, then, weigthed by the conditional
-distribution \(p(\xc|x_s)\) and are averaged, to produce the
-summarized effect at \(x_s\):
-
+ALE defines the local effect of the \(s\)-th feature at point
+\((x_s, \xc)\) as \(\dfdx (x_s, \xc)\). All the local explanations at
+\(x_s\) are, then, weighted by the conditional distribution
+\(p(\xc|x_s)\) and are averaged, to produce the summarized effect at
+\(x_s\):
 \begin{equation}
   \label{eq:ALE_mean}
   \mu(x_s) = \mathbb{E}_{\Xcb|x_s}\left [\dfdx (x_s, \Xcb)\right ]
 \end{equation}
 %
-The FE at \(x_s\) is the accumulation of the averaged
-local effects from \(x_{s, min}\) until \(x_s\), i.e.
+The FE at \(x_s\) is the accumulation of the averaged local effects
+from \(x_{s, min}\)\footnote{\(x_{s,min}\) is the minimum value the
+  \(s\)-th attribute can take. In estimations, it is the minimum
+  \(s\)-th attribute value among the training set instances.} until
+\(x_s\), i.e.
 \(f^{\mathtt{ALE}}(x_s) = \int_{x_{s, min}}^{x_s} \mu(z) \partial z
-\). As described at the Introduction, limiting the explanation to the
-exepected value level does not shed light to possible heterogeneous
-effects behind the averaged explanation. Therefore, we model the
-uncertainty of the local effects at \(\mathcal{H}(x_s)\) as the
-variance of the local explanations:
-
+\). Limiting the explanation to the expected value level does not
+shed light to potential heterogeneous effects behind the averaged
+explanation. Therefore, we model the uncertainty of the local effects
+\(\mathcal{H}(x_s)\) with the variance of the local explanations:
 \begin{equation}
   \label{eq:ALE_var}
   \mathcal{H}(x_s) := \sigma^2(x_s) = \mathrm{Var}_{\Xcb|x_s}\left [\dfdx (x_s, \Xcb) \right ]
@@ -304,22 +305,23 @@ The uncertainty of the explanation emerges from the natural
 characteristics of the experiment, i.e.,~the data generating
 distribution and the properties of the black-box function. In
 Section~\ref{sec:visualization}, we propose appropriate visualizations
-for easier interpretation of Eq.~(\ref{eq:ALE_var}). In ALE, the
-FE at \(x_s\) is the accumulation of the averaged local
-effects from \(x_{min}\) until \(x_s\), as shown in
-Eq.~(\ref{eq:ALE_accumulated_mean}). Equivalently, we define the
-accumulated uncertainty (variance) until \(x_s\), as the integral of
-the variances of the local effects:
-
+for easier interpretation of Eq.~(\ref{eq:ALE_var}). ALE defines the
+FE at \(x_s\) as the accumulation of the averaged local effects from
+\(x_{min}\) until \(x_s\). Equivalently, we define the accumulated
+uncertainty (variance) until \(x_s\), as the integral of the variances
+of the local effects:
 \begin{equation}
   \label{eq:ALE_accumulated_var}
   f^{\mathtt{ALE}}_{\sigma^2}(x_s) = \int_{z_{s, min}}^{x_s} \sigma^2(z) \partial z
 \end{equation}
 \noindent
-
-The accumulated uncertainty is not a directly interpretable
-quantity. It only helps us define a sensible objective for the
-interval spliting step, as we discuss in
+The accumulated uncertainty is not a directly interpretable quantity,
+since it measures the total uncertainty that characterizes the
+\(s\)-th feature effect plot. As stated in the Introduction, ALE
+outcomes should be interpreted at a local level, therefore, the only
+\(\mathcal{H}(x_s)\) is the directly interpretable quantity. However,
+the accumulated uncertainty will help us define a sensible objective
+for the bin-splitting step, as we will discuss in
 Section~\ref{sec:interval-spliting}.
 
 \subsection{Interval-Based Estimation}
@@ -332,21 +334,18 @@ Eqs.~\eqref{eq:ALE_mean},~\eqref{eq:ALE_var} at the granularity of a
 point is impossible, because the probability of observing a sample
 inside the interval \([x_s - h, x_s + h]\) tends to zero, when
 \(h \to 0\). We are, therefore, obliged to split the axis of \(x_s\)
-into a sequence of non-overlaping intervals (bins) and estimate the
+into a sequence of non-overlapping intervals (bins) and estimate the
 mean and the variance from the samples that lie inside each bin. The
 mean effect at an interval \([z_1, z_2)\) is defined as the mean of
 the expected effects:
-
 \begin{equation}
   \label{eq:mu_bin}
   \mu(z_1, z_2) = \frac{1}{z_2 - z_1} \int_{z_1}^{z_2}
   \mathbb{E}_{\xc|x_s=z}\left [\frac{\partial f}{\partial x_s} \right ] \partial z
 \end{equation}
-
 \noindent
 Similarly, the accumulated variance at an interval \([z_1, z_2)\) is
 defined as:
-
 \begin{equation}
   \label{eq:var_bin}
   \sigma^2(z_1, z_2) = \int_{z_1}^{z_2}
@@ -357,35 +356,32 @@ defined as:
 difference between the expected effect at \(x_s\) and the mean
 expected effect at the interval, i.e
 \(\rho(z) = \mu(z) - \mu(z_1, z_2)\), then, the accumulated variance
-at an interval \([z_1, z_2)\) is the accumulation of the all variances
-plus the accumulation of squared residuals inside the interval:
-
+\(\sigma^2(z_1, z_2)\) equals to the accumulation of the point-wise
+variances plus the squared residuals inside the interval:
 \begin{equation}
  \sigma^2(z_1, z_2) = \int_{z_1}^{z_2} \sigma^2(z) + \rho^2(z) \partial z
 \end{equation}
 %
-The proof is in the Appendix. Theorem 1 decouples the accumulated
-variance at an interval into two terms. The first term
-\(\int_{z_1}^{z_2} \sigma^2(z) \partial z\), quantifies the aggregated
-uncertainty due to the natural characteristics of the experiment
-\(\mathcal{H}\) and the second term adds extra nuisance uncertainty
-due to the limited resolution \(\mathcal{H}_n\). In other words,
-enforcing the computation of a single effect for all points in
-\([z_1, z_2)]\), burdens the estimation inside the interval with a
-nuisance uncertainty of:
-
+The proof is in the Appendix. Theorem 1 decouples the total
+uncertainty inside a bin
+\(\mathcal{H}_{bin}(z_1, z_2) := \sigma^2(z_1, z_2)\) into two terms. The first term quantifies
+the accumulated uncertainty due to the natural characteristics of the
+experiment, i.e.,
+\(\mathcal{H}(z_1, z_2) = \int_{z_1}^{z_2}\mathcal{H}(z) \partial z\),
+and the second term adds extra nuisance uncertainty due to limiting
+the resolution
+\(\mathcal{H}_n(z_1, z_2) := \int_{z_1}^{z_2}\rho^2(z) \partial z
+\). In other words, the creation of a bin burdens the estimation with
+a nuisance uncertainty:
 \begin{equation}
   \label{eq:uncertainty_bin}
-  \mathcal{H}_{bin}(z_1, z_2) = \int_{z_1}^{z_2} \mathcal{H}(z) + \mathcal{H}_n(z) \partial z
+  \mathcal{H}_{bin}(z_1, z_2) = \mathcal{H}(z_1, z_2) + \mathcal{H}_n(z_1, z_2)
 \end{equation}
-
-
 Eqs.~\eqref{eq:mu_bin},~\eqref{eq:var_bin} can be directly estimated
 from the set \(\mathcal{S}\) of the dataset instances with the
 \(s\)-th feature lying inside the interval, i.e.,
 \( \mathcal{S}= \{ \mathbf{x}^i : z_1 \leq x^i_s < z_2 \} \). The mean
 effect at the interval, Eq.~(\ref{eq:mu_bin}) is approximated by:
-
 \begin{equation}
   \label{eq:mean_estimation}
   \hat{\mu}(z_1, z_2) = \frac{1}{|\mathcal{S}|} \sum_{i:\mathbf{x}^i \in
@@ -394,73 +390,120 @@ effect at the interval, Eq.~(\ref{eq:mu_bin}) is approximated by:
 
 and the accumulated variance, Eq.~(\ref{eq:var_bin}) can be
 approximated by
-
 \begin{equation}
   \label{eq:variance_estimation}
   \hat{\sigma}^2(z_1, z_2) = \frac{z_2 - z_1}{|\mathcal{S}|} \sum_{i:\mathbf{x}^i \in
     \mathcal{S}} \left ( \dfdx(\mathbf{x}^i) - \hat{\mu}(z_1, z_2) \right )^2
 \end{equation}
-
-
 The approximation is unbiased only if the points are uniformly
 distributed in \([z_1, z_2]\). Elaborate.
 
-\subsection{Interval Spliting As A Clustering Problem}
+\subsection{Bin-Splitting: Finding Regions With Homogeneous Effects}
 \label{sec:interval-spliting}
 
+As we discussed in the Introduction, when the features are (strongly)
+correlated, ALE provides meaningful interpretations only inside a
+bin. The accumulation of the mean effects inside each bin is done only
+for a producing smooth curve for easier visual exploration. Therefore,
+the extraction of regions with common effects is particularly
+important for a correct interpretation.
 
-% Instead, we propose treating the axis-spliting step as an unsupervised
-% clustering problem. The objective of the clustering problem should
-% fulfill in the best way to contradictory ojectives. First, secure
-% robust estimations of the expected effect and the uncertainty inside
-% each bin given the limited instances of the training set and, second,
-% create bins with as homogeneous local effects as possible, for not
-% losing fine-grain resolution FEs due to wide bins.
-
-
-We formulate the axis-splitting as an unsupervised clustering
-problem. We search for the optimal bin splitting, i.e., the number and
-size of consecutive non-overlapping intervals that minimizes the
-accumulated variance. The optimization problem is defined as follows:
-
+We formulate the bin-splitting as an unsupervised clustering
+problem. We want to partition the axis of the \(s\)-th feature into a
+sequence of variable-size non-overlapping intervals, so that the
+regions that will be created to provide meaningful explanations. A
+region with a meaningful explanation means that it clusters together
+points with similar expected (averaged) effects. On the other hand,
+since we estimate all the quantities from the limited samples of the
+training set, we need enough samples inside each bin for robustly
+estimate the expected effect and the variance. Therefore, we transform
+the bin-splitting problem to the following optimization problem:
 \begin{equation}
   \label{eq:opt}
 \begin{aligned}
-\min_{ \{z_0, \ldots, z_K\}} \quad & \mathcal{L} = \sum_{k=1}^K \hat{\sigma}^2(z_{k-1}, z_k) \\
-\textrm{s.t.} \quad & |\mathcal{S}_k| \geq N\\
+  \min_{ \{z_0, \ldots, z_K\}} \quad & \mathcal{L} = \sum_{k=1}^K \hat{\sigma}^2(z_{k-1}, z_k) \\
+  \textrm{s.t.} \quad & |\mathcal{S}_k| \geq N\\
+                                     & z_0 = x_{s,min}\\
+                                     & z_K = x_{s, max}
 \end{aligned}
 \end{equation}
+%
+We search for the sequence of intervals \(z_0, \ldots, z_K\) covering
+the axis of the \(s\)-th feature, \(z_0 = x_{s,min}, z_K = x_{s,max}\)
+that minimize the sum of bin variances. The constraint of at least
+\(N\) points in each bin sets the limit for the minimum number of
+points inside each bin, to robustly estimate the mean effect and the
+variance. There is no constraint about the bin size and the number of
+bins \(K\).
 
-The objective of the optimization problem is the sum of the
-accumulated variances in each bin, estimated by the instances of the
-training set. As we prove in Theorem 1,
-\(\mathcal{L} = \sum_{k=1}^K \mathcal{H}_{bin}(z_{k-1}, z_k)\) is the
-sum of the uncertainty of the local explanations \(\mathcal{H}\) due
-to heterogeneous effects and the added nuisance uncertainty due to
-bin-splitting \(\mathcal{H}_n\). Given that \(\mathcal{H}\) is not
-affected by interval splitting, optimizing \(\mathcal{L}\) equals to
-finding the sequence of non-overlaping bins that add the minimum
-nuisance uncertainty. The restriction of (\ref{eq:opt}) secures that
-each bin is populated with enough samples for a robust estimation,
-which is set by the parameter \(N\). In other words, the user makes
-the following proposal; \textit{find the bin sequence that adds the
-  minimum nuisance uncertainty, given that I want at least \(N\)
-  points per bin}.
+The objective function is the sum of the approximations of the bin
+variances. As we prove in Theorem 1, the observable bin variance can
+can be split in the accumulation of point-wise variances plus the
+residuals. In Corollary 1, we show that the accumulation of the
+point-wise variances is independent of the bin-splitting
+procedure. Therefore by minimizing \(L\), we minimize the accumulation
+of the point-wise residuals in each bin, searching for bins that
+cluster together points with a common expected effect. An additional
+interpretation is that we search for the bin-splitting that adds the
+minimum the nuisance uncertainty over the lower-bound of the
+uncertainty due to the natural characteristics of the experiment.
 
-\subsubsection{Algorithm For Solving The Clustering Problem}
+\subsubsection{Solve Bin-Splitting with Dynamic Programming}
 \label{sec:dynamic-programing}
 
-Solving the problem of finding (a) the optimal number of bins \(K\)
-and (b) the optimal bin limits for each bin
-\([z_{k-1}, z_k] \forall k\) to minimize:
-
+For achieving a computationally-grounded solution we set a threshold
+\(K_{max}\) on the maximum number of bins which also discretizes the
+solution space. The width of the bin can take discrete values that are
+multiple of the minimum step
+\(u = \frac{x_{s, max} - x_{s, min}}{K}\). For defining the solution,
+we use two indexes. The index \(i \in \{0, \ldots, K_{max}\}\) denotes
+the \(i\)-th limit \((z_i)\) and the index
+\(j \in \{0, \ldots, K_{max}\} \) denotes the \(j\)-th position along
+the axis \((x_j = x_{s,min} + j \cdot u)\). The recursive cost
+function \(T(i,j)\) is the cost of setting the \(i\)-th limit \(z_i\)
+to \(x_j\):
 \begin{equation}
-  \label{eq:1}
-  \mathcal{L} = \sum_{k=0}^K \hat{\sigma}_k(z_{k-1}, z_k)
+  \label{eq:recursive_cost}
+  \mathcal{T}(i,j) = \mathrm{min}_{l \in \{0, \ldots, K_{max}\}} \left [ \mathcal{T}(i-1, l) + \mathcal{B}(x_l, x_j) \right ]
 \end{equation}
 %
-The constraints are that all bins must include more than \(\tau\)
-points, i.e., \(|\mathcal{S}_k| \geq \tau\).
+where \(\mathcal{T}(0,j)\) equals zero if \(j=0\) and \(\infty\) in
+any other case. \(\mathcal{B}(x_l, x_j)\) denotes the cost of creating a bin
+with limits \([x_l, x_j)]\):
+
+\begin{equation}
+  \label{eq:cost_step}
+  \mathcal{B}(x_l, x_j) = \begin{cases}
+                            \infty, & \text{if $x_j > x_l$ or \(|\mathcal{S}_{(x_j, x_l)}| < N\)}\\
+                            0, & \text{if $x_j = x_l$}\\
+                            \hat{\sigma}^2(x_j, x_l), &\text{if $x_j \leq x_l$}
+  \end{cases}
+\end{equation}
+
+The optimal solution is given by solving
+\(\mathcal{L} = \mathcal{T}(K_{max}, K_{max})\) and keeping track of the sequence of
+steps. 
+
+% \begin{equation}
+%   \label{eq:1}
+%   \mathcal{L} = \sum_{k=0}^K \hat{\sigma}_k(z_{k-1}, z_k)
+% \end{equation}
+% %
+% The constraints are that all bins must include more than \(\tau\)
+% points, i.e., \(|\mathcal{S}_k| \geq \tau\).
+
+% \(\mathcal{L} = \sum_{k=1}^K \hat{\sigma}^2(z_{k-1}, z_k)\) is the sum
+% of the uncertainty of the local explanations \(\mathcal{H}\) due to
+% heterogeneous effects and the added nuisance uncertainty due to
+% bin-splitting \(\mathcal{H}_n\). Given that \(\mathcal{H}\) is not
+% affected by interval splitting, optimizing \(\mathcal{L}\) equals to
+% finding the sequence of non-overlaping bins that add the minimum
+% nuisance uncertainty. The restriction of (\ref{eq:opt}) secures that
+% each bin is populated with enough samples for a robust estimation,
+% which is set by the parameter \(N\). In other words, the user makes
+% the following proposal; \textit{find the bin sequence that adds the
+%   minimum nuisance uncertainty, given that I want at least \(N\)
+%   points per bin}.
 
 \noindent
 
@@ -468,11 +511,7 @@ points, i.e., \(|\mathcal{S}_k| \geq \tau\).
 \item Computational complexity
 \end{itemize}
 
-
-% Furthermore, we automate the step of splitting the axis into non-overlapping intervals. The need for non-overlapping bins emerges from the ignorance of the data-generating distribution, enforcing all estimations to be based on the limited instances of the training set. Therefore, there is an implicit trade-off behind the formation of bins. Each bin must include enough instances for a robust estimation of the bin FE (expected value), and the uncertainty of the explanation (variance). On the other hand, each bin should include points with similar local effects. Therefore, we transform the bin splitting step into an unsupervised clustering problem, encoding the trade-off mentioned above in the objective function. We formally show that the objective of the clustering problem has lower-bound the (unavoidable) heterogeneity, i.e., the aggregated uncertainty of the global explanation. Therefore, we aim to find the optimal grouping of samples that adds the slightest uncertainty over the unavoidable heterogeneity. We finally solve the minimization problem by finding the global optimum using dynamic programming. Our method works out of the box without requiring any input by the user. We provide a theoretical and empirical evaluation of our method.
-
-
-\subsection{Visualization of NAME Method and Discussion}
+\subsection{Visualization and Interpretation}
 \label{sec:visualization}
 
 \begin{itemize}
@@ -484,7 +523,7 @@ points, i.e., \(|\mathcal{S}_k| \geq \tau\).
 \section{REAL-WORLD EXAMPLES}
 
 
-\subsubsection*{Acknowledgements}
+\subsubsection*{Acknowledgments}
 All acknowledgments go at the end of the paper, including thanks to reviewers who gave useful comments, to colleagues who contributed to the ideas, and to funding agencies and corporate sponsors that provided financial support. 
 To preserve the anonymity, please include acknowledgments \emph{only} in the camera-ready papers.
 
