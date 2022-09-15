@@ -144,18 +144,18 @@ class DALE(FeatureEffectBase):
                                              bin_effect=params["bin_effect"],
                                              dx=params["dx"])
         if uncertainty:
-            var = utils.compute_accumulated_effect(x,
+            std = utils.compute_accumulated_effect(x,
                                                    limits=params["limits"],
-                                                   bin_effect=params["bin_variance"],
+                                                   bin_effect=np.sqrt(params["bin_variance"]),
                                                    dx=params["dx"],
-                                                   square=True)
+                                                   square=False)
             estimator_var = utils.compute_accumulated_effect(x,
                                                    limits=params["limits"],
                                                    bin_effect=params["bin_estimator_variance"],
                                                    dx=params["dx"],
                                                    square=True)
 
-            return y, var, estimator_var
+            return y, std, estimator_var
         else:
             return y
 

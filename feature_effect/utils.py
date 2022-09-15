@@ -276,6 +276,26 @@ def compute_accumulated_effect(x: np.ndarray, limits: np.ndarray, bin_effect: np
     return y
 
 
+def compute_remaining_effect(x: np.ndarray, limits: np.ndarray, bin_effect: np.ndarray, square=False):
+
+    big_m = 100000000000000.
+
+    # find where each point belongs to
+    ind = np.digitize(x, limits)
+
+    tmp = np.concatenate([[limits[0]], limits[:-1], [big_m]])
+    deltas = x - tmp[ind]
+
+    # if xs < left_limit or xs > right_limit, delta = 0
+    deltas[deltas < 0] = 0
+    if square:
+        deltas = deltas**2
+
+    tmp = np.concatenate([[0.], bin_effect, [bin_effect[-1]]])
+    remaining_effect = deltas * tmp[ind]
+    return remaining_effect
+
+
 def find_first_nan_bin(x: np.ndarray):
     nans = np.where(np.isnan(x))[0]
 

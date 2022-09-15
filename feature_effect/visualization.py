@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-
+from feature_effect.utils import compute_remaining_effect
 
 def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=None, block=False, gt=False, gt_bins=None, savefig=False):
     assert all(name in params for name in ["first_empty_bin", "limits", "dx", "is_bin_empty", "bin_estimator_variance", "bin_effect"])
@@ -18,7 +18,8 @@ def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=
         first_empty_bin = None
 
     x = np.linspace(params["limits"][0], params["limits"][-1], 10000)
-    y, estimator_var, var = eval(x, feature, True)
+    y, std, estimator_var = eval(x, feature, True)
+    rem_eff = compute_remaining_effect(x, limits, np.sqrt(bin_variance), square=False)
 
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
 
@@ -28,7 +29,7 @@ def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=
         fig.suptitle(title)
 
     # first subplot
-    feature_effect(ax1, x, y, estimator_var, var, first_empty_bin, limits, min_points_per_bin, error=error, gt=gt)
+    feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty_bin, limits, min_points_per_bin, error=error, gt=gt)
 
     # second subplot
     effects_per_bin(ax2, bin_effect, bin_variance, error, is_bin_empty,
@@ -43,11 +44,10 @@ def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=
         plt.show()
 
 
-def feature_effect(ax1, x, y, estimator_var, var, first_empty, limits, point_limit, error=True, gt=None):
+def feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty, limits, point_limit, error=True, gt=None):
     # first subplot
     ax1.set_title("Plot")
     ax1.plot(x, y, "b--", label="estimation")\
-
 
     if first_empty is not None:
         added_line = .3*(np.max(y) - np.min(y))
@@ -56,12 +56,16 @@ def feature_effect(ax1, x, y, estimator_var, var, first_empty, limits, point_lim
                    alpha=.7,
                    label="first bin with < " + str(point_limit) + " points")
     if error == "std":
-        ax1.fill_between(x, y-np.sqrt(var), y+np.sqrt(var), color='green', alpha=0.2, label="std")
+        ax1.fill_between(x, y-std, y+std, color='red', alpha=0.2, label="std")
+        # ax1.fill_between(x, y-rem_eff, y+rem_eff, color='blue', alpha=0.7, label="std")
     elif error == "standard error":
-        ax1.fill_between(x, y-2*np.sqrt(estimator_var), y+2*np.sqrt(estimator_var), color='green', alpha=0.6, label="standard error")
+        ax1.fill_between(x, y-2*np.sqrt(estimator_var), y+2*np.sqrt(estimator_var), color='red', alpha=0.6, label="standard error")
+        # ax1.fill_between(x, y-rem_eff, y+rem_eff, color='blue', alpha=0.7, label="std")
     elif error == "both":
-        ax1.fill_between(x, y-np.sqrt(var), y+np.sqrt(var), color='green', alpha=0.2, label="std")
-        ax1.fill_between(x, y-np.sqrt(estimator_var), y+np.sqrt(estimator_var), color='green', alpha=0.6, label="standard error")
+        ax1.fill_between(x, y-std, y+std, color='red', alpha=0.2, label="std")
+        ax1.fill_between(x, y-np.sqrt(estimator_var), y+np.sqrt(estimator_var), color='red', alpha=0.6, label="standard error")
+        # ax1.fill_between(x, y-rem_eff, y+rem_eff, color='blue', alpha=0.7, label="std")
+
 
     if gt is not None:
         y = gt(x)
@@ -183,4 +187,12 @@ def plot_1D(x, y, title):
     plt.figure()
     plt.title(title)
     plt.plot(x, y, "b-")
+    plt.show(block=False)
+
+
+def plot_PDP_ICE(s, x, y_pdp, y_ice):
+    plt.figure()
+    plt.title("PDP with ICE plot: Feature %d" % (s+1))
+    plt.plot(x, y_pdp, color="blue")
+    plt.plot(x, y_ice.T, color="red", alpha=.1)
     plt.show(block=False)

@@ -87,11 +87,9 @@ class FeatureEffectBase:
             y = self.eval_unnorm(x, s, uncertainty=False) - self.z[s]
             return y
         else:
-            y, var, stderr = self.eval_unnorm(x, s, uncertainty=True)
+            y, std, estimator_var = self.eval_unnorm(x, s, uncertainty=True)
             y = y - self.z[s]
-            return y, var, stderr
-
-
+            return y, std, estimator_var
 
 
 class PDP(FeatureEffectBase):
@@ -117,7 +115,6 @@ class PDP(FeatureEffectBase):
     def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
         return {}
 
-
     def eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False) -> np.ndarray:
         """Evaluate the unnormalized PDP at positions x
 
@@ -126,6 +123,8 @@ class PDP(FeatureEffectBase):
         :returns: np.array (N,)
 
         """
+        if uncertainty:
+            raise NotImplementedError
 
         y = []
         for i in range(x.shape[0]):
@@ -239,3 +238,119 @@ class PDPGroundTruth(FeatureEffectBase):
         else:
             y = self.eval_unnorm(x, s)
         vis.plot_1D(x, y, title="Ground-truth PDP for feature %d" % (s+1))
+
+
+class ICE(FeatureEffectBase):
+    def __init__(self,
+                 data: np.ndarray,
+                 model: callable,
+                 axis_limits: typing.Union[None, np.ndarray] = None,
+                 instance: int = 0):
+        """
+        :param data: np.array (N, D), the design matrix
+        :param model: Callable (N, D) -> (N,)
+        :param axis_limits: Union[None, np.ndarray(2, D)]
+        :param instance: int, index of the instance
+        """
+        # assertions
+        assert data.ndim == 2
+
+        # setters
+        self.model = model
+        self.data = data
+        self.D = data.shape[1]
+        self.instance = instance
+        axis_limits = helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+        super(ICE, self).__init__(axis_limits)
+
+
+    def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+        return {}
+
+    def eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False) -> np.ndarray:
+        """Evaluate the unnormalized PDP at positions x
+
+        :param x: np.array (N,)
+        :param s: index of feature of interest
+        :returns: np.array (N,)
+
+        """
+        if uncertainty:
+            raise NotImplementedError
+
+        i = self.instance
+        xi = copy.deepcopy(self.data[i, :])
+        xi_repeat = np.tile(xi, (x.shape[0],1))
+        xi_repeat[:, s] = x
+        y = self.model(xi_repeat)
+        return y
+
+    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+        """Plot the s-th feature
+        """
+        # getters
+        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+        if normalized:
+            y = self.eval(x, s)
+        else:
+            y = self.eval_unnorm(x, s)
+        vis.plot_1D(x, y, title="ICE for Instance %d, Feature %d" % (self.instance, s+1))
+
+
+class PDPwithICE:
+    def __init__(self,
+                 data: np.ndarray,
+                 model: callable,
+                 axis_limits: typing.Union[None, np.ndarray]=None):
+        """
+
+        :param data: np.array (N, D), the design matrix
+        :param model: Callable (N, D) -> (N,)
+        :param axis_limits: Union[None, np.ndarray(2, D)]
+
+        """
+        # assertions
+        assert data.ndim == 2
+
+        # setters
+        self.model = model
+        self.data = data
+        self.D = data.shape[1]
+        self.axis_limits = helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+
+        self.y_pdp = None
+        self.y_ice = None
+
+    def fit(self, s: int, normalized: bool = True, nof_points: int = 30):
+        axis_limits = self.axis_limits
+        X = self.data
+        model = self.model
+        x = np.linspace(axis_limits[0,0], axis_limits[1,0], nof_points)
+        self.x = x
+        # pdp
+        pdp = PDP(data=X, model=model, axis_limits=axis_limits)
+        if normalized:
+            y_pdp = pdp.eval(x=x, s=0, uncertainty=False)
+        else:
+            y_pdp = pdp.eval_unnorm(x=x, s=0, uncertainty=False)
+        self.y_pdp = y_pdp
+
+        # ice curves
+        y_ice = []
+        for i in range(X.shape[0]):
+            ice = ICE(data=X, model=model, axis_limits=axis_limits, instance=i)
+            if normalized:
+                y = ice.eval(x=x, s=0, uncertainty=False)
+            else:
+                y = ice.eval_unnorm(x=x, s=0, uncertainty=False)
+            y_ice.append(y)
+        self.y_ice = np.array(y_ice)
+
+    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+        """Plot the s-th feature
+        """
+        if self.y_pdp is None:
+            self.fit(s, normalized, nof_points)
+
+        axis_limits = self.axis_limits
+        vis.plot_PDP_ICE(s, self.x, self.y_pdp, self.y_ice)

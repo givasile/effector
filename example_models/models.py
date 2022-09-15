@@ -37,6 +37,117 @@ class ModelBase:
         plt.show(block=True)
 
 
+class Example1(ModelBase):
+    """
+    f(x1, x2) = 1 - x1 - x2    , if x1 + x2 < 1
+                0              , otherwise
+    """
+    def __init__(self):
+        pass
+
+    def predict(self, x: np.ndarray) -> np.ndarray:
+        """Callable (x: np.ndarray (N,D)) -> np.ndarray (N)
+        """
+
+        # find indices
+        ind1 = x[:,0] + x[:,1] < 1
+
+        # set values
+        y = np.zeros_like(x[:,0]*x[:,1])
+        y[ind1] = 1 - x[ind1,0] - x[ind1,1]
+        return y
+
+    def jacobian(self, x: np.ndarray) -> np.ndarray:
+        """Callable (x: np.ndarray (N,D)) -> np.ndarray (N)
+        """
+
+        # find indices
+        ind1 = x[:,0] + x[:,1] < 1
+
+        # set values
+        y = np.zeros_like(x)
+        y[ind1] = -1
+        return y
+
+
+class Example2(ModelBase):
+    """
+                x1 + x2          , if x1 + x2 < 0.5
+    f(x1, x2) = 0.5 - x1 - x2    , if x1 + x2 >= 0.5 and x1 + x2 < 1
+                0                , otherwise
+    """
+    def __init__(self):
+        pass
+
+    def predict(self, x: np.ndarray) -> np.ndarray:
+        """Callable (x: np.ndarray (N,D)) -> np.ndarray (N)
+        """
+
+        # find indices
+        ind1 = x[:,0] + x[:,1] < .5
+        ind2 = np.logical_and(x[:,0] + x[:,1] >= 0.5, x[:,0] + x[:,1] < 1)
+
+        # set values
+        y = np.zeros_like(x[:,0])
+        y[ind1] = x[ind1,0] + x[ind1,1]
+        y[ind2] = .5 - x[ind2,0] - x[ind2,1]
+        return y
+
+    def jacobian(self, x: np.ndarray) -> np.ndarray:
+        """Callable (x: np.ndarray (N,D)) -> np.ndarray (N)
+        """
+
+        # find indices
+        ind1 = x[:,0] + x[:,1] < .5
+        ind2 = np.logical_and(x[:,0] + x[:,1] >= 0.5, x[:,0] + x[:,1] < 1)
+
+        # set values
+        y = np.zeros_like(x)
+        y[ind1] = 1
+        y[ind2] = -1
+        return y
+
+
+class Example3(ModelBase):
+    """
+                x1 + x2          , if x1 + x2 < 0.5
+    f(x1, x2) = 0.5 - x1 - x2    , if x1 + x2 >= 0.5 and x1 + x2 < 1
+                0                , otherwise
+    """
+    def __init__(self):
+        pass
+
+    def predict(self, x: np.ndarray) -> np.ndarray:
+        """Callable (x: np.ndarray (N,D)) -> np.ndarray (N)
+        """
+
+        # find indices
+        ind1 = x[:,0] + x[:,1] < .5
+        ind2 = np.logical_and(x[:,0] + x[:,1] >= 0.5, x[:,0] + x[:,1] < 1)
+
+        # set values
+        y = np.zeros_like(x[:,0])
+        y[ind1] = x[ind1,0] + x[ind1,1]
+        y[ind2] = .5 - x[ind2,0] - x[ind2,1]
+        y += x[:, 0]*x[:, 2]
+        return y
+
+    def jacobian(self, x: np.ndarray) -> np.ndarray:
+        """Callable (x: np.ndarray (N,D)) -> np.ndarray (N)
+        """
+
+        # find indices
+        ind1 = x[:,0] + x[:,1] < .5
+        ind2 = np.logical_and(x[:,0] + x[:,1] >= 0.5, x[:,0] + x[:,1] < 1)
+
+        # set values
+        y = np.zeros_like(x)
+        y[ind1] = 1
+        y[ind2] = -1
+        y[:, 0] += x[:, 2]
+        return y
+
+
 class LinearWithInteraction(ModelBase):
     def __init__(self, b0: float, b1: float, b2: float, b3: float):
         """f(x1, x2) = b0 + b1*x1 + b2*x2 + b3*x1*x2

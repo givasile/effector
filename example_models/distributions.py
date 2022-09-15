@@ -11,11 +11,11 @@ class GenerativeBase:
 
 
 class Correlated1(GenerativeBase):
-
+    """
+    x1 ~ U(x1_min, x1_max)
+    x2 ~ x1 + N(0, x2_sigma)
+    """
     def __init__(self, D, x1_min, x1_max, x2_sigma):
-        """x1 ~ U[x1_min, x1_max], x2 ~ x1 + N(0, x2_sigma)
-
-        """
         self.D = D
         self.x1_min = x1_min
         self.x1_max = x1_max
@@ -49,6 +49,11 @@ class Correlated1(GenerativeBase):
 
 
 class Uncorrelated1(GenerativeBase):
+    """
+    x1 ~ U(x1_min, x1_max)
+    x2 ~ N(0, x2_sigma)
+    """
+
     def __init__(self, D, x1_min, x1_max, x2_sigma):
         self.D = D
         self.x1_min = x1_min
@@ -72,7 +77,11 @@ class Uncorrelated1(GenerativeBase):
 
 
 class Correlated_3D_1(GenerativeBase):
-
+    """
+    x1 ~ U(x1_min, x1_max)
+    x2 ~ N(x1, x2_sigma)
+    x3 ~ N(0, x3_sigma)
+    """
     def __init__(self, D, x1_min, x1_max, x2_sigma, x3_sigma):
         self.D = D
         self.x1_min = x1_min
