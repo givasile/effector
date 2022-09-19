@@ -169,13 +169,12 @@ class DALE(FeatureEffectBase):
 
 
     def plot(self, s: int = 0, error="standard error", block=False, gt=None, gt_bins=None, savefig=False):
-        title = "DALE: Effect of feature %d" % (s + 1)
         vis.feature_effect_plot(self.feature_effect["feature_"+str(s)],
                                 self.eval,
                                 s,
                                 error=error,
                                 min_points_per_bin=self.feature_effect["feature_"+str(s)]["alg_params"]["min_points_per_bin"],
-                                title=title,
+                                title=None,
                                 block=block,
                                 gt=gt,
                                 gt_bins=gt_bins,

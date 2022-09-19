@@ -24,9 +24,9 @@ def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
 
     if title is None:
-        fig.suptitle("Effect of feature %d" % (feature + 1))
+        ax1.set_title("ALE with Uncertainty: $x_{" + str(feature + 1) + "}$")
     else:
-        fig.suptitle(title)
+        ax1.set_title(title)
 
     # first subplot
     feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty_bin, limits, min_points_per_bin, error=error, gt=gt)
@@ -46,8 +46,7 @@ def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=
 
 def feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty, limits, point_limit, error=True, gt=None):
     # first subplot
-    ax1.set_title("Plot")
-    ax1.plot(x, y, "b--", label="estimation")\
+    ax1.plot(x, y, "b--", label="$f_{\mu}$")\
 
     if first_empty is not None:
         added_line = .3*(np.max(y) - np.min(y))
@@ -56,7 +55,7 @@ def feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty, limits, 
                    alpha=.7,
                    label="first bin with < " + str(point_limit) + " points")
     if error == "std":
-        ax1.fill_between(x, y-std, y+std, color='red', alpha=0.2, label="std")
+        ax1.fill_between(x, y-std, y+std, color='red', alpha=0.2, label="$f_{\sigma^2}$")
         # ax1.fill_between(x, y-rem_eff, y+rem_eff, color='blue', alpha=0.7, label="std")
     elif error == "standard error":
         ax1.fill_between(x, y-2*np.sqrt(estimator_var), y+2*np.sqrt(estimator_var), color='red', alpha=0.6, label="standard error")
@@ -74,19 +73,20 @@ def feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty, limits, 
 
 
 def effects_per_bin(ax2, bin_effects, bin_variance, error, is_bin_empty, limits, dx, gt_bins=None, point_limit=10):
-    ax2.set_title("Effects per bin")
+    # ax2.set_title("Effects per bin")
     bin_centers = (limits[:-1] + limits[1:]) / 2
     is_bin_full = ~np.array(is_bin_empty)
     if error:
         # bins with enough points
         if np.sum(is_bin_full) > 0:
-            ax2.bar(x=bin_centers[is_bin_full],
-                    height=bin_effects[is_bin_full],
-                    width=dx[is_bin_full],
-                    color=(0.1, 0.1, 0.1, 0.1),
-                    edgecolor='blue',
-                    yerr=np.sqrt(bin_variance[is_bin_full]),
-                    label="robust estimation (>= " + str(point_limit) + " points)")
+            bars = ax2.bar(x=bin_centers[is_bin_full],
+                           height=bin_effects[is_bin_full],
+                           width=dx[is_bin_full],
+                           color=(0.1, 0.1, 0.1, 0.1),
+                           edgecolor='blue',
+                           yerr=np.sqrt(bin_variance[is_bin_full]),
+                           label="$\hat{\mu}_k ( N_k \geq " + str(point_limit) + ")$")
+            # ax2.bar_label(bars, labels=['%.1f' % e for e in np.sqrt(bin_variance[is_bin_full])])
         # bins without enough points
         if np.sum(is_bin_empty):
             ax2.bar(x=bin_centers[is_bin_empty],
@@ -104,7 +104,7 @@ def effects_per_bin(ax2, bin_effects, bin_variance, error, is_bin_empty, limits,
                     width=dx[is_bin_full],
                     color=(0.1, 0.1, 0.1, 0.1),
                     edgecolor='blue',
-                    label="robust estimation (>= " + str(point_limit) + " points)")          # bins without enough points
+                    label="$\hat{\mu}_k ( N_k \geq " + str(point_limit) + ")$")
         if np.sum(is_bin_empty):
             ax2.bar(x=bin_centers[is_bin_empty],
                     height = bin_effects[is_bin_empty],
@@ -190,9 +190,13 @@ def plot_1D(x, y, title):
     plt.show(block=False)
 
 
-def plot_PDP_ICE(s, x, y_pdp, y_ice):
+def plot_PDP_ICE(s, x, y_pdp, y_ice, savefig):
     plt.figure()
-    plt.title("PDP with ICE plot: Feature %d" % (s+1))
-    plt.plot(x, y_pdp, color="blue")
+    plt.title("PDP with ICE: $x_{%d}$" % (s+1))
+    plt.plot(x, y_ice[0,:], color="red", alpha=.1, label="ICE")
     plt.plot(x, y_ice.T, color="red", alpha=.1)
+    plt.plot(x, y_pdp, color="blue", label="PDP")
+    plt.legend()
+    if savefig is not None:
+        plt.savefig(savefig)
     plt.show(block=False)

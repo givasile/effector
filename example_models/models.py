@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import typing
 import numpy as np
 from functools import partial
-
+import copy
 
 class ModelBase:
     def __init__(self):
@@ -114,12 +114,17 @@ class Example3(ModelBase):
     f(x1, x2) = 0.5 - x1 - x2    , if x1 + x2 >= 0.5 and x1 + x2 < 1
                 0                , otherwise
     """
-    def __init__(self):
-        pass
+    def __init__(self, a1=1, a2=1, a=0):
+        self.a1 = a1
+        self.a2 = a2
+        self.a = a
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         """Callable (x: np.ndarray (N,D)) -> np.ndarray (N)
         """
+        x = copy.deepcopy(x)
+        x[:,0] = self.a1 * x[:,0]
+        x[:,1] = self.a2 * x[:,1]
 
         # find indices
         ind1 = x[:,0] + x[:,1] < .5
@@ -129,12 +134,16 @@ class Example3(ModelBase):
         y = np.zeros_like(x[:,0])
         y[ind1] = x[ind1,0] + x[ind1,1]
         y[ind2] = .5 - x[ind2,0] - x[ind2,1]
-        y += x[:, 0]*x[:, 2]
+        y += self.a * x[:, 0]*x[:, 2]
         return y
 
     def jacobian(self, x: np.ndarray) -> np.ndarray:
         """Callable (x: np.ndarray (N,D)) -> np.ndarray (N)
         """
+
+        x = copy.deepcopy(x)
+        x[:,0] = self.a1 * x[:,0]
+        x[:,1] = self.a2 * x[:,1]
 
         # find indices
         ind1 = x[:,0] + x[:,1] < .5
@@ -142,11 +151,19 @@ class Example3(ModelBase):
 
         # set values
         y = np.zeros_like(x)
-        y[ind1] = 1
-        y[ind2] = -1
-        y[:, 0] += x[:, 2]
-        return y
 
+        # for df/dx1
+        y[ind1, 0] = self.a1
+        y[ind2, 0] = -self.a1
+        y[:, 0] += self.a * x[:, 2]
+
+        # for df/dx2
+        y[ind1, 1] = self.a2
+        y[ind2, 1] = -self.a2
+
+        # for df/dx3
+        y[:, 2] = self.a * x[:, 2]
+        return y
 
 class LinearWithInteraction(ModelBase):
     def __init__(self, b0: float, b1: float, b2: float, b3: float):

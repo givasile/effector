@@ -325,14 +325,14 @@ class PDPwithICE:
         axis_limits = self.axis_limits
         X = self.data
         model = self.model
-        x = np.linspace(axis_limits[0,0], axis_limits[1,0], nof_points)
+        x = np.linspace(axis_limits[0, s], axis_limits[1, s], nof_points)
         self.x = x
         # pdp
         pdp = PDP(data=X, model=model, axis_limits=axis_limits)
         if normalized:
-            y_pdp = pdp.eval(x=x, s=0, uncertainty=False)
+            y_pdp = pdp.eval(x=x, s=s, uncertainty=False)
         else:
-            y_pdp = pdp.eval_unnorm(x=x, s=0, uncertainty=False)
+            y_pdp = pdp.eval_unnorm(x=x, s=s, uncertainty=False)
         self.y_pdp = y_pdp
 
         # ice curves
@@ -340,17 +340,18 @@ class PDPwithICE:
         for i in range(X.shape[0]):
             ice = ICE(data=X, model=model, axis_limits=axis_limits, instance=i)
             if normalized:
-                y = ice.eval(x=x, s=0, uncertainty=False)
+                y = ice.eval(x=x, s=s, uncertainty=False)
             else:
-                y = ice.eval_unnorm(x=x, s=0, uncertainty=False)
+                y = ice.eval_unnorm(x=x, s=s, uncertainty=False)
             y_ice.append(y)
         self.y_ice = np.array(y_ice)
 
-    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+    def plot(self, s: int, normalized: bool = True,
+             nof_points: int = 30,
+             savefig = None) -> None:
         """Plot the s-th feature
         """
-        if self.y_pdp is None:
-            self.fit(s, normalized, nof_points)
+        self.fit(s, normalized, nof_points)
 
         axis_limits = self.axis_limits
-        vis.plot_PDP_ICE(s, self.x, self.y_pdp, self.y_ice)
+        vis.plot_PDP_ICE(s, self.x, self.y_pdp, self.y_ice, savefig)

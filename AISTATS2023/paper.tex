@@ -23,7 +23,8 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{hyperref}
-
+\usepackage{graphicx}
+\graphicspath{ {./../examples/} }
 % If you use BibTeX in apalike style, activate the following line:
 %\bibliographystyle{apalike}
 
@@ -518,7 +519,132 @@ steps.
 \item Discuss about the meaning of ALE, to find intervals with some effect
 \end{itemize}
 
-\section{SYNTHETIC EXAMPLES}
+\clearpage
+\section{EXPERIMENTS}
+
+The experimental section is divided in simulation and real-world
+examples. The simulation examples, where the data-generating
+distribution \(p(\mathbf{X})\) and the predictive function
+\(f(\cdot)\) are defined by us, are used for comparing all methods
+against a solid ground-truth. Having the freedom to experiment with
+\(p(\mathbf{X}), f(\cdot)\), we explore the behavior of each method in
+different settings for highlighting important aspects
+(advantages/disadvantages) of each one. In particular, we design two
+end-to-end simulation examples; At the first one, we focus on
+comparing NAME method versus PDP-ICE in terms of quantifying the
+heterogeneous effects for a range of different black-box functions. At
+the second one, we provide empirical clues that NAME method achieves a
+better approximation compared to traditional ALE, due to appropriate
+bin-splitting. Afterwards, we also apply the methods on some
+real-world datasets. In these cases, it is infeasible to obtain ground
+truth information, therefore, we perform evaluation at two
+levels. First, we compare visually NAME versus PDP with ICE
+plots. Second, we hold as ground-truth the effects computed on the
+full training-set and we, then, perform subsampling to evaluate the
+robustness of the bin-splitting method.
+
+\paragraph{Metrics.} Describe the metrics used for comparing methods.
+
+\subsection{Synthetic Example 1: Uncertainty Quantification}
+
+In general, there is no a single unchallenged aggreement about the
+correct feature effect; each method models it in a slightly different
+way. Therefore, for creating a universal evaluation framework we
+reside on variations of the simple piecewise-linear function, where in
+most cases, we can have an homophony about the correct effect.
+
+
+In all the experiments of the example, we will use the following
+generative distribution: \(p(\mathbf{x}) = p(x_3)p(x_2|x_1)p(x_1)\)
+where \(x_1 \sim \mathcal{U}(0,1)\),
+\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2)\),
+\(x_3 \sim \mathcal{N}(0, \sigma_3^2)\). 
+%
+The predictive function is:
+
+\begin{equation}
+  \label{eq:2}
+  f(\mathbf{x}) = \begin{cases}
+                    f_{\mathtt{lin}} + \alpha f_{\mathtt{int}} & \text{if $f_{\mathtt{lin}} < 0.5$ }\\
+                    0.5 - f_{\mathtt{lin}} + \alpha f_{\mathtt{int}} & \text{if $0.5 \leq f_{\mathtt{lin}} < 1$}\\
+                    \alpha f_{\mathtt{int}} &\text{otherwise}
+                  \end{cases}
+\end{equation}
+%
+where \(f_{\mathtt{lin}}(\mathbf{x}) = a_1 x_1 + a_2 x_2\) and
+\(f_{inter}(\mathbf{x}) = x_1x_3\). The term \(f_{\mathtt{lin}}\) is a
+linear function with \(a_1, a_2\) the weights of the corresponding
+variables. The term \(f_{\mathtt{lin}}\) is the interaction between
+the independent variables \(x_1\) and \(x_3\), with \(\alpha\) setting
+the weight of the interaction term.
+
+\subsubsection{Effect Without Uncertainty}
+
+We test the feature effect when no interaction term is apparent,
+i.e. \(\alpha=0\), there is no uncertainty about the value of \(x_2\),
+i.e. \(x_2 = x_1\) and the weights are equal weights \(a_1=a_2=1\).
+In this case, ground truth effect for \(f^{\mathtt{GT}}(x_1)\) is
+\(x_1\) when \(0 \leq x_1 < 0.25\), \(-x_1\) when
+\(0.25 \leq x_1 < 0.5\) and zero otherwise. In each position \(x_1\),
+there is complete absence of heterogeneous effects, and therefore, the
+uncertainty of the global explanation is zero,
+i.e. \(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). In figure we present,
+the effect of each method;
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=.23\textwidth]{example_3/dale_auto_bins.png}
+  \includegraphics[width=.23\textwidth]{example_3/pdp_ice.png}
+  \caption{Figure 1}
+  \label{fig:ex-synth-1-1}
+\end{figure}
+
+\subsubsection{Effect With Uncertainty}
+
+
+
+
+\subsection{Synthetic Example 2: Bin-Splitting}
+
+The perfect bin-splitting according to the definition of the
+minimization problem, is the one that creates:
+
+\begin{itemize}
+\item the biggest bins in regions with constant effect
+\item the smallest bins with \(N_k > \tau\), in regions with non-constant effect
+\end{itemize}
+
+Prove that (a) this is a good objective, i.e., prove that on average,
+this splitting gives the minimum distance from the ground truth ALE
+and (b) that DP finds the optimal.
+
+Set-ups:
+
+For limited instances, measure the mean error and std (many seeds)
+between gt ALE with uncertainty and approximation with bin-splitting
+using (a) fixed-size bins (b) variable-size bins for many \(K\)
+
+for many different \(N_k\)
+
+\begin{itemize}
+\item In case where the perfect bin-splitting is served by
+  equally-sized bins, DP finds it automatically. Without DP, the user
+  should try many different \(K\). and compare them the user's overhead of
+  testing many differ
+\end{itemize}
+
+For many model-agnostic interpretation techniques
+– including interaction detection methods – ground
+truth information is usually not available on real-world
+data. Therefore, well-constructed simulation experi-
+ments with a known ground truth are often used for
+empirical evaluations and comparisons, while only one
+or few real-world datasets are used to demonstrate
+practical applicability (e.g., see Friedman et al. (2008),
+Fisher et al. (2019), Goldstein et al. (2015), Greenwell
+et al. (2018), or Aas et al. (2021)). Hence, we follow
+this commonly used approach to evaluate our method
+using various simulation settings.
 
 \section{REAL-WORLD EXAMPLES}
 
