@@ -36,7 +36,7 @@ def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=
                     limits, dx, gt_bins, min_points_per_bin)
 
     if savefig:
-        plt.savefig(savefig)
+        plt.savefig(savefig, bbox_inches="tight")
 
     if block is False:
         plt.show(block=False)
@@ -198,5 +198,5 @@ def plot_PDP_ICE(s, x, y_pdp, y_ice, savefig):
     plt.plot(x, y_pdp, color="blue", label="PDP")
     plt.legend()
     if savefig is not None:
-        plt.savefig(savefig)
+        plt.savefig(savefig, bbox_inches="tight")
     plt.show(block=False)

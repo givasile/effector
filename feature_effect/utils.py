@@ -248,7 +248,6 @@ def compute_accumulated_effect(x: np.ndarray, limits: np.ndarray, bin_effect: np
 
     # find where each point belongs to
     ind = np.digitize(x, limits)
-
     # find for each point, the accumulated full-bin effect
     if square:
         x_cumsum = (bin_effect * dx ** 2).cumsum()

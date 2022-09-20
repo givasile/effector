@@ -27,7 +27,7 @@ class ModelBase:
         XX, YY = np.meshgrid(x1, x2)
         x = np.vstack([XX.ravel(), YY.ravel()]).T
         Z = self.predict(x)
-        ZZ = Z.reshape([30, 30])
+        ZZ = Z.reshape([nof_points, nof_points])
 
         plt.figure()
         plt.contourf(XX, YY, ZZ, levels=100)
@@ -110,9 +110,9 @@ class Example2(ModelBase):
 
 class Example3(ModelBase):
     """
-                x1 + x2          , if x1 + x2 < 0.5
-    f(x1, x2) = 0.5 - x1 - x2    , if x1 + x2 >= 0.5 and x1 + x2 < 1
-                0                , otherwise
+                x1 + x2 + x1x3          , if x1 + x2 < 0.5
+    f(x1, x2) = 0.5 - x1 - x2 + x1x3    , if x1 + x2 >= 0.5 and x1 + x2 < 1
+                x1 + x3                 , otherwise
     """
     def __init__(self, a1=1, a2=1, a=0):
         self.a1 = a1
@@ -162,7 +162,7 @@ class Example3(ModelBase):
         y[ind2, 1] = -self.a2
 
         # for df/dx3
-        y[:, 2] = self.a * x[:, 2]
+        y[:, 2] = self.a * x[:, 0]
         return y
 
 class LinearWithInteraction(ModelBase):
@@ -204,6 +204,7 @@ class SquareWithInteraction(ModelBase):
 class PiecewiseLinear(ModelBase):
     def __init__(self, params):
         self.params = params
+        self.nof_parts = len(params)
 
     @staticmethod
     def _linear_part(x, a, b, x0):
@@ -223,8 +224,8 @@ class PiecewiseLinear(ModelBase):
     def predict(self, x):
         """f(x1, x2) = a + b*x1 + x1x2
         """
-        condlist = [self._create_cond(x, i, s=0) for i in range(4)]
-        funclist = [self._create_func(i, self._linear_part) for i in range(4)]
+        condlist = [self._create_cond(x, i, s=0) for i in range(self.nof_parts)]
+        funclist = [self._create_func(i, self._linear_part) for i in range(self.nof_parts)]
 
         y = np.zeros(x.shape[0])
         for i, cond in enumerate(condlist):
@@ -232,7 +233,7 @@ class PiecewiseLinear(ModelBase):
         return y
 
     def jacobian(self, x):
-        condlist = [self._create_cond(x, i, s=0) for i in range(4)]
+        condlist = [self._create_cond(x, i, s=0) for i in range(self.nof_parts)]
 
         def df_dx1(x, a, b, x0):
             return b + x[:, 1]
@@ -240,8 +241,8 @@ class PiecewiseLinear(ModelBase):
         def df_dx2(x, a, b, x0):
             return x[:, 0]
 
-        funclist1 = [self._create_func(i, df_dx1) for i in range(4)]
-        funclist2 = [self._create_func(i, df_dx2) for i in range(4)]
+        funclist1 = [self._create_func(i, df_dx1) for i in range(self.nof_parts)]
+        funclist2 = [self._create_func(i, df_dx2) for i in range(self.nof_parts)]
         y1 = np.zeros(x.shape[0])
         y2 = np.zeros(x.shape[0])
         for i, cond in enumerate(condlist):

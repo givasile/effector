@@ -526,15 +526,12 @@ The experimental section is divided in simulation and real-world
 examples. The simulation examples, where the data-generating
 distribution \(p(\mathbf{X})\) and the predictive function
 \(f(\cdot)\) are defined by us, are used for comparing all methods
-against a solid ground-truth. Having the freedom to experiment with
-\(p(\mathbf{X}), f(\cdot)\), we explore the behavior of each method in
-different settings for highlighting important aspects
-(advantages/disadvantages) of each one. In particular, we design two
-end-to-end simulation examples; At the first one, we focus on
-comparing NAME method versus PDP-ICE in terms of quantifying the
-heterogeneous effects for a range of different black-box functions. At
-the second one, we provide empirical clues that NAME method achieves a
-better approximation compared to traditional ALE, due to appropriate
+against a solid ground-truth. In particular, we design two end-to-end
+simulation examples; At the first one, we focus on comparing NAME
+method versus PDP-ICE in terms of quantifying the heterogeneous
+effects for a range of different black-box functions. At the second
+one, we provide empirical clues that NAME method achieves a better
+approximation compared to traditional ALE, due to appropriate
 bin-splitting. Afterwards, we also apply the methods on some
 real-world datasets. In these cases, it is infeasible to obtain ground
 truth information, therefore, we perform evaluation at two
@@ -547,23 +544,14 @@ robustness of the bin-splitting method.
 
 \subsection{Synthetic Example 1: Uncertainty Quantification}
 
-In general, there is no a single unchallenged aggreement about the
-correct feature effect; each method models it in a slightly different
-way. Therefore, for creating a universal evaluation framework we
-reside on variations of the simple piecewise-linear function, where in
-most cases, we can have an homophony about the correct effect.
-
-
-In all the experiments of the example, we will use the following
-generative distribution: \(p(\mathbf{x}) = p(x_3)p(x_2|x_1)p(x_1)\)
-where \(x_1 \sim \mathcal{U}(0,1)\),
-\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2)\),
-\(x_3 \sim \mathcal{N}(0, \sigma_3^2)\). 
-%
-The predictive function is:
+This synthetic example aims to showcase the superiority of NAME method
+in quantifying the main effect and the uncertainty compared to PDP
+with ICE plots. For being able to compare the two methods against a
+solid ground-truth, we limit ourserlves a simple evaluation framework based
+on following piecewise linear function:
 
 \begin{equation}
-  \label{eq:2}
+  \label{eq:synth-ex-1-function}
   f(\mathbf{x}) = \begin{cases}
                     f_{\mathtt{lin}} + \alpha f_{\mathtt{int}} & \text{if $f_{\mathtt{lin}} < 0.5$ }\\
                     0.5 - f_{\mathtt{lin}} + \alpha f_{\mathtt{int}} & \text{if $0.5 \leq f_{\mathtt{lin}} < 1$}\\
@@ -572,42 +560,113 @@ The predictive function is:
 \end{equation}
 %
 where \(f_{\mathtt{lin}}(\mathbf{x}) = a_1 x_1 + a_2 x_2\) and
-\(f_{inter}(\mathbf{x}) = x_1x_3\). The term \(f_{\mathtt{lin}}\) is a
-linear function with \(a_1, a_2\) the weights of the corresponding
-variables. The term \(f_{\mathtt{lin}}\) is the interaction between
-the independent variables \(x_1\) and \(x_3\), with \(\alpha\) setting
-the weight of the interaction term.
+\(f_{int}(\mathbf{x}) = x_1x_3\). As we observe, the linear term
+\(f_{\mathtt{lin}}\) includes the two correlated features and the term
+\(f_{\mathtt{int}}\) interacts the two non-correlated variables. The
+samples that we use in all examples are coming from the following
+distribution: \(p(\mathbf{x}) = p(x_3)p(x_2|x_1)p(x_1)\) where
+\(x_1 \sim \mathcal{U}(0,1)\),
+\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2=0)\) and
+\(x_3 \sim \mathcal{N}(0, \sigma_3^2)\). We will test three variations
+by changing the parameters of the black-box function and of the
+generative distribution. Despite the model's simplicity, as we will
+see below, PDP with ICE plot fail completely to capture the
+ground-truth effect, due to the correlation between features \(X_1\)
+and \(X_2\). Furthermore, besides not the focus of the current
+example, NAME method manages to automatically extract the regions with
+constant effect. Details for obtaining the ground truth effects and
+the experimental set-up are in the Appendix.\footnote{The Appendix
+  contains the effects for all the features, some of them are ommited
+  here for compact presentation.}
 
-\subsubsection{Effect Without Uncertainty}
+\paragraph{No Interaction, Equal weights.}
 
 We test the feature effect when no interaction term is apparent,
-i.e. \(\alpha=0\), there is no uncertainty about the value of \(x_2\),
-i.e. \(x_2 = x_1\) and the weights are equal weights \(a_1=a_2=1\).
-In this case, ground truth effect for \(f^{\mathtt{GT}}(x_1)\) is
-\(x_1\) when \(0 \leq x_1 < 0.25\), \(-x_1\) when
-\(0.25 \leq x_1 < 0.5\) and zero otherwise. In each position \(x_1\),
-there is complete absence of heterogeneous effects, and therefore, the
-uncertainty of the global explanation is zero,
-i.e. \(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). In figure we present,
-the effect of each method;
+i.e. \(\alpha=0\), and the weights are equal \(a_1=a_2=1\).  In this
+case, ground truth effect for \(f^{\mathtt{GT}}(x_1)\) is \(x_1\) when
+\(0 \leq x_1 < 0.25\), \(-x_1\) when \(0.25 \leq x_1 < 0.5\) and zero
+otherwise. In each position \(x_1\), there is complete absence of
+heterogeneous effects, and therefore, the uncertainty of the global
+explanation is zero, i.e. \(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). In
+Figure~\ref{fig:ex-synth-1-1} we see that PDP effect is completely
+wrong and ICE plots imply heterogeneous effects. In contrast, ALE
+captures correctly the average effect and the zero uncertainty.
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=.23\textwidth]{example_3/dale_auto_bins.png}
-  \includegraphics[width=.23\textwidth]{example_3/pdp_ice.png}
+  \includegraphics[width=.23\textwidth]{example_1/dale_feat_0.png}
+  \includegraphics[width=.23\textwidth]{example_1/pdp_ice_feat_0.png}
+  \caption{Feature effect for \(x_1\); NAME method at the left and PDP
+    with ICE at the right.}
+  \label{fig:synth-ex-1-case-1}
+\end{figure}
+
+\paragraph{No Uncertainty, Different weights.}
+
+As before, there is no interaction term, i.e. \(\alpha=0\), and
+uncertainty about the value of \(x_2\), i.e.  \(x_2 = x_1\), but we
+give different weight to each feture \(a_1=2, a_2=0.5\). Again, we
+observe that ALE quantifies perfectly the ground truth effect and the
+zero-uncertainty in contrast to PDP with ICE.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=.23\textwidth]{example_2/dale_feat_0.png}
+  \includegraphics[width=.23\textwidth]{example_2/pdp_ice_feat_0.png}
   \caption{Figure 1}
   \label{fig:ex-synth-1-1}
 \end{figure}
 
-\subsubsection{Effect With Uncertainty}
+\paragraph{Uncertainty, Equal weights.}
 
+In this case we activate the interaction term, i.e. \(a=1\), and we
+set equal weights \(a_1=a_2=1\). In contrast with above, the
+interaction term provokes heterogeneous effects for features
+\(x_1, x_3\); at any position \(x_1\), the local effects dependend on
+the unknown value of \(X_3\) and vice-versa. The effect of \(x_2\)
+continues to have zero-uncertainty, since it does not appear in any
+interaction term. NAME captures perfectly the effect of all features,
+and the uncertainty in the case of \(x_1, x_2\). On the contrary,
+PDP-ICE quantify the effect and the uncertainty correctly only in the
+case of \(x_3\). For all other features, both the average effect and
+the uncertainty implied by ICE plots are wrong.
 
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=.23\textwidth]{example_3/dale_feat_0.png}
+  \includegraphics[width=.23\textwidth]{example_3/pdp_ice_feat_0.png}\\
+  \includegraphics[width=.23\textwidth]{example_3/dale_feat_1.png}
+  \includegraphics[width=.23\textwidth]{example_3/pdp_ice_feat_1.png}\\
+  \includegraphics[width=.23\textwidth]{example_3/dale_feat_2.png}
+  \includegraphics[width=.23\textwidth]{example_3/pdp_ice_feat_2.png}\\
+  \caption{Figure 1}
+  \label{fig:ex-synth-1-1}
+\end{figure}
 
+\paragraph{Discussion.}
+
+The examples presented above, do not cover all cases. Therefore, they
+are not sufficiect to prove that NAME method quantifies the effect
+correctly in all cases. Their main objective is to highlight that PDP
+indifference for correlated features provoques erroneous effects, even
+in very simple cases. Unfortunately, the methods that are based on
+PDP and ICE to quantify heterogeneity are also vulnerable to the same
+errors.
+
+The examples above do not cover the case where the interaction term
+include correlated features, \(x_1, x_2\) for our example. In this
+case, there is controversy about the ground-truth
+effect~\citep{Gromping2020MAEP}.
 
 \subsection{Synthetic Example 2: Bin-Splitting}
 
-The perfect bin-splitting according to the definition of the
-minimization problem, is the one that creates:
+The aim of this example is to illustrate the advantages of automatic
+bin-splitting based on the objective of Eq.(\ref{eq:opt}). We explore
+different setups (black-box functios and dististributions) where, in
+each one, we treat as ground-truth the ALE obtained with very dense
+sampling. Afterwards, we measure the error of the ALE approximation
+with \(K\) fixed-size bins versus the approximation of NAME with
+automatic bin-spltting.
 
 \begin{itemize}
 \item the biggest bins in regions with constant effect
