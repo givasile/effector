@@ -7,20 +7,15 @@ import example_models.distributions as dist
 import example_models.models as models
 
 savefig = True
-folder_name =  "example_bin_splitting_1"
+folder_name =  "example_bin_splitting_2"
 np.random.seed(23)
 
 # gen dist
-gen_dist = dist.Correlated1(D=2, x1_min=0, x1_max=1, x2_sigma=.5)
+gen_dist = dist.Correlated1(D=2, x1_min=0, x1_max=1, x2_sigma=.4)
 axis_limits = gen_dist.axis_limits
 
 # model
-params = [{"from": 0., "to": .2, "a": 0, "b": 2},
-          {"from": .2, "to": .4, "a": .2, "b": -2},
-          {"from": .4, "to": .45, "a": 0, "b": 5},
-          {"from": .45, "to": .5, "a": 2.5, "b": -10},
-          {"from": .5, "to": 1., "a": -2.5, "b": .5}]
-model = models.PiecewiseLinear(params)
+model = models.SquareWithInteraction(b0=0, b1=4, b2=1, b3=1)
 
 # fit ground-truth
 X_0 = gen_dist.generate(N=1000000)
@@ -31,6 +26,7 @@ dale_gt = fe.DALE(data=X_0,
 
 alg_params = {"bin_method" : "fixed", "nof_bins" : 1000, "min_points_per_bin": 5}
 dale_gt.fit(features=0, alg_params=alg_params)
+
 
 # fit approx with auto binning
 X = gen_dist.generate(N=500)
@@ -48,9 +44,8 @@ else:
     dale.plot()
 
 
-
 # fit approximation
-K_list = list(range(2,101))
+K_list = list(range(2,11)) + list(range(15, 101, 5))
 stats_fixed = utils.measure_fixed_error(dale_gt,
                                         gen_dist,
                                         model,

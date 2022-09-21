@@ -22,6 +22,7 @@
 \bibliographystyle{plainnat}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{xfrac}
 \usepackage{hyperref}
 \usepackage{graphicx}
 \graphicspath{ {./../examples/} }
@@ -661,49 +662,80 @@ effect~\citep{Gromping2020MAEP}.
 \subsection{Synthetic Example 2: Bin-Splitting}
 
 The aim of this example is to illustrate the advantages of automatic
-bin-splitting based on the objective of Eq.(\ref{eq:opt}). We explore
-different setups (black-box functios and dististributions) where, in
-each one, we treat as ground-truth the ALE obtained with very dense
-sampling. Afterwards, we measure the error of the ALE approximation
-with \(K\) fixed-size bins versus the approximation of NAME with
-automatic bin-spltting.
+bin-splitting based on the objective of Eq.(\ref{eq:opt}). For
+evaluating our approach, we create the following validation framework;
+We generate a big dataset using dense sampling \(N=10^6\) and we treat
+as ground-truth the ALE estimation using dense fixed-size binning
+\(K=10^3\). Afterwards, we generate less samples \(X=500\) and we
+compare (a) the fixed-size ALE estimation for many different \(K\)
+versus (b) the auto-bin splitting algorithm. In all cases, the data
+generating distribution is \(p(\mathbf{x}) = p(x_2|x_1)p(x_1)\) where
+\(x_1 \sim \mathcal{U}(0,1)\),
+\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2=2)\).
 
-\begin{itemize}
-\item the biggest bins in regions with constant effect
-\item the smallest bins with \(N_k > \tau\), in regions with non-constant effect
-\end{itemize}
+We denote as
+\(\mathcal{Z^{\mathtt{DP}}} = \{z^{\mathtt{DP}}_{k-1}, \cdots,
+z^{\mathtt{DP}}_{K}\}\) the sequence obtained by automatic-splitting
+based on the optimisation problem of Eq.~(\ref{eq:opt}) and with
+\(\mathcal{Z^{\mathtt{K}}}\}\) the corresponding fixed-sized
+splitting. The comparison is done using three metrics; (a)
+\(\mathcal{L}_{\mathtt{DP|K}}^{\mu} =
+\frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k=1}^K | \mu_k -
+\hat{\mu}_k | \) quantifies the average error in estimating the the
+expected effect, (b)
+\(\mathcal{L}_{\mathtt{DP|K}}^{\sigma^2} =
+\frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k=1}^K | \sigma_k^2 -
+\hat{\sigma}^2_k | \) the average error in estimating the variance of
+the effect and (c)
+\(\mathcal{L}^{\rho^2}_{\mathtt{DP|K}} =
+\frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k=1}^K \rho^2_k \) the
+average extra nuisance uncertainty.
 
-Prove that (a) this is a good objective, i.e., prove that on average,
-this splitting gives the minimum distance from the ground truth ALE
-and (b) that DP finds the optimal.
+\paragraph{Example 1.}
 
-Set-ups:
+In this example, we defin a black-box function
+\(f_1(x_1) = a_1x_1 + x_1x_2\) with 6 piecewise-linear regions of
+different-size, i.e., \(a_1\) equals to \(=\{2, -2, 5, -10, 0.5\}\) in
+the regions defined by the sequence \(\{0, 0.2, 0.4, 0.45, 0.5,
+1\}\). The example highlights the importance of variable-size
+splitting. Given that the smalest intervals size is \(0.05\) any
+fixed-size splitting with less than \( \frac{1}{\Delta x} = 20\) bins,
+will mix together effects and increase the variance error
+\(\mathcal{L}_{\mathtt{K}}^{\sigma^2}\) due to the increase of the
+residual \(\mathcal{L}_{\mathtt{K}}^{\rho^2} > 0\). This is evident in
+figure. On the other hand, a large number of bins divides homogeneuos
+regions, i.e. region \([0.5, 1)\), into smaller ones with more
+unstable estimations which increases
+\(\mathcal{L}_{\mathtt{K}}^{\mu}\) Figure. Variable-size binning leads
+to the optimal solution. As we see in figure automatic-bin splitting
+small bins in areas with fine-grain effects and merges together
+regions with similar effects, leading to a near optimal bin splitting.
 
-For limited instances, measure the mean error and std (many seeds)
-between gt ALE with uncertainty and approximation with bin-splitting
-using (a) fixed-size bins (b) variable-size bins for many \(K\)
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_1.jpg}
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_2.jpg}\\
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_3.jpg}
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_4.jpg}
+  \caption{Figure 1}
+  \label{fig:ex-synth-1-1}
+\end{figure}
 
-for many different \(N_k\)
 
-\begin{itemize}
-\item In case where the perfect bin-splitting is served by
-  equally-sized bins, DP finds it automatically. Without DP, the user
-  should try many different \(K\). and compare them the user's overhead of
-  testing many differ
-\end{itemize}
+\paragraph{Example 2.}
 
-For many model-agnostic interpretation techniques
-– including interaction detection methods – ground
-truth information is usually not available on real-world
-data. Therefore, well-constructed simulation experi-
-ments with a known ground truth are often used for
-empirical evaluations and comparisons, while only one
-or few real-world datasets are used to demonstrate
-practical applicability (e.g., see Friedman et al. (2008),
-Fisher et al. (2019), Goldstein et al. (2015), Greenwell
-et al. (2018), or Aas et al. (2021)). Hence, we follow
-this commonly used approach to evaluate our method
-using various simulation settings.
+The black-box function \(f(\mathbf{x}) = 4x_1^2 + x_2^2 + x_1x_2\)
+
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_1.jpg}
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_2.jpg}\\
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_3.jpg}
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_4.jpg}
+  \caption{Figure 1}
+  \label{fig:ex-synth-1-1}
+\end{figure}
 
 \section{REAL-WORLD EXAMPLES}
 
