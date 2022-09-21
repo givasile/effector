@@ -76,7 +76,10 @@ def measure_fixed_error(dale_gt, gen_dist, model, axis_limits, K_list, nof_itera
                            model=model.predict,
                            model_jac=model.jacobian,
                            axis_limits=axis_limits)
-            alg_params = {"bin_method" : "fixed", "nof_bins" : k, "min_points_per_bin": 2}
+            alg_params = {"bin_method" : "fixed",
+                          "nof_bins" : k,
+                          "min_points_per_bin": 2}
+
             try:
                 dale.fit(features=[0], alg_params=alg_params)
                 res_err, mu_err, var_err = compare(dale_gt, dale)
@@ -84,6 +87,7 @@ def measure_fixed_error(dale_gt, gen_dist, model, axis_limits, K_list, nof_itera
                 mu_tmp.append(mu_err)
                 var_tmp.append(var_err)
             except:
+                print("aek")
                 pass
 
         rho_mean.append(np.mean(rho_tmp))
