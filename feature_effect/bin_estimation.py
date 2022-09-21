@@ -354,12 +354,16 @@ class FixedSizeBase:
     def bin_valid(self, start, stop):
         return NotImplementedError
 
-    def solve(self, min_points, K):
+    def solve(self, min_points, K, enforce_bin_creation):
         self.min_points = min_points
         self.K = K
         assert min_points >= 2, "We need at least two points per bin to estimate the variance"
 
         limits, dx = np.linspace(self.xs_min, self.xs_max, num=K + 1, endpoint=True, retstep=True)
+        if enforce_bin_creation:
+            self.limits = limits
+            return limits
+
         valid_binning = True
         for i in range(K):
             start = limits[i]

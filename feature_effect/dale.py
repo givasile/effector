@@ -116,7 +116,8 @@ class DALE(FeatureEffectBase):
         if alg_params["bin_method"] == "fixed":
             bin_est = be.FixedSize(self.data, self.data_effect, feature=s)
             bin_est.solve(min_points = alg_params["min_points_per_bin"],
-                          K = alg_params["nof_bins"])
+                          K = alg_params["nof_bins"],
+                          enforce_bin_creation = alg_params["enforce_bin_creation"])
         elif alg_params["bin_method"] == "greedy":
             bin_est = be.Greedy(self.data, self.data_effect, feature=s)
             bin_est.solve(min_points = alg_params["min_points_per_bin"],
@@ -168,7 +169,7 @@ class DALE(FeatureEffectBase):
     #     vis.plot_1D(x, y, title="ALE (Monte Carlo) for feature %d" % (s+1))
 
 
-    def plot(self, s: int = 0, error="standard error", block=False, gt=None, gt_bins=None, savefig=False):
+    def plot(self, s: int = 0, error="std", block=False, gt=None, gt_bins=None, savefig=False):
         vis.feature_effect_plot(self.feature_effect["feature_"+str(s)],
                                 self.eval,
                                 s,
