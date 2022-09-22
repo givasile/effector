@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from feature_effect.utils import compute_remaining_effect
 
+
 def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=None, block=False, gt=False, gt_bins=None, savefig=False):
     assert all(name in params for name in ["first_empty_bin", "limits", "dx", "is_bin_empty", "bin_estimator_variance", "bin_effect"])
     limits = params["limits"]
@@ -17,7 +18,7 @@ def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=
     else:
         first_empty_bin = None
 
-    x = np.linspace(params["limits"][0], params["limits"][-1], 10000)
+    x = np.linspace(params["limits"][0], params["limits"][-1], 1000)
     y, std, estimator_var = eval(x, feature, True)
     rem_eff = compute_remaining_effect(x, limits, np.sqrt(bin_variance), square=False)
 
@@ -35,6 +36,11 @@ def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=
     effects_per_bin(ax2, bin_effect, bin_variance, error, is_bin_empty,
                     limits, dx, gt_bins, min_points_per_bin)
 
+    ax1.set_ylabel("$y$")
+
+    ax2.set_xlabel("$x_{%d}$" % (feature+1))
+    ax2.set_ylabel("$\partial y / \partial x_{%d}$" % (feature+1))
+
     if savefig:
         plt.savefig(savefig, bbox_inches="tight")
 
@@ -46,7 +52,7 @@ def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=
 
 def feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty, limits, point_limit, error=True, gt=None):
     # first subplot
-    ax1.plot(x, y, "b--", label="$f_{\mu}$")\
+    ax1.plot(x, y, "b--", label="$\hat{f}_{\mu}$")
 
     if first_empty is not None:
         added_line = .3*(np.max(y) - np.min(y))
@@ -55,7 +61,7 @@ def feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty, limits, 
                    alpha=.7,
                    label="first bin with < " + str(point_limit) + " points")
     if error == "std":
-        ax1.fill_between(x, y-std, y+std, color='red', alpha=0.2, label="$f_{\sigma^2}$")
+        ax1.fill_between(x, y-std, y+std, color='red', alpha=0.2, label="$\hat{f}_{\sigma^2}$")
         # ax1.fill_between(x, y-rem_eff, y+rem_eff, color='blue', alpha=0.7, label="std")
     elif error == "standard error":
         ax1.fill_between(x, y-2*np.sqrt(estimator_var), y+2*np.sqrt(estimator_var), color='red', alpha=0.6, label="standard error")
@@ -68,7 +74,7 @@ def feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty, limits, 
 
     if gt is not None:
         y = gt(x)
-        ax1.plot(x, y, "m--", label="ground truth")
+        ax1.plot(x, y, "m--", label="$\hat{f}^{\mathtt{GT}}_{\mu}$")
     ax1.legend()
 
 
@@ -85,6 +91,7 @@ def effects_per_bin(ax2, bin_effects, bin_variance, error, is_bin_empty, limits,
                            color=(0.1, 0.1, 0.1, 0.1),
                            edgecolor='blue',
                            yerr=np.sqrt(bin_variance[is_bin_full]),
+                           ecolor='red',
                            label="$\hat{\mu}_k ( N_k \geq " + str(point_limit) + ")$")
             # ax2.bar_label(bars, labels=['%.1f' % e for e in np.sqrt(bin_variance[is_bin_full])])
         # bins without enough points
@@ -104,6 +111,7 @@ def effects_per_bin(ax2, bin_effects, bin_variance, error, is_bin_empty, limits,
                     width=dx[is_bin_full],
                     color=(0.1, 0.1, 0.1, 0.1),
                     edgecolor='blue',
+                    ecolor='red',
                     label="$\hat{\mu}_k ( N_k \geq " + str(point_limit) + ")$")
         if np.sum(is_bin_empty):
             ax2.bar(x=bin_centers[is_bin_empty],
@@ -192,11 +200,14 @@ def plot_1D(x, y, title):
 
 def plot_PDP_ICE(s, x, y_pdp, y_ice, savefig):
     plt.figure()
-    plt.title("PDP with ICE: $x_{%d}$" % (s+1))
-    plt.plot(x, y_ice[0,:], color="red", alpha=.1, label="ICE")
+    plt.title("PDP-ICE: $x_{%d}$" % (s+1))
+    plt.plot(x, y_ice[0,:], color="red", alpha=.1, label="$f_{\mathtt{ICE}}$")
     plt.plot(x, y_ice.T, color="red", alpha=.1)
-    plt.plot(x, y_pdp, color="blue", label="PDP")
+    plt.plot(x, y_pdp, color="blue", label="$f_{\mu}$")
+    plt.xlabel("$x_{%d}$" % (s+1))
+    plt.ylabel("$y$")
     plt.legend()
+
     if savefig is not None:
         plt.savefig(savefig, bbox_inches="tight")
     plt.show(block=False)

@@ -42,7 +42,7 @@ alg_params = {"bin_method" : "dp", "max_nof_bins" : 40, "min_points_per_bin": 10
 dale.fit(features=0, alg_params=alg_params)
 if savefig:
     path2dir = os.path.join(path, folder_name)
-    savepath = os.path.join(path2dir, "fig_1.jpg") if savefig else None
+    savepath = os.path.join(path2dir, "fig_1.pdf") if savefig else None
     dale.plot(savefig=savepath)
 else:
     dale.plot()
@@ -67,7 +67,7 @@ stats_auto = utils.measure_auto_error(dale_gt,
 
 # plots
 path2dir = os.path.join(path, folder_name)
-savepath = os.path.join(path2dir, "fig_2.jpg") if savefig else None
+savepath = os.path.join(path2dir, "fig_2.pdf") if savefig else None
 utils.plot_fixed_vs_auto(K_list,
                          stats_fixed["mu_err_mean"],
                          stats_fixed["mu_err_std"],
@@ -76,7 +76,7 @@ utils.plot_fixed_vs_auto(K_list,
                          "mu error per bin",
                          savefig=savepath)
 
-savepath = os.path.join(path2dir, "fig_3.jpg") if savefig else None
+savepath = os.path.join(path2dir, "fig_3.pdf") if savefig else None
 utils.plot_fixed_vs_auto(K_list,
                          stats_fixed["var_err_mean"],
                          stats_fixed["var_err_std"],
@@ -85,7 +85,7 @@ utils.plot_fixed_vs_auto(K_list,
                          "var error per bin",
                          savefig=savepath)
 
-savepath = os.path.join(path2dir, "fig_4.jpg") if savefig else None
+savepath = os.path.join(path2dir, "fig_4.pdf") if savefig else None
 utils.plot_fixed_vs_auto(K_list,
                          stats_fixed["rho_mean"],
                          stats_fixed["rho_std"],

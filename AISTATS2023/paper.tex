@@ -29,6 +29,22 @@
 % If you use BibTeX in apalike style, activate the following line:
 %\bibliographystyle{apalike}
 
+\usepackage{tikz}
+\usetikzlibrary{matrix,positioning,arrows.meta,arrows,fit,backgrounds,decorations.pathreplacing}
+\tikzset{ mymat/.style={ matrix of math nodes, text height=2.5ex, text
+depth=0.75ex, text width=6.00ex, align=center, column
+sep=-\pgflinewidth, nodes={minimum height=5.0ex} }, mymats/.style={
+mymat, nodes={draw,fill=#1} }, mymat2/.style={ matrix of math nodes,
+text height=1.0ex, text depth=0.0ex, minimum width=5ex, % text
+width=7.00ex, align=center, column sep=-\pgflinewidth }, }
+\usetikzlibrary{shapes.geometric, arrows, backgrounds, scopes}
+\usepackage{pgfplots} \pgfplotsset{width=6.75cm, compat=newest}
+\usepackage[utf8]{inputenc} \DeclareUnicodeCharacter{2212}{−}
+\usepgfplotslibrary{groupplots,dateplot}
+\usetikzlibrary{patterns,shapes.arrows}
+
+
+
 \newcommand{\dfdx}{\frac{\partial f}{\partial x_s}}
 \newcommand{\xc}{\mathbf{x_c}}
 \newcommand{\DY}{\mathbf{\Delta Y}}
@@ -89,7 +105,7 @@ effect), they should opt for a global explainability technique. On
 the other hand, aggregating the individual explanations for producing
 a concise global one is vulnerable to misinterpretations; Under strong
 feature interactions, the global explanation may obfuscate
-heterogeneous effects~\citep{Herbinger2022repid} that exist under the
+heterogeneous effects~\citep{herbinger2022repid} that exist under the
 hood; a phenomenon called aggregation bias~\citep{mehrabi2021survey}.
 
 Feature effect (FE) \citep{Gromping2020MAEP} is a fundamental category
@@ -521,35 +537,36 @@ steps.
 \end{itemize}
 
 \clearpage
-\section{EXPERIMENTS}
+\section{SIMULATION EXAMPLES}
+\label{sec:simulation-examples}
 
-The experimental section is divided in simulation and real-world
-examples. The simulation examples, where the data-generating
-distribution \(p(\mathbf{X})\) and the predictive function
-\(f(\cdot)\) are defined by us, are used for comparing all methods
-against a solid ground-truth. In particular, we design two end-to-end
-simulation examples; At the first one, we focus on comparing NAME
-method versus PDP-ICE in terms of quantifying the heterogeneous
-effects for a range of different black-box functions. At the second
-one, we provide empirical clues that NAME method achieves a better
-approximation compared to traditional ALE, due to appropriate
-bin-splitting. Afterwards, we also apply the methods on some
-real-world datasets. In these cases, it is infeasible to obtain ground
-truth information, therefore, we perform evaluation at two
-levels. First, we compare visually NAME versus PDP with ICE
-plots. Second, we hold as ground-truth the effects computed on the
-full training-set and we, then, perform subsampling to evaluate the
-robustness of the bin-splitting method.
+The simulation examples, where the data-generating distribution
+\(p(\mathbf{X})\) and the predictive function \(f(\cdot)\) are defined
+by us, enable the evaluation of competitive approaches against a solid
+ground-truth. We follow this common XAI
+practice~\citep{aas2021explaining, herbinger2022repid} for providing
+secure empirical evidence about the superiority of NAME method.
 
-\paragraph{Metrics.} Describe the metrics used for comparing methods.
+We split the simulation examples in two groups. The first group,
+Section~\ref{sec:simulation-examples-1}, aims at showcasing that NAME
+method is more accurate than PDP-ICE in quantifying the average effect
+and the level of heterogeneous effects (uncertainty), when input
+features are correlated. The second group,
+Section~\ref{sec:simulation-examples-2}, illustrates that NAME method
+achieves a better approximation (average effect and uncertainty) in
+cases of limited samples, due to automatic bin-splitting. In both
+groups, we choose to illustrate the most indicative examples; a more
+extensive evaluation is provided in the Appendix.
 
-\subsection{Synthetic Example 1: Uncertainty Quantification}
+\subsection{Case 1: Uncertainty Quantification}
+\label{sec:simulation-examples-1}
 
-This synthetic example aims to showcase the superiority of NAME method
-in quantifying the main effect and the uncertainty compared to PDP
-with ICE plots. For being able to compare the two methods against a
-solid ground-truth, we limit ourserlves a simple evaluation framework based
-on following piecewise linear function:
+In this simulation, we will compare NAME method against PDP-ICE in
+quantifying the main effect \(f_\mu\) and the uncertainty
+\(f_\sigma^2\). Since there is ambiguity about the ground-truth
+first-order effect in cases of correlated
+features, e.g.~\citep{apley2020visualizing,Gromping2020MAEP}, we limit
+ourselves to the following piecewise linear function,
 
 \begin{equation}
   \label{eq:synth-ex-1-function}
@@ -566,100 +583,113 @@ where \(f_{\mathtt{lin}}(\mathbf{x}) = a_1 x_1 + a_2 x_2\) and
 \(f_{\mathtt{int}}\) interacts the two non-correlated variables. The
 samples that we use in all examples are coming from the following
 distribution: \(p(\mathbf{x}) = p(x_3)p(x_2|x_1)p(x_1)\) where
-\(x_1 \sim \mathcal{U}(0,1)\),
-\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2=0)\) and
-\(x_3 \sim \mathcal{N}(0, \sigma_3^2)\). We will test three variations
-by changing the parameters of the black-box function and of the
-generative distribution. Despite the model's simplicity, as we will
-see below, PDP with ICE plot fail completely to capture the
-ground-truth effect, due to the correlation between features \(X_1\)
-and \(X_2\). Furthermore, besides not the focus of the current
-example, NAME method manages to automatically extract the regions with
-constant effect. Details for obtaining the ground truth effects and
-the experimental set-up are in the Appendix.\footnote{The Appendix
-  contains the effects for all the features, some of them are ommited
-  here for compact presentation.}
+\(x_1 \sim \mathcal{U}(0,1)\), \(x_2 = x_1\) and
+\(x_3 \sim \mathcal{N}(0, \sigma_3^2)\). We will test the effect
+computed by NAME and PDP-ICE in three cases; (a) no interaction
+(\(\alpha=0\)) and equal weights (\(a_1=a_2\)), (b) no interaction
+(\(\alpha=0\)) and different weigths (\( a_1 \neq a_2 \)) and (c) with
+interaction (\(\alpha \neq 0\)) with equal weights (\(a_1=a_2\)).
+
+In all cases, we firstly compute the ground-truth average effect and
+the uncertainty analytically (proofs in the Appendix) and then we
+compare it against the approximation provided by each method. The
+approximation is computed after generating \(N=300\) samples. As we
+will see, despite the model's simplicity, PDP-ICE fail in quantifying
+the effect correctly, due to correlation between features \(X_1\) and
+\(X_2\). Finally, besides it is not the focus of the current examples,
+we will also observe that NAME manages to correctly extract the
+regions with constant effect. Details for obtaining the ground truth
+effects and the experimental set-up are in the Appendix.
 
 \paragraph{No Interaction, Equal weights.}
 
 We test the feature effect when no interaction term is apparent,
 i.e. \(\alpha=0\), and the weights are equal \(a_1=a_2=1\).  In this
-case, ground truth effect for \(f^{\mathtt{GT}}(x_1)\) is \(x_1\) when
-\(0 \leq x_1 < 0.25\), \(-x_1\) when \(0.25 \leq x_1 < 0.5\) and zero
-otherwise. In each position \(x_1\), there is complete absence of
-heterogeneous effects, and therefore, the uncertainty of the global
-explanation is zero, i.e. \(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). In
-Figure~\ref{fig:ex-synth-1-1} we see that PDP effect is completely
-wrong and ICE plots imply heterogeneous effects. In contrast, ALE
-captures correctly the average effect and the zero uncertainty.
+case, the ground truth effect \(f_\mu^{\mathtt{GT}}(x_1)\) is: \(x_1\)
+when \(0 \leq x_1 < 0.25\), \(-x_1\) when \(0.25 \leq x_1 < 0.5\) and
+zero otherwise. In each position, there is total absence of
+heterogeneous effects; therefore, the uncertainty of the global
+explanation is zero \(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). In
+Figure~\ref{fig:ex-synth-1-1}, we observe that PDP main effect is
+wrong and ICE plots imply the existence of heterogeneous effects. In
+contrast, ALE captures correctly the average effect and the zero
+uncertainty and it also groups perfectly the regions with
+constant-effect.
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=.23\textwidth]{example_1/dale_feat_0.png}
-  \includegraphics[width=.23\textwidth]{example_1/pdp_ice_feat_0.png}
-  \caption{Feature effect for \(x_1\); NAME method at the left and PDP
-    with ICE at the right.}
+  \includegraphics[width=.23\textwidth]{example_1/dale_feat_0.pdf}
+  \includegraphics[width=.23\textwidth]{example_1/pdp_ice_feat_0.pdf}
+  \caption{No interaction, Equal weights: Feature effect for \(x_1\);
+    Ground-truth vs (a) NAME method at the left and (b) PDP-ICE at the
+    right.}
   \label{fig:synth-ex-1-case-1}
 \end{figure}
 
-\paragraph{No Uncertainty, Different weights.}
+\paragraph{No Interaction, Different weights.}
 
-As before, there is no interaction term, i.e. \(\alpha=0\), and
-uncertainty about the value of \(x_2\), i.e.  \(x_2 = x_1\), but we
-give different weight to each feture \(a_1=2, a_2=0.5\). Again, we
-observe that ALE quantifies perfectly the ground truth effect and the
-zero-uncertainty in contrast to PDP with ICE.
+As before, there is no interaction term and, therefore, the
+ground-truth is zero, i.e.  \(f^{\mathcal{GT}}_{\sigma^2}(x_1) =
+0\). The weigts are different \(a_1=2, a_2=0.5\), therefore, the
+ground-truth effect is \(f_\mu^{\mathtt{GT}}(x_1)\) is: \(2x_1\) when
+\(0 \leq x_1 < 0.2\), \(-2x_1\) when \(0.2 \leq x_1 < 0.4\) and zero
+otherwise. In Figure~\ref{fig:ex-synth-1-2}, we observe that PDP
+estimation is completely opposite to the ground-truth effect,
+i.e.~negative in \([0, 0.2)\) and positive in \([0.2, 0.4)\), and the
+ICE erroneously implies heterogeneous effects.  As before, ALE
+quantifies perfectly the ground truth effect and the zero-uncertainty,
+extracting correcltly the constant effect regions.
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=.23\textwidth]{example_2/dale_feat_0.png}
-  \includegraphics[width=.23\textwidth]{example_2/pdp_ice_feat_0.png}
-  \caption{Figure 1}
-  \label{fig:ex-synth-1-1}
+  \includegraphics[width=.23\textwidth]{example_2/dale_feat_0.pdf}
+  \includegraphics[width=.23\textwidth]{example_2/pdp_ice_feat_0.pdf}
+  \caption{No interaction, Different weights: Feature effect for \(x_1\);
+    Ground-truth vs (a) NAME method at the left and (b) PDP-ICE at the
+    right.}
+  \label{fig:ex-synth-1-2}
 \end{figure}
 
 \paragraph{Uncertainty, Equal weights.}
 
 In this case we activate the interaction term, i.e. \(a=1\), and we
-set equal weights \(a_1=a_2=1\). In contrast with above, the
-interaction term provokes heterogeneous effects for features
-\(x_1, x_3\); at any position \(x_1\), the local effects dependend on
-the unknown value of \(X_3\) and vice-versa. The effect of \(x_2\)
-continues to have zero-uncertainty, since it does not appear in any
-interaction term. NAME captures perfectly the effect of all features,
-and the uncertainty in the case of \(x_1, x_2\). On the contrary,
-PDP-ICE quantify the effect and the uncertainty correctly only in the
-case of \(x_3\). For all other features, both the average effect and
-the uncertainty implied by ICE plots are wrong.
+set equal weights \(a_1=a_2=1\). The interaction term provokes
+heterogeneous effects in features \(x_1, x_3\), i.e., at any position
+\(x_1\), the local effects dependend on the unknown value of \(X_3\)
+and vice-versa. The effect of \(x_2\) continues to have
+zero-uncertainty, since it does not appear in any interaction term. As
+we observe in Figure~\ref{fig:ex-synth-1-3}, NAME captures perfectly
+the effect of all features, and the uncertainty in all cases. As
+expected, PDP-ICE quantify the effect and the uncertainty correctly
+only in the case of \(x_3\), since \(X_3\) is independent from other
+features. For the correlated features, i.e. \(x_1, x_2\), the average
+effect computed by PDP and the uncertainty implied by ICE plots are
+wrong.
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=.23\textwidth]{example_3/dale_feat_0.png}
-  \includegraphics[width=.23\textwidth]{example_3/pdp_ice_feat_0.png}\\
-  \includegraphics[width=.23\textwidth]{example_3/dale_feat_1.png}
-  \includegraphics[width=.23\textwidth]{example_3/pdp_ice_feat_1.png}\\
-  \includegraphics[width=.23\textwidth]{example_3/dale_feat_2.png}
-  \includegraphics[width=.23\textwidth]{example_3/pdp_ice_feat_2.png}\\
-  \caption{Figure 1}
-  \label{fig:ex-synth-1-1}
+  \includegraphics[width=.23\textwidth]{example_3/dale_feat_0.pdf}
+  \includegraphics[width=.23\textwidth]{example_3/pdp_ice_feat_0.pdf}\\
+  \includegraphics[width=.23\textwidth]{example_3/dale_feat_1.pdf}
+  \includegraphics[width=.23\textwidth]{example_3/pdp_ice_feat_1.pdf}\\
+  \includegraphics[width=.23\textwidth]{example_3/dale_feat_2.pdf}
+  \includegraphics[width=.23\textwidth]{example_3/pdp_ice_feat_2.pdf}\\
+  \caption{With interaction, equal weights: Feature effect for all
+    features, \(x_1\) to \(x_3\) from top to bottom; Ground-truth vs
+    (a) NAME method at the left columns and (b) PDP-ICE at the right
+    column.}
+  \label{fig:ex-synth-1-3}
 \end{figure}
 
 \paragraph{Discussion.}
 
-The examples presented above, do not cover all cases. Therefore, they
-are not sufficiect to prove that NAME method quantifies the effect
-correctly in all cases. Their main objective is to highlight that PDP
-indifference for correlated features provoques erroneous effects, even
-in very simple cases. Unfortunately, the methods that are based on
-PDP and ICE to quantify heterogeneity are also vulnerable to the same
-errors.
-
-The examples above do not cover the case where the interaction term
-include correlated features, \(x_1, x_2\) for our example. In this
-case, there is controversy about the ground-truth
+In purpose, the examples above do not cover the case where there is an
+interaction term includes correlated features, i.e. \(x_1x_2\). In
+this scenario, there is an open debate about the ground-truth
 effect~\citep{Gromping2020MAEP}.
 
-\subsection{Synthetic Example 2: Bin-Splitting}
+\subsection{Examples 2: Bin-Splitting}
+\label{sec:simulation-examples-2}
 
 The aim of this example is to illustrate the advantages of automatic
 bin-splitting based on the objective of Eq.(\ref{eq:opt}). For
@@ -713,10 +743,10 @@ regions with similar effects, leading to a near optimal bin splitting.
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_1.jpg}
-  \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_2.jpg}\\
-  \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_3.jpg}
-  \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_4.jpg}
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_1.pdf}
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_2.pdf}\\
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_3.pdf}
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_4.pdf}
   \caption{Figure 1}
   \label{fig:ex-synth-1-1}
 \end{figure}
@@ -729,16 +759,23 @@ The black-box function \(f(\mathbf{x}) = 4x_1^2 + x_2^2 + x_1x_2\)
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_1.jpg}
-  \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_2.jpg}\\
-  \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_3.jpg}
-  \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_4.jpg}
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_1.pdf}
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_2.pdf}\\
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_3.pdf}
+  \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_4.pdf}
   \caption{Figure 1}
   \label{fig:ex-synth-1-1}
 \end{figure}
 
 \section{REAL-WORLD EXAMPLES}
 
+we also
+apply the methods on some real-world datasets. In these cases, it is
+infeasible to obtain ground truth information, therefore, we perform
+evaluation at two levels. First, we compare visually NAME versus PDP
+with ICE plots. Second, we hold as ground-truth the effects computed
+on the full training-set and we, then, perform subsampling to evaluate
+the robustness of the bin-splitting method.
 
 \subsubsection*{Acknowledgments}
 All acknowledgments go at the end of the paper, including thanks to reviewers who gave useful comments, to colleagues who contributed to the ideas, and to funding agencies and corporate sponsors that provided financial support. 

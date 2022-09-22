@@ -48,11 +48,11 @@ y, var, stderr = dale.eval(x=np.linspace(axis_limits[0,0], axis_limits[1,0], 100
                            s=0,
                            uncertainty=True)
 if savefig:
-    pathname = os.path.join(path, "example_3", "dale_feat_0.png")
+    pathname = os.path.join(path, "example_3", "dale_feat_0.pdf")
     dale.plot(s=0, error="std", savefig=pathname)
-    pathname = os.path.join(path, "example_3", "dale_feat_1.png")
+    pathname = os.path.join(path, "example_3", "dale_feat_1.pdf")
     dale.plot(s=1, error="std", savefig=pathname)
-    pathname = os.path.join(path, "example_3", "dale_feat_2.png")
+    pathname = os.path.join(path, "example_3", "dale_feat_2.pdf")
     dale.plot(s=2, error="std", savefig=pathname)
 else:
     dale.plot(s=0, error="std")
@@ -64,11 +64,11 @@ pdp_ice = fe.PDPwithICE(data=X,
                         model=model.predict,
                         axis_limits=axis_limits)
 if savefig:
-    pathname = os.path.join(path, "example_3", "pdp_ice_feat_0.png")
+    pathname = os.path.join(path, "example_3", "pdp_ice_feat_0.pdf")
     pdp_ice.plot(s=0, normalized=True, nof_points=300, savefig=pathname)
-    pathname = os.path.join(path, "example_3", "pdp_ice_feat_1.png")
+    pathname = os.path.join(path, "example_3", "pdp_ice_feat_1.pdf")
     pdp_ice.plot(s=1, normalized=True, nof_points=300, savefig=pathname)
-    pathname = os.path.join(path, "example_3", "pdp_ice_feat_2.png")
+    pathname = os.path.join(path, "example_3", "pdp_ice_feat_2.pdf")
     pdp_ice.plot(s=2, normalized=True, nof_points=300, savefig=pathname)
 else:
     pdp_ice.plot(s=0, normalized=True, nof_points=300)

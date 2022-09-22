@@ -107,7 +107,7 @@ class DALE(FeatureEffectBase):
             pass
 
     def fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
-        alg_params = helpers.prep_dale_fit_params(alg_params)
+        alg_params = helpers.prep_dale_fit_bparams(alg_params)
 
         if self.data_effect is None:
             self.compile()

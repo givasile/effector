@@ -146,5 +146,5 @@ def plot_fixed_vs_auto(K_list, fixed_mean, fixed_std, auto_mean, auto_std, title
              label="auto-bin")
     plt.legend()
     if savefig is not None:
-        plt.savefig(savefig)
+        plt.savefig(savefig, bbox_inches="tight")
     plt.show(block=False)
