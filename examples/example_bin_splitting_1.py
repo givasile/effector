@@ -73,7 +73,7 @@ utils.plot_fixed_vs_auto(K_list,
                          stats_fixed["mu_err_std"],
                          stats_auto["mu_err_mean"],
                          stats_auto["mu_err_mean"],
-                         "mu error per bin",
+                         "mu",
                          savefig=savepath)
 
 savepath = os.path.join(path2dir, "fig_3.pdf") if savefig else None
@@ -82,7 +82,7 @@ utils.plot_fixed_vs_auto(K_list,
                          stats_fixed["var_err_std"],
                          stats_auto["var_err_mean"],
                          stats_auto["var_err_mean"],
-                         "var error per bin",
+                         "var",
                          savefig=savepath)
 
 savepath = os.path.join(path2dir, "fig_4.pdf") if savefig else None
@@ -91,5 +91,5 @@ utils.plot_fixed_vs_auto(K_list,
                          stats_fixed["rho_std"],
                          stats_auto["rho_mean"],
                          stats_auto["rho_mean"],
-                         "rho per bin",
+                         "rho",
                          savefig=savepath)

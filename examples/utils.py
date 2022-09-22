@@ -136,14 +136,27 @@ def measure_auto_error(dale_gt, gen_dist, model, axis_limits, nof_iterations, no
     return stats
 
 
-def plot_fixed_vs_auto(K_list, fixed_mean, fixed_std, auto_mean, auto_std, title, savefig=None):
+def plot_fixed_vs_auto(K_list, fixed_mean, fixed_std, auto_mean, auto_std, metric, savefig=None):
     plt.figure()
-    plt.title(title)
-    plt.plot(K_list, fixed_mean, 'x', label="fixed-bin")
+    assert metric in ["rho", "mu", "var"]
+    if metric == "rho":
+        pass
+        plt.ylabel(r"$\log \mathcal{L}_{\mathtt{K}}^{\rho^2}$")
+        plt.title(r"Log of Nuisance Uncertainty ($\log \mathcal{L}_{\mathtt{K}}^{\rho^2}$)")
+    elif metric == "var":
+        plt.ylabel("$\log \mathcal{L}_{\mathtt{K}}^{\sigma^2}$")
+        plt.title("Log Error in Uncertainty ($\log \mathcal{L}_{\mathtt{K}}^{\sigma^2}$)")
+    elif metric == "mu":
+        plt.ylabel("$\log \mathcal{L}_{\mathtt{K}}^{\mu}$")
+        plt.title("Log Error in Mean Effect ($\log \mathcal{L}_{\mathtt{K}}^{\mu}$)")
+
+    plt.plot(K_list, np.log(fixed_mean), 'x', label="fixed-bin")
     plt.plot(K_list,
-             np.repeat(auto_mean, len(K_list)),
+             np.log(np.repeat(auto_mean, len(K_list))),
              "r--",
              label="auto-bin")
+    plt.xlabel("$K$")
+
     plt.legend()
     if savefig is not None:
         plt.savefig(savefig, bbox_inches="tight")

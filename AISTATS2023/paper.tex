@@ -688,58 +688,77 @@ interaction term includes correlated features, i.e. \(x_1x_2\). In
 this scenario, there is an open debate about the ground-truth
 effect~\citep{Gromping2020MAEP}.
 
-\subsection{Examples 2: Bin-Splitting}
+\subsection{Case 2: Bin-Splitting}
 \label{sec:simulation-examples-2}
 
-The aim of this example is to illustrate the advantages of automatic
-bin-splitting based on the objective of Eq.(\ref{eq:opt}). For
-evaluating our approach, we create the following validation framework;
-We generate a big dataset using dense sampling \(N=10^6\) and we treat
-as ground-truth the ALE estimation using dense fixed-size binning
-\(K=10^3\). Afterwards, we generate less samples \(X=500\) and we
-compare (a) the fixed-size ALE estimation for many different \(K\)
-versus (b) the auto-bin splitting algorithm. In all cases, the data
-generating distribution is \(p(\mathbf{x}) = p(x_2|x_1)p(x_1)\) where
-\(x_1 \sim \mathcal{U}(0,1)\),
-\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2=2)\).
+In this simulation, we aim to to quantify the advantages of automatic
+bin-splitting based on the objective of Eq.(\ref{eq:opt}), through the
+following validation framework. We generate a big dataset with dense
+sampling (\(N=10^6\)) and we treat the DALE estimation with dense
+fixed-size bins (\(K=10^3\)) as ground-truth. Afterwards, we generate
+less samples (\(N=500\)) and we compare (a) the fixed-size DALE
+estimation for many different \(K\) versus (b) the auto-bin splitting
+algorithm. In all cases, we use a bivariate black-box function
+\(f(\cdot)\) where the samples are instances of the distribution
+\(p(\mathbf{x}) = p(x_2|x_1)p(x_1)\) where
+\(x_1 \sim \mathcal{U}(0,1)\) and
+\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2=0.5)\).
 
 We denote as
 \(\mathcal{Z^{\mathtt{DP}}} = \{z^{\mathtt{DP}}_{k-1}, \cdots,
-z^{\mathtt{DP}}_{K}\}\) the sequence obtained by automatic-splitting
-based on the optimisation problem of Eq.~(\ref{eq:opt}) and with
-\(\mathcal{Z^{\mathtt{K}}}\}\) the corresponding fixed-sized
-splitting. The comparison is done using three metrics; (a)
+z^{\mathtt{DP}}_{K}\}\) the sequence obtained by automatic
+bin-splitting based on the optimisation problem of Eq.~(\ref{eq:opt})
+and with \(\mathcal{Z^{\mathtt{K}}}\) the fixed-size splitting with
+\(K\) bins. The evaluation is done with regard to two metrics;
 \(\mathcal{L}_{\mathtt{DP|K}}^{\mu} =
-\frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k=1}^K | \mu_k -
-\hat{\mu}_k | \) quantifies the average error in estimating the the
-expected effect, (b)
+\frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k \in
+  \mathcal{Z}^{\mathtt{DP|K}}} | \mu_k - \hat{\mu}_k | \) quantifies
+the average error in estimating the the expected effect and
 \(\mathcal{L}_{\mathtt{DP|K}}^{\sigma^2} =
-\frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k=1}^K | \sigma_k^2 -
-\hat{\sigma}^2_k | \) the average error in estimating the variance of
-the effect and (c)
+\frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k \in
+  \mathcal{Z}^{\mathtt{DP|K}}} | \sigma_k^2 - \hat{\sigma}^2_k | \)
+the average error in estimating the variance of the effect. The metric
 \(\mathcal{L}^{\rho^2}_{\mathtt{DP|K}} =
-\frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k=1}^K \rho^2_k \) the
-average extra nuisance uncertainty.
+\frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k \in
+  \mathcal{Z}^{\mathtt{DP|K}}} \rho^2_k \) quantifies the average
+nuisance uncertainty. The optimal bin-splitting is the one that
+minimises, at the same time, both \(\mathcal{L}^{\mu}\) and
+\(\mathcal{L}^{\sigma^2}\) errors. For consistent results, in all the
+examples below, we regenerate samples and repeat the computations for
+\(t = 10\) times, providing the mean value for all metrics.
 
-\paragraph{Example 1.}
+\paragraph{Piecewise-Linear Function.}
 
-In this example, we defin a black-box function
-\(f_1(x_1) = a_1x_1 + x_1x_2\) with 6 piecewise-linear regions of
-different-size, i.e., \(a_1\) equals to \(=\{2, -2, 5, -10, 0.5\}\) in
-the regions defined by the sequence \(\{0, 0.2, 0.4, 0.45, 0.5,
-1\}\). The example highlights the importance of variable-size
-splitting. Given that the smalest intervals size is \(0.05\) any
-fixed-size splitting with less than \( \frac{1}{\Delta x} = 20\) bins,
-will mix together effects and increase the variance error
-\(\mathcal{L}_{\mathtt{K}}^{\sigma^2}\) due to the increase of the
-residual \(\mathcal{L}_{\mathtt{K}}^{\rho^2} > 0\). This is evident in
-figure. On the other hand, a large number of bins divides homogeneuos
-regions, i.e. region \([0.5, 1)\), into smaller ones with more
-unstable estimations which increases
-\(\mathcal{L}_{\mathtt{K}}^{\mu}\) Figure. Variable-size binning leads
-to the optimal solution. As we see in figure automatic-bin splitting
-small bins in areas with fine-grain effects and merges together
-regions with similar effects, leading to a near optimal bin splitting.
+In this example, we define \(f(\mathbf{x}) = a_1x_1 + x_1x_2\) with
+\(5\) piecewise-linear regions of different-size, i.e., \(a_1\) equals
+to \(=\{2, -2, 5, -10, 0.5\}\) in the intervals defined by the
+sequence \(\{0, 0.2, 0.4, 0.45, 0.5, 1\}\). As we observe, in
+Figure~\ref{fig:ex-synth-2-1}, NAME method extracts a sequence of
+intervals with better \(\mathcal{L}_{\mathtt{DP}}^{\mu}\) and
+\(\mathcal{L}_{\mathtt{DP}}^{\sigma^2}\) error compared to any
+fixed-size splitting. Analyzing the fixed-size errors helps us
+understand the importance of variable-size splitting. In
+Figure~\ref{fig:ex-synth-2-1}(b), we observe a positive trend between
+\(\mathcal{L}^{\mu}_{\mathtt{K}}\) and \(K\), concluding that bin
+effect estimation is more incosistent as \(\Delta x\) becomes smaller,
+due to less points contributing to each bin. The interpretation of
+variance error is slightly more complex. Given that the smallest
+interval is \(\Delta x = 0.05 \Rightarrow K = 20\) and all intervals
+are multiples of the smallest interval, any \(K\) that is not a
+multiple of \(20\) adds nuisance uncertainty
+\(\mathcal{L}^{\rho^2}_{\mathtt{K}}\) leading to a high variance error
+\(\mathcal{L}^{\sigma^2}_{\mathtt{K}}\). In these cases, the variance
+error reduces as \(K\) grows bigger because the length of the bins
+that lie in the limit between two piecewise linear regions becomes
+smaller. For \(K=\{20, 40, 60, 80, 100\}\) where
+\(\mathcal{L}^{\rho^2}_{\mathtt{K}} \approx 0\), we conclude the same
+as with with the mean effect error, i.e. the estimation becomes more
+incosistent as \(K\) grows larger.
+
+Variable-size extracts correctly the fine-grain bins, e.g., intervals
+\([0.4, 0.45]\), \([0.45, 0.5]\), and acts as a merging mechanism to
+create wider bins when the effect remains constant, e.g. interval
+\([0.5, 1]\), leading to an optimal solution.
 
 \begin{figure}[h]
   \centering
@@ -748,14 +767,24 @@ regions with similar effects, leading to a near optimal bin splitting.
   \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_3.pdf}
   \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_4.pdf}
   \caption{Figure 1}
-  \label{fig:ex-synth-1-1}
+  \label{fig:ex-synth-2-1}
 \end{figure}
 
 
-\paragraph{Example 2.}
+\paragraph{Non-Linear Function.}
 
-The black-box function \(f(\mathbf{x}) = 4x_1^2 + x_2^2 + x_1x_2\)
-
+In this example, we define a black-box function
+\(f(\mathbf{x}) = 4x_1^2 + x_2^2 + x_1x_2\), where the effect is
+non-linear in all the range of \(x\). This case has two
+specialties. First, there is no obvious advantage of variable-size
+versus fixed-size splitting, and, second, there is not an apriori
+optimal bin-size. Widening a bin will increase the resolution error
+\(\mathcal{L}^{\rho^2}\) and narrowing will make less robust. In
+Figure~\ref{fig:ex-synth-2-2}, we observe that automatic bin splitting
+finds a solution that compromises the conflicting objectives, i.e., it
+keeps as low as possible both the main effect
+\(\mathcal{L}^{\mu}_{\mathtt{K}}\) and the variance error
+\(\mathcal{L}^{\sigma^2}_{\mathtt{K}}\).
 
 \begin{figure}[h]
   \centering
@@ -764,8 +793,10 @@ The black-box function \(f(\mathbf{x}) = 4x_1^2 + x_2^2 + x_1x_2\)
   \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_3.pdf}
   \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_4.pdf}
   \caption{Figure 1}
-  \label{fig:ex-synth-1-1}
+  \label{fig:ex-synth-2-2}
 \end{figure}
+
+\paragraph{Discussion.}
 
 \section{REAL-WORLD EXAMPLES}
 
@@ -776,6 +807,8 @@ evaluation at two levels. First, we compare visually NAME versus PDP
 with ICE plots. Second, we hold as ground-truth the effects computed
 on the full training-set and we, then, perform subsampling to evaluate
 the robustness of the bin-splitting method.
+
+\section{CONCLUSION}
 
 \subsubsection*{Acknowledgments}
 All acknowledgments go at the end of the paper, including thanks to reviewers who gave useful comments, to colleagues who contributed to the ideas, and to funding agencies and corporate sponsors that provided financial support. 
