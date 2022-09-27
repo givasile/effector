@@ -129,7 +129,7 @@ def compute_bin_effect_mean(data: np.ndarray, data_effect: np.ndarray, limits: n
     eps = 1e-8
     limits[-1] += eps
     ind = np.digitize(data, limits)
-    assert np.alltrue(ind > 0)
+    # assert np.alltrue(ind > 0)
 
     # bin effect is the mean of all points that lie in the bin
     nof_bins = limits.shape[0] - 1
@@ -173,7 +173,7 @@ def compute_bin_effect_variance(data, data_effect, limits, bin_effect_mean):
     eps = 1e-8
     limits[-1] += eps
     ind = np.digitize(data, limits)
-    assert np.alltrue(ind > 0)
+    # assert np.alltrue(ind > 0)
 
     # variance of the effect in each bin
     variance_per_point = (data_effect - bin_effect_mean[ind - 1]) ** 2

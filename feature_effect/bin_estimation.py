@@ -112,11 +112,11 @@ class GreedyBase:
 
 
 class Greedy(GreedyBase):
-    def __init__(self, data, data_effect, feature):
+    def __init__(self, data, data_effect, feature, axis_limits):
         self.data = data
         self.data_effect = data_effect
-        xs_min = data[:, feature].min()
-        xs_max = data[:, feature].max()
+        xs_min = data[:, feature].min() if axis_limits is None else axis_limits[0, feature]
+        xs_max = data[:, feature].max() if axis_limits is None else axis_limits[1, feature]
         super(Greedy, self).__init__(feature, xs_min, xs_max)
 
     def bin_loss(self, start, stop):
@@ -284,11 +284,11 @@ class DPBase:
 
 
 class DP(DPBase):
-    def __init__(self, data, data_effect, feature):
+    def __init__(self, data, data_effect, feature, axis_limits):
         self.data = data
         self.data_effect = data_effect
-        xs_min = np.min(data[:, feature])
-        xs_max = np.max(data[:, feature])
+        xs_min = data[:, feature].min() if axis_limits is None else axis_limits[0, feature]
+        xs_max = data[:, feature].max() if axis_limits is None else axis_limits[1, feature]
         self.nof_points = data.shape[0]
         self.feature = feature
         super(DP, self).__init__(feature, xs_min, xs_max)
@@ -379,11 +379,11 @@ class FixedSizeBase:
 
 
 class FixedSize(FixedSizeBase):
-    def __init__(self, data, data_effect, feature):
+    def __init__(self, data, data_effect, feature, axis_limits):
         self.data = data
         self.data_effect = data_effect
-        xs_min = data[:, feature].min()
-        xs_max = data[:, feature].max()
+        xs_min = data[:, feature].min() if axis_limits is None else axis_limits[0, feature]
+        xs_max = data[:, feature].max() if axis_limits is None else axis_limits[1, feature]
         super(FixedSize, self).__init__(feature, xs_min, xs_max)
 
     def bin_valid(self, start, stop):

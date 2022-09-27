@@ -112,26 +112,39 @@ class DALE(FeatureEffectBase):
         if self.data_effect is None:
             self.compile()
 
+        # drop points outside of limits
+        if self.axis_limits is not None:
+            ind = np.logical_and(self.data[:, s] > self.axis_limits[0, s],
+                                 self.data[:, s] < self.axis_limits[1, s])
+            data = self.data[ind,:]
+            data_effect = self.data_effect[ind,:]
+        else:
+            data = self.data
+            data_effect = self.data_effect
+
         # bin estimation
         if alg_params["bin_method"] == "fixed":
-            bin_est = be.FixedSize(self.data, self.data_effect, feature=s)
+            bin_est = be.FixedSize(data, data_effect, feature=s,
+                                   axis_limits=self.axis_limits)
             bin_est.solve(min_points = alg_params["min_points_per_bin"],
                           K = alg_params["nof_bins"],
                           enforce_bin_creation = alg_params["enforce_bin_creation"])
         elif alg_params["bin_method"] == "greedy":
-            bin_est = be.Greedy(self.data, self.data_effect, feature=s)
+            bin_est = be.Greedy(data, data_effect, feature=s,
+                                axis_limits=self.axis_limits)
             bin_est.solve(min_points = alg_params["min_points_per_bin"],
                           K = alg_params["nof_bins"])
         elif alg_params["bin_method"] == "dp":
-            bin_est = be.DP(self.data, self.data_effect, feature=s)
+            bin_est = be.DP(data, data_effect, feature=s,
+                            axis_limits=self.axis_limits)
             bin_est.solve(min_points = alg_params["min_points_per_bin"],
                           K = alg_params["max_nof_bins"])
         self.bin_est = bin_est
 
         # stats per bin
         assert bin_est.limits is not False, "Impossible to compute bins with enough points for feature " + str(s+1) + " and binning strategy: " + alg_params["bin_method"] + ". Change bin strategy or method parameters."
-        dale_params = utils.compute_fe_parameters(self.data[:, s],
-                                                  self.data_effect[:, s],
+        dale_params = utils.compute_fe_parameters(data[:, s],
+                                                  data_effect[:, s],
                                                   bin_est.limits,
                                                   min_points_per_bin=alg_params["min_points_per_bin"])
         dale_params["limits"] = bin_est.limits

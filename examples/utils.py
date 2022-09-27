@@ -26,26 +26,26 @@ def compare(dale_gt, dale):
     :returns:
 
     """
-    limits_gt = dale_gt.feature_effect["feature_0"]["limits"]
-    limits = dale.feature_effect["feature_0"]["limits"]
+    limits_gt = dale_gt["limits"]
+    limits = dale["limits"]
     ind = np.digitize(limits, limits_gt) - 1
 
     rho_list = []
     mu_err_list = []
     var_err_list = []
     for i in range(limits.shape[0] - 1):
-        means = dale_gt.feature_effect["feature_0"]["bin_effect"][ind[i]+1:ind[i+1]]
-        variances = dale_gt.feature_effect["feature_0"]["bin_variance"][ind[i]+1:ind[i+1]]
+        means = dale_gt["bin_effect"][ind[i]+1:ind[i+1]]
+        variances = dale_gt["bin_variance"][ind[i]+1:ind[i+1]]
 
         rho_bin = means.var()
         rho_list.append(rho_bin)
 
         mu_gt = means.mean()
-        mu_est = dale.feature_effect["feature_0"]["bin_effect"][i]
+        mu_est = dale["bin_effect"][i]
         mu_err_list.append(np.abs(mu_gt - mu_est))
 
         var_gt = variances.mean()
-        var_est = dale.feature_effect["feature_0"]["bin_variance"][i]
+        var_est = dale["bin_variance"][i]
         var_err_list.append(np.abs(var_gt - var_est))
 
     mean_rho = np.mean(rho_list)
@@ -82,7 +82,74 @@ def measure_fixed_error(dale_gt, gen_dist, model, axis_limits, K_list, nof_itera
 
             try:
                 dale.fit(features=[0], alg_params=alg_params)
-                res_err, mu_err, var_err = compare(dale_gt, dale)
+                res_err, mu_err, var_err = compare(dale_gt.feature_effect["feature_0"],
+                                                   dale.feature_effect["feature_0"])
+                rho_tmp.append(res_err)
+                mu_tmp.append(mu_err)
+                var_tmp.append(var_err)
+            except:
+                print("aek")
+                pass
+
+        rho_mean.append(np.mean(rho_tmp))
+        rho_std.append(np.std(rho_tmp))
+
+        mu_mean.append(np.mean(mu_tmp))
+        mu_std.append(np.std(mu_tmp))
+
+        var_mean.append(np.mean(var_tmp))
+        var_std.append(np.std(var_tmp))
+
+    stats = {"rho_mean": rho_mean,
+             "rho_std": rho_std,
+             "mu_err_mean": mu_mean,
+             "mu_err_std": mu_std,
+             "var_err_mean": var_mean,
+             "var_err_std": var_std}
+
+    return stats
+
+
+def measure_fixed_error_real_dataset(dale_gt,
+                                     data,
+                                     model,
+                                     model_grad,
+                                     axis_limits,
+                                     K_list,
+                                     nof_iterations,
+                                     nof_points,
+                                     feature):
+
+    # fit approximation
+    rho_mean = []
+    rho_std = []
+
+    mu_mean = []
+    mu_std = []
+    var_mean = []
+    var_std = []
+
+    # for fixed
+    for i, k in enumerate(K_list):
+        rho_tmp = []
+        mu_tmp = []
+        var_tmp = []
+        for l in range(nof_iterations):
+            ind = np.random.choice(data.shape[0], size=nof_points, replace=False)
+            X = data[ind]
+            dale = fe.DALE(data=X,
+                           model=model,
+                           model_jac=model_grad,
+                           axis_limits=axis_limits)
+            alg_params = {"bin_method" : "fixed",
+                          "nof_bins" : k,
+                          "min_points_per_bin": 2}
+
+            dale.fit(features=[feature], alg_params=alg_params)
+            try:
+                dale.fit(features=[feature], alg_params=alg_params)
+                res_err, mu_err, var_err = compare(dale_gt.feature_effect["feature_" + str(feature)],
+                                                   dale.feature_effect["feature_" + str(feature)])
                 rho_tmp.append(res_err)
                 mu_tmp.append(mu_err)
                 var_tmp.append(var_err)
@@ -121,11 +188,48 @@ def measure_auto_error(dale_gt, gen_dist, model, axis_limits, nof_iterations, no
                        axis_limits=axis_limits)
         alg_params = {"bin_method" : "dp", "max_nof_bins" : 20, "min_points_per_bin": 10}
         dale.fit(features=[0], alg_params=alg_params)
-        res_err1, mu_err1, var_err1 = compare(dale_gt, dale)
+        res_err, mu_err, var_err = compare(dale_gt.feature_effect["feature_0"],
+                                                   dale.feature_effect["feature_0"])
 
-        rho.append(res_err1)
-        mu.append(mu_err1)
-        var.append(var_err1)
+        rho.append(res_err)
+        mu.append(mu_err)
+        var.append(var_err)
+
+    stats = {"rho_mean": np.mean(rho),
+             "rho_std": np.std(rho),
+             "mu_err_mean": np.mean(mu),
+             "mu_err_std": np.std(mu),
+             "var_err_mean": np.mean(var),
+             "var_err_std": np.std(var)}
+    return stats
+
+
+def measure_auto_error_real_dataset(dale_gt,
+                                    data,
+                                    model,
+                                    model_grad,
+                                    axis_limits,
+                                    nof_iterations,
+                                    nof_points,
+                                    feature):
+    rho = []
+    mu = []
+    var = []
+    for l in range(nof_iterations):
+        ind = np.random.choice(data.shape[0], size=nof_points, replace=False)
+        X = data[ind]
+        dale = fe.DALE(data=X,
+                       model=model,
+                       model_jac=model_grad,
+                       axis_limits=axis_limits)
+        alg_params = {"bin_method" : "dp", "max_nof_bins" : 20, "min_points_per_bin": 10}
+        dale.fit(features=[feature], alg_params=alg_params)
+        res_err, mu_err, var_err = compare(dale_gt.feature_effect["feature_" + str(feature)],
+                                           dale.feature_effect["feature_" + str(feature)])
+
+        rho.append(res_err)
+        mu.append(mu_err)
+        var.append(var_err)
 
     stats = {"rho_mean": np.mean(rho),
              "rho_std": np.std(rho),
