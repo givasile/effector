@@ -188,7 +188,7 @@ for s in range(8):
 
     # plots
     path2dir = os.path.join(path, folder_name)
-    savepath = os.path.join(path2dir, "compare_mu_err_feature_" + str(s) + ".png") if savefig else None
+    savepath = os.path.join(path2dir, "compare_mu_err_feature_" + str(s) + ".pdf") if savefig else None
     utils.plot_fixed_vs_auto(K_list,
                              stats_fixed["mu_err_mean"],
                              stats_fixed["mu_err_std"],
@@ -197,7 +197,7 @@ for s in range(8):
                              "mu",
                              savefig=savepath)
 
-    savepath = os.path.join(path2dir, "compare_var_err_feature_" + str(s) + ".png") if savefig else None
+    savepath = os.path.join(path2dir, "compare_var_err_feature_" + str(s) + ".pdf") if savefig else None
     utils.plot_fixed_vs_auto(K_list,
                              stats_fixed["var_err_mean"],
                              stats_fixed["var_err_std"],
@@ -206,7 +206,7 @@ for s in range(8):
                              "var",
                              savefig=savepath)
 
-    savepath = os.path.join(path2dir, "compare_rho_feature_" + str(s) + ".png") if savefig else None
+    savepath = os.path.join(path2dir, "compare_rho_feature_" + str(s) + ".pdf") if savefig else None
     utils.plot_fixed_vs_auto(K_list,
                              stats_fixed["rho_mean"],
                              stats_fixed["rho_std"],
@@ -219,15 +219,15 @@ for s in range(8):
 for s in range(8):
     ind = np.random.choice(X_tr.shape[0], size=200, replace=False)
     pdp_ice = fe.PDPwithICE(X_tr[ind], model, axis_limits)
-    savepath = os.path.join(path2dir, "feature_" + str(s) +  "_pdp_ice.png") if savefig else None
-    pdp_ice.plot(s=s, normalized=False, nof_points=100, savefig=savepath)
+    savepath = os.path.join(path2dir, "feature_" + str(s) +  "_pdp_ice.pdf") if savefig else None
+    pdp_ice.plot(s=s, normalized=False, nof_points=50, savefig=savepath)
 
     dale = fe.DALE(X_tr, model, model_grad, axis_limits)
     alg_params = {"bin_method" : "dp",
                   "max_nof_bins" : 20,
                   "min_points_per_bin": 30}
     dale.fit(features=s, alg_params=alg_params)
-    savepath = os.path.join(path2dir, "feature_" + str(s) +  "_ale_auto.png") if savefig else None
+    savepath = os.path.join(path2dir, "feature_" + str(s) +  "_ale_auto.pdf") if savefig else None
     dale.plot(s=s, savefig=savepath)
 
     dale_gt = fe.DALE(X_tr, model, model_grad, axis_limits)
@@ -236,5 +236,5 @@ for s in range(8):
                   "min_points_per_bin": 30}
 
     dale_gt.fit(features=s, alg_params=alg_params)
-    savepath = os.path.join(path2dir, "feature_" + str(s) +  "_ale_fixed.png") if savefig else None
+    savepath = os.path.join(path2dir, "feature_" + str(s) +  "_ale_fixed.pdf") if savefig else None
     dale_gt.plot(s, savefig=savepath)
