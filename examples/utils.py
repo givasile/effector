@@ -222,7 +222,7 @@ def measure_auto_error_real_dataset(dale_gt,
                        model=model,
                        model_jac=model_grad,
                        axis_limits=axis_limits)
-        alg_params = {"bin_method" : "dp", "max_nof_bins" : 20, "min_points_per_bin": 10}
+        alg_params = {"bin_method" : "dp", "max_nof_bins" : 20, "min_points_per_bin": 30}
         dale.fit(features=[feature], alg_params=alg_params)
         res_err, mu_err, var_err = compare(dale_gt.feature_effect["feature_" + str(feature)],
                                            dale.feature_effect["feature_" + str(feature)])
@@ -259,6 +259,7 @@ def plot_fixed_vs_auto(K_list, fixed_mean, fixed_std, auto_mean, auto_std, metri
              np.log(np.repeat(auto_mean, len(K_list))),
              "r--",
              label="auto-bin")
+
     plt.xlabel("$K$")
 
     plt.legend()

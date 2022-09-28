@@ -9,15 +9,12 @@ import copy
 import feature_effect as fe
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import Normalizer
+from sklearn.model_selection import train_test_split
 
 def create_nn(X):
     nn = keras.Sequential([keras.layers.Input(shape=[X.shape[1]]),
-                           # keras.layers.Dense(512, activation='relu', use_bias=True),
-                           # keras.layers.Dense(256, activation='relu', use_bias=True),
-
-                           # keras.layers.Dense(256, activation='relu', use_bias=True),
-
-                           keras.layers.Dense(256, activation='relu', use_bias=True),                              keras.layers.Dense(128, activation='relu', use_bias=True),
+                           keras.layers.Dense(256, activation='relu', use_bias=True),
+                           keras.layers.Dense(128, activation='relu', use_bias=True),
                            keras.layers.Dense(32, activation='relu', use_bias=True),
                            keras.layers.Dense(1, use_bias=True)])
 
@@ -78,6 +75,15 @@ def load_prepare_data(path):
     return X_df, Y_df, X, Y
 
 def preprocess_data(X, Y):
+    # remove points 3 std away from the mean
+    tmp_mean = X.mean(0)
+    tmp_std = X.std(0)
+    tmp = (X - tmp_mean) / tmp_std
+    ind = np.sum(np.abs(tmp) > 3, axis=1) == 0
+    X = X[ind,:]
+    Y = Y[ind]
+
+    # normalize
     X_mu = X.mean(0)
     X_sigma = X.std(0)
     X_norm = (X-X_mu)/X_sigma
@@ -87,6 +93,9 @@ def preprocess_data(X, Y):
     Y_norm = (Y-Y_mu)/Y_sigma
     return X_norm, Y_norm, X_mu, X_sigma, Y_mu, Y_sigma
 
+def split(X_norm, Y_norm):
+   X_tr, X_te, Y_tr, Y_te =  train_test_split(X_norm, Y_norm, test_size=.2)
+   return X_tr, X_te, Y_tr, Y_te
 
 def find_axislimits(X):
     axis_limits = np.array([np.min(X, 0), np.max(X, 0)])
@@ -108,7 +117,6 @@ tf.random.set_seed(12384)
 folder_name = "real_dataset_3"
 savefig = True
 
-
 # load-prepare data
 parent_path = os.path.dirname(os.path.dirname(path))
 datapath = os.path.join(parent_path, "data", "California-Housing", "housing.csv")
@@ -118,37 +126,48 @@ X_df, Y_df, X, Y = load_prepare_data(datapath)
 X_norm, Y_norm, X_mu, X_sigma, Y_mu, Y_sigma = preprocess_data(X, Y)
 axis_limits = find_axislimits(X_norm)
 
-# train nn
-nn = create_nn(X_norm)
-nn.fit(X_norm, Y_norm, epochs=10)
+X_tr, X_te, Y_tr, Y_te = split(X_norm, Y_norm)
+
+# Train
+nn = create_nn(X_tr)
+nn.fit(X_tr, Y_tr, epochs=15)
+
+# Eval
+results = nn.evaluate(X_te, Y_te)
 
 # freeze model
 model = create_model(nn)
 model_grad = create_model_grad(nn)
 dfdx = model_grad(X_norm)
 
+
+stats_fixed_list = []
+stats_auto_list = []
+
+
 # fit feature
 for s in range(8):
-    dale = fe.DALE(X_norm, model, model_grad, axis_limits)
+    print("Feature " + str(s))
+    dale = fe.DALE(X_tr, model, model_grad, axis_limits)
     alg_params = {"bin_method" : "dp",
-                  "max_nof_bins" : 50,
+                  "max_nof_bins" : 20,
                   "min_points_per_bin": 30}
     dale.fit(features=s, alg_params=alg_params)
     dale.plot(s=s)
 
 
-    dale_gt = fe.DALE(X_norm, model, model_grad, axis_limits)
+    dale_gt = fe.DALE(X_tr, model, model_grad, axis_limits)
     alg_params = {"bin_method" : "fixed",
-                  "nof_bins" : 60,
+                  "nof_bins" : 80,
                   "min_points_per_bin": 30}
     dale_gt.fit(features=s, alg_params=alg_params)
     dale_gt.plot(s)
 
 
     # get statistics
-    K_list = list(range(1,20))
+    K_list = list(range(1,40))
     stats_fixed = utils.measure_fixed_error_real_dataset(dale_gt,
-                                                         X_norm,
+                                                         X_tr,
                                                          model,
                                                          model_grad,
                                                          axis_limits,
@@ -156,15 +175,16 @@ for s in range(8):
                                                          nof_iterations=10,
                                                          nof_points=1000,
                                                          feature=s)
-
+    stats_fixed_list.append(stats_fixed)
     stats_auto = utils.measure_auto_error_real_dataset(dale_gt,
-                                                       X_norm,
+                                                       X_tr,
                                                        model,
                                                        model_grad,
                                                        axis_limits,
                                                        nof_iterations=10,
-                                                       nof_points=2500,
+                                                       nof_points=1000,
                                                        feature=s)
+    stats_auto_list.append(stats_auto)
 
     # plots
     path2dir = os.path.join(path, folder_name)
@@ -173,7 +193,7 @@ for s in range(8):
                              stats_fixed["mu_err_mean"],
                              stats_fixed["mu_err_std"],
                              stats_auto["mu_err_mean"],
-                             stats_auto["mu_err_mean"],
+                             stats_auto["mu_err_std"],
                              "mu",
                              savefig=savepath)
 
@@ -182,7 +202,7 @@ for s in range(8):
                              stats_fixed["var_err_mean"],
                              stats_fixed["var_err_std"],
                              stats_auto["var_err_mean"],
-                             stats_auto["var_err_mean"],
+                             stats_auto["var_err_std"],
                              "var",
                              savefig=savepath)
 
@@ -191,6 +211,30 @@ for s in range(8):
                              stats_fixed["rho_mean"],
                              stats_fixed["rho_std"],
                              stats_auto["rho_mean"],
-                             stats_auto["rho_mean"],
+                             stats_auto["rho_std"],
                              "rho",
                              savefig=savepath)
+
+
+for s in range(8):
+    ind = np.random.choice(X_tr.shape[0], size=200, replace=False)
+    pdp_ice = fe.PDPwithICE(X_tr[ind], model, axis_limits)
+    savepath = os.path.join(path2dir, "feature_" + str(s) +  "_pdp_ice.png") if savefig else None
+    pdp_ice.plot(s=s, normalized=False, nof_points=100, savefig=savepath)
+
+    dale = fe.DALE(X_tr, model, model_grad, axis_limits)
+    alg_params = {"bin_method" : "dp",
+                  "max_nof_bins" : 20,
+                  "min_points_per_bin": 30}
+    dale.fit(features=s, alg_params=alg_params)
+    savepath = os.path.join(path2dir, "feature_" + str(s) +  "_ale_auto.png") if savefig else None
+    dale.plot(s=s, savefig=savepath)
+
+    dale_gt = fe.DALE(X_tr, model, model_grad, axis_limits)
+    alg_params = {"bin_method" : "fixed",
+                  "nof_bins" : 80,
+                  "min_points_per_bin": 30}
+
+    dale_gt.fit(features=s, alg_params=alg_params)
+    savepath = os.path.join(path2dir, "feature_" + str(s) +  "_ale_fixed.png") if savefig else None
+    dale_gt.plot(s, savefig=savepath)
