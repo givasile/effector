@@ -813,15 +813,64 @@ keeps as low as possible both the main effect
   \label{fig:ex-synth-2-2}
 \end{figure}
 
-\section{REAL-WORLD EXAMPLES}
+\section{REAL-WORLD EXAMPLE}
 
-In Real-World Datasets it is infeasible to obtain ground truth
-information, therefore, we perform evaluation at two levels. First, we
-compare visually NAME versus PDP with ICE plots. Second, we hold as
-ground-truth the effects computed on the full training-set and we,
-then, perform subsampling to evaluate the robustness of the
-bin-splitting method.
+Here, we aim at demonstrating the usefuleness of uncertainty
+quantification and the advantages of automatic bin-splitting, on the
+real-world California Housing dataset~\citep{pace1997sparse}.
 
+\paragraph{ML setup}
+
+The California Housing is a largely-studied dataset with approximately
+\(20000\) training instances, making it appropriate for robust
+Monte-Carlo approximations. The dataset contains \(D=8\) features
+describing building blocks of California, like latitude, longitude,
+total number of people residing in the block etc., and the target is
+the median house value inside the block. We exclude instances with
+missing or outlier values, i.e. \(x_d^i > \hat{sigma}_j\) in any
+feature and normalize them to have
+\(\hat{\mu}_d = 0, \hat{\sigma_d}\). We split the dataset into
+\(N_{tr} = 15639\) training and \(N_test = 3910\) test examples (80/20
+split) and we fit a Neural Network with 3 hidden layers of 256, 128
+and 36 units respectively. After 15 epochs using the Adam optimizer
+with learning rate \(\eta = 0.02\), the model achieves a normalized
+mean squared error (R-Squared) of \(0.25\) (0.75). In depth information
+about preprocessing, training and evaluation are provided in the
+Appendix.
+
+\paragraph{Uncertainty Quantification}
+
+In real-world datasets, it is infeasible to obtain the ground truth FE
+for seamlessly evaluating the competitive methods. Therefore, the main
+purpose of this part is to demonstrate the usefulness of uncertainty
+quantification in NAME, i.e., illustrate that modeling the
+heterogeneous effects is important for the interpretation of an ALE
+plot. For this reason, Secondly, we discuss about the FE plots obtaing with NAME and
+PDP-ICE.
+
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_1_ale_auto.pdf}
+  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_1_pdp_ice.pdf}\\
+  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_7_ale_auto.pdf}
+  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_7_pdp_ice.pdf}\\
+  \caption{Figure 1}
+  \label{fig:ex-synth-2-1}
+\end{figure}
+
+
+\paragraph{Bin Splitting}
+
+For evaluating NAME in terms of bin-splitting we set-up the following
+evaluation framework. We treat as ground-truth the effects computed on
+the full training-set \(N=20000\) with dense fixed-size bin-splitting
+(\(K=80\)). Given the big number of samples, we make the hypothesis
+that the approximation with dense binning is close to the ground
+truth. Afterwards we select less samples \(N=1000\) and we compare
+NAME approximation with all possible fixed-size alternatives, in terms
+of accuracy, i.e. we provide the quantities
+\(\mathcal{L}^{\mu}, \mathcal{L}^{\sigma^2}, \mathcal{L}^{\rho^2}\).
 \section{CONCLUSION}
 
 \subsubsection*{Acknowledgments}
