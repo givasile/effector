@@ -344,15 +344,17 @@ with a confidence region, i.e.
 \(f^{\mathtt{ARE}}(x_s) := f^{\mathtt{ALE}}_{\mu}(x_s) \pm
 f^{\mathtt{ALE}}_{\sigma}(x_s)\). 
 
-\subsection{Interval-Based Formulation of ARE}
+\subsection{Interval-Based Formulation and Approximation}
 \label{sec:interval-based-estimation}
 
 In real scenarios, the estimations are based on the limited instances
 of the training set. Estimating \(\mu(z), \sigma(z)\) at the
 granularity of a point is impossible, because the probability of
 observing a sample inside the region \([x_s - h, x_s + h]\) tends to
-zero, when \(h \to 0\). We define the region-effect and the
-region-uncertainty inside the region \([z_1, z_2)\) as:
+zero, when \(h \to 0\). Therefore we define the regional-effect
+\(\mu(z_1, z_2)\) and the regional-uncertainty \(\sigma(z_1, z_2)\),
+as the summary statistics that characterize the effect and the
+uncertainty inside the interval \([z_1, z_2)\):
 
 \begin{equation}
   \label{eq:mu_bin}
@@ -365,19 +367,22 @@ region-uncertainty inside the region \([z_1, z_2)\) as:
 \begin{equation}
   \label{eq:var_bin}
   \sigma(z_1, z_2) = \sqrt{\frac{\int_{z_1}^{z_2}
-  \mathbb{E}_{\xc|x_s=z} \left [ (\frac{\partial
-      f}{\partial x_s} - \mu(z_1, z_2) )^2 \right] \partial z}{z_2 - z_1}}
+  \mathbb{E}_{\xc|x_s=z} \left [ (f^s(z, \xc) - \mu(z) )^2 \right] \partial z}{z_2 - z_1}}
 \end{equation}
 
 %
-We also define as \(\mathcal{Z}_s\) the sequence of \(K+1\) points
+The regional-effect and the regional-uncertainty are the mean values
+of the local effects and local uncertainty inside an interval. In
+other words, they quantify what is the expected effect and the
+expected uncertainty of a sample drawn at random from \([z_1, z_2]\)
+given uniform distribution \(\mathcal{U}(z_1, z_2)\).
+
+If we also define as \(\mathcal{Z}_s\) the sequence of \(K+1\) points
 that partition the \(s\)-th feature axis into \(K\) variable-size
-intervals, i.e. \(\mathcal{Z}_s = \{z_0, z_K\}\), where
-\(z_0=x_{s,min}\) and \(z_K=x_{s,max}\). Based on the above, we
+intervals, i.e. \(\mathcal{Z}_s = \{z_0, \ldots, z_K\}\), we can
 redefine ARE using an interval-based formulation
-\(\tilde{f}^{\mathtt{ARE}}(x_s):=
-\tilde{f}^{\mathtt{ALE}}_{\mu}(x_s) \pm
-\tilde{f}^{\mathtt{ALE}}_{\sigma}(x_s)\), where:
+\(\tilde{f}^{\mathtt{ARE}}(x_s):= \tilde{f}^{\mathtt{ALE}}_{\mu}(x_s)
+\pm \tilde{f}^{\mathtt{ALE}}_{\sigma}(x_s)\), where:
 
 \begin{equation}
   \label{eq:ALE_2}
@@ -389,63 +394,12 @@ redefine ARE using an interval-based formulation
   \tilde{f}^{\mathtt{ALE}}_{\sigma}(x_s) =  \sum_{k=1}^{k_x} \sigma(z_{k-1}, z_k) (z_k - z_{k-1})
 \end{equation}
 %
-\paragraph{Theorem 1.}
-\label{sec:theorem-1}
 
-\textit{If we define the residual \(\rho(z)\) as the difference
-  between the expected effect at \(x_s\) and the region-effect, i.e
-  \(\rho(z) = \mu(z) - \mu(z_1, z_2)\), then, the region-variance
-  \(\sigma^2(z_1, z_2)\) equals to the integration of the point-wise
-  variances plus the squared residuals inside the interval:
-\begin{equation}
- \sigma^2(z_1, z_2) = \frac{\int_{z_1}^{z_2} \sigma^2(z) + \rho^2(z) \partial z}{z_2 - z_1}
-\end{equation}}
-%
+\subsection{Interval-Based Approximation}
 
-\paragraph{Theorem 2.}
-\label{sec:theorem-2}
-
-\textit{If we define as \(\rho^2(z_{k-1}, z_{k})\) the
-  region-residual, where
-  \(\rho^2(z_{k-1}, z_{k}) = \int_{z_{k-1}}^{z_k} \rho^2(z)\partial
-  z\), then the two definitions of ARE,
-  \(f^{\mathtt{ARE}}, \tilde{f}^{\mathtt{ARE}}\) are equivalent, if
-  and only if the sequence of limits \(\mathcal{Z}_s\) are such that
-  \(\sum_{k=1}^K \rho^2(z_{k-1}, z_{k}) = 0\).}
-
-\paragraph{Discussion}
-
-Theorem 1 decouples the aggregated uncertainty inside a bin, i.e.,
-\(\mathcal{H}_{bin}(z_1, z_2) := \sigma^2(z_1, z_2)\), into two
-terms. The first term quantifies the accumulated uncertainty due to
-the natural characteristics of the experiment, i.e.,
-\(\mathcal{H}(z_1, z_2) = \int_{z_1}^{z_2}\mathcal{H}^2(z) \partial z\),
-and the second term adds extra nuisance uncertainty due to limiting
-the resolution
-\(\mathcal{H}_n(z_1, z_2) := \int_{z_1}^{z_2}\rho^2(z) \partial z
-\). Therefore, it holds that:
-\begin{equation}
-  \label{eq:uncertainty_bin}
-  \mathcal{H}_{bin}(z_1, z_2) = \mathcal{H}(z_1, z_2) + \mathcal{H}_n(z_1, z_2)
-\end{equation}
-%
-In Theorem 2 we prove that if we find a sequence of bins, where each
-bin adds no nuisance uncertainty, then we will get exactly the same
-ARE explanation as in the original definition. In general, we use the
-quantity \(Q_{\mathcal{Z}} = \sum_{k=1}^K \rho^2(z_{k-1}, z_{k})\) to
-measure the dissimilarity between the actual definition of ARE
-\(f^{\mathtt{ARE}}\) and the region-based definition
-\(\tilde{f}^{\mathtt{ARE}}\) using the sequence of intervals
-\(\mathcal{Z}_s\). In this way, we access a quantified metric for
-evaluating how good is a particular splitting.
-
-\subsection{Bin-Splitting: Finding Regions With Homogeneous Effects}
-\label{sec:interval-spliting}
-
-In this section we formulate bin-splitting as an unsupervised
-clustering problem. The mean effect (Eq.~\eqref{eq:mu_bin}) and the
+The mean effect (Eq.~\eqref{eq:mu_bin}) and the
 uncertainty (Eq.~\eqref{eq:var_bin}) can be directly estimated from
-the set \(\mathcal{S}_k\) of the dataset instances with the \(s\)-th
+the set \(\mathcal{S}_k\) of dataset instances with the \(s\)-th
 feature lying inside the interval
 \( \mathcal{S}_k= \{ \mathbf{x}^i : z_{k-1} \leq x^i_s < z_k \} \):
 
@@ -463,14 +417,63 @@ feature lying inside the interval
   \hat{\mu}(z_1, z_2) \right )^2
 \end{equation}
 
-% Under this
-% assumption, and due to the law of large numbers, the approximations
-% become more robust, as the bins become wider. On the other hand, bins
-% should group local explanations with similar effects and enlarging a
-% bin is under the danger of adding nuisance uncertainty.
+Under the assumption that the points are uniformly distributed inside
+the intervals Eq.\eqref{eq:2} is an unbiased estimatior of
+Eq.~(\ref{eq:mu_bin}). The same does not hold in the general case for
+Eq.\eqref{eq:3}. In the general case, \(\hat{\sigma}^2(z_{k-1}, z_k)\)
+is an unbiased estimator of the observable standard deviation
+\(\sigma_{obs}(z_1, z_2) = \sqrt{\frac{\int_{z_1}^{z_2}
+    \mathbb{E}_{\xc|x_s=z} \left [ (f^s(z, \xc) - \mu(z_1, z_2) )^2
+    \right] \partial z}{z_2 - z_1}}\), which as we prove in Theorem 1
+is an overestimation of the real regional variance.
 
-Both approximations are unbiased only under the assumption that the
-points are uniformly distributed inside the intervals. We set-up the
+\paragraph{Theorem 1.}
+\label{sec:theorem-1}
+
+\textit{If we define the residual \(\rho(z)\) as the difference
+  between the expected effect at \(x_s\) and the regional effect, i.e
+  \(\rho(z) = \mu(z) - \mu(z_1, z_2)\), then, the regional variance
+  \(\sigma^2(z_1, z_2)\) equals to:}
+
+\begin{equation}
+    \label{eq:bin-uncertainty-proof}
+ \sigma_{obs}^2(z_1, z_2) = \sigma^2(z) + \frac{\int_{z_1}^{z_2}\rho^2(z) \partial z}{z_2 - z_1}
+\end{equation}
+\noindent
+Theorem 1 reveals an important connection between the ground-truth and
+the observable uncertainty inside a region. Setting as ground-truth
+the regional uncertainty
+\(\mathcal{H}_{true}(z_1, z_2) = \sigma(z_1, z_2)}\) and as observable
+uncertainty the one we estimate with Eq.~(\ref{eq:3}), i.e.
+\(\mathcal{H}_{obs}(z_1, z_2) := \sigma_{obs}(z_1, z_2)\), then there
+is an error term quantified by the residual inside the interval, i.e.
+\(\mathcal{E}(z_1, z_2) = \sqrt{\frac{\int_{z_1}^{z_2}\rho^2(z)
+    \partial z}{z_2 - z_1}\)}, such that:
+
+\begin{equation}
+  \label{eq:uncertainty-bin}
+  \mathcal{H}^2_{obs}(z_1, z_2) = \mathcal{H}^2_{true}(z_1, z_2) + \mathcal{E}^2(z_1, z_2)
+\end{equation}
+%
+Eq.~(\ref{eq:uncertainty-bin}) shows that the error term quantifies
+how much the observable uncertainty of the region \([z_1, z_2]\)
+deviates for the one we would like to measure and provides a
+quantified metric to evaluate a particular splitting. As we prove in
+the Appendix, UALE uncertainty approximation is unbiased if and only if the
+partitioning is such that ther error term is zero for all bins, i.e. 
+\(\sum_{k=1}^K \mathcal{E}^2(z_{k-1}, z_{k}) = 0\)
+
+\subsection{Bin-Splitting: Finding Regions With Homogeneous Effects}
+\label{sec:interval-spliting}
+
+In this section we formulate bin-splitting as an unsupervised
+clustering problem. The main idea of the clustering problem is to find
+the best bin-splitting solution, handling appropriately two
+conflicting objectives. On the one hand, we want to minimize the error
+term \(\mathcal{E}\) defined above for minimizing the error in the
+uncertainty estimation and on the other hand, we want wide-enough bins
+for including a fair population of samples for a robust estimation of
+\(\hat{\mu}(z_1, z_2), \hat{\sigma}(z_1, z_2)\). We set-up the
 following optimization problem:
 
 \begin{equation}
@@ -478,7 +481,7 @@ following optimization problem:
 \begin{aligned}
   \min_{ \mathcal{Z} = \{z_0, \ldots, z_K\}} \quad & \mathcal{L} = \sum_{k=1}^K \tau_k \hat{\sigma}^2(z_{k-1}, z_k) \Delta z_k \\
   \textrm{where} \quad & \Delta z_k = z_k - z_{k-1} \\
-  & \tau_k = 1 - 0.2 \frac{|S_k|}{N} \\
+  & \tau_k = 1 - \alpha \frac{|S_k|}{N} \\
   \textrm{s.t.} \quad & |\mathcal{S}_k| \geq N_{\mathtt{NPB}}\\
                                      & z_0 = x_{s,min}\\
                                      & z_K = x_{s, max}
@@ -486,21 +489,24 @@ following optimization problem:
 \end{equation}
 %
 We search for the sequence of intervals \(z_0, \ldots, z_K\) that
-minimizes the sum of bin-costs. The cost of each bin is the mean
-variance \(\hat{sigma}^2_k\) scaled by the bin length \(\Delta z_k\)
-and discounted by the term \(\tau_k\). The term \(\tau_K\) acts as a
-tie-braker in cases of two candidate bins with equal mean variance,
-favoring the selection of the bigger bin. The constraint of at least
-\(N_{\mathtt{PPB}}\) points per bin sets the lowest-limit for a
-\textit{robust} estimation.
-
-According to Eq.~(\ref{eq:uncertainty_bin}), the uncertainty of a bin
-\(\mathcal{H}_{bin}\) is the sum of the uncertainty due to the
-characteristics of the experiment (data and black-box model)
-\(\mathcal{H}\) and the nuisance uncertainty \(\mathcal{H}_n\). Since
-\(\mathcal{H}\) is independent of the bin-spliting procedure, by
-minimizing \(\mathcal{L}\) we minimize the nuiscane uncertainty
-\(\mathcal{H}_n\) in each bin.
+minimizes the sum of bin costs. The cost of each bin is the
+approximated variance \(\hat{\sigma}^2_k\) scaled by the bin length
+\(\Delta z_k\) and discounted by the term \(\tau_k\). The term
+\(\tau_K\) acts as a tie-braker that favors the selection of a bigger
+bin in case it has similar variance with the aggregate variance of
+many smaller ones. The constraint of at least \(N_{\mathtt{PPB}}\)
+points per bin sets the lowest-limit for a \textit{robust}
+estimation. The user can choose to what extent they favor the creation
+of wide bins through the discount parameter by setting the parameter
+\(\alpha\) and where they set the minimum for robust approximation
+with the parameter \(N_{\mathtt{PPB}}\). For providing a rough idea of
+some sensible value, in our experiments we set \(\alpha = 0.2\) which
+means that the discount ranges in \([0\%, 20\%]\) and
+\(N_{\mathtt{PPB}} = \frac{N}{20}\). It is also important to clarify
+that by minimizing \(\hat{\sigma}^2_k \approx \mathcal{H}_{obs}^2\),
+we actually minimize the squared error term \(\mathcal{E}^2\), since
+the term \(\mathcal{H}^2_{true}\) is independent of the bin splitting
+procedure.
 
 \subsubsection{Solve Bin-Splitting with Dynamic Programming}
 \label{sec:dynamic-programing}
