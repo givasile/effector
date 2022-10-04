@@ -70,14 +70,15 @@ width=7.00ex, align=center, column sep=-\pgflinewidth }, }
 
 \twocolumn[
 
-\aistatstitle{Accumulated Regional Effects: An ALE-based method for regional effects with uncertainty quantification}
+\aistatstitle{Uncertainty-aware Accumulated Local Effects (UALE) for
+  quantifying the heterogeneous effects}
 
 \aistatsauthor{ Author 1 \And Author 2 \And  Author 3 }
 
 \aistatsaddress{ Institution 1 \And  Institution 2 \And Institution 3 } ]
 
 \begin{abstract}
-  This paper is on Feature Effect (FE), a class of global explainability techniques that create a plot with the average effect of a single feature on the output. The task is particularly challenging when the black-box function contains non-linear interactions between correlated features. In these cases, FE should provide, first, the expected effect and, second, the uncertainty of the effect, i.e.~the level of heterogeneous effects due to implicit feature interactions. Accumulated Local Effects (ALE) is a novel method that models accurately the expected effect in cases of correlated features, overcoming limitations of previous approaches. In this paper, we define Accumulated Regional Effects (ARE) a FE method that extends ALE to quantify the heterogeneous effects. We also provide an alternative definition of ARE based on a sequence of interpretable variable-size regions and we formally prove that under some conditions both definitions are equivalent. Using that, we convert the typical bin-splitting step of ALE to a principled optimization problem and we present an algorithm for finding the optimal sequence of regions. We demonstrate through synthetic and real-datasets, that ARE quantifies correctly the average and heterogeneous effects and approximates them robustly by extracting regions with similar-effect.
+Accumulated Local Effects (ALE) is a popular approach to explainable AI that describes how a feature influences the decisions of a model on average, taking into account potential correlations between the features.  However, ALE does not provide an explicit component for modeling the uncertainty of the effect, i.e., the level of heterogeneous effects behind the average explanation, which is crucial for a complete interpretation when the black-box function contains interactions between the correlated features.  In this work, we propose Uncertainty-aware ALE (UALE), an extension of ALE for quantifying the heterogeneous effects. We show the importance of bin-splitting for a robust approximation of the uncertainty and we formally prove the conditions for an unbiased estimation. We finally propose a computationally-grounded algorithm for finding the optimal sequence of bins given the limited instances of the training set. We demonstrate through synthetic and real datasets, that UALE quantifies the average and heterogeneous effects correctly and approximates them robustly by optimizing the bin-splitting procedure.
 \end{abstract}
 
 
@@ -443,12 +444,12 @@ is an overestimation of the real regional variance.
 Theorem 1 reveals an important connection between the ground-truth and
 the observable uncertainty inside a region. Setting as ground-truth
 the regional uncertainty
-\(\mathcal{H}_{true}(z_1, z_2) = \sigma(z_1, z_2)}\) and as observable
+\(\mathcal{H}_{true}(z_1, z_2) = \sigma(z_1, z_2)\) and as observable
 uncertainty the one we estimate with Eq.~(\ref{eq:3}), i.e.
 \(\mathcal{H}_{obs}(z_1, z_2) := \sigma_{obs}(z_1, z_2)\), then there
 is an error term quantified by the residual inside the interval, i.e.
 \(\mathcal{E}(z_1, z_2) = \sqrt{\frac{\int_{z_1}^{z_2}\rho^2(z)
-    \partial z}{z_2 - z_1}\)}, such that:
+    \partial z}{z_2 - z_1}}\), such that:
 
 \begin{equation}
   \label{eq:uncertainty-bin}
