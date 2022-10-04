@@ -100,25 +100,25 @@ about which features are significant (feature importance) or whether a
 particular feature has a positive or negative effect on the output
 (feature effect), they should opt for a global explainability
 technique. On the other hand, aggregating the individual explanations
-for producing a concise global one is vulnerable to
-misinterpretations. Under strong interactions and correlations between
-features, the global explanation may obfuscate heterogeneous effects
-that exist under the hood~\citep{herbinger2022repid}; a phenomenon
-called aggregation bias~\citep{mehrabi2021survey}.
+is vulnerable to misinterpretations. Under strong interactions and
+correlations between features, the global explanation may obfuscate
+heterogeneous effects that exist under the
+hood~\citep{herbinger2022repid}; a phenomenon called aggregation
+bias~\citep{mehrabi2021survey}.
 
-Feature effect (FE) \citep{Gromping2020MAEP} is a fundamental category
-of global explainability methods. The objective of FE is to the
-isolate and visualize the impact of a single feature on the
-output.~\footnote{Often, FE methods also isolate the combined effect
-  of a pair of features to the output. Combinations of more than two
-  features are not usual, because they encounter, among others,
-  visualization difficulties.} FE methods suffer from aggregation bias
-because, often, the rationale behind the average effect is
-unclear. For example, a feature with zero average effect may indicate
-no effect on the output or, in contrast, highly positive in some cases
-and highly negative in others. There are three widely-used FE methods;
-Partial Dependence Plots (PDP)\citep{friedman2001greedy}, Marignal
-Plots (MP)\citep{apley2020visualizing} and Aggregated Local Effects
+Feature effect (FE) \citep{Gromping2020MAEP} is a fundamental global
+explainability category. The objective of FE is to isolate the impact
+of a single feature on the output.~\footnote{Often, FE methods also
+  isolate the combined effect of a pair of features to the
+  output. Combinations of more than two features are not usual,
+  because they encounter, among others, visualization difficulties.}
+FE methods suffer from aggregation bias because, often, the rationale
+behind the average effect is unclear. For example, a feature with zero
+average effect may indicate no effect on the output or, in contrast,
+highly positive in some cases and highly negative in others. There are
+three widely-used FE methods; Partial Dependence Plots
+(PDP)\citep{friedman2001greedy}, Marignal Plots
+(MP)\citep{apley2020visualizing} and Aggregated Local Effects
 (ALE)\citep{apley2020visualizing}. PDP and MP have been criticized for
 computing erroneous effects when the input features are (highly)
 correlated, which is a frequent scenario in many ML cases. Therefore,
@@ -126,9 +126,9 @@ ALE has been established as the state-of-the-art FE method.
 
 However, ALE faces two crucial limitations, the first concerns ALE
 definition and the second one ALE approximation. Regarding the
-definition ALE does not inform the user about the level of
-uncertainty, i.e., the heterogeneous effects hidden behing the average
-effect due to implicit feature interactions. In contrast, in PDPs the
+definition ALE does not inform the user about the uncertainty, i.e.,
+the level of heterogeneous effects hidden behing the average effect
+due to implicit feature interactions. In contrast, in PDPs the
 heterogeneous effects can be (partially) spotted by exploring the
 Individual Conditional Expectations
 (ICE)\citep{goldstein2015peeking}. Regarding the approximation,
@@ -140,32 +140,29 @@ constant effect in each one from the population of samples that fall
 inside. Specifying an approriate sequence of regions is of particular
 importance, since ALE's interpretation is meaningful only inside each
 region \citep{molnar2022}. However, this crucial step has not raised
-the appropriate attention, making the approximation vulnerable to
+the appropriate attention and the approximation is vulnerable to
 potential misinterpretations.
 
-In this paper, we present Accumulated Regional Effects (ARE) an
-extension of ALE for measuring the uncertainty of the explanation,
-i.e.~how certain we are that the average explanation is valid if
-applied to an instance drawn at random. We also provide an alternative
-definition of ARE based on a sequence of constant-effect regions and
-we define a metric of the dissimilarity of the two definitions. We
-formally prove that under some conditions the dissimilarity is zero
-and both definitions are equivalent. We, therefore, set up an
-optimization problem where we search for the sequence of region that
-minimizes the disimilarity, given enough training points iniside each
-region for a robust estimation. Finally, we propose a
-computationally-grounded algorithm for finding the optimal solution.
+In this paper, we present Uncertainty-awary Accumulated Local Effects
+(UALE) an extension of ALE for measuring the uncertainty of the
+explanation, i.e.~how certain we are that the average explanation is
+valid if applied to an instance drawn at random. We show that choosing
+an appropriate sequence of intervals is particularly important for a
+robust estimation of the uncertainty, providing an algorithm that
+automates this step. We also provide theoretical proofs for an
+unbiased estimation of the uncertainty. We apply our method in multiple
+synthetic and real world datasets for evaluating its performance.
 
-\paragraph{Contributions.} The contribution of this paper are: 
+\paragraph{Contributions.} The contribution of this paper are:
 
 \begin{itemize}
-\item ARE, a FE method that extends ALE for quantifying the
+\item UALE, a FE method that extends ALE for quantifying the
   heterogeneous effects (uncertainty).
-\item An interval-based definition of ARE and a formal proof that
-  under some conditions it is equivalent to the initial definition.
-\item A principled framework for automatically extracting regions with
-  similar effects, improving the estimation and the interpretability
-  of ALE plots.
+\item A formal proof of the bin-splitting requirements for an unbiased
+  approximation of the heterogeneous effects.
+\item A framework for automatically extracting regions with similar
+  effects, improving the estimation and the interpretability of ALE
+  plots.
 \end{itemize}
 
 We provide empirical evaluation of the method in artificial and real
@@ -176,10 +173,10 @@ become publicly available upon acceptance.
 
 \section{BACKGROUND AND RELATED WORK}
 
-In this section, we describe the basic methods for FE and for
-uncertainty quantification, focusing on ALE definition. We, then,
-review the ALE approximation\citep{apley2020visualizing, gkolemis22},
-describing some of its vulnerabilities.
+In this section, we describe the basic methods for FE and uncertainty
+quantification, focusing on ALE definition. We, then, review the ALE
+approximation\citep{apley2020visualizing, gkolemis22}, describing some
+of its vulnerabilities.
 
 \paragraph{Notation.} We refer to random variables (rv) using
 uppercase \( X \), to simple variables with plain lowercase \( x \)
@@ -267,7 +264,7 @@ heterogeneous effects based on the formulation of ALE.
 \subsection{ALE Approximation.}
 \label{sec:ale-approximation}
 
-In real ML scenarios, the FE is estimated from the training set
+In ML scenarios, ALE is estimated from the training set
 examples. Therefore, \citep{apley2020visualizing} proposed dividing
 the \(s\)-th axis in \(K\) bins and estimating the local effects in
 each bin by evaluating the black box-function at the bin limits:
@@ -302,21 +299,20 @@ to a high value leads to poor bin-effect estimations from limited
 samples. In general, the user may face contradictory explanations for
 different \(K\) without a clue to decide which one to trust.
 
-\section{Accumulated Regional Effects (ARE)}
-\label{sec:NAME-method}
+\section{Uncertainty-Aware ALE (UALE)}
+\label{sec:UALE}
 
-ARE extends ALE for quantifying the level of heterogeneous effects
-(uncertainty) and automates the bin-splitting step for robust
-estimations. At Section~\ref{sec:NAME-definition}, we define ARE and
-at Section~\ref{sec:interval-based-estimation} we provide an
-alternative definition of ARE based on variable-size bins, providing
-important remarks and proofs for connecting it with the initial
-definition. In Section~\ref{sec:interval-spliting}, we define the
-problem of optimal bin-splitting and we propose an algorithmic
-solution to the problem.
+UALE extends ALE for quantifying the level of heterogeneous effects
+(uncertainty) and automates the bin-splitting. At
+Section~\ref{sec:UALE-definition-1} we define UALE, at
+Section~\ref{sec:UALE-definition-2} we redefine it using an
+interval-based formulation, at
+Section~\ref{sec:UALE-approximation} we provide an
+approximation and at Section~\ref{sec:bin-spliting} we define and
+solve the problem of optimal bin-splitting.
 
-\subsection{ARE: ALE With Uncertainty Quantification}
-\label{sec:NAME-definition}
+\subsection{UALE: ALE With Uncertainty Quantification}
+\label{sec:UALE-definition-1}
 
 We extend ALE definition of Eq.~(\ref{eq:ALE}) with a component for
 quantifying the uncertainty. We denote as \(\mathcal{H}(z)\) the
@@ -338,24 +334,24 @@ the axis:
   f^{\mathtt{ALE}}_{\sigma}(x_s) = \int_{x_{s, min}}^{x_s} \sigma(z) \partial z
 \end{equation}
 \noindent
-ARE method formulates the effect at a specific point \(x_s\) with a
-compact tuple that consists of the average effect and the uncertainty
-\((\mu(z), \sigma(z))\) and visualizes them as a continuous curve
-with a confidence region, i.e.
-\(f^{\mathtt{ARE}}(x_s) := f^{\mathtt{ALE}}_{\mu}(x_s) \pm
-f^{\mathtt{ALE}}_{\sigma}(x_s)\). 
+UALE formulates the effect at a specific point \(x_s\) with a compact
+tuple that consists of the average effect and the uncertainty
+\((\mu(z), \sigma(z))\) and visualizes them as a continuous curve with
+a confidence region, i.e.
+\(f^{\mathtt{UALE}}(x_s) := f^{\mathtt{ALE}}_{\mu}(x_s) \pm
+f^{\mathtt{ALE}}_{\sigma}(x_s)\).
 
 \subsection{Interval-Based Formulation and Approximation}
-\label{sec:interval-based-estimation}
+\label{sec:UALE-definition-2}
 
-In real scenarios, the estimations are based on the limited instances
-of the training set. Estimating \(\mu(z), \sigma(z)\) at the
-granularity of a point is impossible, because the probability of
-observing a sample inside the region \([x_s - h, x_s + h]\) tends to
-zero, when \(h \to 0\). Therefore we define the regional-effect
-\(\mu(z_1, z_2)\) and the regional-uncertainty \(\sigma(z_1, z_2)\),
-as the summary statistics that characterize the effect and the
-uncertainty inside the interval \([z_1, z_2)\):
+In real scenarios, all estimations are based on the instances of the
+training set. It is impossible to estimate \(\mu(z), \sigma(z)\) at
+the granularity of a point, because the probability of observing a
+sample inside the region \([x_s - h, x_s + h]\) tends to zero, when
+\(h \to 0\). Therefore we define the regional-effect \(\mu(z_1, z_2)\)
+and the regional-uncertainty \(\sigma(z_1, z_2)\), as the summary
+statistics that characterize the effect and the uncertainty inside the
+interval \([z_1, z_2)\):
 
 \begin{equation}
   \label{eq:mu_bin}
@@ -372,17 +368,17 @@ uncertainty inside the interval \([z_1, z_2)\):
 \end{equation}
 
 %
-The regional-effect and the regional-uncertainty are the mean values
-of the local effects and local uncertainty inside an interval. In
-other words, they quantify what is the expected effect and the
-expected uncertainty of a sample drawn at random from \([z_1, z_2]\)
-given uniform distribution \(\mathcal{U}(z_1, z_2)\).
+Intuitively, the regional-effect and the regional-uncertainty are the
+average effect \(\mu(z^*)\) and the uncertainty \(\sigma(z^*)\) that I
+expect to get if draw a sample at random from the region
+\([z_1, z_2]\) given a uniform distribution
+\(z^* \sim \mathcal{U}(z_1, z_2)\).
 
 If we also define as \(\mathcal{Z}_s\) the sequence of \(K+1\) points
 that partition the \(s\)-th feature axis into \(K\) variable-size
 intervals, i.e. \(\mathcal{Z}_s = \{z_0, \ldots, z_K\}\), we can
-redefine ARE using an interval-based formulation
-\(\tilde{f}^{\mathtt{ARE}}(x_s):= \tilde{f}^{\mathtt{ALE}}_{\mu}(x_s)
+redefine UALE using an interval-based formulation
+\(\tilde{f}^{\mathtt{UALE}}(x_s):= \tilde{f}^{\mathtt{ALE}}_{\mu}(x_s)
 \pm \tilde{f}^{\mathtt{ALE}}_{\sigma}(x_s)\), where:
 
 \begin{equation}
@@ -397,11 +393,12 @@ redefine ARE using an interval-based formulation
 %
 
 \subsection{Interval-Based Approximation}
+\label{sec:UALE-approximation}
 
-The mean effect (Eq.~\eqref{eq:mu_bin}) and the
-uncertainty (Eq.~\eqref{eq:var_bin}) can be directly estimated from
-the set \(\mathcal{S}_k\) of dataset instances with the \(s\)-th
-feature lying inside the interval
+For approximating the mean effect (Eq.~\eqref{eq:mu_bin}) and the
+uncertainty (Eq.~\eqref{eq:var_bin}) we use the set \(\mathcal{S}_k\)
+of dataset instances with the \(s\)-th feature lying inside the
+interval
 \( \mathcal{S}_k= \{ \mathbf{x}^i : z_{k-1} \leq x^i_s < z_k \} \):
 
 \begin{equation}
@@ -418,22 +415,22 @@ feature lying inside the interval
   \hat{\mu}(z_1, z_2) \right )^2
 \end{equation}
 
-Under the assumption that the points are uniformly distributed inside
-the intervals Eq.\eqref{eq:2} is an unbiased estimatior of
-Eq.~(\ref{eq:mu_bin}). The same does not hold in the general case for
+Eq.\eqref{eq:2} is an unbiased estimator of Eq.~(\ref{eq:mu_bin})
+under the assumption that the points are uniformly distributed inside
+the intervals. The same does not hold in the general case for
 Eq.\eqref{eq:3}. In the general case, \(\hat{\sigma}^2(z_{k-1}, z_k)\)
-is an unbiased estimator of the observable standard deviation
+is an unbiased estimator of the \textit{observable} standard deviation
 \(\sigma_{obs}(z_1, z_2) = \sqrt{\frac{\int_{z_1}^{z_2}
     \mathbb{E}_{\xc|x_s=z} \left [ (f^s(z, \xc) - \mu(z_1, z_2) )^2
     \right] \partial z}{z_2 - z_1}}\), which as we prove in Theorem 1
-is an overestimation of the real regional variance.
+is an overestimation of \(\sigma(z_1, z_2)\).
 
 \paragraph{Theorem 1.}
 \label{sec:theorem-1}
 
 \textit{If we define the residual \(\rho(z)\) as the difference
   between the expected effect at \(x_s\) and the regional effect, i.e
-  \(\rho(z) = \mu(z) - \mu(z_1, z_2)\), then, the regional variance
+  \(\rho(z) = \mu(z) - \mu(z_1, z_2)\), then the regional variance
   \(\sigma^2(z_1, z_2)\) equals to:}
 
 \begin{equation}
@@ -465,7 +462,7 @@ partitioning is such that ther error term is zero for all bins, i.e.
 \(\sum_{k=1}^K \mathcal{E}^2(z_{k-1}, z_{k}) = 0\)
 
 \subsection{Bin-Splitting: Finding Regions With Homogeneous Effects}
-\label{sec:interval-spliting}
+\label{sec:bin-spliting}
 
 In this section we formulate bin-splitting as an unsupervised
 clustering problem. The main idea of the clustering problem is to find
@@ -559,14 +556,14 @@ The simulation examples, where the data-generating distribution
 by us, enable the evaluation of competitive approaches against a solid
 ground-truth. We follow this common XAI
 practice~\citep{aas2021explaining, herbinger2022repid} for providing
-secure empirical evidence about the superiority of ARE method.
+secure empirical evidence about the superiority of UALE method.
 
 We split the simulation examples in two groups. The first group,
-Section~\ref{sec:simulation-examples-1}, aims at showcasing that ARE
+Section~\ref{sec:simulation-examples-1}, aims at showcasing that UALE
 method is more accurate than PDP-ICE in quantifying the average effect
 and the level of heterogeneous effects (uncertainty), when input
 features are correlated. The second group,
-Section~\ref{sec:simulation-examples-2}, illustrates that ARE method
+Section~\ref{sec:simulation-examples-2}, illustrates that UALE method
 achieves a better approximation (average effect and uncertainty) in
 cases of limited samples, due to automatic bin-splitting. In both
 groups, we choose to illustrate the most indicative examples; a more
@@ -575,7 +572,7 @@ extensive evaluation is provided in the Appendix.
 \subsection{Case 1: Uncertainty Quantification}
 \label{sec:simulation-examples-1}
 
-In this simulation, we will compare ARE method against PDP-ICE in
+In this simulation, we will compare UALE method against PDP-ICE in
 quantifying the main effect and the uncertainty. Since there is
 ambiguity about the ground-truth first-order effect in cases of
 correlated features,
@@ -599,7 +596,7 @@ samples that we use in all examples are coming from the following
 distribution: \(p(\mathbf{x}) = p(x_3)p(x_2|x_1)p(x_1)\) where
 \(x_1 \sim \mathcal{U}(0,1)\), \(x_2 = x_1\) and
 \(x_3 \sim \mathcal{N}(0, \sigma_3^2)\). We will test the effect
-computed by ARE and PDP-ICE in three cases; (a) no interaction
+computed by UALE and PDP-ICE in three cases; (a) no interaction
 (\(\alpha=0\)) and equal weights (\(a_1=a_2\)), (b) no interaction
 (\(\alpha=0\)) and different weigths (\( a_1 \neq a_2 \)) and (c) with
 interaction (\(\alpha \neq 0\)) with equal weights (\(a_1=a_2\)).
@@ -611,7 +608,7 @@ approximation is computed after generating \(N=300\) samples. As we
 will see, despite the model's simplicity, PDP-ICE fail in quantifying
 the effect correctly, due to correlation between features \(X_1\) and
 \(X_2\). Finally, besides it is not the focus of the current examples,
-we will also observe that ARE manages to correctly extract the
+we will also observe that UALE manages to correctly extract the
 regions with constant effect. Details for obtaining the ground truth
 effects and the experimental set-up are in the Appendix.
 
@@ -635,7 +632,7 @@ constant-effect.
   \includegraphics[width=.23\textwidth]{example_1/dale_feat_0.pdf}
   \includegraphics[width=.23\textwidth]{example_1/pdp_ice_feat_0.pdf}
   \caption{No interaction, Equal weights: Feature effect for \(x_1\);
-    Ground-truth vs (a) ARE method at the left and (b) PDP-ICE at the
+    Ground-truth vs (a) UALE method at the left and (b) PDP-ICE at the
     right.}
   \label{fig:synth-ex-1-case-1}
 \end{figure}
@@ -659,7 +656,7 @@ extracting correcltly the constant effect regions.
   \includegraphics[width=.23\textwidth]{example_2/dale_feat_0.pdf}
   \includegraphics[width=.23\textwidth]{example_2/pdp_ice_feat_0.pdf}
   \caption{No interaction, Different weights: Feature effect for \(x_1\);
-    Ground-truth vs (a) ARE method at the left and (b) PDP-ICE at the
+    Ground-truth vs (a) UALE method at the left and (b) PDP-ICE at the
     right.}
   \label{fig:ex-synth-1-2}
 \end{figure}
@@ -672,7 +669,7 @@ heterogeneous effects in features \(x_1, x_3\), i.e., at any position
 \(x_1\), the local effects dependend on the unknown value of \(X_3\)
 and vice-versa. The effect of \(x_2\) continues to have
 zero-uncertainty, since it does not appear in any interaction term. As
-we observe in Figure~\ref{fig:ex-synth-1-3}, ARE captures perfectly
+we observe in Figure~\ref{fig:ex-synth-1-3}, UALE captures perfectly
 the effect of all features, and the uncertainty in all cases. As
 expected, PDP-ICE quantify the effect and the uncertainty correctly
 only in the case of \(x_3\), since \(X_3\) is independent from other
@@ -690,7 +687,7 @@ wrong.
   \includegraphics[width=.23\textwidth]{example_3/pdp_ice_feat_2.pdf}\\
   \caption{With interaction, equal weights: Feature effect for all
     features, \(x_1\) to \(x_3\) from top to bottom; Ground-truth vs
-    (a) ARE method at the left columns and (b) PDP-ICE at the right
+    (a) UALE method at the left columns and (b) PDP-ICE at the right
     column.}
   \label{fig:ex-synth-1-3}
 \end{figure}
@@ -747,7 +744,7 @@ In this example, we define \(f(\mathbf{x}) = a_1x_1 + x_1x_2\) with
 \(5\) piecewise-linear regions of different-size, i.e., \(a_1\) equals
 to \(=\{2, -2, 5, -10, 0.5\}\) in the intervals defined by the
 sequence \(\{0, 0.2, 0.4, 0.45, 0.5, 1\}\). As we observe, in
-Figure~\ref{fig:ex-synth-2-1}, ARE method extracts a sequence of
+Figure~\ref{fig:ex-synth-2-1}, UALE method extracts a sequence of
 intervals with better \(\mathcal{L}_{\mathtt{DP}}^{\mu}\) and
 \(\mathcal{L}_{\mathtt{DP}}^{\sigma^2}\) error compared to any
 fixed-size splitting. Analyzing the fixed-size errors helps us
@@ -840,9 +837,9 @@ Appendix.
 In real-world datasets, it is infeasible to obtain the ground truth FE
 for seamlessly evaluating the competitive methods. Therefore, the main
 purpose of this part is to demonstrate the usefulness of uncertainty
-quantification in ARE, i.e., illustrate that modeling the
+quantification in UALE, i.e., illustrate that modeling the
 heterogeneous effects is important for the interpretation of an ALE
-plot. For this reason, Secondly, we discuss about the FE plots obtaing with ARE and
+plot. For this reason, Secondly, we discuss about the FE plots obtaing with UALE and
 PDP-ICE.
 
 
@@ -859,13 +856,13 @@ PDP-ICE.
 
 \paragraph{Bin Splitting}
 
-For evaluating ARE in terms of bin-splitting we set-up the following
+For evaluating UALE in terms of bin-splitting we set-up the following
 evaluation framework. We treat as ground-truth the effects computed on
 the full training-set \(N=20000\) with dense fixed-size bin-splitting
 (\(K=80\)). Given the big number of samples, we make the hypothesis
 that the approximation with dense binning is close to the ground
 truth. Afterwards we select less samples \(N=1000\) and we compare
-ARE approximation with all possible fixed-size alternatives, in terms
+UALE approximation with all possible fixed-size alternatives, in terms
 of accuracy, i.e. we provide the quantities
 \(\mathcal{L}^{\mu}, \mathcal{L}^{\sigma^2}, \mathcal{L}^{\rho^2}\).
 \section{CONCLUSION}
