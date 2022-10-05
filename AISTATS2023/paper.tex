@@ -556,33 +556,35 @@ steps.
 \section{SIMULATION EXAMPLES}
 \label{sec:simulation-examples}
 
-The simulation examples, where the data-generating distribution
-\(p(\mathbf{X})\) and the predictive function \(f(\cdot)\) are defined
-by us, enable the evaluation of competitive approaches against a solid
-ground-truth. We follow this common XAI
-practice~\citep{aas2021explaining, herbinger2022repid} for providing
-secure empirical evidence about the superiority of UALE method.
-
-We split the simulation examples in two groups. The first group,
-Section~\ref{sec:simulation-examples-1}, aims at showcasing that UALE
-method is more accurate than PDP-ICE in quantifying the average effect
-and the level of heterogeneous effects (uncertainty), when input
-features are correlated. The second group,
-Section~\ref{sec:simulation-examples-2}, illustrates that UALE method
-achieves a better approximation (average effect and uncertainty) in
-cases of limited samples, due to automatic bin-splitting. In both
-groups, we choose to illustrate the most indicative examples; a more
-extensive evaluation is provided in the Appendix.
+Simulation examples provide the freedom to select the data-generating
+distribution \(p(\mathbf{X})\) and the predictive function
+\(f(\cdot)\). We follow this common XAI
+practice~\citep{aas2021explaining, herbinger2022repid} for empirically
+evaluating UALE against a solid ground-truth. The first group of
+synthetic examples (Section~\ref{sec:simulation-examples-1}) compares
+UALE with PDP-ICE plots in quantifying the average and the uncertainy
+of the effect. The second group
+(Section~\ref{sec:simulation-examples-2}) evaluates the accuracy of
+the approximation (average effect and uncertainty) using the automatic
+bin-splitting algorithm. In both groups, we illustrate the most
+indicative examples; a more extensive evaluation is provided in the
+Appendix.
 
 \subsection{Case 1: Uncertainty Quantification}
 \label{sec:simulation-examples-1}
 
 In this simulation, we will compare UALE method against PDP-ICE in
-quantifying the main effect and the uncertainty. Since there is
-ambiguity about the ground-truth first-order effect in cases of
-correlated features,
-e.g.~\citep{apley2020visualizing,Gromping2020MAEP}, we limit ourselves
-to the following piecewise linear function,
+quantifying the main effect and the uncertainty. The samples that we
+use in all examples are coming from the following distribution:
+\(p(\mathbf{x}) = p(x_3)p(x_2|x_1)p(x_1)\) where
+\(x_1 \sim \mathcal{U}(0,1)\), \(x_2 = x_1\) and
+\(x_3 \sim \mathcal{N}(0, \sigma_3^2)\). We create the following
+piecewise linear function:
+
+% Since there is
+% ambiguity about the ground-truth first-order effect in cases of
+% correlated features,
+% e.g.~\citep{apley2020visualizing,Gromping2020MAEP},
 
 \begin{equation}
   \label{eq:synth-ex-1-function}
@@ -594,43 +596,33 @@ to the following piecewise linear function,
 \end{equation}
 %
 where \(f_{\mathtt{lin}}(\mathbf{x}) = a_1 x_1 + a_2 x_2\) and
-\(f_{int}(\mathbf{x}) = x_1x_3\). As we observe, the linear term
-\(f_{\mathtt{lin}}\) includes the two correlated features and the term
-\(f_{\mathtt{int}}\) interacts the two non-correlated variables. The
-samples that we use in all examples are coming from the following
-distribution: \(p(\mathbf{x}) = p(x_3)p(x_2|x_1)p(x_1)\) where
-\(x_1 \sim \mathcal{U}(0,1)\), \(x_2 = x_1\) and
-\(x_3 \sim \mathcal{N}(0, \sigma_3^2)\). We will test the effect
-computed by UALE and PDP-ICE in three cases; (a) no interaction
-(\(\alpha=0\)) and equal weights (\(a_1=a_2\)), (b) no interaction
-(\(\alpha=0\)) and different weigths (\( a_1 \neq a_2 \)) and (c) with
-interaction (\(\alpha \neq 0\)) with equal weights (\(a_1=a_2\)).
+\(f_{\mathtt{int}}(\mathbf{x}) = x_1x_3\). The linear term
+\(f_{\mathtt{lin}}\) includes the two correlated features and
+\(f_{\mathtt{int}}\) interacts the two non-correlated features.  We
+evaluate the effect computed by UALE and PDP-ICE in three cases; (a)
+without interaction (\(\alpha=0\)) and equal weights (\(a_1=a_2\)),
+(b) without interaction (\(\alpha=0\)) and different weigths
+(\( a_1 \neq a_2 \)) and (c) with interaction (\(\alpha \neq 0\)) with
+equal weights (\(a_1=a_2\)).
 
-In all cases, we firstly compute the ground-truth average effect and
-the uncertainty analytically (proofs in the Appendix) and then we
-compare it against the approximation provided by each method. The
-approximation is computed after generating \(N=300\) samples. As we
-will see, despite the model's simplicity, PDP-ICE fail in quantifying
-the effect correctly, due to correlation between features \(X_1\) and
-\(X_2\). Finally, besides it is not the focus of the current examples,
-we will also observe that UALE manages to correctly extract the
-regions with constant effect. Details for obtaining the ground truth
-effects and the experimental set-up are in the Appendix.
+In all cases, we provide the ground-truth average effect and
+uncertainty computed with analytical derivations (proofs at the
+Appendix) and we compare it against the approximation provided by each
+method. The approximation is computed after generating \(N=500\)
+samples.
 
 \paragraph{No Interaction, Equal weights.}
 
-We test the feature effect when no interaction term is apparent,
-i.e. \(\alpha=0\), and the weights are equal \(a_1=a_2=1\).  In this
-case, the ground truth effect \(f_\mu^{\mathtt{GT}}(x_1)\) is: \(x_1\)
-when \(0 \leq x_1 < 0.25\), \(-x_1\) when \(0.25 \leq x_1 < 0.5\) and
-zero otherwise. In each position, there is total absence of
-heterogeneous effects; therefore, the uncertainty of the global
-explanation is zero \(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). In
+We test the feature effect when no interaction exits \(\alpha=0\) and
+the weights are equal \(a_1=a_2=1\). The ground truth effect
+\(f_\mu^{\mathtt{GT}}(x_1)\) is: \(x_1\) when \(0 \leq x_1 < 0.25\),
+\(-x_1\) when \(0.25 \leq x_1 < 0.5\) and zero otherwise. There zero
+heterogeneous effects, therefore
+\(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). In
 Figure~\ref{fig:synth-ex-1-case-1}, we observe that PDP main effect is
 wrong and ICE plots imply the existence of heterogeneous effects. In
 contrast, ALE captures correctly the average effect and the zero
-uncertainty and it also groups perfectly the regions with
-constant-effect.
+uncertainty and it also groups perfectly the constant-effect regions.
 
 \begin{figure}[h]
   \centering
@@ -644,17 +636,18 @@ constant-effect.
 
 \paragraph{No Interaction, Different weights.}
 
-As before, there is no interaction term and, therefore, the
-ground-truth is zero, i.e.  \(f^{\mathcal{GT}}_{\sigma^2}(x_1) =
-0\). The weigts are different \(a_1=2, a_2=0.5\), therefore, the
-ground-truth effect is \(f_\mu^{\mathtt{GT}}(x_1)\) is: \(2x_1\) when
-\(0 \leq x_1 < 0.2\), \(-2x_1\) when \(0.2 \leq x_1 < 0.4\) and zero
-otherwise. In Figure~\ref{fig:ex-synth-1-2}, we observe that PDP
-estimation is completely opposite to the ground-truth effect,
-i.e.~negative in \([0, 0.2)\) and positive in \([0.2, 0.4)\), and the
-ICE erroneously implies heterogeneous effects.  As before, ALE
-quantifies perfectly the ground truth effect and the zero-uncertainty,
-extracting correcltly the constant effect regions.
+As before, no interaction exits \(\alpha=0\), therefore, the
+ground-truth uncertainty is zero, i.e.
+\(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). The weigts are
+\(a_1=2, a_2=0.5\), therefore, the ground-truth effect is
+\(f_\mu^{\mathtt{GT}}(x_1)\) is, \(2x_1\) when \(0 \leq x_1 < 0.2\),
+\(-2x_1\) when \(0.2 \leq x_1 < 0.4\) and zero otherwise. In
+Figure~\ref{fig:ex-synth-1-2}, we observe that PDP estimation is
+completely opposite to the ground-truth effect, i.e.~negative in the
+region \([0, 0.2)\) and positive in \([0.2, 0.4)\), and the ICE
+erroneously implies the existence of heterogeneous effects. As before,
+ALE quantifies correctly the ground truth effect, the
+zero-uncertainty and extracts the constant effect regions.
 
 \begin{figure}[h]
   \centering
@@ -669,18 +662,17 @@ extracting correcltly the constant effect regions.
 \paragraph{Uncertainty, Equal weights.}
 
 In this case we activate the interaction term, i.e. \(a=1\), and we
-set equal weights \(a_1=a_2=1\). The interaction term provokes
-heterogeneous effects in features \(x_1, x_3\), i.e., at any position
-\(x_1\), the local effects dependend on the unknown value of \(X_3\)
-and vice-versa. The effect of \(x_2\) continues to have
-zero-uncertainty, since it does not appear in any interaction term. As
-we observe in Figure~\ref{fig:ex-synth-1-3}, UALE captures perfectly
-the effect of all features, and the uncertainty in all cases. As
-expected, PDP-ICE quantify the effect and the uncertainty correctly
-only in the case of \(x_3\), since \(X_3\) is independent from other
-features. For the correlated features, i.e. \(x_1, x_2\), the average
-effect computed by PDP and the uncertainty implied by ICE plots are
-wrong.
+set the weights to \(a_1=a_2=1\). The interaction term provokes
+heterogeneous effects for features \(x_1, x_3\), because the local
+effects at \(x_1\) depend on the unknown value of \(X_3\) and
+vice-versa. The effect of \(x_2\) has zero-uncertainty since it does
+not appear in any interaction term. As we observe in
+Figure~\ref{fig:ex-synth-1-3}, UALE correcly models the average effect
+and the uncertainty in all cases. PDP-ICE quantifies correctly the
+effect and the uncertainty only in the case of feature \(x_3\),
+because \(X_3\) is independent from other features. For features
+\(x_1, x_2\) that are correlated the average effect of PDP
+and the uncertainty of ICE plots are wrong.
 
 \begin{figure}[h]
   \centering
@@ -697,51 +689,57 @@ wrong.
   \label{fig:ex-synth-1-3}
 \end{figure}
 
-% \paragraph{Discussion.}
+\paragraph{Discussion.}
 
-% In purpose, the examples above do not cover the case where there is an
-% interaction term includes correlated features, i.e. \(x_1x_2\). In
-% this scenario, there is an open debate about the ground-truth
-% effect~\citep{Gromping2020MAEP}.
+Despite the model's simplicity, PDP-ICE fail in quantifying the
+average effect and the uncertainty due to correlation between features
+\(X_1\) and \(X_2\). UALE quantifies them correctly and estimates them
+accurately extracting the regions with constant effect. The examples
+above do not cover the case of an interaction term between correlated
+features, e.g. \(x_1x_2\), because there is an open debate about the
+ground-truth effect in this case~\citep{Gromping2020MAEP}.
 
 \subsection{Case 2: Bin-Splitting}
 \label{sec:simulation-examples-2}
 
 In this simulation, we aim to to quantify the advantages of automatic
-bin-splitting based on the objective of Eq.(\ref{eq:opt}), through the
-following validation framework. We generate a big dataset with dense
-sampling (\(N=10^6\)) and we treat the DALE estimation with dense
-fixed-size bins (\(K=10^3\)) as ground-truth. Afterwards, we generate
-less samples (\(N=500\)) and we compare (a) the fixed-size DALE
-estimation for many different \(K\) versus (b) the auto-bin splitting
-algorithm. In all cases, we use a bivariate black-box function
-\(f(\cdot)\) where the samples are instances of the distribution
-\(p(\mathbf{x}) = p(x_2|x_1)p(x_1)\) where
+bin-splitting. We set-up the following validation framework. We
+generate a big dataset with dense sampling (\(N=10^6\)) and we treat
+the DALE estimation with dense fixed-size bins (\(K=10^3\)) as
+ground-truth. Afterwards, we generate less samples (\(N=500\)) and we
+compare the fixed-size DALE estimation (for many different \(K\))
+versus the automatic bin-splitting. In all cases, we use a bivariate
+black-box function \(f(\cdot)\) where the samples are instances of the
+distribution \(p(\mathbf{x}) = p(x_2|x_1)p(x_1)\) where
 \(x_1 \sim \mathcal{U}(0,1)\) and
-\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2=0.5)\).
-
-We denote as
+\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2=0.5)\). We denote as
 \(\mathcal{Z^{\mathtt{DP}}} = \{z^{\mathtt{DP}}_{k-1}, \cdots,
 z^{\mathtt{DP}}_{K}\}\) the sequence obtained by automatic
-bin-splitting based on the optimisation problem of Eq.~(\ref{eq:opt})
-and with \(\mathcal{Z^{\mathtt{K}}}\) the fixed-size splitting with
-\(K\) bins. The evaluation is done with regard to two metrics;
+bin-splitting and with \(\mathcal{Z^{\mathtt{K}}}\) the fixed-size
+splitting with \(K\) bins.  For consistent results, in all the
+examples below, we regenerate samples and repeat the computations for
+\(t = 30\) times, providing the mean value for all metrics.
+
+\paragraph{Metrics}
+
+The evaluation is done with regard to two metrics that count the mean
+bin error, where bin error is the absolute difference of the
+approximation from the ground-truth. The metric
 \(\mathcal{L}_{\mathtt{DP|K}}^{\mu} =
 \frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k \in
-  \mathcal{Z}^{\mathtt{DP|K}}} | \mu_k - \hat{\mu}_k | \) quantifies
-the average error in estimating the the expected effect and
+  \mathcal{Z}^{\mathtt{DP|K}}} | \mu_k - \hat{\mu}_k | \) counts the
+mean bin error on the average effect and
 \(\mathcal{L}_{\mathtt{DP|K}}^{\sigma} =
 \frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k \in
-  \mathcal{Z}^{\mathtt{DP|K}}} | \sigma_k - \hat{\sigma}_k | \)
-the average error in estimating the variance of the effect. The metric
+  \mathcal{Z}^{\mathtt{DP|K}}} | \sigma_k - \hat{\sigma}_k | \) the
+mean bin error on the uncertainty. In both cases the ground truth is
+computed from the dense bins of ground-truth that overlapse with the
+wider bin of the approximation. We also provide the mean (per bin)
+error term
 \(\mathcal{L}^{\rho}_{\mathtt{DP|K}} =
 \frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k \in
-  \mathcal{Z}^{\mathtt{DP|K}}} \rho_k \) quantifies the average
-nuisance uncertainty. The optimal bin-splitting is the one that
-minimises, at the same time, both \(\mathcal{L}^{\mu}\) and
-\(\mathcal{L}^{\sigma^2}\) errors. For consistent results, in all the
-examples below, we regenerate samples and repeat the computations for
-\(t = 10\) times, providing the mean value for all metrics.
+  \mathcal{Z}^{\mathtt{DP|K}}} \rho_k \) for a complete understanding
+of the uncertainty error. 
 
 \paragraph{Piecewise-Linear Function.}
 
@@ -826,50 +824,65 @@ Monte-Carlo approximations. The dataset contains \(D=8\) features
 describing building blocks of California, like latitude, longitude,
 total number of people residing in the block etc., and the target is
 the median house value inside the block. We exclude instances with
-missing or outlier values, i.e. \(x_d^i > \hat{sigma}_j\) in any
+missing or outlier values, i.e. \(x_d^i > \hat{\sigma}_j\) in any
 feature and normalize them to have
 \(\hat{\mu}_d = 0, \hat{\sigma_d}\). We split the dataset into
-\(N_{tr} = 15639\) training and \(N_test = 3910\) test examples (80/20
+\(N_{tr} = 15639\) training and \(N_{test} = 3910\) test examples (80/20
 split) and we fit a Neural Network with 3 hidden layers of 256, 128
 and 36 units respectively. After 15 epochs using the Adam optimizer
 with learning rate \(\eta = 0.02\), the model achieves a normalized
-mean squared error (R-Squared) of \(0.25\) (0.75). In depth information
-about preprocessing, training and evaluation are provided in the
-Appendix.
+mean squared error (R-Squared) of \(0.25\) (0.75). In depth
+information about preprocessing, training and evaluation are provided
+in the Appendix.
 
 \paragraph{Uncertainty Quantification}
 
 In real-world datasets, it is infeasible to obtain the ground truth FE
-for seamlessly evaluating the competitive methods. Therefore, the main
-purpose of this part is to demonstrate the usefulness of uncertainty
-quantification in UALE, i.e., illustrate that modeling the
-heterogeneous effects is important for the interpretation of an ALE
-plot. For this reason, Secondly, we discuss about the FE plots obtaing with UALE and
-PDP-ICE.
-
+for seamlessly evaluating the competitive methods. For this reason, we
+selected the California Dataset, where, in broad-terms, UALE and
+PDP-ICE aggree in the quantification of the average effect and of the
+uncertainty. In Figure\ref{fig:ex-real-1}, we observe that UALE
+complements ALE for the quantification of the heterogeneous effects,
+similarly to as ICE complements PDP. Add some content..
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=.23\textwidth]{real_dataset_3/feature_1_ale_auto.pdf}
   \includegraphics[width=.23\textwidth]{real_dataset_3/feature_1_pdp_ice.pdf}\\
-  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_7_ale_auto.pdf}
-  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_7_pdp_ice.pdf}\\
+  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_4_ale_auto.pdf}
+  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_4_pdp_ice.pdf}\\
+  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_5_ale_auto.pdf}
+  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_5_pdp_ice.pdf}\\
   \caption{Figure 1}
-  \label{fig:ex-synth-2-1}
+  \label{fig:ex-real-1}
 \end{figure}
 
 
 \paragraph{Bin Splitting}
 
-For evaluating UALE in terms of bin-splitting we set-up the following
-evaluation framework. We treat as ground-truth the effects computed on
-the full training-set \(N=20000\) with dense fixed-size bin-splitting
-(\(K=80\)). Given the big number of samples, we make the hypothesis
-that the approximation with dense binning is close to the ground
-truth. Afterwards we select less samples \(N=1000\) and we compare
-UALE approximation with all possible fixed-size alternatives, in terms
-of accuracy, i.e. we provide the quantities
-\(\mathcal{L}^{\mu}, \mathcal{L}^{\sigma^2}, \mathcal{L}^{\rho^2}\).
+As in the Syntetic Example (Case 2), we treat as ground-truth the
+effects computed on the full training-set \(N=20000\) with dense
+fixed-size bin-splitting (\(K=80\)). Given the big number of samples,
+we make the hypothesis that the approximation with dense binning is
+close to the ground truth. Afterwards, we randomly select \(N=1000\)
+samples and we compare UALE approximation with all possible fixed-size
+alternatives using \(\mathcal{L}^{\mu}, \mathcal{L}^{\sigma}\). Add discussion
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=.23\textwidth]{real_dataset_3/compare_mu_err_feature_1.pdf}
+  \includegraphics[width=.23\textwidth]{real_dataset_3/compare_var_err_feature_1.pdf}\\
+  \includegraphics[width=.23\textwidth]{real_dataset_3/compare_mu_err_feature_4.pdf}
+  \includegraphics[width=.23\textwidth]{real_dataset_3/compare_var_err_feature_4.pdf}\\
+  \includegraphics[width=.23\textwidth]{real_dataset_3/compare_mu_err_feature_5.pdf}
+  \includegraphics[width=.23\textwidth]{real_dataset_3/compare_var_err_feature_5.pdf}\\
+  \caption{Figure 1}
+  \label{fig:ex-real-2}
+\end{figure}
+
+\paragraph{Discussion}
+
+
 \section{CONCLUSION}
 
 \subsubsection*{Acknowledgments}
