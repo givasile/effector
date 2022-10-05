@@ -17,6 +17,17 @@ def normalization_constant_1D(func, start, stop):
     y = integrate.quad(wrapper, start, stop)[0]
     return y
 
+def normalization_constant_1D_linspace(func, start, stop):
+    """Computes normalization constant of PDP of feature
+
+    :param s: index of feature
+    :returns:
+
+    """
+    x = np.linspace(start, stop, 1000)
+    z = np.mean(func(x))
+    return z
+
 
 def expectation_1D(xs, func, p_xc, s, start=-np.inf, stop=np.inf):
     """

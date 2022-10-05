@@ -37,15 +37,15 @@ def compare(dale_gt, dale):
         means = dale_gt["bin_effect"][ind[i]+1:ind[i+1]]
         variances = dale_gt["bin_variance"][ind[i]+1:ind[i+1]]
 
-        rho_bin = means.var()
+        rho_bin = means.std()
         rho_list.append(rho_bin)
 
         mu_gt = means.mean()
         mu_est = dale["bin_effect"][i]
         mu_err_list.append(np.abs(mu_gt - mu_est))
 
-        var_gt = variances.mean()
-        var_est = dale["bin_variance"][i]
+        var_gt = np.sqrt(variances.mean())
+        var_est = np.sqrt(dale["bin_variance"][i])
         var_err_list.append(np.abs(var_gt - var_est))
 
     mean_rho = np.mean(rho_list)

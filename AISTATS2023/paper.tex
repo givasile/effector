@@ -78,7 +78,26 @@ width=7.00ex, align=center, column sep=-\pgflinewidth }, }
 \aistatsaddress{ Institution 1 \And  Institution 2 \And Institution 3 } ]
 
 \begin{abstract}
-Accumulated Local Effects (ALE) is a popular approach to explainable AI that describes how a feature influences the decisions of a model on average, taking into account potential correlations between the features.  However, ALE does not provide an explicit component for modeling the uncertainty of the effect, i.e., the level of heterogeneity of the effects behind the average explanation, which is crucial for a complete interpretation when the black-box function contains interactions between the correlated features.  In this work, we propose Uncertainty-aware ALE (UALE), an extension of ALE for quantifying the heterogeneous effects. We show the importance of bin-splitting for a robust approximation of the uncertainty and we formally prove the conditions for an unbiased estimation. We finally propose a computationally-grounded algorithm for finding the optimal sequence of bins given the limited instances of the training set. We demonstrate through synthetic and real datasets, that UALE quantifies the average and heterogeneous effects correctly and approximates them robustly by optimizing the bin-splitting procedure.
+  Accumulated Local Effects (ALE) is a popular approach to explainable
+  AI that describes how a feature influences the decisions of a model
+  on average, taking into account potential correlations between the
+  features.  However, ALE does not provide an explicit component for
+  modeling the uncertainty of the effect, i.e., the level of
+  heterogeneity of the effects behind the average explanation, which
+  is crucial for a complete interpretation when the black-box function
+  contains interactions between the correlated features. In this work,
+  we define Uncertainty-aware ALE (UALE), an extension of ALE for
+  quantifying the heterogeneous effects and we propose a method for
+  estimating it. We formally prove the conditions the bin-splitting,
+  i.e.~the partitioning the domain of the feature of interest into
+  consecutive non-overlapping intervals, must respect for an an
+  unbiased estimation of the uncertainty. We finally propose a
+  computationally-grounded algorithm for finding the optimal sequence
+  of bins given the limited instances of the training set. We
+  demonstrate through synthetic and real datasets, that UALE
+  quantifies the average and heterogeneous effects correctly and
+  approximates them robustly by optimizing the bin-splitting
+  procedure.
 \end{abstract}
 
 
@@ -140,11 +159,13 @@ potential misinterpretations.
 
 In this paper, we present Uncertainty-aware Accumulated Local Effects
 (UALE) an extension of ALE for measuring the uncertainty of the
-explanation, i.e.~how certain we are that the average explanation would predict the feature effect to an instance drawn at random. We show that choosing
-an appropriate sequence of intervals is particularly important for a
-robust estimation of the uncertainty, providing an algorithm that
-automates this step. We also provide theoretical proofs for an
-unbiased estimation of the uncertainty. We apply our method in multiple
+explanation, i.e.~how certain we are that the average explanation
+would predict the feature effect to an instance drawn at random. We
+show that choosing an appropriate sequence of intervals is
+particularly important for a robust and unbiased estimation of the
+uncertainty and we provide an algorithm that automates this step. We
+also formally prove the bin-splitting conditions for an unbiased
+estimation of the uncertainty. We apply our method in multiple
 synthetic and real world datasets for evaluating its performance.
 
 \paragraph{Contributions.} The contributions of this paper are:
@@ -311,10 +332,12 @@ solve the problem of optimal bin-splitting.
 We extend ALE definition of Eq.~(\ref{eq:ALE}) with a component for
 quantifying the uncertainty. We denote as \(\mathcal{H}(z)\) the
 uncertainty of the local effects at a specific point \(x_s=z\) and we
-quantify it as the standard deviation of the local explanations:
+quantify it as the standard deviation of the local explanations
+\(\mathcal{H}(z) = \sigma(z)\), where:
+
 \begin{equation}
   \label{eq:ALE_var}
-  \mathcal{H}(z) := \sigma(z) = \sqrt{\mathbb{E}_{\Xcb|z}\left [ \left (\dfdx (z, X_c) - \mu(z) \right )^2 \right ] }
+  \sigma^2(z) = \mathbb{E}_{\Xcb|z}\left [ \left (\dfdx (z, X_c) - \mu(z) \right )^2 \right ] 
 \end{equation}
 \noindent
 The uncertainty emerges from the natural characteristics of the
@@ -339,50 +362,45 @@ f^{\mathtt{ALE}}_{\sigma}(x_s)\).
 \label{sec:UALE-definition-2}
 
 In real scenarios, all estimations are based on the instances of the
-training set. It is impossible to estimate \(\mu(z), \sigma(z)\) at
+training set. Therefore, we cannot estimate \(\mu(z), \sigma(z)\) at
 the granularity of a point, because the probability of observing a
 sample inside the region \([x_s - h, x_s + h]\) tends to zero, when
-\(h \to 0\). Therefore we define the regional-effect \(\mu(z_1, z_2)\)
-and the regional-uncertainty \(\sigma(z_1, z_2)\), as the summary
-statistics that characterize the effect and the uncertainty inside the
-interval \([z_1, z_2)\):
+\(h \to 0\). We define the regional-effect \(\mu(z_1, z_2)\) and the
+regional-uncertainty \(\mathcal{H}(z_1, z_2) = \sigma(z_1, z_2)\), as the summary statistics
+that characterize the effect and the uncertainty inside the interval
+\([z_1, z_2)\):
 
 \begin{equation}
   \label{eq:mu_bin}
-  \mu(z_1, z_2) = \frac{1}{z_2 - z_1} \int_{z_1}^{z_2}
-  \mathbb{E}_{\xc|z}\left [f^s(z, \xc) \right ] \partial z
+    \mu(z_1, z_2) = \mathbb{E}_{z \sim \mathcal{U}(z_1,z_2)} [\mu(z)]
+    = \frac{\int_{z_1}^{z_2} \mu(z) \partial z}{z_2 - z_1}
 \end{equation}
-
-\noindent
 
 \begin{equation}
   \label{eq:var_bin}
-  \sigma(z_1, z_2) = \sqrt{\frac{\int_{z_1}^{z_2}
-  \mathbb{E}_{\xc|x_s=z} \left [ (f^s(z, \xc) - \mu(z) )^2 \right] \partial z}{z_2 - z_1}}
+  \sigma^2(z_1, z_2) = \mathbb{E}_{z \sim \mathcal{U}(z_1,z_2)} [\sigma^2(z)] =  \frac{\int_{z_1}^{z_2} \sigma^2(z)  \partial z}{z_2 - z_1}
 \end{equation}
 
 %
-Intuitively, the regional-effect and the regional-uncertainty are the
-average effect \(\mu(z^*)\) and the uncertainty \(\sigma(z^*)\) that I
-expect to get if draw a sample at random from the region
-\([z_1, z_2]\) given a uniform distribution
-\(z^* \sim \mathcal{U}(z_1, z_2)\).
-
-If we also define as \(\mathcal{Z}_s\) the sequence of \(K+1\) points
-that partition the \(s\)-th feature axis into \(K\) variable-size
-intervals, i.e. \(\mathcal{Z}_s = \{z_0, \ldots, z_K\}\), we can
-redefine UALE using an interval-based formulation
-\(\tilde{f}^{\mathtt{UALE}}(x_s):= \tilde{f}^{\mathtt{ALE}}_{\mu}(x_s)
-\pm \tilde{f}^{\mathtt{ALE}}_{\sigma}(x_s)\), where:
+Intuitively, the regional-effect and the regional-uncertainty quantify
+the expected average effect and the expected uncertainty if we
+randomly draw a point \(z^*\) given a uniform distribution
+\(z^* \sim \mathcal{U}(z_1, z_2)\). If we also define as
+\(\mathcal{Z}\) the sequence of \(K+1\) points that partition the
+domain of the \(s\)-th feature into \(K\) variable-size intervals,
+i.e.  \(\mathcal{Z} = \{z_0, \ldots, z_K\}\), we can redefine UALE
+using an interval-based formulation
+\(\tilde{f}^{\mathtt{UALE}}_{\mathcal{Z}}(x_s):= \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \mu}(x_s)
+\pm \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \sigma}(x_s)\), where:
 
 \begin{equation}
   \label{eq:ALE_2}
-  \tilde{f}^{\mathtt{ALE}}_{\mu}(x_s) = \sum_{k=1}^{k_x} \mu(z_{k-1}, z_k) (z_k - z_{k-1})
+  \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \mu}(x_s) = \sum_{k=1}^{k_x} \mu(z_{k-1}, z_k) (z_k - z_{k-1})
 \end{equation}
 
 \begin{equation}
   \label{eq:ALE_accumulated_var}
-  \tilde{f}^{\mathtt{ALE}}_{\sigma}(x_s) =  \sum_{k=1}^{k_x} \sigma(z_{k-1}, z_k) (z_k - z_{k-1})
+  \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \sigma}(x_s) =  \sum_{k=1}^{k_x} \sigma(z_{k-1}, z_k) (z_k - z_{k-1})
 \end{equation}
 %
 
@@ -413,11 +431,11 @@ Eq.\eqref{eq:2} is an unbiased estimator of Eq.~(\ref{eq:mu_bin})
 under the assumption that the points are uniformly distributed inside
 the intervals. The same does not hold in the general case for
 Eq.\eqref{eq:3}. In the general case, \(\hat{\sigma}^2(z_{k-1}, z_k)\)
-is an unbiased estimator of the \textit{observable} standard deviation
-\(\sigma_{obs}(z_1, z_2) = \sqrt{\frac{\int_{z_1}^{z_2}
+is an unbiased estimator of the \textit{observable} variance
+\(\sigma^2_{obs}(z_1, z_2) = \frac{\int_{z_1}^{z_2}
     \mathbb{E}_{\xc|x_s=z} \left [ (f^s(z, \xc) - \mu(z_1, z_2) )^2
-    \right] \partial z}{z_2 - z_1}}\), which as we prove in Theorem 1
-is an overestimation of \(\sigma(z_1, z_2)\).
+    \right] \partial z}{z_2 - z_1}\), which as we prove in Theorem 1
+is an overestimation of \(\sigma^2(z_1, z_2)\).
 
 \paragraph{Theorem 1.}
 \label{sec:theorem-1}
@@ -429,42 +447,36 @@ is an overestimation of \(\sigma(z_1, z_2)\).
 
 \begin{equation}
     \label{eq:bin-uncertainty-proof}
- \sigma_{obs}^2(z_1, z_2) = \sigma^2(z) + \frac{\int_{z_1}^{z_2}\rho^2(z) \partial z}{z_2 - z_1}
+ \sigma_{obs}^2(z_1, z_2) = \sigma^2(z_1, z_2) + \frac{\int_{z_1}^{z_2}\rho^2(z) \partial z}{z_2 - z_1}
 \end{equation}
 \noindent
 Theorem 1 reveals an important connection between the ground-truth and
-the observable uncertainty inside a region. Setting as ground-truth
-the regional uncertainty
-\(\mathcal{H}_{true}(z_1, z_2) = \sigma(z_1, z_2)\) and as observable
-uncertainty the one we estimate with Eq.~(\ref{eq:3}), i.e.
-\(\mathcal{H}_{obs}(z_1, z_2) := \sigma_{obs}(z_1, z_2)\), then there
-is an error term quantified by the residual inside the interval, i.e.
-\(\mathcal{E}(z_1, z_2) = \sqrt{\frac{\int_{z_1}^{z_2}\rho^2(z)
-    \partial z}{z_2 - z_1}}\), such that:
+the observable uncertainty inside a region. For convenience, we denote
+as
+\(\mathcal{E}^2(z_1, z_2) = \frac{\int_{z_1}^{z_2}\rho^2(z) \partial
+  z}{z_2 - z_1}\) the error term that models the expected square
+residual inside the interval and as
+\(\mathcal{H}_{obs}(z_1, z_2) := \sigma_{obs}(z_1, z_2)\) the
+observable uncertainty. It holds that the observable uncertainty is an
+overestimation of the correct uncertainty
 
 \begin{equation}
   \label{eq:uncertainty-bin}
-  \mathcal{H}^2_{obs}(z_1, z_2) = \mathcal{H}^2_{true}(z_1, z_2) + \mathcal{E}^2(z_1, z_2)
+  \mathcal{H}^2_{obs}(z_1, z_2) = \mathcal{H}^2(z_1, z_2) + \mathcal{E}^2(z_1, z_2)
 \end{equation}
 %
-Eq.~(\ref{eq:uncertainty-bin}) shows that the error term quantifies
-how much the observable uncertainty of the region \([z_1, z_2]\)
-deviates for the one we would like to measure and provides a
-quantified metric to evaluate a particular splitting. As we prove in
-the Appendix, UALE uncertainty approximation is unbiased if and only if the
-partitioning is such that ther error term is zero for all bins, i.e. 
-\(\sum_{k=1}^K \mathcal{E}^2(z_{k-1}, z_{k}) = 0\)
+and, therefore, the estimation is unbiased only in case
+\(\mathcal{E}^2(z_1, z_2) = 0\).
 
 \subsection{Bin-Splitting: Finding Regions With Homogeneous Effects}
 \label{sec:bin-spliting}
 
 In this section we formulate bin-splitting as an unsupervised
-clustering problem. The main idea of the clustering problem is to find
-the best bin-splitting solution, handling appropriately two
-conflicting objectives. On the one hand, we want to minimize the error
-term \(\mathcal{E}\) defined above for minimizing the error in the
-uncertainty estimation and on the other hand, we want wide-enough bins
-for including a fair population of samples for a robust estimation of
+clustering problem, searching for a solution that compromises two
+contradictory objectives. On the one hand, we want to minimize the
+error term \(\mathcal{E}\) for approaching an unbiased estimation and
+on the other hand, we want wide-enough bins for including a fair
+population of samples for a robust estimation of
 \(\hat{\mu}(z_1, z_2), \hat{\sigma}(z_1, z_2)\). We set-up the
 following optimization problem:
 
@@ -481,24 +493,23 @@ following optimization problem:
 \end{equation}
 %
 We search for the sequence of intervals \(z_0, \ldots, z_K\) that
-minimizes the sum of bin costs. The cost of each bin is the
+minimizes the sum of the bin costs. The cost of each bin is the
 approximated variance \(\hat{\sigma}^2_k\) scaled by the bin length
 \(\Delta z_k\) and discounted by the term \(\tau_k\). The term
-\(\tau_K\) acts as a tie-braker that favors the selection of a bigger
-bin in case it has similar variance with the aggregate variance of
-many smaller ones. The constraint of at least \(N_{\mathtt{PPB}}\)
-points per bin sets the lowest-limit for a \textit{robust}
-estimation. The user can choose to what extent they favor the creation
-of wide bins through the discount parameter by setting the parameter
-\(\alpha\) and where they set the minimum for robust approximation
-with the parameter \(N_{\mathtt{PPB}}\). For providing a rough idea of
-some sensible value, in our experiments we set \(\alpha = 0.2\) which
-means that the discount ranges in \([0\%, 20\%]\) and
-\(N_{\mathtt{PPB}} = \frac{N}{20}\). It is also important to clarify
-that by minimizing \(\hat{\sigma}^2_k \approx \mathcal{H}_{obs}^2\),
-we actually minimize the squared error term \(\mathcal{E}^2\), since
-the term \(\mathcal{H}^2_{true}\) is independent of the bin splitting
-procedure.
+\(\tau_K\) favors the selection of a bigger bin in case it has similar
+variance with the aggregate variance of many smaller ones. The
+constraint of at least \(N_{\mathtt{PPB}}\) points per bin sets the
+lowest-limit for a \textit{robust} estimation. The user can choose to
+what extent they favor the creation of wide bins through the discount
+parameter by setting the parameter \(\alpha\) and where they set the
+minimum for robust approximation with the parameter
+\(N_{\mathtt{PPB}}\). For providing a rough idea, in our experiments
+we set \(\alpha = 0.2\) which means that the discount ranges between
+\([0\%, 20\%]\) and \(N_{\mathtt{PPB}} = \frac{N}{20}\). It is also
+important to clarify that by minimizing
+\(\hat{\sigma}^2_k \approx \mathcal{H}_{obs}^2\), we actually minimize
+the squared error term \(\mathcal{E}^2\), since the term
+\(\mathcal{H}^2_{true}\) is independent of the bin splitting.
 
 \subsubsection{Solve Bin-Splitting with Dynamic Programming}
 \label{sec:dynamic-programing}

@@ -172,7 +172,7 @@ for s in range(8):
                                                          model_grad,
                                                          axis_limits,
                                                          K_list,
-                                                         nof_iterations=10,
+                                                         nof_iterations=30,
                                                          nof_points=1000,
                                                          feature=s)
     stats_fixed_list.append(stats_fixed)
@@ -181,7 +181,7 @@ for s in range(8):
                                                        model,
                                                        model_grad,
                                                        axis_limits,
-                                                       nof_iterations=10,
+                                                       nof_iterations=30,
                                                        nof_points=1000,
                                                        feature=s)
     stats_auto_list.append(stats_auto)
