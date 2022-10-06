@@ -1,6 +1,7 @@
 import sys
 import os
 import feature_effect as fe
+from feature_effect import visualization as vis
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -240,7 +241,26 @@ def measure_auto_error_real_dataset(dale_gt,
     return stats
 
 
-def plot_fixed_vs_auto(K_list, fixed_mean, fixed_std, auto_mean, auto_std, metric, savefig=None):
+def plot_fixed_vs_auto(K_list, fixed_mean, fixed_std, auto_mean, auto_std, metric,
+                       scale_x = None,
+                       scale_y = None,
+                       savefig=None):
+
+    def scale(x, scale_x, scale_y):
+        return x * scale_y / scale_x
+
+    fixed_mean = np.array(fixed_mean)
+    fixed_mean = fixed_mean if scale_y is None else scale(fixed_mean, scale_x, scale_y)
+
+    fixed_std = np.array(fixed_std)
+    fixed_std = fixed_std if scale_y is None else scale(fixed_std, scale_x, scale_y)
+
+    auto_mean = np.array(auto_mean)
+    auto_mean = auto_mean if scale_y is None else scale(auto_mean, scale_x, scale_y)
+
+    auto_std = np.array(auto_std)
+    auto_std = auto_std if scale_y is None else scale(auto_std, scale_x, scale_y)
+
     plt.figure()
     assert metric in ["rho", "mu", "var"]
     if metric == "rho":

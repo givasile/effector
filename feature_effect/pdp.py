@@ -346,7 +346,10 @@ class PDPwithICE:
             y_ice.append(y)
         self.y_ice = np.array(y_ice)
 
-    def plot(self, s: int, normalized: bool = True,
+    def plot(self, s: int,
+             scale_x=None,
+             scale_y=None,
+             normalized: bool = True,
              nof_points: int = 30,
              savefig = None) -> None:
         """Plot the s-th feature
@@ -354,4 +357,4 @@ class PDPwithICE:
         self.fit(s, normalized, nof_points)
 
         axis_limits = self.axis_limits
-        vis.plot_PDP_ICE(s, self.x, self.y_pdp, self.y_ice, savefig)
+        vis.plot_PDP_ICE(s, self.x, self.y_pdp, self.y_ice, scale_x, scale_y, savefig)

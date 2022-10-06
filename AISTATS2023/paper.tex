@@ -820,70 +820,120 @@ real-world California Housing dataset~\citep{pace1997sparse}.
 
 The California Housing is a largely-studied dataset with approximately
 \(20000\) training instances, making it appropriate for robust
-Monte-Carlo approximations. The dataset contains \(D=8\) features
-describing building blocks of California, like latitude, longitude,
-total number of people residing in the block etc., and the target is
-the median house value inside the block. We exclude instances with
-missing or outlier values, i.e. \(x_d^i > \hat{\sigma}_j\) in any
-feature and normalize them to have
-\(\hat{\mu}_d = 0, \hat{\sigma_d}\). We split the dataset into
-\(N_{tr} = 15639\) training and \(N_{test} = 3910\) test examples (80/20
-split) and we fit a Neural Network with 3 hidden layers of 256, 128
-and 36 units respectively. After 15 epochs using the Adam optimizer
-with learning rate \(\eta = 0.02\), the model achieves a normalized
-mean squared error (R-Squared) of \(0.25\) (0.75). In depth
-information about preprocessing, training and evaluation are provided
-in the Appendix.
+Monte-Carlo approximations. The dataset contains \(D=8\) numerical
+features with characteristics about the building blocks of California,
+e.g. latitude, longitude, population of the block or median age of
+houses in the block. The target variable is the median value of the
+houses inside the block in dollars that ranges between
+\([15, 500] \cdots 10^3\), with a mean value of
+\(\mu_Y \approx 201 \cdot 10^3 \) and a standard deviation of
+\(\sigma_Y \approx 110 \cdot 10^3\).
+
+
+We exclude instances with missing values or with outlier values. As
+outlier we define the feature values which ar over three standard
+deviations away from the mean feature value. We also normalize all
+features to zero-mean and unit standard deviation. We split the
+dataset into \(N_{tr} = 15639\) training and \(N_{test} = 3910\) test
+examples (80/20 split) and we fit a Neural Network with 3 hidden
+layers of 256, 128 and 36 units respectively. After 15 epochs using
+the Adam optimizer with learning rate \(\eta = 0.02\), the model
+achieves a normalized mean squared error (R-Squared) of \(0.25\)
+(0.75), which corresponds to a MAE of \(37 \cdot 10^3\) dollars. 
+
+Below, we illustrate the feature effect for three features: latitude
+\(x_2\), population \(x_6\) and median income \(x_8\). The particular
+features cover the main FE cases, e.g.~positive/negative trend and
+linear/non-linear curve, and they are appropriate for illustration
+purposes. The complete results for all features, along with in-depth
+information about the preprocessing, training and evaluation parts are
+provided in the Appendix.
 
 \paragraph{Uncertainty Quantification}
 
 In real-world datasets, it is infeasible to obtain the ground truth FE
-for seamlessly evaluating the competitive methods. For this reason, we
-selected the California Dataset, where, in broad-terms, UALE and
-PDP-ICE aggree in the quantification of the average effect and of the
-uncertainty. In Figure\ref{fig:ex-real-1}, we observe that UALE
-complements ALE for the quantification of the heterogeneous effects,
-similarly to as ICE complements PDP. Add some content..
+for seamlessly evaluating the competitive methods. We selected the
+particular experiment, because, in broad terms, UALE and PDP-ICE plots
+aggree in the estimation of the average effect and
+uncertainty. Therefore, we can focus on juding the quality of the
+information provided by the two methods.
+
+In Figure\ref{fig:ex-real-1}, we observe, from top to bottom, the
+effects for the latitude, population and the median income. The effect
+of UALE and PDP-ICE are similar for the population and the median
+income. The population has a negative impact that progressively
+decreases: from 400 to 1500 people the house value decreases with a
+rate of \(-150 (\pm 140)\) dollars per added person, a rate that
+decreases from \(-80 (\pm 80)\) to \(-60 (\pm 60)\) dollars per added
+person as we move from 1500 to 2800 people. The level of uncertainty
+indicates significant variance in absolute value of the rate, but in
+the grant majority of instances the rate is negative. With the same
+inspection, we observe that the median annual income has a positive
+impact on the value (all numbers are thousands of dollars):
+\(20\pm 15\) per \(10\) of added median income for incomes in
+\([8, 15]\), \(32 \pm 20\) per \(10\) added income in \([15, 60]\) and
+\(40 \pm 15\) per \(10\) added income in \([60, 70]\). The uncertainty
+indicates that there are less heterogeneous effects about the median
+income compared to the number of people. In both cases, we can end-up
+to the same conclusion by inspecting the PDP-ICE plots. For the
+latitude, there is a small difference in the explanations for the
+region \([32, 35]\), where UALE estimates a less negative slope with
+less uncertainty than PDP, while the explanations are similar for the
+range \([35,39]\), where both methods reveal an increase in the
+uncertainty around the feature value \(37.5\).
+
+In general, we observe that UALE complements ALE in the quantification
+of the heterogeneous effects, similarly to as ICE complements PDP. The
+automatic extraction of constant-effect and constant-uncertainty
+regions provided by UALE is helpful for an easier interpretation. On
+the other hand, ICE plots sometimes are more descritive on locating
+the type of heterogeneity, whereas UALE quantifies only the level (not
+the type) of heterogeneity.
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=.23\textwidth]{real_dataset_3/feature_1_ale_auto.pdf}
   \includegraphics[width=.23\textwidth]{real_dataset_3/feature_1_pdp_ice.pdf}\\
-  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_4_ale_auto.pdf}
-  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_4_pdp_ice.pdf}\\
   \includegraphics[width=.23\textwidth]{real_dataset_3/feature_5_ale_auto.pdf}
   \includegraphics[width=.23\textwidth]{real_dataset_3/feature_5_pdp_ice.pdf}\\
+  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_7_ale_auto.pdf}
+  \includegraphics[width=.23\textwidth]{real_dataset_3/feature_7_pdp_ice.pdf}\\
   \caption{Figure 1}
   \label{fig:ex-real-1}
 \end{figure}
 
-
 \paragraph{Bin Splitting}
 
-As in the Syntetic Example (Case 2), we treat as ground-truth the
+In this part, we evaluate the robustness of the approximation using
+automatic bin-splitting. Following the evaluation framework of
+Section~\ref{sec:simulation-examples-2}, we treat as ground-truth the
 effects computed on the full training-set \(N=20000\) with dense
 fixed-size bin-splitting (\(K=80\)). Given the big number of samples,
 we make the hypothesis that the approximation with dense binning is
-close to the ground truth. Afterwards, we randomly select \(N=1000\)
-samples and we compare UALE approximation with all possible fixed-size
-alternatives using \(\mathcal{L}^{\mu}, \mathcal{L}^{\sigma}\). Add discussion
+close to the ground truth. Afterwards, we randomly select less samples
+\(N=1000\) and we compare UALE approximation with all possible
+fixed-size alternatives, repeating this process for 30 times for
+robust results. In Figure~\ref{fig:ex-real-2}, we illustrate the mean
+values for \(\mathcal{L}^{\mu}, \mathcal{L}^{\sigma}\) of the 30
+repetitions. We observe that automatic bin-spliting provides (close to
+the) best approximation in the three features. In the Appendix, we
+provide the same evaluation for all features.
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=.23\textwidth]{real_dataset_3/compare_mu_err_feature_1.pdf}
   \includegraphics[width=.23\textwidth]{real_dataset_3/compare_var_err_feature_1.pdf}\\
-  \includegraphics[width=.23\textwidth]{real_dataset_3/compare_mu_err_feature_4.pdf}
-  \includegraphics[width=.23\textwidth]{real_dataset_3/compare_var_err_feature_4.pdf}\\
   \includegraphics[width=.23\textwidth]{real_dataset_3/compare_mu_err_feature_5.pdf}
   \includegraphics[width=.23\textwidth]{real_dataset_3/compare_var_err_feature_5.pdf}\\
+  \includegraphics[width=.23\textwidth]{real_dataset_3/compare_mu_err_feature_7.pdf}
+  \includegraphics[width=.23\textwidth]{real_dataset_3/compare_var_err_feature_7.pdf}\\
   \caption{Figure 1}
   \label{fig:ex-real-2}
 \end{figure}
 
-\paragraph{Discussion}
+\section{DISCUSSION}
 
-
-\section{CONCLUSION}
+add limitations.
 
 \subsubsection*{Acknowledgments}
 All acknowledgments go at the end of the paper, including thanks to reviewers who gave useful comments, to colleagues who contributed to the ideas, and to funding agencies and corporate sponsors that provided financial support. 

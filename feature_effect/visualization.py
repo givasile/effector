@@ -3,12 +3,56 @@ import numpy as np
 from feature_effect.utils import compute_remaining_effect
 
 
-def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=None, block=False, gt=False, gt_bins=None, savefig=False):
+def affine(x, transform):
+     return x*transform["std"] + transform["mean"]
+
+def scale(x, transform, square=False):
+    if square:
+        y = x*transform["std"]**2
+    else:
+        y = x*transform["std"]
+    return y
+
+def scale_bin(x, scale_x, scale_y, square=False):
+    if square:
+        y = x*(scale_y["std"]/scale_x["std"])**2
+    else:
+        y = x*scale_y["std"]/scale_x["std"]
+    return y
+
+
+def feature_effect_plot(params,
+                        eval,
+                        feature,
+                        error,
+                        min_points_per_bin,
+                        title=None,
+                        block=False,
+                        gt=False,
+                        gt_bins=None,
+                        scale_x = None,
+                        scale_y = None,
+                        savefig=False):
     assert all(name in params for name in ["first_empty_bin", "limits", "dx", "is_bin_empty", "bin_estimator_variance", "bin_effect"])
-    limits = params["limits"]
-    dx = params["dx"]
-    bin_variance = params["bin_variance"]
-    bin_effect = params["bin_effect"]
+
+    x = np.linspace(params["limits"][0], params["limits"][-1], 1000)
+    y, std, estimator_var = eval(x, feature, True)
+    rem_eff = compute_remaining_effect(x,
+                                       params["limits"],
+                                       np.sqrt(params["bin_variance"]),
+                                       square=False)
+
+    x = x if scale_x is None else affine(x, scale_x)
+    y = y if scale_y is None else affine(y, scale_y)
+    std = std if scale_y is None else scale(std, scale_y)
+    estimator_var = estimator_var if scale_y is None else scale(estimator_var, scale_y, True)
+
+
+    limits = params["limits"] if scale_x is None else affine(params["limits"], scale_x)
+    dx = params["dx"] if scale_x is None else scale(params["dx"], scale_x)
+
+    bin_variance = params["bin_variance"] if scale_y is None else scale_bin(params["bin_variance"], scale_x, scale_y, True)
+    bin_effect = params["bin_effect"] if scale_y is None else scale_bin(params["bin_effect"], scale_x, scale_y)
 
     is_bin_empty = params["points_per_bin"] < min_points_per_bin
 
@@ -18,23 +62,36 @@ def feature_effect_plot(params, eval, feature, error, min_points_per_bin, title=
     else:
         first_empty_bin = None
 
-    x = np.linspace(params["limits"][0], params["limits"][-1], 1000)
-    y, std, estimator_var = eval(x, feature, True)
-    rem_eff = compute_remaining_effect(x, limits, np.sqrt(bin_variance), square=False)
 
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
 
     if title is None:
-        ax1.set_title("ALE with Uncertainty: $x_{" + str(feature + 1) + "}$")
+        ax1.set_title("UALE: $x_{" + str(feature + 1) + "}$")
     else:
         ax1.set_title(title)
 
     # first subplot
-    feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty_bin, limits, min_points_per_bin, error=error, gt=gt)
+    feature_effect(ax1,
+                   x,
+                   y,
+                   estimator_var,
+                   std,
+                   rem_eff,
+                   first_empty_bin,
+                   limits,
+                   min_points_per_bin,
+                   error=error, gt=gt)
 
     # second subplot
-    effects_per_bin(ax2, bin_effect, bin_variance, error, is_bin_empty,
-                    limits, dx, gt_bins, min_points_per_bin)
+    effects_per_bin(ax2,
+                    bin_effect,
+                    bin_variance,
+                    error,
+                    is_bin_empty,
+                    limits,
+                    dx,
+                    gt_bins,
+                    min_points_per_bin)
 
     ax1.set_ylabel("$y$")
 
@@ -198,7 +255,11 @@ def plot_1D(x, y, title):
     plt.show(block=False)
 
 
-def plot_PDP_ICE(s, x, y_pdp, y_ice, savefig):
+def plot_PDP_ICE(s, x, y_pdp, y_ice, scale_x, scale_y, savefig):
+    x = x if scale_x is None else affine(x, scale_x)
+    y_pdp = y_pdp if scale_y is None else affine(y_pdp, scale_y)
+    y_ice = y_ice if scale_y is None else affine(y_ice, scale_y)
+
     plt.figure()
     plt.title("PDP-ICE: $x_{%d}$" % (s+1))
     plt.plot(x, y_ice[0,:], color="red", alpha=.1, label="$f_{\mathtt{ICE}}$")

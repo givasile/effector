@@ -182,7 +182,14 @@ class DALE(FeatureEffectBase):
     #     vis.plot_1D(x, y, title="ALE (Monte Carlo) for feature %d" % (s+1))
 
 
-    def plot(self, s: int = 0, error="std", block=False, gt=None, gt_bins=None, savefig=False):
+    def plot(self, s: int = 0,
+             error="std",
+             scale_x=None,
+             scale_y=None,
+             block=False,
+             gt=None,
+             gt_bins=None,
+             savefig=False):
         vis.feature_effect_plot(self.feature_effect["feature_"+str(s)],
                                 self.eval,
                                 s,
@@ -192,6 +199,8 @@ class DALE(FeatureEffectBase):
                                 block=block,
                                 gt=gt,
                                 gt_bins=gt_bins,
+                                scale_x=scale_x,
+                                scale_y=scale_y,
                                 savefig=savefig)
 
     def plot_local_effects(self, s: int = 0, limits=True, block=False):
