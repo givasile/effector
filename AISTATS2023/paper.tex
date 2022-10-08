@@ -51,6 +51,7 @@ width=7.00ex, align=center, column sep=-\pgflinewidth }, }
 \newcommand{\xb}{\mathbf{x}}
 \newcommand{\Xcb}{\mathbf{X}_c}
 \newcommand{\Xb}{\mathcal{X}}
+\newcommand{\todo}[1]{[\textcolor{red}{#1}]}
 
 \begin{document}
 
@@ -70,7 +71,7 @@ width=7.00ex, align=center, column sep=-\pgflinewidth }, }
 
 \twocolumn[
 
-\aistatstitle{Uncertainty-aware Accumulated Local Effects (UALE) for quantifying the hetegeneity of instance-level feature effects}
+\aistatstitle{Uncertainty-aware Accumulated Local Effects (UALE) for quantifying the heterogeneity of instance-level feature effects}
 
 \aistatsauthor{ Author 1 \And Author 2 \And  Author 3 }
 
@@ -78,7 +79,7 @@ width=7.00ex, align=center, column sep=-\pgflinewidth }, }
 
 \begin{abstract}
 
-Accumulated Local Effects (ALE) is a popular approach to explainable AI that quantifies how a feature influences the decisions of a model taking into account feature correlations. However, in case of strong interactions between features, instance-level feature effects may deviate from the average curve provided by ALE. Therefore, it is crucial to quantify this deviation, namely, the uncertainty of the effect. In this work, we define Uncertainty-aware ALE (UALE) to quantify and visualize, on a single plot, both the average effect and the uncertainty. Furthermore, as in ALE, UALE's approximation requires partitioning the feature domain into non-overlapping intervals (bin-splitting). The average effect and the uncertainty are then computed from the instances that lie in each bin.  In this work, we formally prove that to achieve an unbiased approximation of the uncertainty in each bin, bin-splitting must follow specific constraints. Based on this, we propose a method for automatically finding the optimal intervals, balancing the trade-off between estimation bias and variance. We demonstrate through synthetic and real datasets (a) the advantages of modelling the uncertainty with UALE compared to other methods and (b) the importance of appropriate bin splitting for an accurate approximation of the mean effect and uncertainty.
+Accumulated Local Effects (ALE) is a popular approach to explainable AI that quantifies how a feature influences the decisions of a model taking into account feature correlations. However, in case of strong interactions between features, instance-level feature effects may deviate from the average curve provided by ALE. Therefore, it is crucial to quantify this deviation, namely, the uncertainty of the effect. In this work, we define Uncertainty-aware ALE (UALE) to quantify and visualize, on a single plot, both the average effect and the uncertainty. Furthermore, as in ALE, UALE's approximation requires partitioning the feature domain into non-overlapping intervals (bin-splitting). The average effect and the uncertainty are then computed from the instances that lie in each bin.  In this work, we formally prove that to achieve an unbiased approximation of the uncertainty in each bin, bin-splitting must follow specific constraints. Based on this, we propose a method for automatically finding the optimal intervals, balancing the trade-off between estimation bias and variance~\todo{check if this phrase explains well the concept.} We demonstrate through synthetic and real datasets (a) the advantages of modeling the uncertainty with UALE compared to other methods and (b) the importance of appropriate bin splitting for an accurate approximation of the average effect and uncertainty.
 \end{abstract}
 
 
@@ -88,79 +89,85 @@ Recently, Machine Learning (ML) has been adopted in critical domains,
 such as healthcare and finance. In these areas, we need a combination
 of accurate predictions along with meaningful explanations to support
 them. For this reason there is an increased interest in Explainable AI
-(XAI), to understand the decision mechanism of 
-%the field that provides interpretations about the behavior of
-complex black-box models. XAI literature distinguishes between local
-and global explainability
-techniques~\citep{Molnar2020interpretable}. Local methods explain the prediction of a
-specific instance, whereas global methods provide an explanation that summarizes the entire model behavior. Global methods provide a universal explanation, aggregating the various local explanations into a single interpretable outcome,
-usually a number or a plot. If users want to get a rough overview
-about which features are significant (feature importance) or whether a
-particular feature has a positive or negative effect on the output
-(feature effect), they should opt for a global explainability
-technique. On the other hand, aggregating the individual explanations
-is vulnerable to misinterpretations. Under strong interactions and
-correlations between features, the global explanation may obfuscate
-heterogeneous effects that exist under the
-hood~\citep{herbinger2022repid}; a phenomenon called \emph{aggregation
-bias}~\citep{mehrabi2021survey}.
+(XAI), to understand the decision mechanism of complex black-box
+models. XAI literature distinguishes between local and global
+techniques~\citep{Molnar2020interpretable}. Local methods provide
+instance-level explanations, i.e.~explain the prediction for a
+specific instance, whereas global methods summarize the entire model
+behavior.
 
-Feature effect (FE) \citep{Gromping2020MAEP} is a fundamental category of global
-explainability methods aiming at isolating the impact
-of a single feature on the output\footnote{Often, FE methods also
-  isolate the combined effect of a pair of features to the
-  output. Combinations of more than two features are uncommon, since they are difficult to estimate and visualize.}.
-FE methods suffer from aggregation bias because, often, implications of the average effect on the model behavior are unclear. For example, a feature with zero average effect may indicate no effect on the output or, 
-a highly positive effect in some cases and a highly negative effect in others. 
-There are
-three widely-used FE methods: \emph{Partial Dependence Plots}
-(PDP)\citep{friedman2001greedy}, \emph{Marignal Plots}
+Global methods create a global explanation by aggregating the
+instance-level explanations into a single interpretable outcome,
+usually a number or a plot. When strong interactions between features
+exist, the instance-level explanations may significantly deviate from
+the aggregated outcome~\citep{herbinger2022repid}, a phenomenon called
+\emph{aggregation bias}~\citep{mehrabi2021survey}. Therefore, global
+methods should quantify not only the aggregated (averaged) effect, but
+also the level of heterogeneity of instance-level explanations. The
+same holds for Feature Effect (FE)~\citep{Gromping2020MAEP}, a class
+of global XAI methods that isolate the impact of a single feature on
+the output.\footnote{FE methods also isolate the combined effect of a
+  pair of features to the output. Combinations of more than two
+  features are uncommon, since they are difficult to estimate and
+  visualize.} For example, a feature with zero average effect may
+indicate no effect on the output or a highly positive effect in some
+cases and a highly negative effect in others. The ambiguity about the
+correct interpretation could be resolved, if the FE method informs
+about the heterogeneity of instance-level explanations, a quantity we
+refer to as the \emph{uncertainty of the effect}.
+
+There are three widely-used FE methods: \emph{Partial Dependence
+  Plots} (PDP)\citep{friedman2001greedy}, \emph{Marginal Plots}
 (MP)\citep{apley2020visualizing} and \emph{Aggregated Local Effects}
-(ALE)\citep{apley2020visualizing}. PDP and MP have been criticized \todo{Add a reference}for
-computing erroneous effects when the input features are (highly)
-correlated, which is typical in many ML cases. Therefore,
-ALE has been established as the state-of-the-art FE method. However, ALE faces two crucial limitations, the first concerns ALE
-definition and the second one ALE approximation. Regarding the
-definition, ALE does not inform the user about the uncertainty, i.e.,
-the level of heterogeneous effects hidden behind the average effect
-due to implicit feature interactions. In contrast, in PDPs the
-heterogeneous effects can be identified by exploring the
-Individual Conditional Expectations
-(ICE)~\citep{goldstein2015peeking}. Regarding the approximation,
-i.e.~the estimation using the (limited) samples of the training set,
-ALE requires an additional \textit{bin-splitting} step to partition the domain of the feature of interest into consecutive non-overlapping intervals (regions) and to estimate a
-constant effect in each region. The effect is estimated from the population of samples that fall
-inside the region. Specifying an appropriate set of bins is of particular
-importance, since ALE's interpretation is meaningful only inside each
-region~\citep{molnar2022}. However, this crucial step has not raised
-the appropriate attention and the approximation is vulnerable to
-potential misinterpretations.\todo{I miss what exactly is the simplication of existing mehtods here. Should we add e.g., typically equisized bins?}
+(ALE)\citep{apley2020visualizing}. ALE has been established as the
+state-of-the-art for measuring the average effect, since PDP and MP
+have been criticized~\citep{Gromping2020MAEP} to compute erroneous
+effects when the input features are (highly) correlated. However, ALE
+faces two limitations, the first concerns ALE definition and the
+second ALE approximation. Regarding the definition, ALE does not
+inform the user about the uncertainty. In contrast, in PDP the
+heterogeneity of instance-level effects can be identified by exploring
+the Individual Conditional Expectations
+(ICE)~\citep{goldstein2015peeking}. Regarding the approximation, ALE
+requires partitioning the feature domain into non-overlapping
+intervals (bin-splitting) and estimate the effect inside each interval
+(bin-effect) from the training set instances that fall inside. Finding
+an appropriate sequence of bins is of particular importance, since
+ALE's interpretation is meaningful only inside each
+bin~\citep{molnar2022}. However, this crucial step has not raised the
+appropriate attention. With the current
+approaches~\citep{apley2020visualizing, gkolemis22}, the domain is
+split \emph{blindly}, i.e.~without considering the characteristics of
+the instance-level effects, in \(K\) equisized bins.
 
 In this paper, we present Uncertainty-aware Accumulated Local Effects
-(UALE) an extension of ALE for measuring the uncertainty of the
-explanation, i.e.~how certain we are that the average explanation
-would predict the feature effect to an instance drawn at random. We
-show that choosing an appropriate sequence of intervals is
-particularly important for a robust and unbiased estimation of the
-uncertainty and we provide an algorithm that automates this step. We
-also formally prove the bin-splitting conditions for an unbiased
-estimation of the uncertainty. We apply our method in multiple
-synthetic and real world datasets for evaluating its performance.
-
-\paragraph{Contributions.} The contributions of this paper are:
+(UALE), a method that visualizes in a single plot both the average
+feature effect and the uncertainty, i.e.~the level of heterogeneity of
+instance-level effects. The average effect is defined as in ALE and
+the uncertainty inherits ALE's advantages, i.e.~takes into account the
+correlations between features. We also propose an accurate UALE
+approximation. We formally prove that for an unbiased estimation of
+the uncertainty, the partitioning of the feature domain must respect
+specific conditions. Using that, we set-up an optimization problem
+where we search for a partitioning, a sequence of \emph{variable-size}
+intervals, (a) with enough instances (accurate estimation) and (b)
+that respect the above conditions (unbiased estimation). Finally, we
+propose a method for automatically finding the optimal
+partitioning. We apply our method in multiple synthetic and real world
+datasets for evaluating its performance. The contributions of this
+paper are:
 
 \begin{itemize}
-\item UALE, a FE method that extends ALE for quantifying the
-  heterogeneous effects (uncertainty).
-\item A formal proof of the bin-splitting requirements for an unbiased
-  approximation of the heterogeneous effects.
-\item A framework for automatically extracting regions with similar
-  effects, improving the estimation and the interpretability of ALE
-  plots.
+\item UALE, a feature effect method that quantifies both the average
+  effect and the uncertainty, i.e.,~the heterogeneity of instance level
+  effects.
+\item A formal proof of the conditions the feature domain partitioning
+  must fulfill for an unbiased approximation of the uncertainty.
+\item An accurate UALE approximation by automatically partitioning
+  into variable-size intervals that respect the above conditions.
 \end{itemize}
 
-We provide empirical evaluation of the method in artificial and real
-datasets. The implementation of our method and the code for
+The implementation of our method and the code for
 reproducing all the experiments is provided in the submission and will
 become publicly available upon acceptance.
 
