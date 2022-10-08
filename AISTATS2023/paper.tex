@@ -71,33 +71,14 @@ width=7.00ex, align=center, column sep=-\pgflinewidth }, }
 \twocolumn[
 
 \aistatstitle{Uncertainty-aware Accumulated Local Effects (UALE) for
-  quantifying the heterogeneous effects}
+  quantifying the hetegeneity of the local effects}
 
 \aistatsauthor{ Author 1 \And Author 2 \And  Author 3 }
 
 \aistatsaddress{ Institution 1 \And  Institution 2 \And Institution 3 } ]
 
 \begin{abstract}
-  Accumulated Local Effects (ALE) is a popular approach to explainable
-  AI that describes how a feature influences the decisions of a model
-  on average, taking into account potential correlations between the
-  features.  However, ALE does not provide an explicit component for
-  modeling the uncertainty of the effect, i.e., the level of
-  heterogeneity of the effects behind the average explanation, which
-  is crucial for a complete interpretation when the black-box function
-  contains interactions between the correlated features. In this work,
-  we define Uncertainty-aware ALE (UALE), an extension of ALE for
-  quantifying the heterogeneous effects and we propose a method for
-  estimating it. We formally prove the conditions the bin-splitting,
-  i.e.~the partitioning the domain of the feature of interest into
-  consecutive non-overlapping intervals, must respect for an an
-  unbiased estimation of the uncertainty. We finally propose a
-  computationally-grounded algorithm for finding the optimal sequence
-  of bins given the limited instances of the training set. We
-  demonstrate through synthetic and real datasets, that UALE
-  quantifies the average and heterogeneous effects correctly and
-  approximates them robustly by optimizing the bin-splitting
-  procedure.
+Accumulated Local Effects (ALE) is a popular approach to explainable AI that quantifies how a feature influences the decisions of a model taking into account feature correlations. However, in case of strong interactions between features, instance-level feature effects may deviate from the average curve provided by ALE. Therefore, it is crucial to quantify this deviation, namely, the uncertainty of the effect. In this work, we define Uncertainty-aware ALE (UALE) to quantify and visualize, on a single plot, both the average effect and the uncertainty. Furthermore, as in ALE, UALE's approximation requires partitioning the feature domain into non-overlapping intervals (bin-splitting). The average effect and the uncertainty are then computed from the instances that lie in each bin.  In this work, we formally prove that to achieve an unbiased approximation of the uncertainty in each bin, bin-splitting must follow specific constraints. Based on this, we propose a method for automatically finding the optimal intervals, balancing the trade-off between estimation bias and variance. We demonstrate through synthetic and real datasets (a) the advantages of modelling the uncertainty with UALE compared to other methods and (b) the importance of appropriate bin splitting for an accurate approximation of the mean effect and uncertainty.
 \end{abstract}
 
 
