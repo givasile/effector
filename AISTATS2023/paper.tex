@@ -225,7 +225,7 @@ unrealistic instances due to the use of the marginal distribution
 the combined effect of sets of features to a single feature. ALE
 resolves both issues.
 
-\subsection{Heterogeneity Of Instance-Level Effects.}
+\subsection{Heterogeneity Of Instance-Level Effects}
 \label{sec:quant-heter-effects}
 
 FE methods show what is the average (global) effect on the output, if
@@ -234,12 +234,8 @@ the explanation about a feature, we need to also know to what extent
 the local effects deviate from the global explanation, i.e.~to
 quantify the uncertainty of the average effect.
 
-
-Heterogeneity It comes naturally to also ask \textit{to
-  what extent }. Quantifying the uncertainty of the global explanation
-has attracted a lot of interest. ICE and
-d-ICE\citep{goldstein2015peeking} provide a set of curves that are
-plot on top-of the PDP. Both methods produce one curve for each
+ICE and d-ICE\citep{goldstein2015peeking} provide a set of curves that
+are plot on top-of PDP. Both methods produce one curve for each
 instance of the training set;
 \(f^{\mathtt{ICE}}_i(x_s) = f(x_s, \xc^i)\) for ICE and
 \(f^{\mathtt{d-ICE}}_i(x_s) = \frac{\partial f}{\partial x_s} (x_s,
@@ -247,15 +243,15 @@ instance of the training set;
 homogeneous and to what extent they deviate from the PDP. Some methods
 try to automate the aforementioned visual exploration, by grouping
 (d-)ICE plots into clusters~\citep{molnar2020model,
-  herbinger2022repid, britton2019vine}. Some other approaches, like
+  herbinger2022repid, britton2019vine}. Other approaches, like
 H-Statistic\citep{friedman2008predictive}, Greenwell's interaction
 index\citep{greenwell2018simple} or SHAP interaction
-values\citep{lundberg2018consistent}, quantify the level of
-interaction between the input features, with an interaction value. A
-strong interaction index is an indicator for the existence of
-heterogeneous effects.
+values\citep{lundberg2018consistent} inform indirectly about
+heterogeneous effects, quantifying interactions between the input
+features. A strong interaction index is an indicator for the existence
+of heterogeneous effects.
 
-The aforementioned approaches are under two limitations; They either
+The aforementioned approaches are under two limitations. They either
 do not quantify the uncertainty of the FE directly or they are based
 on PDPs, and, therefore, they are subject to the failure modes of PDPs
 in cases of correlated features\citep{baniecki2021fooling}, as we will
@@ -263,13 +259,13 @@ show in-depth in Section~\ref{sec:simulation-examples-1}. To the best
 of our knowledge, no work exist so far that quantifies the
 heterogeneous effects based on the formulation of ALE.
 
-\subsection{ALE Approximation.}
+\subsection{ALE Approximation}
 \label{sec:ale-approximation}
 
-In ML scenarios, ALE is estimated from the training set
-examples. Therefore, \citep{apley2020visualizing} proposed dividing
-the feature domain in \(K\) equal-sized bins and estimating the local effects in
-each bin by evaluating the black box-function at the bin limits:
+In ML scenarios, ALE is estimated from the instances of the training
+set.~\citep{apley2020visualizing} proposed dividing the feature domain
+in \(K\) equisized bins and estimating the local effects in each bin
+by evaluating the black box-function at the bin limits:
 \begin{equation}
   \label{eq:ALE_accumulated_mean_est}
   \hat{f}^{\mathtt{ALE}}(x_s) = \sum_{k=1}^{k_x} \frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^i \in
@@ -277,28 +273,27 @@ each bin by evaluating the black box-function at the bin limits:
 \end{equation}
 We denote as \(k_x\) the index of the bin that \(x_s\) belongs to,
 i.e. \(k_x: z_{k_x-1} \leq x_s < z_{k_x} \) and \(\mathcal{S}_k\) is
-the set of training instance that lie in the \(k\)-th bin, i.e.
+the set of training instances of the \(k\)-th bin, i.e.
 \( \mathcal{S}_k = \{ \xb^i : z_{k-1} \leq x^i_s < z_{k} \}
 \). Afterwards,~\citep{gkolemis22} proposed the Differential ALE
-(DALE) that computes the local effects on the training instances using
-auto-differentiation:
+(DALE) that uses the partial derivatives:
 \begin{equation}
   \label{eq:DALE_accumulated_mean_est}
   \hat{f}^{\mathtt{DALE}}(x_s) = \Delta x \sum_{k=1}^{k_x} \frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^i \in
     \mathcal{S}_k} f^s(\mathbf{x}^i)
 \end{equation}
 %
-Their method has the advantages of remaining on-distribution even when
-bins become wider and, most importantly, allows the recomputation of
+Their method has the advantages of remaining on-distribution when
+bins become wide and, most importantly, allows the recomputation of
 the accumulated effect with different bin-splitting with near-zero
 computational cost.
 
-Both approximations ask from the user to blindly decide the number of
-bins, denoted with \(K\), for splitting the axis into equally-sized
-bins. This approach introduces significant limitations. Specifically, setting \(K\) to a small
-value may hide fine-grain effects due to large bins while setting \(K\)
-to a high value leads to poor bin-effect estimations from limited
-samples. In general, the user may face contradictory explanations for
+Both approximations ask from the user to blindly decide the bin
+density for splitting the feature axis into \(K\) equisized bins, an
+approach that is error prone. Setting \(K\) to a small value may hide
+fine-grain effects due to large bins while setting \(K\) to a high
+value leads to poor bin-effect estimations due to few samples per
+bin. In general, the user may receive contradictory explanations for
 different \(K\) without a clue for which one to trust.
 
 \section{Uncertainty-Aware ALE (UALE)}
@@ -307,19 +302,18 @@ different \(K\) without a clue for which one to trust.
 UALE extends ALE for quantifying the level of heterogeneous effects
 (uncertainty) and automates the bin-splitting. At
 Section~\ref{sec:UALE-definition-1} we define UALE, at
-Section~\ref{sec:UALE-definition-2} we redefine it using an
-interval-based formulation, at
-Section~\ref{sec:UALE-approximation} we provide an
-approximation and at Section~\ref{sec:bin-spliting} we define and
-solve the problem of optimal bin-splitting.
+Section~\ref{sec:UALE-definition-2} we reformulate it using an
+interval-based formulation, at Section~\ref{sec:UALE-approximation} we
+provide UALE approximation and at Section~\ref{sec:bin-spliting} we
+define and solve the problem of optimal bin-splitting.
 
 \subsection{UALE: ALE With Uncertainty Quantification}
 \label{sec:UALE-definition-1}
 
-We extend ALE definition of Eq.~(\ref{eq:ALE}) with a component for
+UALE extends ALE definition of Eq.~(\ref{eq:ALE}) with a component for
 quantifying the uncertainty. We denote as \(\mathcal{H}(z)\) the
 uncertainty of the local effects at a specific point \(x_s=z\) and we
-quantify it as the standard deviation of the local explanations
+quantify it with the standard deviation of the local explanations
 \(\mathcal{H}(z) = \sigma(z)\), where:
 
 \begin{equation}
@@ -338,24 +332,24 @@ the axis:
   f^{\mathtt{ALE}}_{\sigma}(x_s) = \int_{x_{s, min}}^{x_s} \sigma(z) \partial z
 \end{equation}
 \noindent
-UALE formulates the effect at a specific point \(x_s\) with a compact
-tuple that consists of the average effect and the uncertainty
-\((\mu(z), \sigma(z))\) and visualizes them as a continuous curve with
-a confidence region, i.e.
+UALE formulates the effect at a specific point \(x_s\) with a tuple
+that consists of the average effect and the uncertainty
+\((\mu(z), \sigma(z))\) and visualizes it with a continuous curve and
+a confidence region
 \(f^{\mathtt{UALE}}(x_s) := f^{\mathtt{ALE}}_{\mu}(x_s) \pm
 f^{\mathtt{ALE}}_{\sigma}(x_s)\).
 
 \subsection{Interval-Based Formulation and Approximation}
 \label{sec:UALE-definition-2}
 
-In real scenarios, all estimations are based on the instances of the
-training set. Therefore, we cannot estimate \(\mu(z), \sigma(z)\) at
-the granularity of a point, because the probability of observing a
+In real ML scenarios, all estimations are based on the instances of
+the training set. Therefore, we cannot estimate \(\mu(z), \sigma(z)\)
+at the granularity of a point, because the probability of observing a
 sample inside the region \([x_s - h, x_s + h]\) tends to zero, when
 \(h \to 0\). We define the regional-effect \(\mu(z_1, z_2)\) and the
-regional-uncertainty \(\mathcal{H}(z_1, z_2) = \sigma(z_1, z_2)\), as the summary statistics
-that characterize the effect and the uncertainty inside the interval
-\([z_1, z_2)\):
+regional-uncertainty \(\mathcal{H}(z_1, z_2) = \sigma(z_1, z_2)\), as
+the summary statistics that characterize the effect and the
+uncertainty inside the interval \([z_1, z_2)\):
 
 \begin{equation}
   \label{eq:mu_bin}
@@ -815,7 +809,6 @@ houses inside the block in dollars that ranges between
 \([15, 500] \cdots 10^3\), with a mean value of
 \(\mu_Y \approx 201 \cdot 10^3 \) and a standard deviation of
 \(\sigma_Y \approx 110 \cdot 10^3\).
-
 
 We exclude instances with missing values or with outlier values. As
 outlier we define the feature values which ar over three standard
