@@ -88,8 +88,8 @@ Accumulated Local Effects (ALE) is a popular approach to explainable AI that qua
 Recently, Machine Learning (ML) has been adopted in critical domains,
 such as healthcare and finance. In these areas, we need a combination
 of accurate predictions along with meaningful explanations to support
-them. For this reason there is an increased interest in Explainable AI
-(XAI), to understand the decision mechanism of complex black-box
+them. For this reason, there is an increased interest in Explainable
+AI (XAI) to understand the decision mechanism of complex black-box
 models. XAI literature distinguishes between local and global
 techniques~\citep{Molnar2020interpretable}. Local methods provide
 instance-level explanations, i.e.~explain the prediction for a
@@ -112,9 +112,9 @@ the output.\footnote{FE methods also isolate the combined effect of a
   visualize.} For example, a feature with zero average effect may
 indicate no effect on the output or a highly positive effect in some
 cases and a highly negative effect in others. The ambiguity about the
-correct interpretation could be resolved, if the FE method informs
-about the heterogeneity of instance-level explanations, a quantity we
-refer to as the \emph{uncertainty of the effect}.
+correct interpretation can be resolved, if the FE method informs about
+the heterogeneity of instance-level explanations, a quantity we refer
+to as the \emph{uncertainty of the effect}.
 
 There are three widely-used FE methods: \emph{Partial Dependence
   Plots} (PDP)\citep{friedman2001greedy}, \emph{Marginal Plots}
@@ -171,13 +171,12 @@ The implementation of our method and the code for
 reproducing all the experiments is provided in the submission and will
 become publicly available upon acceptance.
 
-
 \section{BACKGROUND AND RELATED WORK}
 
-In this section, we describe the basic methods for FE and uncertainty
-quantification, focusing on ALE definition. We, then, review the ALE
-approximation\citep{apley2020visualizing, gkolemis22}, describing some
-of its vulnerabilities.
+We here review the existing methods for modeling the average effect
+and the heterogeneity of instance-level effects and we focus on ALE
+definition~\citep{apley2020visualizing} and
+approximation~\citep{apley2020visualizing, gkolemis22}.
 
 \paragraph{Notation.} We refer to random variables (rv) using
 uppercase \( X \), to simple variables with plain lowercase \( x \)
@@ -185,57 +184,59 @@ and to vectors with bold \( \xb \). Often, we partition the input
 vector \(\xb \in \mathbb{R}^D\) to the feature of interest
 \(x_s \in \mathbb{R} \) and the rest of the features
 \(\xc \in \mathbb{R}^{D-1}\). For convenience we denote it as
-\((x_s, \mathbf{x}_c)\), but we clarify that it implies the vector
+\((x_s, \mathbf{x}_c)\), but we it refers the vector
 \((x_1, \cdots , x_s, \cdots, x_D)\). Equivalently, we denote the
 corresponding rv as \(\mathbf{X} = (X_s, \mathbf{X}_c)\). When we
 refer to an instance of the training set, we use
-\(\xb^i= (\xc^i, x_s^i) \). The black-box function is
-\(f : \mathbb{R}^D \rightarrow \mathbb{R}\) and the FE of the \(s\)-th
-feature is \(f^{\mathtt{<method>}}(x_s)\), with \(\mathtt{<method>}\)
-indicating the particular method in use.\footnote{An extensive list of all
-  symbols used in the paper is provided at the Appendix.}
+\(\xb^i= (x_s^i, \xc^i) \).
 
-\subsection{Feature Effect Methods And ALE Definition}
+% The black-box function is
+% \(f : \mathbb{R}^D \rightarrow \mathbb{R}\) and the FE of the \(s\)-th
+% feature is \(f^{\mathtt{<method>}}(x_s)\), with \(\mathtt{<method>}\)
+% indicating the particular method in use.\footnote{An extensive list of
+%   all symbols used in the paper is provided at the Appendix.}
+
+\subsection{Feature Effect Methods}
 \label{sec:feat-effect-meth}
 
 The three well-known feature effect methods are: PDP, MP and ALE. PDP
-formulates the FE of the \(s\)-th attribute as an expectation over the
+formulates the FE of the \(s\)-th feature as an expectation over the
 marginal distribution \(\mathbf{X}_c\), i.e.,
 \(f^{\mathtt{PDP}}(x_s) =
 \mathbb{E}_{\mathbf{X}_c}[f(x_s,\mathbf{X}_c)]\), whereas MP
 formulates it as an expectation over the conditional
 \(\mathbf{X}_c|X_s\), i.e.,
 \(f^{\mathtt{MP}}(x_s) = \mathbb{E}_{\mathbf{X}_c|x_s}[f(x_s,
-\mathbf{X}_c)]\). ALE defines the local effect of the \(s\)-th feature
-at point \(x_s = z\) as
-\(f^s(z, \xc) = \frac{\partial f}{\partial x_s} (z, \xc)\). All the
-local explanations at \(z\) are, then, weighted by the conditional
-distribution \(p(\xc|x_s=z)\) and are averaged, to produce the
-averaged effect \(\mu(z)\). ALE is the accumulation of the averaged
-local effects:
+\mathbf{X}_c)]\). ALE defines the local effect at \(x_s = z\) as
+\(f^s(z, \xc) = \frac{\partial f}{\partial x_s} (z, \xc)\). The local
+explanations are then weighted by the conditional distribution
+\(p(\xc|x_s=z)\) to compute the averaged effect \(\mu(z)\). ALE is the
+accumulation of the averaged local effects:
 
 \begin{equation}
   \label{eq:ALE}
   f^{\mathtt{ALE}}(x_s) = \int_{x_{s,min}}^{x_s} \underbrace{\mathbb{E}_{\Xcb|X_s=z}\left [f^s (z, \Xcb)\right ]}_{\mu(z)} \partial z
 \end{equation}
 
-
-Eq.~(\ref{eq:ALE}) has specific advantages which gain particular value in cases of
-correlated input features. In these cases, PDP integrates over
+Eq.~(\ref{eq:ALE}) has important advantages compared to PDP and MP in
+cases of correlated features. In these cases, PDP integrates over
 unrealistic instances due to the use of the marginal distribution
 \(\mathbf{X}_c \), and MP computes aggregated effects, i.e., imputes
 the combined effect of sets of features to a single feature. ALE
-manages to resolve both issues, and is therefore the most trustable
-method in cases of correlated features.
+resolves both issues.
 
-\subsection{Quantification Of Heterogeneous Effects.}
+\subsection{Heterogeneity Of Instance-Level Effects.}
 \label{sec:quant-heter-effects}
 
-FE methods reply to the question \textit{what is the average (global)
-  effect on the output, if the value of a specific feature is
-  increased/decreased}. It comes naturally to also ask \textit{to what
-  extent the local effects deviate from the global
-  explanation}. Quantifying the uncertainty of the global explanation
+FE methods show what is the average (global) effect on the output, if
+the value of a specific feature is increased/decreased. For completing
+the explanation about a feature, we need to also know to what extent
+the local effects deviate from the global explanation, i.e.~to
+quantify the uncertainty of the average effect.
+
+
+Heterogeneity It comes naturally to also ask \textit{to
+  what extent }. Quantifying the uncertainty of the global explanation
 has attracted a lot of interest. ICE and
 d-ICE\citep{goldstein2015peeking} provide a set of curves that are
 plot on top-of the PDP. Both methods produce one curve for each
