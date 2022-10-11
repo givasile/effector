@@ -98,73 +98,72 @@ behavior.
 
 Global methods create a global explanation by aggregating the
 instance-level explanations into a single interpretable outcome,
-usually a number or a plot. When strong interactions between features
-exist, the instance-level explanations may significantly deviate from
-the aggregated outcome~\citep{herbinger2022repid}, a phenomenon called
-\emph{aggregation bias}~\citep{mehrabi2021survey}. Therefore, global
-methods should quantify not only the aggregated (averaged) effect, but
-also the level of heterogeneity of instance-level explanations. The
-same holds for Feature Effect (FE)~\citep{Gromping2020MAEP}, a class
-of global XAI methods that isolate the impact of a single feature on
-the output.\footnote{FE methods also isolate the combined effect of a
-  pair of features to the output. Combinations of more than two
-  features are uncommon, since they are difficult to estimate and
-  visualize.} For example, a feature with zero average effect may
-indicate no effect on the output or a highly positive effect in some
-cases and a highly negative effect in others. The ambiguity about the
-correct interpretation can be resolved, if the FE method informs about
-the heterogeneity of instance-level explanations, a quantity we refer
-to as the \emph{uncertainty of the effect}.
-
-There are three widely-used FE methods: \emph{Partial Dependence
-  Plots} (PDP)\citep{friedman2001greedy}, \emph{Marginal Plots}
+usually a number or a plot.  A popular class of global methods are the
+so-called Feature Effect (FE) methods~\citep{Gromping2020MAEP} that
+isolate the impact of a single feature on the output\footnote{FE
+  methods also isolate the combined effect of a pair of features to
+  the output. Combinations of more than two features are uncommon,
+  since they are difficult to estimate and visualize.}. There are
+three widely-used FE methods: \emph{Partial Dependence Plots}
+(PDP)\citep{friedman2001greedy}, \emph{Marginal Plots}
 (MP)\citep{apley2020visualizing} and \emph{Aggregated Local Effects}
-(ALE)\citep{apley2020visualizing}. ALE has been established as the
+(ALE)\citep{apley2020visualizing} with ALE being established as the
 state-of-the-art for measuring the average effect, since PDP and MP
 have been criticized~\citep{Gromping2020MAEP} to compute erroneous
-effects when the input features are (highly) correlated. However, ALE
-faces two limitations, the first concerns ALE definition and the
-second ALE approximation. Regarding the definition, ALE does not
-inform the user about the uncertainty. In contrast, in PDP the
+effects when the input features are (highly) correlated.
+
+However,
+when strong interactions between features exist,
+the instance-level feature effects may significantly deviate from
+the aggregated outcome of ALE~\citep{herbinger2022repid}, a phenomenon called
+\emph{aggregation bias}~\citep{mehrabi2021survey}. 
+Aggregation bias leads to ambiguities; for example, a feature with zero average effect may
+indicate no effect on the output or a highly positive effect for some instances and a highly negative effect for others. Such ambiguities could be resolved if not only the average effect but also the deviation of instance-level feature effects, a quantity we refer to as the \emph{uncertainty of the effect}, from the average effect is provided.
+
+%Therefore, global methods should quantify not only the aggregated (averaged) effect, but also the level of heterogeneity of instance-level explanations.  
+
+
+%There are three widely-used FE methods: \emph{Partial Dependence Plots} (PDP)\citep{friedman2001greedy}, \emph{Marginal Plots}
+%(MP)\citep{apley2020visualizing} and \emph{Aggregated Local Effects}
+%(ALE)\citep{apley2020visualizing}. ALE has been established as the
+%state-of-the-art for measuring the average effect, since PDP and MP
+%have been criticized~\citep{Gromping2020MAEP} to compute erroneous
+%effects when the input features are (highly) correlated. 
+
+In this work, we propose UALE,  a global feature-effect method that extends ALE by quantifying the uncertainty associated with the average effect. 
+Similarly to ALE, UALE's approximation requires partitioning the feature domain into non-overlapping intervals (bin-splitting). In contrast to ALE that requires a fixed equi-width partitioning without considering the characteristics of
+the instance-level effects, we propose an automatic partitioning that minimizes the uncertainty of the resulting bins. 
+
+
+
+
+%However, ALE faces two limitations, the first concerns ALE definition and the second ALE approximation. Regarding the definition, ALE does not inform the user about the uncertainty. 
+\color{blue}\todo{This should go to related work}In contrast, in PDP the
 heterogeneity of instance-level effects can be identified by exploring
 the Individual Conditional Expectations
-(ICE)~\citep{goldstein2015peeking}. Regarding the approximation, ALE
-requires partitioning the feature domain into non-overlapping
-intervals (bin-splitting) and estimate the effect inside each interval
-(bin-effect) from the training set instances that fall inside. Finding
+(ICE)~\citep{goldstein2015peeking}. \color{black}
+%Regarding the approximation, ALE requires partitioning the feature domain into non-overlapping intervals (bin-splitting) and estimate the effect inside each interval (bin-effect) from the training set instances that fall inside. 
+\color{blue}\todo{to be moved in related work}
+Finding
 an appropriate sequence of bins is of particular importance, since
 ALE's interpretation is meaningful only inside each
 bin~\citep{molnar2022}. However, this crucial step has not raised the
 appropriate attention. With the current
 approaches~\citep{apley2020visualizing, gkolemis22}, the domain is
 split \emph{blindly}, i.e.~without considering the characteristics of
-the instance-level effects, in \(K\) equisized bins.
+the instance-level effects, in \(K\) equisized bins.\color{black}
 
-In this paper, we present Uncertainty-aware Accumulated Local Effects
-(UALE), a method that visualizes in a single plot both the average
-feature effect and the uncertainty, i.e.~the level of heterogeneity of
-instance-level effects. The average effect is defined as in ALE and
-the uncertainty inherits ALE's advantages, i.e.~takes into account the
-correlations between features. We also propose an accurate UALE
-approximation. We formally prove that for an unbiased estimation of
-the uncertainty, the partitioning of the feature domain must respect
-specific conditions. Using that, we set-up an optimization problem
-where we search for a partitioning, a sequence of \emph{variable-size}
-intervals, (a) with enough instances (accurate estimation) and (b)
-that respect the above conditions (unbiased estimation). Finally, we
-propose a method for automatically finding the optimal
-partitioning. We apply our method in multiple synthetic and real world
-datasets for evaluating its performance. The contributions of this
+%In this paper, we present Uncertainty-aware Accumulated Local Effects(UALE), a method that visualizes in a single plot both the av erage feature effect and the uncertainty, i.e.~the level of heterogeneity of instance-level effects. The average effect is defined as in ALE and the uncertainty inherits ALE's advantages, i.e.~takes into account the correlations between features. We also propose an accurate UALE approximation. We formally prove that for an unbiased estimation of the uncertainty, the partitioning of the feature domain must respect specific conditions. Using that, we set-up an optimization problem where we search for a partitioning, a sequence of \emph{variable-size}intervals, (a) with enough instances (accurate estimation) and (b) that respect the above conditions (unbiased estimation). Finally, we propose a method for automatically finding the optimal partitioning. We apply our method in multiple synthetic and real world datasets for evaluating its performance. 
+The contributions of this
 paper are:
-
 \begin{itemize}
-\item UALE, a feature effect method that quantifies both the average
+\item A global feature effect method that quantifies both the average
   effect and the uncertainty, i.e.,~the heterogeneity of instance level
   effects.
-\item A formal proof of the conditions the feature domain partitioning
-  must fulfill for an unbiased approximation of the uncertainty.
-\item An accurate UALE approximation by automatically partitioning
-  into variable-size intervals that respect the above conditions.
+\item An unbasied approximation of the uncertainty through a dynamic uncertainty-driven bin partitioning of the feature domain.
+%A formal proof of the conditions the feature domain partitioning must fulfill for an unbiased approximation of the uncertainty.
+\item A thorough evaluation on both synthetic and real datasets.
+%An accurate UALE approximation by automatically partitioning into variable-size intervals that respect the above conditions.
 \end{itemize}
 
 The implementation of our method and the code for
@@ -174,98 +173,102 @@ become publicly available upon acceptance.
 \section{BACKGROUND AND RELATED WORK}
 
 We here review the existing methods for modeling the average effect
-and the heterogeneity of instance-level effects and we focus on ALE
-definition~\citep{apley2020visualizing} and
-approximation~\citep{apley2020visualizing, gkolemis22}.
+and the heterogeneity of instance-level effects. The necessary
+background for ALE~\citep{apley2020visualizing} is presented in
+Section~\ref{sec:feat-effect-meth}, whereas ALE
+approximations~\citep{apley2020visualizing, gkolemis22} are presented
+in Section~\ref{sec:ale-approximation}.
 
-\paragraph{Notation.} We refer to random variables (rv) using
-uppercase \( X \), to simple variables with plain lowercase \( x \)
-and to vectors with bold \( \xb \). Often, we partition the input
-vector \(\xb \in \mathbb{R}^D\) to the feature of interest
-\(x_s \in \mathbb{R} \) and the rest of the features
-\(\xc \in \mathbb{R}^{D-1}\). For convenience we denote it as
-\((x_s, \mathbf{x}_c)\), but we it refers the vector
-\((x_1, \cdots , x_s, \cdots, x_D)\). Equivalently, we denote the
-corresponding rv as \(\mathbf{X} = (X_s, \mathbf{X}_c)\). When we
-refer to an instance of the training set, we use
-\(\xb^i= (x_s^i, \xc^i) \).
+\paragraph{Notation} 
 
-% The black-box function is
-% \(f : \mathbb{R}^D \rightarrow \mathbb{R}\) and the FE of the \(s\)-th
-% feature is \(f^{\mathtt{<method>}}(x_s)\), with \(\mathtt{<method>}\)
-% indicating the particular method in use.\footnote{An extensive list of
-%   all symbols used in the paper is provided at the Appendix.}
+Let \(\mathcal{X} \in \mathbb{R}^d\) be the d-dimensional feature space, \(\mathcal{Y} \in \mathbb{R}\) the target space and \(f(\cdot) : \mathcal{X} \rightarrow \mathcal{Y}\) the black-box function. We use index \(s \in \{1, \ldots, d\}\) for the feature of interest and \(c \in \{1, \ldots, d\} - s\) for the rest feature indexes. For convenience, we denote the feature vector \(\xb = (x_1, \cdots , x_s, \cdots, x_D)\) with \((x_s, \xc)\) and the corresponding random variables \(X = (X_1, \cdots , X_s, \cdots, X_D)\) with \((X_s, X_c)\). The training set is \(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\) sampled i.i.d. from the distribution \(\mathbb{P}_{X,Y}\). Finally, we use \(f^{\mathtt{<method>}}(x_s)\) for the FE of the \(s\)-th feature, with \(\mathtt{<method>}\)
+indicating the particular method in use, for example ALE.\footnote{An extensive list of all
+  symbols used in the paper is provided at the Appendix.}
 
-\subsection{Feature Effect Methods}
+\subsection{Feature Effect Methods and ALE}
 \label{sec:feat-effect-meth}
-
-The three well-known feature effect methods are: PDP, MP and ALE. PDP
-formulates the FE of the \(s\)-th feature as an expectation over the
+The three well-known feature effect methods are: \emph{Partial Dependence
+  Plots} (PDP)\citep{friedman2001greedy}, \emph{Marginal Plots}
+(MP)\citep{apley2020visualizing} and \emph{Aggregated Local Effects}
+(ALE)\citep{apley2020visualizing}
+PDP
+formulates the FE of the \(s\)-th attribute as an expectation over the
+>>>>>>> origin/overleaf-2022-10-11-1029
 marginal distribution \(\mathbf{X}_c\), i.e.,
 \(f^{\mathtt{PDP}}(x_s) =
 \mathbb{E}_{\mathbf{X}_c}[f(x_s,\mathbf{X}_c)]\), whereas MP
 formulates it as an expectation over the conditional
 \(\mathbf{X}_c|X_s\), i.e.,
 \(f^{\mathtt{MP}}(x_s) = \mathbb{E}_{\mathbf{X}_c|x_s}[f(x_s,
-\mathbf{X}_c)]\). ALE defines the local effect at \(x_s = z\) as
-\(f^s(z, \xc) = \frac{\partial f}{\partial x_s} (z, \xc)\). The local
-explanations are then weighted by the conditional distribution
-\(p(\xc|x_s=z)\) to compute the averaged effect \(\mu(z)\). ALE is the
-accumulation of the averaged local effects:
+
+\mathbf{X}_c)]\). ALE defines the local effect of the \(s\)-th feature
+at instance \(x_s = z\) as
+\(f^s(z, \xc) = \frac{\partial f}{\partial x_s} (z, \xc)\). All the
+local explanations at \(z\) are, then, weighted by the conditional
+distribution \(p(\xc|x_s=z)\) and are averaged, to produce the
+averaged effect \(\mu(z)\). ALE is the accumulation of the averaged
+local effects:
 
 \begin{equation}
   \label{eq:ALE}
   f^{\mathtt{ALE}}(x_s) = \int_{x_{s,min}}^{x_s} \underbrace{\mathbb{E}_{\Xcb|X_s=z}\left [f^s (z, \Xcb)\right ]}_{\mu(z)} \partial z
 \end{equation}
 
-Eq.~(\ref{eq:ALE}) has important advantages compared to PDP and MP in
-cases of correlated features. In these cases, PDP integrates over
+Eq.~(\ref{eq:ALE}) has specific advantages which gain particular value in cases of
+correlated input features. In these cases, PDP integrates over
 unrealistic instances due to the use of the marginal distribution
 \(\mathbf{X}_c \), and MP computes aggregated effects, i.e., imputes
 the combined effect of sets of features to a single feature. ALE
-resolves both issues.
+manages to resolve both issues, and is therefore the most trustable
+method in cases of correlated features. \todo{cite someone}
 
 \subsection{Heterogeneity Of Instance-Level Effects}
 \label{sec:quant-heter-effects}
 
+<<<<<<< HEAD
 FE methods show what is the average (global) effect on the output, if
 the value of a specific feature is increased/decreased. For completing
 the explanation about a feature, we need to also know to what extent
-the local effects deviate from the global explanation, i.e.~to
-quantify the uncertainty of the average effect.
-
+the local effects \todo{add what local means here} deviate from the
+global explanation, i.e.~to quantify the uncertainty of the average
+effect.
+\todo{A connector line is needed here on the connection between local-global and uncertainty}
 ICE and d-ICE\citep{goldstein2015peeking} provide a set of curves that
 are plot on top-of PDP. Both methods produce one curve for each
 instance of the training set;
 \(f^{\mathtt{ICE}}_i(x_s) = f(x_s, \xc^i)\) for ICE and
 \(f^{\mathtt{d-ICE}}_i(x_s) = \frac{\partial f}{\partial x_s} (x_s,
 \xc^i)\) for d-ICE. The user then visually observes if the curves are
-homogeneous and to what extent they deviate from the PDP. Some methods
+homogeneous, i.e., all instances have similar values, and to what extent they deviate from the PDP. Some methods
 try to automate the aforementioned visual exploration, by grouping
 (d-)ICE plots into clusters~\citep{molnar2020model,
   herbinger2022repid, britton2019vine}. Other approaches, like
 H-Statistic\citep{friedman2008predictive}, Greenwell's interaction
 index\citep{greenwell2018simple} or SHAP interaction
+<<<<<<< HEAD
 values\citep{lundberg2018consistent} inform indirectly about
 heterogeneous effects, quantifying interactions between the input
 features. A strong interaction index is an indicator for the existence
 of heterogeneous effects.
 
 The aforementioned approaches are under two limitations. They either
-do not quantify the uncertainty of the FE directly or they are based
+do not quantify the uncertainty of the FE directly  \todo{I dont get this argument. What do you mean directly?} or they are based
+
 on PDPs, and, therefore, they are subject to the failure modes of PDPs
-in cases of correlated features\citep{baniecki2021fooling}, as we will
-show in-depth in Section~\ref{sec:simulation-examples-1}. To the best
+in cases of correlated features\citep{baniecki2021fooling}, as we will also show in our experimental analysis (c.f., Section~\ref{sec:simulation-examples-1}). To the best
 of our knowledge, no work exist so far that quantifies the
 heterogeneous effects based on the formulation of ALE.
+\todo{My understanding of the contribution is also the last sentence. None has done it for ALE, but it has been done f for PDPs. For this I think we need some more related owrk on the limiations of PDPs. Also, is this work a straight-forward transfer of the d-ICE etc methods decribed above or transfering these ideas to ALE requires a different approach?}
 
 \subsection{ALE Approximation}
 \label{sec:ale-approximation}
 
+<<<<<<< HEAD
 In ML scenarios, ALE is estimated from the instances of the training
 set.~\citep{apley2020visualizing} proposed dividing the feature domain
 in \(K\) equisized bins and estimating the local effects in each bin
-by evaluating the black box-function at the bin limits:
+by evaluating the black box-function \(f\)at the bin limits: \todo{k or K? I prefer k for the cardinality and it seems that k is used afterwards. }
+
 \begin{equation}
   \label{eq:ALE_accumulated_mean_est}
   \hat{f}^{\mathtt{ALE}}(x_s) = \sum_{k=1}^{k_x} \frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^i \in
@@ -275,26 +278,29 @@ We denote as \(k_x\) the index of the bin that \(x_s\) belongs to,
 i.e. \(k_x: z_{k_x-1} \leq x_s < z_{k_x} \) and \(\mathcal{S}_k\) is
 the set of training instances of the \(k\)-th bin, i.e.
 \( \mathcal{S}_k = \{ \xb^i : z_{k-1} \leq x^i_s < z_{k} \}
-\). Afterwards,~\citep{gkolemis22} proposed the Differential ALE
-(DALE) that uses the partial derivatives:
-\begin{equation}
-  \label{eq:DALE_accumulated_mean_est}
+\). 
+
+\citep{gkolemis22} proposed the Differential ALE
+(DALE) that computes the local effects on the training instances using
+auto-differentiation:
+\begin{equation}  \label{eq:DALE_accumulated_mean_est}
   \hat{f}^{\mathtt{DALE}}(x_s) = \Delta x \sum_{k=1}^{k_x} \frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^i \in
     \mathcal{S}_k} f^s(\mathbf{x}^i)
 \end{equation}
 %
-Their method has the advantages of remaining on-distribution when
-bins become wide and, most importantly, allows the recomputation of
-the accumulated effect with different bin-splitting with near-zero
+Their method has the advantages of remaining on-distribution even when
+bins become wider and, most importantly, allows the recomputation of
+the accumulated effect with different bin-splitting with near-zero additional
 computational cost.
 
-Both approximations ask from the user to blindly decide the bin
-density for splitting the feature axis into \(K\) equisized bins, an
-approach that is error prone. Setting \(K\) to a small value may hide
-fine-grain effects due to large bins while setting \(K\) to a high
-value leads to poor bin-effect estimations due to few samples per
+Both approximations, however, require the number of bins \(K\) as
+input and perform an equally-sized bin splitting of the attribute
+domain. The choice of \(K\) is therefore critical and introduces
+significant limitations. Specifically, setting \(K\) to a small value
+may hide fine-grain effects due to large bins while setting \(K\) to a
+high value leads to poor bin-effect estimations due to few samples per
 bin. In general, the user may receive contradictory explanations for
-different \(K\) without a clue for which one to trust.
+different \(K\) values without a clue for which one to trust.
 
 \section{Uncertainty-Aware ALE (UALE)}
 \label{sec:UALE}
@@ -610,6 +616,7 @@ residual error partitioning of \(x_1\) domain.
   \label{fig:synth-ex-1-case-1}
 \end{figure}
 
+<<<<<<< HEAD
 \paragraph{No Interaction, Non-Equal Weights.}
 
 In this set-up, \(\alpha=0\) (no interaction), \(a_1 = 2\) and
@@ -626,6 +633,22 @@ effect, i.e.~negative in the region \([0, 0.2)\), positive in
 heterogeneous effects. As before, ALE quantifies correctly the ground
 truth effect, the zero-uncertainty and partioning correctly the
 \(x_1\) domain.
+=======
+\paragraph{No Interaction, Different weights.}
+
+As before, no interaction exits \(\alpha=0\), therefore, the
+ground-truth uncertainty is zero, i.e.
+\(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). The weights are
+\(a_1=2, a_2=0.5\), therefore, the ground-truth effect is
+\(f_\mu^{\mathtt{GT}}(x_1)\) is, \(2x_1\) when \(0 \leq x_1 < 0.2\),
+\(-2x_1\) when \(0.2 \leq x_1 < 0.4\) and zero otherwise. In
+Figure~\ref{fig:ex-synth-1-2}, we observe that PDP estimation is
+completely opposite to the ground-truth effect, i.e.~negative in the
+region \([0, 0.2)\) and positive in \([0.2, 0.4)\), and the ICE
+erroneously implies the existence of heterogeneous effects. As before,
+ALE quantifies correctly the ground truth effect, the
+zero-uncertainty and extracts the constant effect regions.
+>>>>>>> origin/overleaf-2022-10-11-1029
 
 \begin{figure}[h]
   \centering
