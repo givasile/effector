@@ -112,13 +112,17 @@ state-of-the-art for measuring the average effect, since PDP and MP
 have been criticized~\citep{Gromping2020MAEP} to compute erroneous
 effects when the input features are (highly) correlated.
 
-However,
-when strong interactions between features exist,
-the instance-level feature effects may significantly deviate from
-the aggregated outcome of ALE~\citep{herbinger2022repid}, a phenomenon called
-\emph{aggregation bias}~\citep{mehrabi2021survey}. 
-Aggregation bias leads to ambiguities; for example, a feature with zero average effect may
-indicate no effect on the output or a highly positive effect for some instances and a highly negative effect for others. Such ambiguities could be resolved if not only the average effect but also the deviation of instance-level feature effects, a quantity we refer to as the \emph{uncertainty of the effect}, from the average effect is provided.
+However, when strong interactions between features exist, the
+instance-level feature effects may significantly deviate from the
+aggregated outcome of ALE~\citep{herbinger2022repid}, a phenomenon
+called \emph{aggregation bias}~\citep{mehrabi2021survey}.  Aggregation
+bias leads to ambiguities; for example, a feature with zero average
+effect may indicate no effect on the output or a highly positive
+effect for some instances and a highly negative effect for
+others. Such ambiguities could be resolved if not only the average
+effect but also the deviation of instance-level feature effects, a
+quantity we refer to as the \emph{uncertainty of the effect}, from the
+average effect is provided.
 
 %Therefore, global methods should quantify not only the aggregated (averaged) effect, but also the level of heterogeneity of instance-level explanations.  
 
@@ -130,12 +134,16 @@ indicate no effect on the output or a highly positive effect for some instances 
 %have been criticized~\citep{Gromping2020MAEP} to compute erroneous
 %effects when the input features are (highly) correlated. 
 
-In this work, we propose UALE,  a global feature-effect method that extends ALE by quantifying the uncertainty associated with the average effect. 
-Similarly to ALE, UALE's approximation requires partitioning the feature domain into non-overlapping intervals (bin-splitting). In contrast to ALE that requires a fixed equi-width partitioning without considering the characteristics of
-the instance-level effects, we propose an automatic partitioning that minimizes the uncertainty of the resulting bins. 
-
-
-
+In this work, we propose UALE, a global feature-effect method that
+extends ALE by quantifying the uncertainty associated with the average
+effect. Similarly to ALE, UALE's approximation requires partitioning
+the feature domain into non-overlapping intervals
+(bin-splitting). However, as we formally prove, a fixed equi-width
+partitioning without considering the characteristics of the
+instance-level effects may lead to an erroneous (biased) estimation of
+the uncertainty. Therefore, we propose an automatic uncertainty-driven
+partitioning that secures an unbiased approximation of the
+uncertainty.
 
 %However, ALE faces two limitations, the first concerns ALE definition and the second ALE approximation. Regarding the definition, ALE does not inform the user about the uncertainty. 
 \color{blue}\todo{This should go to related work}In contrast, in PDP the
@@ -200,7 +208,6 @@ marginal distribution \(\mathbf{X}_c\), i.e.,
 formulates it as an expectation over the conditional
 \(\mathbf{X}_c|X_s\), i.e.,
 \(f^{\mathtt{MP}}(x_s) = \mathbb{E}_{\mathbf{X}_c|x_s}[f(x_s,
-
 \mathbf{X}_c)]\). ALE defines the local effect of the \(s\)-th feature
 at instance \(x_s = z\) as
 \(f^s(z, \xc) = \frac{\partial f}{\partial x_s} (z, \xc)\). All the
@@ -616,7 +623,6 @@ residual error partitioning of \(x_1\) domain.
   \label{fig:synth-ex-1-case-1}
 \end{figure}
 
-<<<<<<< HEAD
 \paragraph{No Interaction, Non-Equal Weights.}
 
 In this set-up, \(\alpha=0\) (no interaction), \(a_1 = 2\) and
@@ -633,22 +639,6 @@ effect, i.e.~negative in the region \([0, 0.2)\), positive in
 heterogeneous effects. As before, ALE quantifies correctly the ground
 truth effect, the zero-uncertainty and partioning correctly the
 \(x_1\) domain.
-=======
-\paragraph{No Interaction, Different weights.}
-
-As before, no interaction exits \(\alpha=0\), therefore, the
-ground-truth uncertainty is zero, i.e.
-\(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). The weights are
-\(a_1=2, a_2=0.5\), therefore, the ground-truth effect is
-\(f_\mu^{\mathtt{GT}}(x_1)\) is, \(2x_1\) when \(0 \leq x_1 < 0.2\),
-\(-2x_1\) when \(0.2 \leq x_1 < 0.4\) and zero otherwise. In
-Figure~\ref{fig:ex-synth-1-2}, we observe that PDP estimation is
-completely opposite to the ground-truth effect, i.e.~negative in the
-region \([0, 0.2)\) and positive in \([0.2, 0.4)\), and the ICE
-erroneously implies the existence of heterogeneous effects. As before,
-ALE quantifies correctly the ground truth effect, the
-zero-uncertainty and extracts the constant effect regions.
->>>>>>> origin/overleaf-2022-10-11-1029
 
 \begin{figure}[h]
   \centering
@@ -751,7 +741,7 @@ defined by the wide bin. For better interpretation of the uncertainty
 error, we also provide the mean (per bin) error term
 \(\mathcal{L}^{\rho}_{\mathtt{DP|K}} =
 \frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k \in
-  \mathcal{Z}^{\mathtt{DP|K}}} \mathcal{\Epsilon}(z_{k-1}, z_k) \).
+  \mathcal{Z}^{\mathtt{DP|K}}} \mathcal{E}(z_{k-1}, z_k) \).
 
 \paragraph{Piecewise-Linear Function.}
 
