@@ -96,8 +96,9 @@ behavior. Global methods create a global explanation by aggregating the
 instance-level explanations into a single interpretable outcome,
 usually a number or a plot.  
 
-A popular class of global XAI are the Feature Effect (FE) methods~\citep{Gromping2020MAEP} that
-isolate the impact of a single feature on the output\footnote{FE
+A popular class of global XAI are feature effect (FE)
+methods~\citep{Gromping2020MAEP} that quantify the average (over all
+instances) effect of a single feature on the output\footnote{FE
   methods also isolate the combined effect of a pair of features to
   the output. Combinations of more than two features are uncommon,
   since they are difficult to estimate and visualize.}. There are
@@ -106,14 +107,22 @@ three widely-used FE methods: \emph{Partial Dependence Plots}
 (MP)\citep{apley2020visualizing} and \emph{Aggregated Local Effects}
 (ALE)\citep{apley2020visualizing}. ALE is established as the
 state-of-the-art in quantifying the average effect, since PDP and MP
-have been criticized~\citep{Gromping2020MAEP} to erroneously compute the
-effects when the input features are correlated.
+have been criticized~\citep{Gromping2020MAEP} to erroneously compute
+the effects when the input features are correlated.
 
-When strong interactions between features exist,
-the instance-level feature effects may significantly deviate from
-the aggregated outcome a phenomenon called
-\emph{aggregation bias}~\citep{mehrabi2021survey}. 
-Aggregation bias leads to ambiguities; for example, a feature with zero average effect may indicate no effect on the output or a highly positive effect for some instances and a highly negative for others. For resolving such ambiguities, it is crucial to  visualize the heterogeneity of instance-level explanations. In the case of PDP, this heterogeneity is visualized via the Individual Conditional Explanations (ICE)~\citep{goldstein2015peeking}. However ICE plots do have the same limitations with PDP in case of correlated features. No such method has been proposed for ALE. 
+When complex interactions between features exist, the instance-level
+(local) feature effects may significantly deviate from the aggregated
+outcome, a phenomenon called \emph{aggregation
+  bias}~\citep{mehrabi2021survey}.  Aggregation bias leads to
+ambiguities; for example, a feature with zero average effect may
+indicate no effect on the output or a highly positive effect for some
+instances and a highly negative for others. For resolving such
+ambiguities, FE methods should quantify and visualize the
+heterogeneity of instance-level explanations. In the case of PDP, this
+heterogeneity is visualized via the Individual Conditional
+Explanations (ICE)~\citep{goldstein2015peeking}. However ICE plots do
+have the same limitations with PDP in case of correlated features. To
+the best of our knowledge, no such method has been proposed for ALE.
 
 % Such ambiguities could be resolved if the heterogeneity of instance-level feature effects is provided in addition to the average effect. 
 % In this paper, we measure the heterogeneity as the standard deviation of the instance-level effects and we refer to it using as the \emph{uncertainty of the effect}.
@@ -128,11 +137,18 @@ Aggregation bias leads to ambiguities; for example, a feature with zero average 
 %have been criticized~\citep{Gromping2020MAEP} to compute erroneous
 %effects when the input features are (highly) correlated. 
 
-In this work, we propose UALE, a global feature-effect method that extends ALE for quantifying the uncertainty associated with the average effect. UALE models the uncertainty accurately in case of correlated features. As with ALE, UALE's approximation requires partitioning the feature domain into non-overlapping intervals (bin-splitting). However, as we formally prove, a fixed equi-width
-partitioning without considering the characteristics of the
-instance-level effects may lead to an erroneous (biased) estimation of
-the uncertainty. Therefore, we propose an automatic uncertainty-driven
-partitioning that secures an unbiased approximation.
+In this work, we propose UALE, a global feature-effect method that
+extends ALE for accurately modelling the \emph{uncertainty of the
+  feature effect}, in case of correlated features. The uncertainty of
+the feature effect expresses the heterogeneity of the instance-level
+(local) effects and is quantified by their standard deviation. As with
+ALE, UALE's approximation requires partitioning the feature domain
+into non-overlapping intervals (bin-splitting). However, as we
+formally prove, a fixed equi-width partitioning without considering
+the characteristics of the instance-level effects may lead to an
+erroneous (biased) estimation of the uncertainty. Therefore, we
+propose an automatic uncertainty-driven partitioning that secures an
+unbiased approximation.
 
 
 
@@ -172,35 +188,49 @@ become publicly available upon acceptance.
 \section{BACKGROUND AND RELATED WORK}
 
 We here review the existing methods for modeling the average effect
-and the heterogeneity of instance-level effects. The necessary
-background for ALE~\citep{apley2020visualizing} is presented in
-Section~\ref{sec:feat-effect-meth}, whereas ALE
-approximations~\citep{apley2020visualizing, gkolemis22} are presented
-in Section~\ref{sec:ale-approximation}.
+(Section~\ref{sec:feat-effect-meth}) and the heterogeneity
+(Section~\ref{sec:quant-heter-effects}). In Section, we provide the
+necessary background for ALE definition
+(Section~\ref{sec:feat-effect-meth}) and approximation
+(Section~\ref{sec:ale-approximation}).
 
-\paragraph{Notation} 
+\paragraph{Notation:} 
 
-Let \(\mathcal{X} \in \mathbb{R}^d\) be the d-dimensional feature space, \(\mathcal{Y} \in \mathbb{R}\) the target space and \(f(\cdot) : \mathcal{X} \rightarrow \mathcal{Y}\) the black-box function. We use index \(s \in \{1, \ldots, d\}\) for the feature of interest and \(c \in \{1, \ldots, d\} - s\) for the rest feature indexes. For convenience, we denote the feature vector \(\xb = (x_1, \cdots , x_s, \cdots, x_D)\) with \((x_s, \xc)\) and the corresponding random variables \(X = (X_1, \cdots , X_s, \cdots, X_D)\) with \((X_s, X_c)\). The training set is \(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\) sampled i.i.d. from the distribution \(\mathbb{P}_{X,Y}\). Finally, we use \(f^{\mathtt{<method>}}(x_s)\) for the FE of the \(s\)-th feature, with \(\mathtt{<method>}\)
-indicating the particular method in use, for example ALE.\footnote{An extensive list of all
-  symbols used in the paper is provided at the Appendix.}
+Let \(\mathcal{X} \in \mathbb{R}^d\) be the d-dimensional feature
+space, \(\mathcal{Y} \in \mathbb{R}\) the target space and
+\(f(\cdot) : \mathcal{X} \rightarrow \mathcal{Y}\) the black-box
+function. We use index \(s \in \{1, \ldots, d\}\) for the feature of
+interest and \(c := \{1, \ldots, d\} - s\) for the set with all other
+indexes. For convenience, we denote the feature vector
+\(\xb = (x_1, \cdots , x_s, \cdots, x_D)\) with \((x_s, \xc)\) and the
+corresponding random variables
+\(X = (X_1, \cdots , X_s, \cdots, X_D)\) with \((X_s, X_c)\). The
+training set is \(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\) sampled
+i.i.d. from the distribution \(\mathbb{P}_{X,Y}\). Finally, we use
+\(f^{\mathtt{<method>}}(x_s)\) for denoting the \(s\)-th FE, where
+\(\mathtt{<method>}\) indicates the particular method in use, for
+example ALE. An extensive list with all symbols used in this paper is
+provided at Appendix~\ref{sec:list-with-symbols}.
 
 \subsection{Feature Effect Methods and ALE}
 \label{sec:feat-effect-meth}
-The three well-known feature effect methods are: \emph{Partial Dependence
-  Plots} (PDP)\citep{friedman2001greedy}, \emph{Marginal Plots}
-(MP)\citep{apley2020visualizing} and \emph{Aggregated Local Effects}
-(ALE)\citep{apley2020visualizing}
-PDP
-formulates the FE of the \(s\)-th attribute as an expectation over the
-marginal distribution \(\mathbf{X}_c\), i.e.,
+The three well-known feature effect methods are: \emph{Partial
+  Dependence Plots} (PDP), \emph{Marginal Plots}(MP) and
+\emph{Aggregated Local Effects} (ALE).  PDP formulates the global FE
+as an expectation over the marginal distribution \(\mathbf{X}_c\),
+i.e.,
 \(f^{\mathtt{PDP}}(x_s) =
-\mathbb{E}_{\mathbf{X}_c}[f(x_s,\mathbf{X}_c)]\), whereas MP
-formulates it as an expectation over the conditional
-\(\mathbf{X}_c|X_s\), i.e.,
+\mathbb{E}_{\mathbf{X}_c}[f(x_s,\mathbf{X}_c)]\), whereas MP as an
+expectation over the conditional \(\mathbf{X}_c|X_s\), i.e.,
 \(f^{\mathtt{MP}}(x_s) = \mathbb{E}_{\mathbf{X}_c|x_s}[f(x_s,
-\mathbf{X}_c)]\). ALE defines the local effect of the \(s\)-th feature
-at instance \(x_s = z\) as
-\(f^s(z, \xc) = \frac{\partial f}{\partial x_s} (z, \xc)\). All the
+\mathbf{X}_c)]\).
+
+ALE defines the local effect of the \(s\)-th feature at a specific
+point \((z, \xc)\) of the input space \(\mathcal{X}\) with the partial
+derivative:
+\(f^s(z, \xc) = \frac{\partial f}{\partial x_s} (z, \xc)\).
+
+All the
 local explanations at \(z\) are, then, weighted by the conditional
 distribution \(p(\xc|x_s=z)\) and are averaged, to produce the
 averaged effect \(\mu(z)\). ALE is the accumulation of the averaged
@@ -939,5 +969,10 @@ All acknowledgments go at the end of the paper, including thanks to reviewers wh
 To preserve the anonymity, please include acknowledgments \emph{only} in the camera-ready papers.
 
 \bibliography{biblio}
+
+\appendix
+
+\section{List with Symbols}
+\label{sec:list-with-symbols}
 
 \end{document}
