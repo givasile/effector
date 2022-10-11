@@ -1,4 +1,4 @@
-           \documentclass[twoside]{article}
+\documentclass[twoside]{article}
 
 \usepackage{aistats2023}
 % If your paper is accepted, change the options for the package
@@ -78,25 +78,28 @@ width=7.00ex, align=center, column sep=-\pgflinewidth }, }
 \aistatsaddress{ Institution 1 \And  Institution 2 \And Institution 3 } ]
 
 \begin{abstract}
-Accumulated Local Effects (ALE) is a popular explainable AI method that quantifies how a feature influences the decisions of a model, handling well feature correlations. In case of complex interactions between features, instance-level feature effects may deviate from the ALE curve. It is therefore crucial to quantify this deviation, namely, the uncertainty of the effect. In this work, we define Uncertainty-aware ALE (UALE) to quantify and visualize, on a single plot, both the average effect and its uncertainty. We show that UALE quantifies uncertainty effectively, even in case of correlated features. We also note that as in ALE, UALE's approximation requires partitioning the feature domain into non-overlapping intervals (bin-splitting). The average effect and the uncertainty are computed from the instances that lie in each bin. We formally prove that to achieve an unbiased approximation of the uncertainty in each bin, bin-splitting must follow specific constraints. Based on this, we propose a method to determine the optimal intervals, \todo{balancing the estimation bias and variance.} We demonstrate, through synthetic and real datasets, (a) the advantages of modeling the uncertainty with UALE compared to alternative methods and (b) the effectiveness of UALE's appropriate bin splitting for a \todo{good} approximating of the average effect and its uncertainty.
+
+Accumulated Local Effects (ALE) is a popular explainable AI method that quantifies how a feature influences the decisions of a model, handling well correlated features. However, in case of strong interactions between features, instance-level feature effects may deviate from the average curve provided by ALE. Therefore, it is crucial to quantify this deviation, namely, the uncertainty of the effect. In this work, we define Uncertainty-aware ALE (UALE) to quantify and visualize, on a single plot, both the average effect and the uncertainty. Furthermore, as in ALE, UALE's approximation requires partitioning the feature domain into non-overlapping intervals (bin-splitting). The average effect and the uncertainty are then computed from the instances that lie in each bin.  In this work, we formally prove that to achieve an unbiased approximation of the uncertainty in each bin, bin-splitting must follow specific constraints. Based on this, we propose a method for automatically finding the optimal intervals, balancing the trade-off between estimation bias and variance~\todo{check if this phrase explains well the concept.} We demonstrate through synthetic and real datasets (a) the advantages of modeling the uncertainty with UALE compared to other methods and (b) the importance of appropriate bin splitting for an accurate approximation of the average effect and uncertainty.
 \end{abstract}
 
 
 \section{INTRODUCTION}
 
-Recently, Machine Learning (ML) has been adopted in mission critical domains,
+Recently, Machine Learning (ML) has been adopted in critical domains,
 such as healthcare and finance. In these areas, we need a combination
-of accurate predictions along with meaningful model explanations. For this reason, there is an increased interest in Explainable
+of accurate predictions along with meaningful explanations to support
+them. For this reason, there is an increased interest in Explainable
 AI (XAI) to understand the decision mechanism of complex black-box
 models. XAI literature distinguishes between local and global
 techniques~\citep{Molnar2020interpretable}. Local methods provide
-instance-level explanations, i.e., explain the prediction for a
+instance-level explanations, i.e.~explain the prediction for a
 specific instance, whereas global methods summarize the entire model
-behavior. Global methods create a global explanation by aggregating the
-instance-level explanations into a single interpretable outcome,
-usually a number or a plot.  
+behavior.
 
-A popular class of global XAI are the Feature Effect (FE) methods~\citep{Gromping2020MAEP} that
+Global methods create a global explanation by aggregating the
+instance-level explanations into a single interpretable outcome,
+usually a number or a plot.  A popular class of global methods are the
+so-called Feature Effect (FE) methods~\citep{Gromping2020MAEP} that
 isolate the impact of a single feature on the output\footnote{FE
   methods also isolate the combined effect of a pair of features to
   the output. Combinations of more than two features are uncommon,
@@ -104,19 +107,22 @@ isolate the impact of a single feature on the output\footnote{FE
 three widely-used FE methods: \emph{Partial Dependence Plots}
 (PDP)\citep{friedman2001greedy}, \emph{Marginal Plots}
 (MP)\citep{apley2020visualizing} and \emph{Aggregated Local Effects}
-(ALE)\citep{apley2020visualizing}. ALE is established as the
-state-of-the-art in quantifying the average effect, since PDP and MP
-have been criticized~\citep{Gromping2020MAEP} to erroneously compute the
-effects when the input features are correlated.
+(ALE)\citep{apley2020visualizing} with ALE being established as the
+state-of-the-art for measuring the average effect, since PDP and MP
+have been criticized~\citep{Gromping2020MAEP} to compute erroneous
+effects when the input features are (highly) correlated.
 
-When strong interactions between features exist,
-the instance-level feature effects may significantly deviate from
-the aggregated outcome a phenomenon called
-\emph{aggregation bias}~\citep{mehrabi2021survey}. 
-Aggregation bias leads to ambiguities; for example, a feature with zero average effect may indicate no effect on the output or a highly positive effect for some instances and a highly negative for others. For resolving such ambiguities, it is crucial to  visualize the heterogeneity of instance-level explanations. In the case of PDP, this heterogeneity is visualized via the Individual Conditional Explanations (ICE)~\citep{goldstein2015peeking}. However ICE plots do have the same limitations with PDP in case of correlated features. No such method has been proposed for ALE. 
-
-% Such ambiguities could be resolved if the heterogeneity of instance-level feature effects is provided in addition to the average effect. 
-% In this paper, we measure the heterogeneity as the standard deviation of the instance-level effects and we refer to it using as the \emph{uncertainty of the effect}.
+However, when strong interactions between features exist, the
+instance-level feature effects may significantly deviate from the
+aggregated outcome of ALE~\citep{herbinger2022repid}, a phenomenon
+called \emph{aggregation bias}~\citep{mehrabi2021survey}.  Aggregation
+bias leads to ambiguities; for example, a feature with zero average
+effect may indicate no effect on the output or a highly positive
+effect for some instances and a highly negative effect for
+others. Such ambiguities could be resolved if not only the average
+effect but also the deviation of instance-level feature effects, a
+quantity we refer to as the \emph{uncertainty of the effect}, from the
+average effect is provided.
 
 %Therefore, global methods should quantify not only the aggregated (averaged) effect, but also the level of heterogeneity of instance-level explanations.  
 
@@ -128,13 +134,16 @@ Aggregation bias leads to ambiguities; for example, a feature with zero average 
 %have been criticized~\citep{Gromping2020MAEP} to compute erroneous
 %effects when the input features are (highly) correlated. 
 
-In this work, we propose UALE, a global feature-effect method that extends ALE for quantifying the uncertainty associated with the average effect. UALE models the uncertainty accurately in case of correlated features. As with ALE, UALE's approximation requires partitioning the feature domain into non-overlapping intervals (bin-splitting). However, as we formally prove, a fixed equi-width
+In this work, we propose UALE, a global feature-effect method that
+extends ALE by quantifying the uncertainty associated with the average
+effect. Similarly to ALE, UALE's approximation requires partitioning
+the feature domain into non-overlapping intervals
+(bin-splitting). However, as we formally prove, a fixed equi-width
 partitioning without considering the characteristics of the
 instance-level effects may lead to an erroneous (biased) estimation of
 the uncertainty. Therefore, we propose an automatic uncertainty-driven
-partitioning that secures an unbiased approximation.
-
-
+partitioning that secures an unbiased approximation of the
+uncertainty.
 
 %However, ALE faces two limitations, the first concerns ALE definition and the second ALE approximation. Regarding the definition, ALE does not inform the user about the uncertainty. 
 \color{blue}\todo{This should go to related work}In contrast, in PDP the
@@ -192,6 +201,7 @@ The three well-known feature effect methods are: \emph{Partial Dependence
 (ALE)\citep{apley2020visualizing}
 PDP
 formulates the FE of the \(s\)-th attribute as an expectation over the
+>>>>>>> origin/overleaf-2022-10-11-1029
 marginal distribution \(\mathbf{X}_c\), i.e.,
 \(f^{\mathtt{PDP}}(x_s) =
 \mathbb{E}_{\mathbf{X}_c}[f(x_s,\mathbf{X}_c)]\), whereas MP
@@ -222,6 +232,7 @@ method in cases of correlated features. \todo{cite someone}
 \subsection{Heterogeneity Of Instance-Level Effects}
 \label{sec:quant-heter-effects}
 
+<<<<<<< HEAD
 FE methods show what is the average (global) effect on the output, if
 the value of a specific feature is increased/decreased. For completing
 the explanation about a feature, we need to also know to what extent
@@ -309,7 +320,7 @@ interval-based formulation, at Section~\ref{sec:UALE-approximation} we
 provide UALE approximation and at Section~\ref{sec:bin-spliting} we
 define and solve the problem of optimal bin-splitting.
 
-\subsection{UALE Definition}
+\subsection{UALE: ALE With Uncertainty Quantification}
 \label{sec:UALE-definition-1}
 
 UALE extends ALE definition of Eq.~(\ref{eq:ALE}) with a component for
@@ -341,7 +352,7 @@ a confidence region
 \(f^{\mathtt{UALE}}(x_s) := f^{\mathtt{ALE}}_{\mu}(x_s) \pm
 f^{\mathtt{ALE}}_{\sigma}(x_s)\).
 
-\subsection{Interval-Based Formulation}
+\subsection{Interval-Based Formulation and Approximation}
 \label{sec:UALE-definition-2}
 
 In real ML scenarios, all estimations are based on the instances of
@@ -612,7 +623,6 @@ residual error partitioning of \(x_1\) domain.
   \label{fig:synth-ex-1-case-1}
 \end{figure}
 
-<<<<<<< HEAD
 \paragraph{No Interaction, Non-Equal Weights.}
 
 In this set-up, \(\alpha=0\) (no interaction), \(a_1 = 2\) and
@@ -629,22 +639,6 @@ effect, i.e.~negative in the region \([0, 0.2)\), positive in
 heterogeneous effects. As before, ALE quantifies correctly the ground
 truth effect, the zero-uncertainty and partioning correctly the
 \(x_1\) domain.
-=======
-\paragraph{No Interaction, Different weights.}
-
-As before, no interaction exits \(\alpha=0\), therefore, the
-ground-truth uncertainty is zero, i.e.
-\(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). The weights are
-\(a_1=2, a_2=0.5\), therefore, the ground-truth effect is
-\(f_\mu^{\mathtt{GT}}(x_1)\) is, \(2x_1\) when \(0 \leq x_1 < 0.2\),
-\(-2x_1\) when \(0.2 \leq x_1 < 0.4\) and zero otherwise. In
-Figure~\ref{fig:ex-synth-1-2}, we observe that PDP estimation is
-completely opposite to the ground-truth effect, i.e.~negative in the
-region \([0, 0.2)\) and positive in \([0.2, 0.4)\), and the ICE
-erroneously implies the existence of heterogeneous effects. As before,
-ALE quantifies correctly the ground truth effect, the
-zero-uncertainty and extracts the constant effect regions.
->>>>>>> origin/overleaf-2022-10-11-1029
 
 \begin{figure}[h]
   \centering
@@ -746,7 +740,8 @@ bin-effects (bin-uncertainties) of the bins inside the interval
 defined by the wide bin. For better interpretation of the uncertainty
 error, we also provide the mean (per bin) error term
 \(\mathcal{L}^{\rho}_{\mathtt{DP|K}} =
-\frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k \in \mathcal{Z}^{\mathtt{DP|K}}} \mathcal{E}(z_{k-1}, z_k) \).
+\frac{1}{|\mathcal{Z}^{\mathtt{DP|K}}|} \sum_{k \in
+  \mathcal{Z}^{\mathtt{DP|K}}} \mathcal{E}(z_{k-1}, z_k) \).
 
 \paragraph{Piecewise-Linear Function.}
 
