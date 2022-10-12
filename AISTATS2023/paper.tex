@@ -152,7 +152,6 @@ may lead to an erroneous (biased) estimation of the uncertainty.
 Therefore, we propose a variable-width partitioning that leads to an unbiased approximation.
 
 
-
 % %However, ALE faces two limitations, the first concerns ALE definition and the second ALE approximation. Regarding the definition, ALE does not inform the user about the uncertainty. 
 % \color{blue}\todo{This should go to related work}In contrast, in PDP the
 % heterogeneity of instance-level effects can be identified by exploring
@@ -312,11 +311,10 @@ bins, without considering the underlying local effects.
 \section{Uncertainty-Aware ALE (UALE)}
 \label{sec:UALE}
 
-In this Section~\ref{sec:UALE-definition-1}, we define UALE. Then, we
+In Section~\ref{sec:UALE-definition-1} we define UALE and we
 provide an interval-based formulation that partitions the feature
 domain into non-overlapping intervals (bin-splitting) and defines the
-bin-effect and the bin-uncertainty
-(Section~\ref{sec:UALE-definition-2}). Then, we present the UALE
+bin-effect and the bin-uncertainty. Then, we present UALE
 approximation (Section~\ref{sec:UALE-approximation}), formally proving
 the bin-splitting requirements for an unbiased estimation of the
 uncertainty. Based on this, we present an optimization method to
