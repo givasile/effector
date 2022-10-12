@@ -22,8 +22,10 @@
 \bibliographystyle{plainnat}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\DeclareMathOperator*{\argmin}{arg\,min}
 \usepackage{amsthm}
 \newtheorem{theorem}{Theorem}[section]
+\newtheorem{corollary}{Corollary}[theorem]
 \newtheorem{lemma}[theorem]{Lemma}
 
 \usepackage{xfrac}
@@ -424,12 +426,14 @@ defined as follows:
   \hat{\mu}(z_1, z_2) \right )^2
 \end{equation}
 %
-In Theorem~\ref{sec:theorem-1}, though, we prove that
-Eq.~(\ref{eq:var_bin_approx}) is an approximator of
+In the Appendix~\ref{sec:proof-1}, we show that
+\(\hat{\sigma}^2(z_{k-1}, z_k)\) is an unbiased estimator of
 \(\sigma^2_*(z_1, z_2) = \frac{\int_{z_1}^{z_2} \mathbb{E}_{\xc|x_s=z}
   \left [ (f^s(z, \xc) - \mu(z_1, z_2) )^2 \right] \partial z}{z_2 -
-  z_1}\) which, in the general case, overestimates
-\(\sigma^2(z_1, z_2)\).
+  z_1} \)
+%
+which, in the general case, overestimates
+\(\sigma^2(z_1, z_2)\), as shown in Theorem~\ref{sec:theorem-1}.
 
 \begin{theorem}
   \label{sec:theorem-1}
@@ -451,39 +455,49 @@ The proof is at Appendix~\ref{sec:proof-of-3-1}.
 
 \noindent
 
-In Theorem \ref{sec:theorem-1}, we show that the estimation of the
-uncertainty is unbiased only when \(\mathcal{E}^2(z_1, z_2) = 0\).
+Based on Theorem\ref{sec:theorem-1}, the estimation is unbiased only
+when \(\mathcal{E}^2(z_1, z_2) = 0\).
 
-% \(\mathcal{E}^2(z_1, z_2) = 0\).
-% Theorem \ref{sec:theorem-1} show an important connection between
-% the uncertainty we want to measure, i.e. the average uncertainty
-% inside the bin, \(\sigma(z_1, z_2)\), and the one we actual
-% estimate, \(\sigma_*(z_1,z_2)\), using the available samples. For
-% convenience, we denote as
-% \(\mathcal{E}^2(z_1, z_2) = \frac{\int_{z_1}^{z_2}\rho^2(z) \partial
-%   z}{z_2 - z_1}\) the error term that measures the models the expected square
-% residual inside the interval and as
-% \(\mathcal{H}_{obs}(z_1, z_2) := \sigma_{obs}(z_1, z_2)\) the
-% observable uncertainty. It holds that the observable uncertainty is an
-% overestimation of the correct uncertainty
-
-% \begin{equation}
-%   \label{eq:uncertainty-bin}
-%   \mathcal{H}^2_{obs}(z_1, z_2) = \mathcal{H}^2(z_1, z_2) + \mathcal{E}^2(z_1, z_2)
-% \end{equation}
-% %
-% and, therefore, the estimation is unbiased only in case
-% \(\mathcal{E}^2(z_1, z_2) = 0\).
-
-\subsection{Bin-Splitting: Finding Regions With Homogeneous Effects}
+\subsection{Bin-Splitting}
 \label{sec:bin-spliting}
 
-In this section, we propose optimally select the bin-splitting
-\(\mathcal{Z}\) with the aim to minimize the error term
-\(\mathcal{E}\). At the same time we want to maintain a sufficient
-population of samples within each bin to allow robust estimation of
-\(\hat{\mu}(z_1, z_2), \hat{\sigma}(z_1, z_2)\). We set-up the
-following optimization problem:
+The quality of interval-based approximation is affected by (a) the
+population of samples in each bin and (b) the error term
+\(\mathcal{E}(z_1, z_2)\) of each bin. On the one hand, we favor a
+partitioning of the feature domain in large-bins to allow a robust
+estimation of \(\hat{\mu}(z_1, z_2), \hat{\sigma}(z_1, z_2)\) from a
+sufficient population of samples. On the other hand, we should
+minimize the aggregation of bin errors, i.e.,
+\( \mathcal{E}^2_{\mathcal{Z}} = \sum_{k=1}^K\mathcal{E}^2(z_1, z_2)
+\Delta z_k\), where \(\mathcal{Z} = \{z_0, \cdots, z_K\}\) and
+\(\Delta z_k = z_k - z_{k-1}\). For convenience, we refer to
+\(\mathcal{E}^2_{\mathcal{Z}}\) as aggregated error. We search for a
+partitioning \(\mathcal{Z}_*\) that balances this trade-off.
+
+Due to the Corollary~\ref{sec:coroll}, minimizing
+\( \mathcal{E}^2_{\mathcal{Z}} \) is equivalent to minimizing
+\(\sigma_*^2(z_{k-1}, z_k)\Delta z_k\), which can be directly
+estimated by \(\hat{\sigma}^2(z_{k-1}, z_k) \Delta z_k \).
+
+\begin{corollary}
+  \label{sec:coroll}
+  The minimization of the aggregation of bin variances is equivalent
+  to the minimization of the aggregated error:
+  \begin{equation}
+  \begin{gathered}
+    \label{eq:2}
+    \argmin_{ \mathcal{Z} = \{z_0, \ldots, z_K\}} \mathcal{E}^2_{\mathcal{Z}}  = \argmin_{ \mathcal{Z} = \{z_0, \ldots, z_K\}} \sum_{k=1}^K\sigma_*^2(z_1, z_2) \Delta z_k 
+  \end{gathered}
+  \end{equation}
+\end{corollary}
+
+\begin{proof}
+~\label{sec:coroll-1}
+  The proof is at Appendix~\ref{sec:proof-of-coroll}
+  \end{proof}
+
+
+Based on the above, we set-up the following optimization problem:
 
 \begin{equation}
   \label{eq:opt}
@@ -497,24 +511,19 @@ following optimization problem:
 \end{aligned}
 \end{equation}
 %
-We search for the sequence of intervals \(z_0, \ldots, z_K\) that
-minimizes the sum of the bin costs. The cost of each bin is the
-approximated variance \(\hat{\sigma}^2_k\) scaled by the bin length
-\(\Delta z_k\) and discounted by the term \(\tau_k\). The term
-\(\tau_K\) favors the selection of a bigger bin in case it has similar
-variance with the aggregate variance of many smaller ones. The
-constraint of at least \(N_{\mathtt{PPB}}\) points per bin sets the
-lowest-limit for a \textit{robust} estimation. The user can choose to
-what extent they favor the creation of wide bins through the discount
-parameter by setting the parameter \(\alpha\) and where they set the
-minimum for robust approximation with the parameter
-\(N_{\mathtt{PPB}}\). For providing a rough idea, in our experiments
-we set \(\alpha = 0.2\) which means that the discount ranges between
-\([0\%, 20\%]\) and \(N_{\mathtt{PPB}} = \frac{N}{20}\). It is also
-important to clarify that by minimizing
-\(\hat{\sigma}^2_k \approx \mathcal{H}_{obs}^2\), we actually minimize
-the squared error term \(\mathcal{E}^2\), since the term
-\(\mathcal{H}^2_{true}\) is independent of the bin splitting.
+The objective \(\mathcal{L}\) searches for the partitioning
+\(\mathcal{Z}_* = \{ z_0, \ldots, z_K \} \) that minimizes the
+aggregated error \(\mathcal{E}_{\mathcal{Z}}^2\), while the term
+\(\tau_K\) favors the partitioning that contains bigger bins, in case
+many partitionings have similar aggregated error. The constraint of at
+least \(N_{\mathtt{PPB}}\) points per bin sets the lowest-limit for a
+\textit{robust} estimation. The user can choose to what extent they
+favor the creation of wide bins through (a) the parameter \(\alpha\)
+that controls the discount \(\tau_k\) and (b) the parameter
+\(N_{\mathtt{PPB}}\) that sets the minimum population per bin. For
+providing a rough idea, in our experiments we set \(\alpha = 0.2\)
+which means that the discount ranges between \([0\%, 20\%]\) and
+\(N_{\mathtt{PPB}} = \frac{N}{20}\).
 
 \subsubsection{Solve Bin-Splitting with Dynamic Programming}
 \label{sec:dynamic-programing}
@@ -634,7 +643,6 @@ residual error partitioning of \(x_1\) domain.
   \label{fig:synth-ex-1-case-1}
 \end{figure}
 
-<<<<<<< HEAD
 \paragraph{No Interaction, Non-Equal Weights.}
 
 In this set-up, \(\alpha=0\) (no interaction), \(a_1 = 2\) and
@@ -651,22 +659,6 @@ effect, i.e.~negative in the region \([0, 0.2)\), positive in
 heterogeneous effects. As before, ALE quantifies correctly the ground
 truth effect, the zero-uncertainty and partioning correctly the
 \(x_1\) domain.
-=======
-\paragraph{No Interaction, Different weights.}
-
-As before, no interaction exits \(\alpha=0\), therefore, the
-ground-truth uncertainty is zero, i.e.
-\(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). The weights are
-\(a_1=2, a_2=0.5\), therefore, the ground-truth effect is
-\(f_\mu^{\mathtt{GT}}(x_1)\) is, \(2x_1\) when \(0 \leq x_1 < 0.2\),
-\(-2x_1\) when \(0.2 \leq x_1 < 0.4\) and zero otherwise. In
-Figure~\ref{fig:ex-synth-1-2}, we observe that PDP estimation is
-completely opposite to the ground-truth effect, i.e.~negative in the
-region \([0, 0.2)\) and positive in \([0.2, 0.4)\), and the ICE
-erroneously implies the existence of heterogeneous effects. As before,
-ALE quantifies correctly the ground truth effect, the
-zero-uncertainty and extracts the constant effect regions.
->>>>>>> origin/overleaf-2022-10-11-1029
 
 \begin{figure}[h]
   \centering
@@ -967,8 +959,14 @@ To preserve the anonymity, please include acknowledgments \emph{only} in the cam
 \section{List with Symbols}
 \label{sec:list-with-symbols}
 
+\section{Show that is unbiased estimator}
+\label{sec:proof-1}
+
 \section{Proof of Theorem~\ref{sec:theorem-1}}
 \label{sec:proof-of-3-1}
+
+\section{Proof of Corollary~\ref{sec:coroll-1}}
+\label{sec:proof-of-coroll}
 
 
 \end{document}
