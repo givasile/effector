@@ -310,32 +310,32 @@ bins, without considering the underlying local effects.
 \section{Uncertainty-Aware ALE (UALE)}
 \label{sec:UALE}
 
-In the following, we present UALE for quantifying the level of heterogeneous effects
-(uncertainty) and optimally partitioning the feature domain. 
-In the following, we first define UALE, we reformulate it
-using interval-based formulation, provide UALE approximation and,
-finally, define and solve the problem of optimal bin-splitting.
+In this Section~\ref{sec:UALE-definition-1}, we define UALE. Then, we
+provide an interval-based formulation that partitions the feature
+domain into non-overlapping intervals (bin-splitting) and defines the
+bin-effect and the bin-uncertainty
+(Section~\ref{sec:UALE-definition-2}). Then, we present the UALE
+approximation (Section~\ref{sec:UALE-approximation}), formally proving
+the bin-splitting requirements for an unbiased estimation of the
+uncertainty. Based on this, we present an optimization method to
+determine an appropriate variable-width partitioning
+(Section~\ref{sec:bin-spliting}).
 
-\subsection{UALE Definition}
+\subsection{UALE Definition And Interval-Based Formulation}
 \label{sec:UALE-definition-1}
 
-UALE extends ALE with a component for quantifying the uncertainty. Let
-us denote as \(\mathcal{H}(z)\) the uncertainty of the local effects
-at a specific point \(x_s=z\) and quantify it using the standard
-deviation of the local explanations \(\mathcal{H}(z) = \sigma(z)\),
-where:
+We quantify the uncertainty of the local effects at \(x_s=z\) with the
+standard deviation of the local explanations, \(\sigma(z)\), where:
 
 \begin{equation}
   \label{eq:ALE_var}
   \sigma^2(z) = \mathbb{E}_{X_c|X_s=z}\left [ \left (\dfdx (z, X_c) - \mu(z) \right )^2 \right ] 
 \end{equation}
 \noindent
-The uncertainty emerges from the natural characteristics of the
-experiment. These include the feature correlations present in the data
-generating distribution and the implicit feature interactions of the
-black-box function. We also define the accumulated uncertainty at
-\(x_s\), as the accumulation of the standard deviation of the local
-effects:
+The uncertainty emerges from (a) the feature correlations and (b) the
+implicit feature interactions of the black-box function. We also
+define the accumulated uncertainty at \(x_s\), as the accumulation of
+the standard deviation of the local effects:
 
 \begin{equation}
   \label{eq:ALE_acc_unc}
@@ -343,30 +343,22 @@ effects:
 \end{equation}
 \noindent
 
-UALE defines the effect at a specific point \(x_s\) with a pair that
-consists of the average effect and the uncertainty
-\((\mu(z), \sigma(z))\) and visualizes it with a continuous curve
-\(f^{\mathtt{ALE}}_{\mu}(x_s) \) as defined in Eq.~(\ref{eq:ALE}) and
-a confidence interval
-\(f^{\mathtt{ALE}}_{\mu}(x_s) \pm
-f^{\mathtt{ALE}}_{\sigma}(x_s)\). For notational convenience, we use
-\(f^{\mathtt{UALE}}(x_s) := f^{\mathtt{ALE}}_{\mu}(x_s) \pm
-f^{\mathtt{ALE}}_{\sigma}(x_s)\) to represent this plot.
+UALE defines the effect as a pair that consists of the average effect
+and the uncertainty \((\mu(z), \sigma(z))\). For visualizing it, we
+use the accumulated average effect, as defined in Eq.~(\ref{eq:ALE}),
+and the accumulated uncertainty, as defined in
+Eq.~(\ref{eq:ALE_acc_unc}). Figure~\ref{fig:UALE-figure} illustrates
+an example \todo{Describe after putting the figure}.
 
 \begin{figure}
   \centering
-  
   \caption{UALE-concept-figure}
   \label{fig:UALE-figure}
 \end{figure}
 
-\subsection{UALE Interval-Based Formulation}
-\label{sec:UALE-definition-2}
-
-In this Section, we adapt the definition the average feature effect
-Eq.~(\ref{eq:ALE}) and the uncertainty Eq.~(\ref{eq:ALE_acc_unc}) to
-intervals. We define the bin-effect \(\mu(z_1, z_2)\) and the
-bin-uncertainty \(\mathcal{H}(z_1, z_2) = \sigma(z_1, z_2)\) as:
+For the interval-based formulation, we define the bin-effect
+\(\mu(z_1, z_2)\) and the corresponding bin-uncertainty
+\(\sigma(z_1, z_2)\) as:
 
 \begin{equation}
   \label{eq:mu_bin}
@@ -380,17 +372,14 @@ bin-uncertainty \(\mathcal{H}(z_1, z_2) = \sigma(z_1, z_2)\) as:
 \end{equation}
 
 %
-Intuitively, the bin-effect and the bin-uncertainty quantify
-the expected average effect and the expected uncertainty if we
-randomly draw a point \(z^*\) given a uniform distribution
-\(z^* \sim \mathcal{U}(z_1, z_2)\). If we also define as
-\(\mathcal{Z}\) the sequence of \(K+1\) points that partition the
-domain of the \(s\)-th feature into \(K\) variable-size intervals,
-i.e.  \(\mathcal{Z} = \{z_0, \ldots, z_K\}\), we can redefine UALE
-using an interval-based formulation
-\(\tilde{f}^{\mathtt{UALE}}_{\mathcal{Z}}(x_s):= \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \mu}(x_s)
-\pm \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \sigma}(x_s)\), where:
-
+Intuitively, if we randomly draw a point \(z^*\) given a uniform
+distribution \(z^* \sim \mathcal{U}(z_1, z_2)\), the bin-effect
+(Eq.~(\ref{eq:mu_bin})) and the bin-uncertainty
+(Eq.~(\ref{eq:var_bin})) are the expected average effect and the
+expected uncertainty, respectively. Also, if we define \(\mathcal{Z}\)
+to be the sequence of \(K+1\) points that partition the domain of the
+\(s\)-th feature into \(K\) variable-size intervals, i.e.
+\(\mathcal{Z} = \{z_0, \ldots, z_K\}\), we can reformulate UALE to:
 \begin{equation}
   \label{eq:ALE_2}
   \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \mu}(x_s) = \sum_{k=1}^{k_x} \mu(z_{k-1}, z_k) (z_k - z_{k-1})
@@ -401,16 +390,17 @@ using an interval-based formulation
   \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \sigma}(x_s) =  \sum_{k=1}^{k_x} \sigma(z_{k-1}, z_k) (z_k - z_{k-1})
 \end{equation}
 %
+where \(k_x\) is the index of the bin such that
+\( z_{k_x - 1} \leq x_s < z_{k_x}\).
 
 \subsection{UALE Interval-Based Approximation}
 ~\label{sec:UALE-approximation}
 
-For approximating the mean effect (Eq.~\eqref{eq:mu_bin}) and the
-uncertainty (Eq.~\eqref{eq:var_bin}) we use the set \(\mathcal{S}_k\)
-of dataset instances with the \(s\)-th feature lying inside the
-\(k\)-th bin,
-i.e.,\( \mathcal{S}_k= \{ \mathbf{x}^i : z_{k-1} \leq x^i_s < z_k \}
-\). The mean effect is approximated with
+For approximating the bin-effect and the bin-uncertainty, we use the
+set \(\mathcal{S}_k\) of dataset instances with the \(s\)-th feature
+lying inside the \(k\)-th bin, i.e.,
+\( \mathcal{S}_k= \{ \mathbf{x}^i : z_{k-1} \leq x^i_s < z_k \}
+\). The bin-effect is approximated with,
 
 \begin{equation}
   \label{eq:mu_bin_approx}
@@ -422,8 +412,9 @@ i.e.,\( \mathcal{S}_k= \{ \mathbf{x}^i : z_{k-1} \leq x^i_s < z_k \}
 %
 which, as shown by\citep{gkolemis22}, is an unbiased estimator of
 Eq.~(\ref{eq:mu_bin}) under the assumption that the points are
-uniformly distributed inside the intervals. The corresponding
-approximation for the uncertainty (Eq.~(\ref{eq:var_bin})) is:
+uniformly distributed inside the intervals. The approximation for the
+uncertainty (Eq.~(\ref{eq:var_bin})) from the available instances is
+defined as follows:
 
 %
 \begin{equation}
@@ -432,47 +423,57 @@ approximation for the uncertainty (Eq.~(\ref{eq:var_bin})) is:
 \sum_{i:\mathbf{x}^i \in \mathcal{S}_k} \left ( \dfdx(\mathbf{x}^i) -
   \hat{\mu}(z_1, z_2) \right )^2
 \end{equation}
-
-which, in the general case, is a biased estimator of
-Eq.~(\ref{eq:var_bin}). In Theorem~\ref{sec:theorem-1}, we prove that
+%
+In Theorem~\ref{sec:theorem-1}, though, we prove that
 Eq.~(\ref{eq:var_bin_approx}) is an approximator of
 \(\sigma^2_*(z_1, z_2) = \frac{\int_{z_1}^{z_2} \mathbb{E}_{\xc|x_s=z}
   \left [ (f^s(z, \xc) - \mu(z_1, z_2) )^2 \right] \partial z}{z_2 -
-  z_1}\) which is an overestimation of \(\sigma^2(z_1, z_2)\).
+  z_1}\) which, in the general case, overestimates
+\(\sigma^2(z_1, z_2)\).
 
 \begin{theorem}
   \label{sec:theorem-1}
-If we define the residual \(\rho(z)\) as the difference
-  between the expected effect at \(x_s\) and the regional effect, i.e
-  \(\rho(z) = \mu(z) - \mu(z_1, z_2)\), then it holds
+  If we define (a) the residual \(\rho(z)\) as the difference between
+  the expected effect at \(x_s\) and the regional effect, i.e
+  \(\rho(z) = \mu(z) - \mu(z_1, z_2)\), and (b) \(\mathcal{E}(z_1, z_2)\) as the
+  mean squared residual of the bin, i.e.
+  \(\mathcal{E}(z_1, z_2) = \frac{\int_{z_1}^{z_2}\rho^2(z) \partial
+    z}{z_2 - z_1}\), then it holds
 \begin{equation}
     \label{eq:bin-uncertainty-proof}
- \sigma_*^2(z_1, z_2) = \sigma^2(z_1, z_2) + \frac{\int_{z_1}^{z_2}\rho^2(z) \partial z}{z_2 - z_1}
+ \sigma_*^2(z_1, z_2) = \sigma^2(z_1, z_2) + \mathcal{E}^2(z_1, z_2)
 \end{equation}
   \end{theorem}
 
 \begin{proof}
-The proof is ...
+The proof is at Appendix~\ref{sec:proof-of-3-1}.
 \end{proof}
 
 \noindent
-Theorem \ref{sec:theorem-1} reveals an important connection between
-the ground-truth and the uncertainty inside a region. For
-convenience, we denote as
-\(\mathcal{E}^2(z_1, z_2) = \frac{\int_{z_1}^{z_2}\rho^2(z) \partial
-  z}{z_2 - z_1}\) the error term that models the expected square
-residual inside the interval and as
-\(\mathcal{H}_{obs}(z_1, z_2) := \sigma_{obs}(z_1, z_2)\) the
-observable uncertainty. It holds that the observable uncertainty is an
-overestimation of the correct uncertainty
 
-\begin{equation}
-  \label{eq:uncertainty-bin}
-  \mathcal{H}^2_{obs}(z_1, z_2) = \mathcal{H}^2(z_1, z_2) + \mathcal{E}^2(z_1, z_2)
-\end{equation}
-%
-and, therefore, the estimation is unbiased only in case
-\(\mathcal{E}^2(z_1, z_2) = 0\).
+In Theorem \ref{sec:theorem-1}, we show that the estimation of the
+uncertainty is unbiased only when \(\mathcal{E}^2(z_1, z_2) = 0\).
+
+% \(\mathcal{E}^2(z_1, z_2) = 0\).
+% Theorem \ref{sec:theorem-1} show an important connection between
+% the uncertainty we want to measure, i.e. the average uncertainty
+% inside the bin, \(\sigma(z_1, z_2)\), and the one we actual
+% estimate, \(\sigma_*(z_1,z_2)\), using the available samples. For
+% convenience, we denote as
+% \(\mathcal{E}^2(z_1, z_2) = \frac{\int_{z_1}^{z_2}\rho^2(z) \partial
+%   z}{z_2 - z_1}\) the error term that measures the models the expected square
+% residual inside the interval and as
+% \(\mathcal{H}_{obs}(z_1, z_2) := \sigma_{obs}(z_1, z_2)\) the
+% observable uncertainty. It holds that the observable uncertainty is an
+% overestimation of the correct uncertainty
+
+% \begin{equation}
+%   \label{eq:uncertainty-bin}
+%   \mathcal{H}^2_{obs}(z_1, z_2) = \mathcal{H}^2(z_1, z_2) + \mathcal{E}^2(z_1, z_2)
+% \end{equation}
+% %
+% and, therefore, the estimation is unbiased only in case
+% \(\mathcal{E}^2(z_1, z_2) = 0\).
 
 \subsection{Bin-Splitting: Finding Regions With Homogeneous Effects}
 \label{sec:bin-spliting}
@@ -965,5 +966,9 @@ To preserve the anonymity, please include acknowledgments \emph{only} in the cam
 
 \section{List with Symbols}
 \label{sec:list-with-symbols}
+
+\section{Proof of Theorem~\ref{sec:theorem-1}}
+\label{sec:proof-of-3-1}
+
 
 \end{document}
