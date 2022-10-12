@@ -377,8 +377,8 @@ f^{\mathtt{ALE}}_{\sigma}(x_s)\) to represent this plot.
 
 In this Section, we adapt the definition the average feature effect
 Eq.~(\ref{eq:ALE}) and the uncertainty Eq.~(\ref{eq:ALE_acc_unc}) to
-intervals. We define the regional-effect \(\mu(z_1, z_2)\) and the
-regional-uncertainty \(\mathcal{H}(z_1, z_2) = \sigma(z_1, z_2)\) as:
+intervals. We define the bin-effect \(\mu(z_1, z_2)\) and the
+bin-uncertainty \(\mathcal{H}(z_1, z_2) = \sigma(z_1, z_2)\) as:
 
 \begin{equation}
   \label{eq:mu_bin}
@@ -392,7 +392,7 @@ regional-uncertainty \(\mathcal{H}(z_1, z_2) = \sigma(z_1, z_2)\) as:
 \end{equation}
 
 %
-Intuitively, the regional-effect and the regional-uncertainty quantify
+Intuitively, the bin-effect and the bin-uncertainty quantify
 the expected average effect and the expected uncertainty if we
 randomly draw a point \(z^*\) given a uniform distribution
 \(z^* \sim \mathcal{U}(z_1, z_2)\). If we also define as
@@ -414,39 +414,43 @@ using an interval-based formulation
 \end{equation}
 %
 
+\subsection{UALE Interval-Based Approximation}
+~\label{sec:UALE-approximation}
 
-\subsection{Interval-Based Approximation}
-\label{sec:UALE-approximation}
-
-For approximating the mean effect (Eq.~\eqref{eq:mu_bin}) \todo{state that is 
-  DALE formulation} and the uncertainty (Eq.~\eqref{eq:var_bin}) we use the set
-\(\mathcal{S}_k\) of dataset instances with the \(s\)-th feature lying
-inside the \(k\)-th bin, i.e.,
-\( \mathcal{S}_k= \{ \mathbf{x}^i : z_{k-1} \leq x^i_s < z_k \} \):
+For approximating the mean effect (Eq.~\eqref{eq:mu_bin}) and the
+uncertainty (Eq.~\eqref{eq:var_bin}) we use the set \(\mathcal{S}_k\)
+of dataset instances with the \(s\)-th feature lying inside the
+\(k\)-th bin,
+i.e.,\( \mathcal{S}_k= \{ \mathbf{x}^i : z_{k-1} \leq x^i_s < z_k \}
+\). The mean effect is approximated with
 
 \begin{equation}
-  \label{eq:2}
+  \label{eq:mu_bin_approx}
   \hat{\mu}(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k|}
   \sum_{i:\mathbf{x}^i \in \mathcal{S}_k} \left [ \dfdx(\mathbf{x}^i)
   \right ]
 \end{equation}
+
+%
+which, as shown by\citep{gkolemis22}, is an unbiased estimator of
+Eq.~(\ref{eq:mu_bin}) under the assumption that the points are
+uniformly distributed inside the intervals. The corresponding
+approximation for the uncertainty (Eq.~(\ref{eq:var_bin})) is:
+
 %
 \begin{equation}
-  \label{eq:3}
+  \label{eq:var_bin_approx}
   \hat{\sigma}^2(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k|}
 \sum_{i:\mathbf{x}^i \in \mathcal{S}_k} \left ( \dfdx(\mathbf{x}^i) -
   \hat{\mu}(z_1, z_2) \right )^2
 \end{equation}
 
-As shown by\citep{gkolemis22}, Eq.\eqref{eq:2} is an unbiased
-estimator of Eq.~(\ref{eq:mu_bin}) under the assumption that the
-points are uniformly distributed inside the intervals. The same does
-not hold in the general case for Eq.\eqref{eq:3}. In the general case,
-\(\hat{\sigma}^2(z_{k-1}, z_k)\) is an unbiased estimator of
+which, in the general case, is a biased estimator of
+Eq.~(\ref{eq:var_bin}). In Theorem~\ref{sec:theorem-1}, we prove that
+Eq.~(\ref{eq:var_bin_approx}) is an approximator of
 \(\sigma^2_*(z_1, z_2) = \frac{\int_{z_1}^{z_2} \mathbb{E}_{\xc|x_s=z}
   \left [ (f^s(z, \xc) - \mu(z_1, z_2) )^2 \right] \partial z}{z_2 -
-  z_1}\), which as we prove in Theorem \ref{sec:theorem-1} is an
-overestimation of \(\sigma^2(z_1, z_2)\).
+  z_1}\) which is an overestimation of \(\sigma^2(z_1, z_2)\).
 
 \begin{theorem}
   \label{sec:theorem-1}
@@ -465,7 +469,7 @@ The proof is ...
 
 \noindent
 Theorem \ref{sec:theorem-1} reveals an important connection between
-the ground-truth and the observable uncertainty inside a region. For
+the ground-truth and the uncertainty inside a region. For
 convenience, we denote as
 \(\mathcal{E}^2(z_1, z_2) = \frac{\int_{z_1}^{z_2}\rho^2(z) \partial
   z}{z_2 - z_1}\) the error term that models the expected square
