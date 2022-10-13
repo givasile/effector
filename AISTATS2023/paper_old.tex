@@ -312,20 +312,15 @@ different \(K\) values without a clue for which one to trust.
 \section{Uncertainty-Aware ALE (UALE)}
 \label{sec:UALE}
 
-UALE extends ALE for quantifying the level of heterogeneous effects
-(uncertainty) and automates the bin-splitting. At
-Section~\ref{sec:UALE-definition-1} we define UALE, at
-Section~\ref{sec:UALE-definition-2} we reformulate it using an
-interval-based formulation, at Section~\ref{sec:UALE-approximation} we
-provide UALE approximation and at Section~\ref{sec:bin-spliting} we
-define and solve the problem of optimal bin-splitting.
+UALE extends ALE by quantifying the level of heterogeneous effects
+(uncertainty) and by automating the bin-splitting. UALE is introduced in Section~\ref{sec:UALE-definition-1} and redefined using an interval-based formulation in Section~\ref{sec:UALE-definition-2}. UALE approximation is presented in Section~\ref{sec:UALE-approximation} and the optimal bin-splitting in Section~\ref{sec:bin-spliting}.
 
 \subsection{UALE: ALE With Uncertainty Quantification}
 \label{sec:UALE-definition-1}
 
 UALE extends ALE definition of Eq.~(\ref{eq:ALE}) with a component for
 quantifying the uncertainty. We denote as \(\mathcal{H}(z)\) the
-uncertainty of the local effects at a specific point \(x_s=z\) and we
+\emph{uncertainty} of the local effects at a specific point \(x_s=z\) and we
 quantify it with the standard deviation of the local explanations
 \(\mathcal{H}(z) = \sigma(z)\), where:
 
@@ -335,9 +330,9 @@ quantify it with the standard deviation of the local explanations
 \end{equation}
 \noindent
 The uncertainty emerges from the natural characteristics of the
-experiment, i.e.,~the feature correlations existent in the data
-generating distribution and the implicit interactions of the black-box
-function. We also define the accumulated uncertainty at \(x_s\), as
+experiment\todo{should we say of the population?} , i.e.,~the feature correlations existent in the data
+generating distribution and the implicit interactions of\todo{of or in?} the black-box
+function. We also define the \emph{accumulated uncertainty} at \(x_s\), as
 the accumulation of the standard deviation of the local effects along
 the axis:
 \begin{equation}
@@ -347,23 +342,28 @@ the axis:
 \noindent
 UALE formulates the effect at a specific point \(x_s\) with a tuple
 that consists of the average effect and the uncertainty
-\((\mu(z), \sigma(z))\) and visualizes it with a continuous curve and
-a confidence region
-\(f^{\mathtt{UALE}}(x_s) := f^{\mathtt{ALE}}_{\mu}(x_s) \pm
-f^{\mathtt{ALE}}_{\sigma}(x_s)\).
+\((\mu(z), \sigma(z))\) and visualizes it with a continuous curve \todo{we could point to some experiment?} and
+a confidence region:\\
+\begin{equation}
+  \label{eq:UALE}
+  f^{\mathtt{UALE}}(x_s) := f^{\mathtt{ALE}}_{\mu}(x_s) \pm
+f^{\mathtt{ALE}}_{\sigma}(x_s)
+  \end{equation}
+  
+%\(f^{\mathtt{UALE}}(x_s) := f^{\mathtt{ALE}}_{\mu}(x_s) \pm
+%f^{\mathtt{ALE}}_{\sigma}(x_s)\)
 
-\subsection{Interval-Based Formulation and Approximation}
+\subsection{Interval-based Formulation and Approximation}
 \label{sec:UALE-definition-2}
 
 In real ML scenarios, all estimations are based on the instances of
 the training set. Therefore, we cannot estimate \(\mu(z), \sigma(z)\)
 at the granularity of a point, because the probability of observing a
 sample inside the region \([x_s - h, x_s + h]\) tends to zero, when
-\(h \to 0\). We define the regional-effect \(\mu(z_1, z_2)\) and the
-regional-uncertainty \(\mathcal{H}(z_1, z_2) = \sigma(z_1, z_2)\), as
+\(h \to 0\). Therefore, we abstract at region/interval level \([z_1, z_2)\) and we define the \emph{regional-effect} and the
+\emph{regional-uncertainty} \(\mathcal{H}(z_1, z_2) = \sigma(z_1, z_2)\), as
 the summary statistics that characterize the effect and the
-uncertainty inside the interval \([z_1, z_2)\):
-
+uncertainty inside the interval \([z_1, z_2)\) as follows:
 \begin{equation}
   \label{eq:mu_bin}
     \mu(z_1, z_2) = \mathbb{E}_{z \sim \mathcal{U}(z_1,z_2)} [\mu(z)]
@@ -383,13 +383,17 @@ randomly draw a point \(z^*\) given a uniform distribution
 \(\mathcal{Z}\) the sequence of \(K+1\) points that partition the
 domain of the \(s\)-th feature into \(K\) variable-size intervals,
 i.e.  \(\mathcal{Z} = \{z_0, \ldots, z_K\}\), we can redefine UALE
-using an interval-based formulation
-\(\tilde{f}^{\mathtt{UALE}}_{\mathcal{Z}}(x_s):= \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \mu}(x_s)
-\pm \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \sigma}(x_s)\), where:
+using an interval-based formulation as follows:
+\begin{equation}
+\label{eq:UALE_approx}
+\tilde{f}^{\mathtt{UALE}}_{\mathcal{Z}}(x_s):= \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \mu}(x_s)
+\pm \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \sigma}(x_s)   
+\end{equation}
+where:
 
 \begin{equation}
   \label{eq:ALE_2}
-  \tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \mu}(x_s) = \sum_{k=1}^{k_x} \mu(z_{k-1}, z_k) (z_k - z_{k-1})
+\tilde{f}^{\mathtt{ALE}}_{\mathcal{Z}, \mu}(x_s) = \sum_{k=1}^{k_x} \mu(z_{k-1}, z_k) (z_k - z_{k-1})
 \end{equation}
 
 \begin{equation}
@@ -398,7 +402,7 @@ using an interval-based formulation
 \end{equation}
 %
 
-\subsection{Interval-Based Approximation}
+\subsubsection{Interval-Based Approximation}
 \label{sec:UALE-approximation}
 
 For approximating the mean effect (Eq.~\eqref{eq:mu_bin}) and the
@@ -464,15 +468,15 @@ and, therefore, the estimation is unbiased only in case
 
 \subsection{Bin-Splitting: Finding Regions With Homogeneous Effects}
 \label{sec:bin-spliting}
-
+\todo{I think we need to address here also the parameter K, how many bins is an input parameter. Maybe we can say the user decides based on their needs and how many bins they can manage}
 In this section we formulate bin-splitting as an unsupervised
 clustering problem, searching for a solution that compromises two
 contradictory objectives. On the one hand, we want to minimize the
 error term \(\mathcal{E}\) for approaching an unbiased estimation and
-on the other hand, we want wide-enough bins for including a fair
+on the other hand, we want wide-enough bins for including a fair\todo{sufficient/ representative?}
 population of samples for a robust estimation of
-\(\hat{\mu}(z_1, z_2), \hat{\sigma}(z_1, z_2)\). We set-up the
-following optimization problem:
+\(\hat{\mu}(z_1, z_2), \hat{\sigma}(z_1, z_2)\). 
+We formulate this as an optimization problem:
 
 \begin{equation}
   \label{eq:opt}
@@ -480,7 +484,7 @@ following optimization problem:
   \min_{ \mathcal{Z} = \{z_0, \ldots, z_K\}} \quad & \mathcal{L} = \sum_{k=1}^K \tau_k \hat{\sigma}^2(z_{k-1}, z_k) \Delta z_k \\
   \textrm{where} \quad & \Delta z_k = z_k - z_{k-1} \\
   & \tau_k = 1 - \alpha \frac{|S_k|}{N} \\
-  \textrm{s.t.} \quad & |\mathcal{S}_k| \geq N_{\mathtt{NPB}}\\
+  \textrm{s.t.} \quad & |\mathcal{S}_k| \geq N_{\mathtt{PPB}}\\
                                      & z_0 = x_{s,min}\\
                                      & z_K = x_{s, max}
 \end{aligned}
@@ -497,8 +501,10 @@ lowest-limit for a \textit{robust} estimation. The user can choose to
 what extent they favor the creation of wide bins through the discount
 parameter by setting the parameter \(\alpha\) and where they set the
 minimum for robust approximation with the parameter
-\(N_{\mathtt{PPB}}\). For providing a rough idea, in our experiments
-we set \(\alpha = 0.2\) which means that the discount ranges between
+\(N_{\mathtt{PPB}}\). 
+%For providing a rough idea,
+In our experiments
+we chose \(\alpha = 0.2\) which means that the discount ranges between
 \([0\%, 20\%]\) and \(N_{\mathtt{PPB}} = \frac{N}{20}\). It is also
 important to clarify that by minimizing
 \(\hat{\sigma}^2_k \approx \mathcal{H}_{obs}^2\), we actually minimize
@@ -509,13 +515,12 @@ the squared error term \(\mathcal{E}^2\), since the term
 \label{sec:dynamic-programing}
 
 \todo{Review all the description}
-For achieving a computationally-grounded solution we set a threshold
-\(K_{max}\) on the maximum number of bins which also discretizes the
-solution space. The width of the bin can take discrete values that are
+To solve the bin-splitting problem (c.f., Equation~\ref{eq:opt}), we use dynamic programming. 
+We set an upper limit on the \(K_{max}\) on the number of bins to achieve a computationally-grounded solution, based on this the solution space is discretized. The width of the bins can take discrete values that are
 multiple of the minimum step
 \(u = \frac{x_{s, max} - x_{s, min}}{K_{max}}\). For defining the
-solution, we use two indexes. The index
-\(i \in \{0, \ldots, K_{max}\}\) denotes the point \((z_i)\) and the
+solution, we use two indexes: index
+\(i \in \{0, \ldots, K_{max}\}\) denotes the point \((z_i)\) whereas 
 index \(j \in \{0, \ldots, K_{max}\} \) denotes the position of the
 \(j\)-th multiple of the minimum step, i.e., 
 \(x_j = x_{s,min} + j \cdot u\). The recursive cost function
@@ -542,29 +547,16 @@ The optimal solution is given by solving
 \(\mathcal{L} = \mathcal{T}(K_{max}, K_{max})\) and keeping track of the sequence of
 steps. 
 
-\noindent
+\todo{Discuss more aspects (e.g. Computational complexity); is the solution optimal?}
 
-\begin{itemize}
-\item Discuss more aspects (e.g. Computational complexity)
-\end{itemize}
-
-\section{SIMULATION EXAMPLES}
+\section{Experimental evaluation: Synthetic data}
 \label{sec:simulation-examples}
-
-In XAI it is common~\citep{aas2021explaining, herbinger2022repid} to
-use simulation examples for compering methods, because the
+It is a common practice in XAI research, e.g.,~\citep{aas2021explaining, herbinger2022repid}, to use synthetic data for the evaluation, since the
 data-generating distribution \(p(\mathbf{X})\) and the predictive
 function \(f(\cdot)\) are known, and, therefore, the ground-truth is
-accesible. We follow this common XAI practice and we split the
-evaluation in two groups of examples. The first group
-(Section~\ref{sec:simulation-examples-1}) compares UALE definition
-against PDP-ICE in modeling the average effect and the
-uncertainty. The second group
-(Section~\ref{sec:simulation-examples-2}) compares UALE approximation
-using the automatic bin-splitting against the fixed-size alternative,
-in estimating the average effect and the uncertainty. 
+accessible. We follow this common approach and we evaluate two different aspects: i) how UALE compares to PDP-ICE w.r.t. average effect and uncertainty estimates (Section~\ref{sec:simulation-examples-1}) and, ii) how automatic-bin splitting compares to vanilla fixed-size bin splitting w.r.t. the quality of approximation (Section~\ref{sec:simulation-examples-2}).
 
-\subsection{Case 1: UALE vs PDP-ICE}
+\subsection{UALE vs PDP-ICE}
 \label{sec:simulation-examples-1}
 
 In this simulation, we compare UALE against PDP-ICE. The aim of this
@@ -691,7 +683,7 @@ term between correlated features, for example a term \(x_1x_2\),
 because there is an open debate about the ground-truth effect in this
 case~\citep{Gromping2020MAEP}.
 
-\subsection{Case 2: Bin-Splitting}
+\subsection{Bin-Splitting}
 \label{sec:simulation-examples-2}
 
 In this simulation, we illustrate the advantages of automatic
@@ -805,7 +797,7 @@ conflicting objectives, \todo{Explain better}
   \label{fig:ex-synth-2-2}
 \end{figure}
 
-\section{REAL-WORLD EXAMPLE}
+\section{Experimental evaluation: Real data}
 
 Here, we aim at demonstrating the usefuleness of uncertainty
 quantification and the advantages of automatic bin-splitting, on the
