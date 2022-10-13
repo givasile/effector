@@ -263,7 +263,19 @@ partitions the feature domain into non-overlapping intervals
 bin-uncertainty. Then, we present UALE approximation, formally proving
 the bin-splitting requirements for an unbiased estimation of the
 uncertainty. Based on this, we present an optimization method to
-determine an appropriate variable-width partitioning.
+determine an appropriate variable-width
+partitioning. Figure~\ref{fig:UALE-figure} illustrates an UALE
+visualization. The upper plot shows the ALE curve and its uncertainty
+as the shaded area around the curve. The lower plot shows the bins
+obtained after UALE's partitioning and the effects and the uncertainty
+per bin.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=.5\textwidth]{concept_figure/fig-1.pdf}
+  \caption{Illustration of UALE feature effect plot.}
+  \label{fig:UALE-figure}
+\end{figure}
 
 \subsection{UALE Definition and Interval-Based Formulation}
 \label{sec:UALE-definition-1}
@@ -291,14 +303,11 @@ UALE defines the effect as a pair that consists of the average effect
 and the uncertainty \((\mu(z), \sigma(z))\). For visualizing it, we
 use the accumulated average effect, as defined in Eq.~(\ref{eq:ALE}),
 and the accumulated uncertainty, as defined in
-Eq.~(\ref{eq:ALE_acc_unc}). Figure~\ref{fig:UALE-figure} illustrates
-an example \todo{Describe after putting the figure}.
+Eq.~(\ref{eq:ALE_acc_unc}). Figure~\ref{fig:UALE-figure} illustrates a
+toy example, where \(x_1 \sim \mathcal{U}(0,1)\) and
+\(x_2 \sim \mathcal{N}(0,\sigma^2_2)\) and the black-box function is
+\(f(\xb)= \sin(2 \pi x_1) + x_1x_2\). 
 
-\begin{figure}
-  \centering
-  \caption{UALE-concept-figure}
-  \label{fig:UALE-figure}
-\end{figure}
 
 For the interval-based formulation, we define the bin-effect
 \(\mu(z_1, z_2)\) and the bin-uncertainty \(\sigma(z_1, z_2)\) as:
@@ -660,52 +669,52 @@ effect~\citep{Gromping2020MAEP}.
 \subsection{UALE vs Fixed-Size Approximation}
 \label{sec:simulation-examples-2}
 
-In this simulation, we focuse on illustrating the advantages of UALE's
-variable size bin-splitting against fixed-size bin-splitting.
+In this simulation, we focus on illustrating the advantages of UALE's
+variable-size bin-splitting against fixed-size one.
 
 \paragraph{Example set-up.}
 The purpose of this experiment is two-fold. First, we show that UALE
-automatically provides an approximation that is as accurate (or even
-more accurate) than the best fixed-size approximation, among all
-possible \(K\). Second, we illustrate that UALE favors the creation of
-wide intervals when they are not adding cumulative bin-error
-\(\mathcal{E}^2_{\mathcal{Z}}\). Wide intervals facilitate the
-interpretation of the average effect and its uncertainty.
+provides an approximation which is close to the best fixed-size
+approximation, among all possible \(K\). Second, we illustrate that
+UALE favors the creation of wider intervals when possible to
+facilitate the interpretation of the average effect and its
+uncertainty.
 
-For measuring the accuracy of the approximation, we generate a very
-big dataset with dense sampling (\(N=10^6\)) and we use dense
-fixed-size bins (\(K=10^3\)). We treat this estimation as the
-ground-truth UALE. Afterwards, we generate fewer samples (\(N=500\))
-and we compare the fixed-size estimation (for several \(K\)) against
-UALE's. We sample from \(p(\mathbf{x}) = p(x_2|x_1)p(x_1)\) where
+To measure the accuracy of the approximation, we generate a dataset
+with dense sampling (\(N=10^6\)) and we use dense fixed-size bins
+(\(K=10^3\)). We treat this estimation as the ground-truth
+UALE. Afterwards, we generate fewer samples (\(N=500\)) and we compare
+the fixed-size estimation (for several \(K\)) against UALE's.
+
+We sample from \(p(\mathbf{x}) = p(x_2|x_1)p(x_1)\) where
 \(x_1 \sim \mathcal{U}(0,1)\) and
-\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2=0.5)\). We, also, denote as
-\(\mathcal{Z^*} = \{z^*_0, \cdots, z^*_K\}\) the sequence obtained by
-automatic bin-splitting and with \(\mathcal{Z^{\mathtt{K}}}\) the
-fixed-size splitting with \(K\) bins. The evaluation is based on the
-Mean Absolute Error (MAE) in estimating the bin effect \(\mu\) and the
-uncertainty \(\sigma\) accross bins, i.e.,
+\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2=0.5)\). We denote as
+\(\mathcal{Z^*} = \{z^*_0, \cdots, z^*_K\}\) UALE's partitioning, and
+with \(\mathcal{Z^{\mathtt{K}}}\) the fixed-size splitting with \(K\)
+bins. The evaluation is based on the Mean Absolute Error (MAE) of the
+bin effect \(\mu\) and of the uncertainty \(\sigma\) accross bins,
+i.e.,
 
 \begin{equation}
   \label{eq:eval_met_1}
-  \mathcal{L}^{\mu} = \frac{1}{|\mathcal{Z}|} \sum_{k \in
+  \mathcal{L}^{\mu} = \frac{1}{|\mathcal{Z}| - 1} \sum_{k \in
   \mathcal{Z}} | \mu(z_{k-1}, z_k) - \hat{\mu}(z_{k-1}, z_k) |
 \end{equation}
 
 
 \begin{equation}
   \label{eq:eval_met_2}
-  \mathcal{L}^{\sigma} = \frac{1}{|\mathcal{Z}|} \sum_{k \in
+  \mathcal{L}^{\sigma} = \frac{1}{|\mathcal{Z}| -1} \sum_{k \in
     \mathcal{Z}} | \sigma(z_{k-1}, z_k) - \hat{\sigma}(z_{k-1}, z_k) |
 \end{equation}
 
-We obtaint the ground truth bin-effect, \(\mu(z_{k-1}, z_k)\), and the
+We obtain the ground truth bin-effect, \(\mu(z_{k-1}, z_k)\) and the
 ground truth uncertainty, \(\sigma(z_{k-1}, z_k)\), using the average
 of the dense fixed-size bins that are within in the interval
-\([z_{k-1}, z_k]\). We also provide
+\([z_{k-1}, z_k]\). We also provide the mean residual error
 \(\mathcal{L}^{\rho} = \frac{1}{|\mathcal{Z}|} \sum_{k \in
   \mathcal{Z}} \mathcal{E}(z_{k-1}, z_k) \) for facilitating the
-interpretation of the uncertainty error, and we call it mean residual error.
+interpretation of the uncertainty error.
 
 
 We compare UALE vs fixed-size approximation, when (a) \(f\) is
@@ -718,14 +727,14 @@ different samples, and we report the mean values of the metrics.
 Here, the black-box function is \(f(\mathbf{x}) = a_1x_1 + x_1x_2\),
 with \(5\) different-width regions, i.e., \(a_1\) equals to
 \(\{2, -2, 5, -10, 0.5\}\) in the intervals defined by the sequence
-\(\{0, 0.2, 0.4, 0.45, 0.5, 1\}\). We are interested in the effect of
-\(x_1\) which is \(f^{\mathcal{GT}}_{\mu}(x_1) = a_1x_1\) in the
-regions defined above and the uncertainty is
-\(f^{\mathcal{GT}}_{\sigma}(x_1) = \sigma_2 x_1\).
+\(\{0, 0.2, 0.4, 0.45, 0.5, 1\}\). We are interested in the effect and
+the uncertainty of \(x_1\) which are
+\(f^{\mathcal{GT}}_{\mu}(x_1) = a_1x_1\) in the regions defined above
+and \(f^{\mathcal{GT}}_{\sigma}(x_1) = \sigma_2 x_1\), respectively.
 
 As we observe in the top left of Figure~\ref{fig:ex-synth-2-1}, UALE's
-bin-splitting separates the fine-grained bins, e.g.~regions
-\([0.4, 0.45]\), \([0.45, 0.5]\), and unites (most) constant-effect
+bin-splitting separates the fine-grained bins, e.g., intervals
+\([0.4, 0.45]\), \([0.45, 0.5]\), and unites (most of) constant-effect
 regions into a single bin, e.g.~region \([0.5, 1]\). This explains the
 fact that UALE achieves lower MAE \(\mathcal{L}^{\mu}\),
 \(\mathcal{L}^{\sigma}\) compared to fixed-size bins for all \(K\).
@@ -748,16 +757,16 @@ fact that UALE achieves lower MAE \(\mathcal{L}^{\mu}\),
 \paragraph{Non-Linear Function.}
 
 Here, the black-box function is
-\(f(\mathbf{x}) = 4x_1^2 + x_2^2 + x_1x_2\), so the effect is
-\(f^{\mathcal{GT}}_{\mu}(x_1) = 4 x_1^2\) and the uncertainty
+\(f(\mathbf{x}) = 4x_1^2 + x_2^2 + x_1x_2\), so for \(x_1\) the effect
+is \(f^{\mathcal{GT}}_{\mu}(x_1) = 4 x_1^2\) and the uncertainty is
 \(f^{\mathcal{GT}}_{\sigma}(x_1) = \sigma_2 x_1\). Due to the
-non-linear effect, wide bins increase the mean residual error,
-\(\mathcal{L}^{\rho}\) making the uncertainty approximation
+non-linear effect, wide bins (low \(K\)) increase the mean residual
+error, \(\mathcal{L}^{\rho}\), making the uncertainty approximation
 biased. This can be clearly observed in in the bottom-right of
-Figure~\ref{fig:ex-synth-2-2}. On the other hand, narrow bins lead to
-worse approximation due to the limited number of
+Figure~\ref{fig:ex-synth-2-2}. On the other hand, narrow bins (high
+\(K\)) lead to worse approximation due to the limited number of
 samples. Interestingly, UALE's bin splitting manages to compromise
-these conflicting objectives and provide an accurate estimation, as we
+these conflicting objectives and provides an accurate estimation, as we
 see in the bottom-left of Figure~\ref{fig:ex-synth-2-2}.
 
 \begin{figure}[h]
@@ -811,52 +820,13 @@ provided in the Appendix.
 \paragraph{Uncertainty Quantification}
 
 In real-world datasets, it is infeasible to obtain the ground truth FE
-for evaluation. We observe in Figure \ref{fig:ex-real-1} that in broad
-terms UALE and PDP-ICE plots aggree on the average effect and the
-uncertainty. It is interesting to note that UALE has selected bins of
-varying size as the optimal partiotioning. This demonstrates an
-important advantage of UALE; through the bin splitting process we can
-identify wide intervals of the feature domain with similar level of
-uncertainty.
-
-% We selected the particular experiment, because, in
-% broad terms, UALE and PDP-ICE plots aggree in the estimation of the
-% average effect and uncertainty. Therefore, we can focus on juding the
-% quality of the information provided by the two methods.
-
-% In Figure\ref{fig:ex-real-1}, we observe, from top to bottom, the
-% effects for the latitude, population and the median income. The effect
-% of UALE and PDP-ICE are similar for the population and the median
-% income. The population has a negative impact that progressively
-% decreases: from 400 to 1500 people the house value decreases with a
-% rate of \(-150 (\pm 140)\) dollars per added person, a rate that
-% decreases from \(-80 (\pm 80)\) to \(-60 (\pm 60)\) dollars per added
-% person as we move from 1500 to 2800 people. The level of uncertainty
-% indicates significant variance in absolute value of the rate, but in
-% the grant majority of instances the rate is negative. With the same
-% inspection, we observe that the median annual income has a positive
-% impact on the value (all numbers are thousands of dollars):
-% \(20\pm 15\) per \(10\) of added median income for incomes in
-% \([8, 15]\), \(32 \pm 20\) per \(10\) added income in \([15, 60]\) and
-% \(40 \pm 15\) per \(10\) added income in \([60, 70]\). The uncertainty
-% indicates that there are less heterogeneous effects about the median
-% income compared to the number of people. In both cases, we can end-up
-% to the same conclusion by inspecting the PDP-ICE plots. For the
-% latitude, there is a small difference in the explanations for the
-% region \([32, 35]\), where UALE estimates a less negative slope with
-% less uncertainty than PDP, while the explanations are similar for the
-% range \([35,39]\), where both methods reveal an increase in the
-% uncertainty around the feature value \(37.5\).
-
-% In general, we observe that UALE complements ALE in the quantification
-% of the heterogeneous effects, similarly to as ICE complements PDP. The
-% automatic extraction of constant-effect and constant-uncertainty
-% regions provided by UALE is helpful for an easier interpretation.
-
-% On
-% the other hand, ICE plots sometimes are more descritive due to
-% illustrating the type of heterogeneity, whereas UALE quantifies only the
-% level (not the type) of heterogeneity.
+for evaluation. We observe in Figure~\ref{fig:ex-real-1} that UALE and
+PDP-ICE compute, roughly, a similar average effect and
+uncertainty. Note that when the average effect remains (almost)
+constant in a wide interval, i.e., the feature effect plot is linear,
+UALE creates a single bin for this interval, which facilitates the
+interpretation. This can be observed, in the bottom plots of
+Figure~\ref{fig:ex-real-1}, in the interval \(x_8 \in [1.5, 6]\).
 
 \begin{figure}[h]
   \centering
@@ -875,18 +845,19 @@ uncertainty.
 
 We evaluate the robustness of UALE approximation, following the
 evaluation framework of Section~\ref{sec:simulation-examples-2}. We
-treat as ground-truth the effects computed on the full training-set
-\(N=20000\) with dense fixed-size bin-splitting (\(K=80\)). Given the
-big number of samples, we make the hypothesis that the approximation
-with dense binning is close to the ground truth. Afterwards, we
-randomly select fewer samples, \(N=1000\), and we compare UALE
-approximation with all possible fixed-size approximation. We repeat
-this process for \(t=30\) independent runs and we report the mean
-values for \(\mathcal{L}^{\mu}, \mathcal{L}^{\sigma}\) accross the
-repetitions. In Figure~\ref{fig:ex-real-2}, we observe that UALE
-achieves accurate approximations in all cases; the MAE of the
-uncertainty \(\mathcal{L}_\sigma\) is (near) the best of all
-fixed-size approximations.
+treat as ground-truth the effects computed on the full training set
+(\(N_{tr}=15639\)) with dense fixed-size bin-splitting
+(\(K=80\)). Given the sufficient number of samples, we make the
+hypothesis that the approximation with dense binning is close to the
+ground truth. Afterwards, we randomly select fewer samples,
+\(N=1000\), and we compare UALE approximation against fixed-size
+approximation (for all \(K\)). We repeat this process for \(t=30\)
+independent runs and we report the mean values of
+\(\mathcal{L}^{\mu}, \mathcal{L}^{\sigma}\). In
+Figure~\ref{fig:ex-real-2}, we observe that UALE achieves accurate
+approximations in all cases; the MAE of the uncertainty
+\(\mathcal{L}^\sigma\) is close to the best of the fixed-size
+approximations.
 
 \begin{figure}[h]
   \centering

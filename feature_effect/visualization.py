@@ -118,7 +118,7 @@ def feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty, limits, 
                    alpha=.7,
                    label="first bin with < " + str(point_limit) + " points")
     if error == "std":
-        ax1.fill_between(x, y-std, y+std, color='red', alpha=0.2, label="$\hat{f}_{\sigma^2}$")
+        ax1.fill_between(x, y-std, y+std, color='red', alpha=0.2, label="$\hat{f}_{\sigma}$")
         # ax1.fill_between(x, y-rem_eff, y+rem_eff, color='blue', alpha=0.7, label="std")
     elif error == "standard error":
         ax1.fill_between(x, y-2*np.sqrt(estimator_var), y+2*np.sqrt(estimator_var), color='red', alpha=0.6, label="standard error")
@@ -149,7 +149,7 @@ def effects_per_bin(ax2, bin_effects, bin_variance, error, is_bin_empty, limits,
                            edgecolor='blue',
                            yerr=np.sqrt(bin_variance[is_bin_full]),
                            ecolor='red',
-                           label="$\hat{\mu}_k ( N_k \geq " + str(point_limit) + ")$")
+                           label="$\hat{\mu}_k$")
             # ax2.bar_label(bars, labels=['%.1f' % e for e in np.sqrt(bin_variance[is_bin_full])])
         # bins without enough points
         if np.sum(is_bin_empty):
@@ -169,7 +169,7 @@ def effects_per_bin(ax2, bin_effects, bin_variance, error, is_bin_empty, limits,
                     color=(0.1, 0.1, 0.1, 0.1),
                     edgecolor='blue',
                     ecolor='red',
-                    label="$\hat{\mu}_k ( N_k \geq " + str(point_limit) + ")$")
+                    label="$\hat{\mu}_k$")
         if np.sum(is_bin_empty):
             ax2.bar(x=bin_centers[is_bin_empty],
                     height = bin_effects[is_bin_empty],

@@ -189,13 +189,14 @@ class DALE(FeatureEffectBase):
              block=False,
              gt=None,
              gt_bins=None,
-             savefig=False):
+             savefig=False,
+             title=None):
         vis.feature_effect_plot(self.feature_effect["feature_"+str(s)],
                                 self.eval,
                                 s,
                                 error=error,
                                 min_points_per_bin=self.feature_effect["feature_"+str(s)]["alg_params"]["min_points_per_bin"],
-                                title=None,
+                                title=title,
                                 block=block,
                                 gt=gt,
                                 gt_bins=gt_bins,
