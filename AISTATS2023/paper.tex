@@ -485,27 +485,26 @@ Appendix~\ref{sec:dynamic-programming}.
 \section{SIMULATION EXAMPLES}
 \label{sec:simulation-examples}
 
-We perform a two-fold evaluation of UALE. The first group
+We perform a two-fold evaluation of UALE. First,
 (Section~\ref{sec:simulation-examples-1}) compares UALE with PDP-ICE,
 the main feature effect method that also quantifies the heterogeneity
-of instance-based effects. The second group
+of instance-level effects. Second,
 (Section~\ref{sec:simulation-examples-2}) evaluates UALE
 approximation, i.e., compares UALE's optimal bin-splitting against the
 fixed-size alternative.
 
-\subsection{Case 1: UALE vs PDP-ICE}
+\subsection{UALE vs PDP-ICE}
 \label{sec:simulation-examples-1}
 
-This a qualitative example with the aim to highlight that PDP-ICE is
-vulnerable to misleading estimations of both the average effect and
-the uncertainty, even when the black-box function is relatatively
-simple.
+This a qualitative example to highlight that PDP-ICE is vulnerable to
+misleading estimations of both the average effect and the uncertainty,
+even in case of a simple black-box function, as opposed to UALE.
 
+\paragraph{Example set-up.}
 We use the data generating distribution
-\(p(\mathbf{x}) = p(x_3)p(x_2|x_1)p(x_1)\) where
+\(p(\mathbf{x}) = p(x_3)p(x_2|x_1)p(x_1)\), where
 \(x_1 \sim \mathcal{U}(0,1)\), \(x_2 = x_1\) and
-\(x_3 \sim \mathcal{N}(0, \sigma_3^2)\) and the following piecewise
-linear function
+\(x_3 \sim \mathcal{N}(0, \sigma_3^2)\), and the following function,
 
 \begin{equation}
   \label{eq:synth-ex-1-function}
@@ -523,41 +522,48 @@ interaction term between the two non-correlated, \(x_1, x_3\).  We
 evaluate the effect computed by UALE and PDP-ICE in three cases; (a)
 without interaction (\(\alpha=0\)) and equal weights (\(a_1=a_2\)),
 (b) without interaction (\(\alpha=0\)) and different weigths
-(\( a_1 \neq a_2 \)) and (c) with interaction (\(\alpha > 0\)) with
+(\( a_1 \neq a_2 \)) and (c) with interaction (\(\alpha > 0\)) and
 equal weights (\(a_1=a_2\)).
 
-In the general case, there is no unique ground-truth feature effect
-and uncertainty and each method defines the effect in a different
-way. We select this simple case, to determine the ground-truth,
-exploiting two facts. First, in \(p(\xb)\) it holds that
-\(x_1=x_2\). Therefore, knowing the value of either \(x_1\) or
-\(x_2\), we know the closed-form of \(f(\xb)\), too. For example, if
-\(a_1=a_2=1\) and \(x_1 = \frac{1}{6}\), then
-\(f_1(\xb) = \frac{1}{3}\), so
-\(f(\xb) = f_1(\xb) + \alpha f_2(\xb) \). Afterwards, we use the
-properties of interpretable models~\citep{molnar2022} to determine the
-ground-truth. In the example above, if also \(a=0\), then
-\(f(\xb) = x_1 + x_2\) which is an interpretable linear model. For the
-uncertainty, we use the fact that under no-interactions, \(a=0\), the
-uncertainty must be zero (no heteregoneity). We discuss separately the
-case with \(a>0\). Finally, we want to also show that UALE's
-approximation is accurate, due to appropriate bin splitting.
+In the general case, evaluating feature effect methods is a
+challenging task, because there is no unique ground-truth feature
+effect and uncertainty and each method defines the effect in a
+different way. To deal with this, we exploit two characteristics of
+the above set-up. First, in \(p(\xb)\) it holds that
+\(x_1=x_2\). Therefore, knowing \(x_1\) or \(x_2\), we know the
+closed-form of \(f(\xb)\), too. For example, if \(a_1=a_2=1\) and
+\( 0 \leq x_1 < \frac{1}{4}\), then \(f_1(\xb) < \frac{1}{2}\), so
+\(f(\xb) = f_1(\xb) + \alpha f_2(\xb) \), i.e., the first branch of
+Eq.~\ref{eq:synth-ex-1-function}. Afterwards, we can determine the
+ground-truth. In the example above, if \(a=0\), then
+\(f(\xb) = x_1 + x_2\) and therefore the ground-truth effect of
+\(x_1\) is \(f^{\mathcal{GT}}(x_1) = x_1\) in the corresponding
+interval, i.e. \(x_1 \in [0, \frac{1}{4})\). For the uncertainty, we
+use the fact that under no-interactions, \(a=0\), the uncertainty must
+be zero (no heteregoneity). We discuss separately the case with
+\(a>0\). Finally, we also demonstrate that UALE's approximation is
+accurate, due to the bin splitting that we propose.
 
-\paragraph{No Interaction, Equal weights.}
+\paragraph{(a) No Interaction, Equal weights.}
 
-In this set-up, \(\alpha=0\) (no interaction) and the \(a_1=a_2=1\)
-(equal weights). We examine only the effect of feature \(x_1\),
-because it is exactly the same with \(x_2\). Based on the discussion
-above, the ground truth effect \(f_\mu^{\mathtt{GT}}(x_1)\) is:
-\(x_1\) in \([0, \frac{1}{4}]\), \(-x_1\) in
-\([\frac{1}{4}, \frac{1}{2}]\) and \(0\) in \([\frac{1}{2},
-1]\). Because \(x_1\) does not interact with any other variable, the
-uncertainty is \(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\) in
-\([0,1]\). In Figure~\ref{fig:synth-ex-1-case-1}, we observe that PDP
-effect is wrong and ICE plots show heterogeneous effects. In contrast,
-UALE models correctly both the average effect and the absence of
-uncertainty. Furthermore, we observe that bin-splitting is accurate
-(zero cumulative error \(\mathcal{E}_{\mathcal{Z}}\)).
+Here, \(\alpha=0\) (no interaction) and the \(a_1=a_2=1\) (equal
+weights). We examine only the effect of feature \(x_1\), because it is
+exactly the same as with \(x_2\). Based on the discussion above, the
+ground truth effect \(f_\mu^{\mathtt{GT}}(x_1)\) is: \(x_1\) in
+\([0, \frac{1}{4}]\), \(-x_1\) in \([\frac{1}{4}, \frac{1}{2}]\) and
+\(0\) in \([\frac{1}{2}, 1]\). Because \(x_1\) does not interact with
+any other feature, the uncertainty is
+\(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\). In
+Figure~\ref{fig:synth-ex-1-case-1}, we observe that PDP effect is
+wrong and ICE plots show heterogeneous effects. In contrast, UALE
+models correctly both the average effect and the absence of
+uncertainty. Finally, we observe that UALE's bin-splitting leads (a)
+to an accurate uncertainty estimation (near-zero cumulative bin-error
+\(\mathcal{E}_{\mathcal{Z}}\)) and (b) an easier interpretation,
+creating three wide bins, i.e.
+\([0, \frac{1}{4}), [\frac{1}{4}, \frac{1}{2}), [\frac{1}{2}, 1)\),
+that correspond to the piecewise-linear regions of the effect.
+
 
 \begin{figure}[h]
   \centering
@@ -568,21 +574,24 @@ uncertainty. Furthermore, we observe that bin-splitting is accurate
   \label{fig:synth-ex-1-case-1}
 \end{figure}
 
-\paragraph{No Interaction, Non-Equal Weights.}
+\paragraph{(b) No Interaction, Non-Equal Weights.}
 
-In this set-up, \(\alpha=0\) (no interaction), \(a_1 = 2\) and
-\(a_2= 0.5\) (non-equal weights). The non-equal weights have
+Here, \(\alpha=0\) (no interaction), \(a_1 = 2\) and
+\(a_2= \frac{1}{2}\) (non-equal weights). The non-equal weights have
 implications at both the gradient and the interval of the piece-wise
 linear regions, i.e., \(f_\mu^{\mathtt{GT}}(x_1)\) is: \(2x_1\) in
-\([0, 0.2]\), \(-2x_1\) in \([0.2, 0.4]\) and \(0\) in \([0.4,
-1]\). As before, the ground-truth uncertainty is
-\(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\) because \(x_1\) does not
-interact with other features.  In Figure~\ref{fig:ex-synth-1-2}, we
+\([0, \frac{1}{5}]\), \(-2x_1\) in \([\frac{1}{5}, \frac{2}{5}]\) and
+\(0\) in \([\frac{2}{5}, 1]\). As before, the ground-truth uncertainty
+is \(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\) because \(x_1\) does not
+interact with any other feature. In Figure~\ref{fig:ex-synth-1-2}, we
 observe that PDP estimation is opposite to the ground-truth effect,
-i.e.~negative in the region \([0, 0.2)\), positive in \([0.2, 0.4)\),
-and the ICE erroneously implies the existence of heterogeneous
-effects. As before, ALE quantifies correctly the ground truth effect,
-the zero-uncertainty and partioning correctly the \(x_1\) domain.
+i.e.~negative in the region \([0, \frac{1}{5})\), positive in
+\([\frac{1}{5}, \frac{2}{5})\), and the ICE erroneously implies the
+existence of heterogeneous effects. As before, UALE quantifies
+correctly the ground truth effect, the zero-uncertainty and partitions
+the \(x_1\) domain into wide bins that facilitate the interpretation
+and create a zero cummulative bin-error \(\mathcal{E}_{\mathcal{Z}}\)
+approximation.
 
 \begin{figure}[h]
   \centering
@@ -593,20 +602,32 @@ the zero-uncertainty and partioning correctly the \(x_1\) domain.
   \label{fig:ex-synth-1-2}
 \end{figure}
 
-\paragraph{With Interaction, Equal weights.}
+\paragraph{(c) With Interaction, Equal weights.}
 
-In this set-up, we activate the interaction term, i.e.  \(a=1\),
-keeping the weights equal \(a_1=a_2=1\). The interaction term provokes
-heterogeneous effects for features \(x_1\) and \(x_3\), because the
-local effects at \(x_1\) depend on the unknown value of \(x_3\) and
-vice-versa. The effect of \(x_2\) has zero-uncertainty since it does
-not appear in any interaction term.  As we observe in
-Figure~\ref{fig:ex-synth-1-3}, UALE correcly models the average effect
-and the uncertainty in all cases.  On the other hand, PDP-ICE
-quantifies correctly the average effect and the uncertainty only in
-the case of feature \(x_3\), because it is independent from other
-features. For the correlated features \(x_1\) and \(x_2\) both the
-average effect (PDP) and the uncertainty (ICE) are wrong.
+Here, we activate the interaction term, i.e., \(a=1\), keeping the
+weights equal \(a_1=a_2=1\) and \(\sigma_3^2=\frac{1}{4}\). In this
+case, it is not straightforward to define the ground-truth effect for
+features \(x_1, x_3\), because the interaction term provokes
+heterogeneous instance-level effects, i.e., the instance-level effect
+of \(x_1\) depend on the unknown value of \(x_3\) and vice-versa. We
+observe that UALE's feature effects are quite intuitive. The average
+effect of \(x_1\) is the same with the Example (a) with an added
+uncertainty, reflecting the uncertainty about the instance-level
+effects which is the standard deviation of \(x_3\), i.e.,
+\(\sigma_3 = \frac{1}{2}\). The effect of \(x_3\) is only due to the
+interaction term, therefore, the instance-level effects
+\(\frac{\partial f}{\partial x_3} = x_1 \) follow
+\(p(x_1) \sim \mathcal{U}(0,1)\) which has \(\mu_{x_1}=\frac{1}{2}\)
+and \(\sigma_{x_1}=\frac{1}{4}\). This is reflected, in UALE's
+estimations of Figure~\ref{fig:ex-synth-1-3}.
+
+For \(x_2\), as in Example (a), the effect is
+\(f_\mu^{\mathtt{GT}}(x_2)\) is: \(x_2\) in \([0, \frac{1}{4}]\),
+\(-x_2\) in \([\frac{1}{4}, \frac{1}{2}]\) and \(0\) in
+\([\frac{1}{2}, 1]\)\(x_2\) and it has zero-uncertainty,
+\(f_\sigma^{\mathtt{GT}}(x_2) = 0\), since \(x_2\) does not appear in
+any interaction term. We confirm that UALE computes it correctly
+whereas PDP-ICE fail in both the average effect and the uncertainty.
 
 \begin{figure}[h]
   \centering
@@ -624,16 +645,17 @@ average effect (PDP) and the uncertainty (ICE) are wrong.
 
 \paragraph{Discussion.}
 
-Despite the model's simplicity, PDP-ICE fail in modeling both the
-average effect and the uncertainty. The error is due to the method's
-formulation, i.e.~the use of the marginal distribution that ignores
-correlations between features, and not due to poor approximation
-because of limited samples. In contrast, UALE models both correctly
-and estimates them accurately using an optimal bin splitting in terms
-of Eq.~(\ref{eq:opt}). The examples above do not cover the case of an interaction term
-between correlated features, for example a term \(x_1x_2\), because
-there is an open debate about the ground-truth effect in this
-case~\citep{Gromping2020MAEP}.
+The above experiments show that UALE models correctly and estimates
+accurately both the average effect and its uncertainty. We also
+observed that UALE's variable-size bin-splitting method that we
+propose, leads to (a) an accurate approximation of the uncertainty and
+(b) favoring wider bins we facilitate the interpretation of both the
+average effect and the uncertainty. In contrast, PDP-ICE provides
+misleading explanations, due to ignoring correlations between
+features. The examples above do not cover the case of an interaction
+term between correlated features, for example a term \(x_1x_2\),
+because in this case there is an open debate about the ground-truth
+effect~\citep{Gromping2020MAEP}.
 
 \subsection{Case 2: Bin-Splitting}
 \label{sec:simulation-examples-2}
