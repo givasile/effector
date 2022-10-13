@@ -657,37 +657,34 @@ term between correlated features, for example a term \(x_1x_2\),
 because in this case there is an open debate about the ground-truth
 effect~\citep{Gromping2020MAEP}.
 
-\subsection{Case 2: Bin-Splitting}
+\subsection{UALE vs Fixed-Size Approximation}
 \label{sec:simulation-examples-2}
 
-In this simulation, we illustrate the advantages of automatic
-bin-splitting against the fixed-size alternative. For this reason, we
-generate a very big dataset applying dense sampling (\(N=10^6\)) and
-we treat the estimation with dense fixed-size bins (\(K=10^3\)) as the
+In this simulation, we focuse on illustrating the advantages of UALE's
+variable size bin-splitting against fixed-size bin-splitting.
+
+\paragraph{Example set-up.}
+The purpose of this experiment is two-fold. First, we show that UALE
+automatically provides an approximation that is as accurate (or even
+more accurate) than the best fixed-size approximation, among all
+possible \(K\). Second, we illustrate that UALE favors the creation of
+wide intervals when they are not adding cumulative bin-error
+\(\mathcal{E}^2_{\mathcal{Z}}\). Wide intervals facilitate the
+interpretation of the average effect and its uncertainty.
+
+For measuring the accuracy of the approximation, we generate a very
+big dataset with dense sampling (\(N=10^6\)) and we use dense
+fixed-size bins (\(K=10^3\)). We treat this estimation as the
 ground-truth UALE. Afterwards, we generate fewer samples (\(N=500\))
 and we compare the fixed-size estimation (for several \(K\)) against
-UALE automatic bin-splitting. In all set-ups, we sample from
-\(p(\mathbf{x}) = p(x_2|x_1)p(x_1)\) where
+UALE's. We sample from \(p(\mathbf{x}) = p(x_2|x_1)p(x_1)\) where
 \(x_1 \sim \mathcal{U}(0,1)\) and
-\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2=0.5)\). We denote as
-\(\mathcal{Z^*} = \{z^*_0, \cdots,
-z^*_K\}\) the sequence obtained by automatic
-bin-splitting and with \(\mathcal{Z^{\mathtt{K}}}\) the fixed-size
-splitting with \(K\) bins. The evaluation metrics we report are the
-average number of independent runs \(t = 30\), using each time
-\(N=500\) different samples.
-
-\paragraph{Metrics}
-
-Evaluation is perform in terms of the Mean Absolute Error (MAE) of the
-estimation of \(\mu\) and \(\sigma\) accross bins, i.e.,
-
-% The evaluation is done with regard to two metrics counting the mean
-% error per bin, where the bin error is definde as the absolute
-% difference of the approximation from the ground-truth. The first
-% metric, Eq.~\eqref{eq:eval_met_1}, counts the mean bin error wrt
-% average effect and the second, Eq.~\eqref{eq:eval_met_2} the mean bin
-% error wrt uncertainty:
+\(x_2 \sim \mathcal{N}(x_1, \sigma_2^2=0.5)\). We, also, denote as
+\(\mathcal{Z^*} = \{z^*_0, \cdots, z^*_K\}\) the sequence obtained by
+automatic bin-splitting and with \(\mathcal{Z^{\mathtt{K}}}\) the
+fixed-size splitting with \(K\) bins. The evaluation is based on the
+Mean Absolute Error (MAE) in estimating the bin effect \(\mu\) and the
+uncertainty \(\sigma\) accross bins, i.e.,
 
 \begin{equation}
   \label{eq:eval_met_1}
@@ -702,19 +699,29 @@ estimation of \(\mu\) and \(\sigma\) accross bins, i.e.,
     \mathcal{Z}} | \sigma(z_{k-1}, z_k) - \hat{\sigma}(z_{k-1}, z_k) |
 \end{equation}
 
-The ground truth UALE is the average of the dense fixed-size bins that
-are within in the interval \([z_{k-1}, z_k]\). For better
-interpretation of \(\mathcal{L}^{\sigma}\), we also provide the mean
-error term
+We obtaint the ground truth bin-effect, \(\mu(z_{k-1}, z_k)\), and the
+ground truth uncertainty, \(\sigma(z_{k-1}, z_k)\), using the average
+of the dense fixed-size bins that are within in the interval
+\([z_{k-1}, z_k]\). We also provide
 \(\mathcal{L}^{\rho} = \frac{1}{|\mathcal{Z}|} \sum_{k \in
-  \mathcal{Z}} \mathcal{E}(z_{k-1}, z_k) \).
+  \mathcal{Z}} \mathcal{E}(z_{k-1}, z_k) \) for facilitating the
+interpretation of the uncertainty error, and we call it mean residual error.
+
+
+We compare UALE vs fixed-size approximation, when (a) \(f\) is
+piecewise-linear and (b) \(f\) is non-linear. In all examples, we
+execute \(t = 30\) independent runs, using each time \(N=500\)
+different samples, and we report the mean values of the metrics.
 
 \paragraph{Piecewise-Linear Function.}
 
-In this set-up, \(f(\mathbf{x}) = a_1x_1 + x_1x_2\) is a
-piecewise-linear function with \(5\) different-width regions, i.e.,
-\(a_1\) equals to \(\{2, -2, 5, -10, 0.5\}\) in the intervals defined
-by the sequence \(\{0, 0.2, 0.4, 0.45, 0.5, 1\}\).
+Here, the black-box function is \(f(\mathbf{x}) = a_1x_1 + x_1x_2\),
+with \(5\) different-width regions, i.e., \(a_1\) equals to
+\(\{2, -2, 5, -10, 0.5\}\) in the intervals defined by the sequence
+\(\{0, 0.2, 0.4, 0.45, 0.5, 1\}\). We are interested in the effect of
+\(x_1\) which is \(f^{\mathcal{GT}}_{\mu}(x_1) = a_1x_1\) in the
+regions defined above and the uncertainty is
+\(f^{\mathcal{GT}}_{\sigma}(x_1) = \sigma_2 x_1\).
 
 As we observe in the top left of Figure~\ref{fig:ex-synth-2-1}, UALE's
 bin-splitting separates the fine-grained bins, e.g.~regions
@@ -724,47 +731,34 @@ fact that UALE achieves lower MAE \(\mathcal{L}^{\mu}\),
 \(\mathcal{L}^{\sigma}\) compared to fixed-size bins for all \(K\).
 
 
-% We observe that in
-% this case all intervals are multiples of \(0.05\). As we observe, in
-% Figure~\ref{fig:ex-synth-2-1}, UALE's approximation is better than all
-% fixed-size alternatives (for all \(K\)), in both mean effect
-% \(\mathcal{L}^{\mu}\) and uncertainty \(\mathcal{L}^{\sigma}\). For
-% understanding the importance of variable-size splitting, we analyze
-% the fixed-bin error. In the top-right of
-% Figure~\ref{fig:ex-synth-2-1}, we observe a positive trend between
-% \(\mathcal{L}^{\mu}\) and \(K\), because as \(K\) becomes larger fewer
-% points contribute to the bin estimations, leading to a worse
-% approximation. The interpretation of \(\mathcal{L}^{\sigma}\) is more
-% complex. For \(K\) that are multiples of \(20\), i.e.
-% \(K=\{20, 40, 60, 80, 100\}\), the mean error term
-% \(\mathcal{L}^{\rho}\) is low as we see in the bottom-right of
-% Figure~\ref{fig:ex-synth-2-2}. In these cases, we also observe in the
-% bottom-left figure, that \(L\) is increasing with \(K\) due to fewer
-% points in each bin. For all other values of \(K\), the \(L\) is mainly
-% affected by the mean error term \(\mathcal{E}\).
-
-
 \begin{figure}[h]
   \centering
   \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_1.pdf}
   \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_2.pdf}\\
   \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_3.pdf}
   \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_4.pdf}
-  \caption{Figure 1}
+  \caption{Bin-Splitting, piecewise-linear function: UALE's approximation
+    (Top-Left). UALE vs fixed-size approximations in terms of:
+    \(\mathcal{L}^{\mu}\) (Top-Right), \(\mathcal{L}^{\sigma}\)
+    (Bottom-Left), \(\mathcal{L}^{\rho}\) (Bottom-Right).}
   \label{fig:ex-synth-2-1}
 \end{figure}
 
 
 \paragraph{Non-Linear Function.}
 
-In this set-up, \(f(\mathbf{x}) = 4x_1^2 + x_2^2 + x_1x_2\), so the
-effect is non-linear in \(0 \leq x_1 \leq 1\). Due to this non
-linearity, wide bins increase \(\mathcal{L}^{\rho}\) making the
-uncertainty approximation biased. On the other hand, narrow bins lead
-to worse approximation due to the limited number of
-samples. Interestingly, in Figure~\ref{fig:ex-synth-2-2}, we observe
-that UALE's bin splitting manages to compromise these conflicting
-objectives.
+Here, the black-box function is
+\(f(\mathbf{x}) = 4x_1^2 + x_2^2 + x_1x_2\), so the effect is
+\(f^{\mathcal{GT}}_{\mu}(x_1) = 4 x_1^2\) and the uncertainty
+\(f^{\mathcal{GT}}_{\sigma}(x_1) = \sigma_2 x_1\). Due to the
+non-linear effect, wide bins increase the mean residual error,
+\(\mathcal{L}^{\rho}\) making the uncertainty approximation
+biased. This can be clearly observed in in the bottom-right of
+Figure~\ref{fig:ex-synth-2-2}. On the other hand, narrow bins lead to
+worse approximation due to the limited number of
+samples. Interestingly, UALE's bin splitting manages to compromise
+these conflicting objectives and provide an accurate estimation, as we
+see in the bottom-left of Figure~\ref{fig:ex-synth-2-2}.
 
 \begin{figure}[h]
   \centering
@@ -772,7 +766,10 @@ objectives.
   \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_2.pdf}\\
   \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_3.pdf}
   \includegraphics[width=.23\textwidth]{example_bin_splitting_2/fig_4.pdf}
-  \caption{Figure 1}
+  \caption{Bin-Splitting, non-linear function: UALE's approximation
+    (Top-Left). UALE vs fixed-size approximations in terms of:
+    \(\mathcal{L}^{\mu}\) (Top-Right), \(\mathcal{L}^{\sigma}\)
+    (Bottom-Left), \(\mathcal{L}^{\rho}\) (Bottom-Right).}
   \label{fig:ex-synth-2-2}
 \end{figure}
 
@@ -795,15 +792,13 @@ houses inside the block in dollars that ranges between
 \(\mu_Y \approx 201 \cdot 10^3 \) and a standard deviation of
 \(\sigma_Y \approx 110 \cdot 10^3\).
 
-We exclude instances with missing and outlier values. As outlier we
-define the feature values which ar over three standard deviations away
-from the mean feature value. We also normalize all features to
-zero-mean and unit standard deviation. We split the dataset into
-\(N_{tr} = 15639\) training and \(N_{test} = 3910\) test examples
-(80/20 split) and we fit a Neural Network with 3 hidden layers of 256,
-128 and 36 units respectively. After 15 epochs using the Adam
-optimizer with learning rate \(\eta = 0.02\), the model achieves a MAE
-of \(37 \cdot 10^3\) dollars.
+We exclude instances with missing or outlier values and we normalize
+all features to zero-mean and unit standard deviation. We split the
+dataset into \(N_{tr} = 15639\) training and \(N_{test} = 3910\) test
+examples (80/20 split) and we fit a Neural Network with 3 hidden
+layers of 256, 128 and 36 units respectively. After 15 epochs using
+the Adam optimizer with learning rate \(\eta = 0.02\), the model
+achieves a MAE of \(37 \cdot 10^3\) dollars.
 
 Below, we illustrate the feature effect for three features: latitude
 \(x_2\), population \(x_6\) and median income \(x_8\). The particular
@@ -871,26 +866,27 @@ uncertainty.
   \includegraphics[width=.23\textwidth]{real_dataset_3/feature_5_pdp_ice.pdf}\\
   \includegraphics[width=.23\textwidth]{real_dataset_3/feature_7_ale_auto.pdf}
   \includegraphics[width=.23\textwidth]{real_dataset_3/feature_7_pdp_ice.pdf}\\
-  \caption{Figure 1}
+  \caption{Real-dataset, UALE (left column) vs PDP-ICE (right column)
+    for features \(x_2, x_6, x_8\) (top to bottom).}
   \label{fig:ex-real-1}
 \end{figure}
 
 \paragraph{Bin Splitting}
 
-We evaluate the robustness of UALE approximation. Following the
-evaluation framework of Section~\ref{sec:simulation-examples-2}, we
+We evaluate the robustness of UALE approximation, following the
+evaluation framework of Section~\ref{sec:simulation-examples-2}. We
 treat as ground-truth the effects computed on the full training-set
 \(N=20000\) with dense fixed-size bin-splitting (\(K=80\)). Given the
 big number of samples, we make the hypothesis that the approximation
 with dense binning is close to the ground truth. Afterwards, we
 randomly select fewer samples, \(N=1000\), and we compare UALE
 approximation with all possible fixed-size approximation. We repeat
-this process \(t=30\) times. In Figure~\ref{fig:ex-real-2}, we
-illustrate the mean values of
-\(\mathcal{L}^{\mu}, \mathcal{L}^{\sigma}\) across the 30
-repetitions. We observe that UALE achieves (near) optimal
-approximation in all cases. \todo{add explanation for near-constant
-  feature effect vs the first case that the plot }
+this process for \(t=30\) independent runs and we report the mean
+values for \(\mathcal{L}^{\mu}, \mathcal{L}^{\sigma}\) accross the
+repetitions. In Figure~\ref{fig:ex-real-2}, we observe that UALE
+achieves accurate approximations in all cases; the MAE of the
+uncertainty \(\mathcal{L}_\sigma\) is (near) the best of all
+fixed-size approximations.
 
 \begin{figure}[h]
   \centering
@@ -900,7 +896,9 @@ approximation in all cases. \todo{add explanation for near-constant
   \includegraphics[width=.23\textwidth]{real_dataset_3/compare_var_err_feature_5.pdf}\\
   \includegraphics[width=.23\textwidth]{real_dataset_3/compare_mu_err_feature_7.pdf}
   \includegraphics[width=.23\textwidth]{real_dataset_3/compare_var_err_feature_7.pdf}\\
-  \caption{Figure 1}
+  \caption{Real-dataset, UALE vs fixed-size approximation in terms of
+    \(\mathcal{L}^{\mu}\) (left column), \(\mathcal{L}^{\sigma}\)
+    (right column) for features \(x_2, x_6, x_8\) (top to bottom).}
   \label{fig:ex-real-2}
 \end{figure}
 
