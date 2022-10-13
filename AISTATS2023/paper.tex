@@ -485,61 +485,77 @@ Appendix~\ref{sec:dynamic-programming}.
 \section{SIMULATION EXAMPLES}
 \label{sec:simulation-examples}
 
-Similarly to~\citep{aas2021explaining, herbinger2022repid} we first
-use simulation examples for evaluation. The first group
-(Section~\ref{sec:simulation-examples-1}) compares UALE against
-PDP-ICE in modeling the average effect and the uncertainty. The second
-group (Section~\ref{sec:simulation-examples-2}) compares UALE
-approximation with optimal bin-splitting against the fixed-size
-alternative.
+We perform a two-fold evaluation of UALE. The first group
+(Section~\ref{sec:simulation-examples-1}) compares UALE with PDP-ICE,
+the main feature effect method that also quantifies the heterogeneity
+of instance-based effects. The second group
+(Section~\ref{sec:simulation-examples-2}) evaluates UALE
+approximation, i.e., compares UALE's optimal bin-splitting against the
+fixed-size alternative.
 
 \subsection{Case 1: UALE vs PDP-ICE}
 \label{sec:simulation-examples-1}
 
-The aim of this example is to highlight that when features are
-correlated, PDP and ICE fail in quantifying the average effect and the
-heterogeneity, even when the black-box function is relatatively
+This a qualitative example with the aim to highlight that PDP-ICE is
+vulnerable to misleading estimations of both the average effect and
+the uncertainty, even when the black-box function is relatatively
 simple.
 
-We use the following distribution:
+We use the data generating distribution
 \(p(\mathbf{x}) = p(x_3)p(x_2|x_1)p(x_1)\) where
 \(x_1 \sim \mathcal{U}(0,1)\), \(x_2 = x_1\) and
 \(x_3 \sim \mathcal{N}(0, \sigma_3^2)\) and the following piecewise
-linear function:
+linear function
 
 \begin{equation}
   \label{eq:synth-ex-1-function}
   f(\mathbf{x}) = \begin{cases}
                     f_1(\mathbf{x}) + \alpha f_2(\mathbf{x}) & \text{if $f_1(\mathbf{x}) < \frac{1}{2}$ }\\
-                    \frac{1}{2} - f_1(\mathbf{x}) + \alpha f_2(\mathbf{x}) & \text{if $\frac{1}{2} \leq f_2(\mathbf{x}) < 1$}\\
-                    \alpha f_1(\mathbf{x}) &\text{otherwise}
+                    \frac{1}{2} - f_1(\mathbf{x}) + \alpha f_2(\mathbf{x}) & \text{if $\frac{1}{2} \leq f_1(\mathbf{x}) < 1$}\\
+                    \alpha f_2(\mathbf{x}) &\text{otherwise}
                   \end{cases}
 \end{equation}
 %
 where \(f_1(\mathbf{x}) = a_1 x_1 + a_2 x_2\) and
-\(f_2(\mathbf{x}) = x_1x_3\). The linear term \(f_1\) includes the two
-correlated features and the interaction term \(f_2\) the two
-non-correlated.  We evaluate the effect computed by UALE and PDP-ICE
-in three cases; (a) without interaction (\(\alpha=0\)) and equal
-weights (\(a_1=a_2\)), (b) without interaction (\(\alpha=0\)) and
-different weigths (\( a_1 \neq a_2 \)) and (c) with interaction
-(\(\alpha \neq 0\)) with equal weights (\(a_1=a_2\)).
+\(f_2(\mathbf{x}) = x_1x_3\). The part \(f_1\) is a linear function of
+the two correlated features, \(x_1, x_2\), and \(f_2\) is an
+interaction term between the two non-correlated, \(x_1, x_3\).  We
+evaluate the effect computed by UALE and PDP-ICE in three cases; (a)
+without interaction (\(\alpha=0\)) and equal weights (\(a_1=a_2\)),
+(b) without interaction (\(\alpha=0\)) and different weigths
+(\( a_1 \neq a_2 \)) and (c) with interaction (\(\alpha > 0\)) with
+equal weights (\(a_1=a_2\)).
 
-In all cases, we assume that because the \todo{give ground truth
-  effect}. We compare it against the approximations provided by each
-method, after generating \(N=500\) samples.
+In the general case, there is no unique ground-truth feature effect
+and uncertainty and each method defines the effect in a different
+way. We select this simple case, to determine the ground-truth,
+exploiting two facts. First, in \(p(\xb)\) it holds that
+\(x_1=x_2\). Therefore, knowing the value of either \(x_1\) or
+\(x_2\), we know the closed-form of \(f(\xb)\), too. For example, if
+\(a_1=a_2=1\) and \(x_1 = \frac{1}{6}\), then
+\(f_1(\xb) = \frac{1}{3}\), so
+\(f(\xb) = f_1(\xb) + \alpha f_2(\xb) \). Afterwards, we use the
+properties of interpretable models~\citep{molnar2022} to determine the
+ground-truth. In the example above, if also \(a=0\), then
+\(f(\xb) = x_1 + x_2\) which is an interpretable linear model. For the
+uncertainty, we use the fact that under no-interactions, \(a=0\), the
+uncertainty must be zero (no heteregoneity). We discuss separately the
+case with \(a>0\). Finally, we want to also show that UALE's
+approximation is accurate, due to appropriate bin splitting.
 
 \paragraph{No Interaction, Equal weights.}
 
 In this set-up, \(\alpha=0\) (no interaction) and the \(a_1=a_2=1\)
-(equal weights). The ground truth effect \(f_\mu^{\mathtt{GT}}(x_1)\)
-is: \(x_1\) in \([0, 0.25]\), \(-x_1\) in \([0.25, 0.5]\) and \(0\) in
-\([0.5, 1]\). The uncertainty is
-\(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\) in \([0,1]\) because \(x_1\)
-does not interact with ohter variables. In
-Figure~\ref{fig:synth-ex-1-case-1}, we observe that PDP effect is
-wrong and ICE plots show heterogeneous effects. In contrast, UALE
-models correctly both the average effect and the
+(equal weights). We examine only the effect of feature \(x_1\),
+because it is exactly the same with \(x_2\). Based on the discussion
+above, the ground truth effect \(f_\mu^{\mathtt{GT}}(x_1)\) is:
+\(x_1\) in \([0, \frac{1}{4}]\), \(-x_1\) in
+\([\frac{1}{4}, \frac{1}{2}]\) and \(0\) in \([\frac{1}{2},
+1]\). Because \(x_1\) does not interact with any other variable, the
+uncertainty is \(f^{\mathcal{GT}}_{\sigma^2}(x_1) = 0\) in
+\([0,1]\). In Figure~\ref{fig:synth-ex-1-case-1}, we observe that PDP
+effect is wrong and ICE plots show heterogeneous effects. In contrast,
+UALE models correctly both the average effect and the absence of
 uncertainty. Furthermore, we observe that bin-splitting is accurate
 (zero cumulative error \(\mathcal{E}_{\mathcal{Z}}\)).
 
