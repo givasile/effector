@@ -904,7 +904,10 @@ approximations.
 
 \section{CONCLUSION AND FURTHER WORK}
 
-\todo{Add Conclusion, limitations, and future work}
+
+This paper introduced UALE, a method that extends ALE, for not only quantifying the global feature effect but also its uncertainty, using the standard deviation of instance-level effects. We showed that UALE is more accurate than existent methods, e.g. ICE plots, in modeling the uncertainty in cases of correlated features. However, it is not trivial to make an unbiased estimate of the uncertainty. Unlike ALE, where for estimating the average effect, splitting the feature domain in \(K\) equal-width bins is sufficient, we theoretically proved that, for estimating the uncertainty, the same approach would introduce bias. We overcame this limitation by proposing an algorithm for automatically determining the optimal variable-size partitioning considering the instance-level effects. Through, synthetic and real-world examples, we show that UALE is an effective method for modeling, both, the average effect and the uncertainty.
+
+There are, though, limitations and open issues. First, for efficiently finding the optimal bin partitioning, UALE relies on DALE's approximation, so it is directly applicable only to differentiable models. Furthermore, UALE quantifies only the standard deviation of instance-level effects, providing limited intuition about the sources of the uncertainty, i.e., which features and to what degree they contribute to the heterogeneity of instance-level effects. Future work could target that.
 
 
 \clearpage
