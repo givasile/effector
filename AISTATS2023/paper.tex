@@ -463,7 +463,7 @@ Based on the above, we set-up the following optimization problem:
 \end{equation}
 %
 The objective \(\mathcal{L}\) searches for a partitioning
-\(\mathcal{Z}_* = \{ z_0, \ldots, z_K \} \) with low aggregated error
+\(\mathcal{Z}^* = \{ z_0^*, \ldots, z_K^* \} \) with low aggregated error
 \(\mathcal{E}_{\mathcal{Z}}^2\). In case of many partitionings with
 similar aggregate-error, the term \(\tau_K\) favors the partitioning
 with more points per bin, i.e., with wider bins. The constraint of at
@@ -484,8 +484,37 @@ Based on that, we restrict the bin-limits to the multiples of the
 minimum width, i.e.
 \(z_k = k\cdot \Delta x_{min}, \text{where } k \in \{0 , \cdots,
 K_{max}\} \). In this discretized solution space, we find the global
-optimum using dynamic programming. \todo{Add description} See also
-Appendix~\ref{sec:dynamic-programming}.
+optimum using Dynamic Programming. 
+
+To define the solution, we use two indexes. The index
+\(i \in \{0, \ldots, K_{max}\}\) denotes the points of the
+partitioning \((z_i)\) and the index \(j \in \{0, \ldots, K_{max}\} \)
+denotes the \(j\)-th multiple of the minimum step, i.e.,
+\(x_j = x_{s,min} + j \cdot \Delta x_{min}\). The recursive cost
+function \(T(i,j)\) computes the cost of setting \(z_i\) to \(x_j\):
+\begin{equation}
+  \label{eq:recursive_cost}
+  \mathcal{T}(i,j) = \mathrm{min}_{l \in \{0, \ldots, K_{max}\}} \left [ \mathcal{T}(i-1, l) + \mathcal{B}(x_l, x_j) \right ]
+\end{equation}
+%
+% where \(\mathcal{T}(0,j)\) equals to zero if \(j=0\) and \(\infty\) in
+% any other case.
+The term \(\mathcal{B}(x_l, x_j)\) denotes the cost of creating a bin with
+limits \([x_l, x_j)\):
+
+\begin{equation}
+  \label{eq:cost_step}
+  \mathcal{B}(x_l, x_j) = \begin{cases}
+                            \infty, & \text{if $x_j > x_l$ or \(|\mathcal{S}_{(x_j, x_l)}| < N\)}\\
+                            0, & \text{if $x_j = x_l$}\\
+                            \hat{\sigma}^2(x_j, x_l), &\text{if $x_j \leq x_l$}
+  \end{cases}
+\end{equation}
+
+The optimal solution is given by solving
+\(\mathcal{L} = \mathcal{T}(K_{max}, K_{max})\) and keeping track of the sequence of
+steps. 
+
 
 % \begin{algorithm}
 %   \end{algorithm}
@@ -873,10 +902,12 @@ approximations.
   \label{fig:ex-real-2}
 \end{figure}
 
-\section{DISCUSSION}
+\section{CONCLUSION AND FURTHER WORK}
 
 \todo{Add Conclusion, limitations, and future work}
 
+
+\clearpage
 \subsubsection*{Acknowledgments}
 All acknowledgments go at the end of the paper, including thanks to reviewers who gave useful comments, to colleagues who contributed to the ideas, and to funding agencies and corporate sponsors that provided financial support. 
 To preserve the anonymity, please include acknowledgments \emph{only} in the camera-ready papers.
