@@ -315,7 +315,7 @@ Based on the above, we set-up the following optimization problem:
   \min_{ \mathcal{Z} = \{z_0, \ldots, z_K\}} \quad & \mathcal{L} = \sum_{k=1}^K \tau_k \hat{\sigma}^2(z_{k-1}, z_k) \Delta z_k \\
   \textrm{where} \quad & \Delta z_k = z_k - z_{k-1} \\
   & \tau_k = 1 - \alpha \frac{|S_k|}{N} \\
-  \textrm{s.t.} \quad & |\mathcal{S}_k| \geq N_{\mathtt{NPB}}\\
+  \textrm{s.t.} \quad & |\mathcal{S}_k| \geq N_{\mathtt{PPB}}\\
                                      & z_0 = x_{s,min}\\
                                      & z_K = x_{s, max}
 \end{aligned}
@@ -521,17 +521,7 @@ For \(x_2\), as in Example (a), the effect is \(f_\mu^{\mathtt{GT}}(x_2)\) is: \
 
 \paragraph{Discussion.}
 
-The above experiments show that UALE models correctly and estimates
-accurately both the average effect and its uncertainty. We also
-observed that UALE's variable-size bin-splitting method that we
-propose, leads to (a) an accurate approximation of the uncertainty and
-(b) favoring wider bins we facilitate the interpretation of both the
-average effect and the uncertainty. In contrast, PDP-ICE provides
-misleading explanations, due to ignoring correlations between
-features. The examples above do not cover the case of an interaction
-term between correlated features, for example a term \(x_1x_2\),
-because in this case there is an open debate about the ground-truth
-effect~\citep{Gromping2020MAEP}.
+The above experiments show that UALE models correctly and estimates accurately both the average effect and its uncertainty. We also observed that UALE's variable-size bin-splitting method that we propose, leads to (a) an accurate approximation of the uncertainty and (b) favoring wider bins we facilitate the interpretation of both the average effect and the uncertainty. In contrast, PDP-ICE provides misleading explanations in many cases, by ignoring dependence relationships between features. The examples above do not cover the case of an interaction term between correlated features, for example a term \(x_1x_2\), because in this case there is an open debate about the ground-truth effect~\citep{Gromping2020MAEP}.
 
 \subsection{UALE vs Fixed-Size Approximation}
 \label{sec:simulation-examples-2}
@@ -742,10 +732,10 @@ approximations.
 
 \section{CONCLUSION AND FURTHER WORK}
 
+We have introduced UALE, a method that extends ALE by quantifying the uncertainty of the global feature effect. To do that, UALE uses the standard deviation of instance-level effects. We showed that UALE models the uncertainty of feature effect more accurately than existing methods, such as ICE plots, especially in cases where there are dependencies between features. Providing an unbiased estimate of the uncertainty of the feature effect, however, is not trivial. In the case of ALE and the approximation of the average global effect, splitting the feature domain in K equal-width bins is sufficient. For estimating the uncertainty, however, we proved that this approach would introduce bias. We overcame this limitation by proposing an algorithm for automatically determining the optimal variable-size partitioning considering the instance-level effects. We show, through both synthetic and real-world examples, that UALE is an effective method for modeling both the average effect and the uncertainty.
 
-This paper introduced UALE, a method that extends ALE, for not only quantifying the global feature effect but also its uncertainty, using the standard deviation of instance-level effects. We showed that UALE is more accurate than existent methods, e.g. ICE plots, in modeling the uncertainty in cases of correlated features. However, it is not trivial to make an unbiased estimate of the uncertainty. Unlike ALE, where for estimating the average effect, splitting the feature domain in \(K\) equal-width bins is sufficient, we theoretically proved that, for estimating the uncertainty, the same approach would introduce bias. We overcame this limitation by proposing an algorithm for automatically determining the optimal variable-size partitioning considering the instance-level effects. Through, synthetic and real-world examples, we show that UALE is an effective method for modeling, both, the average effect and the uncertainty.
+There are certain limitations and open issues in the proposed approach. First, finding the optimal bin partitioning can be computationally expensive, if applied directly to ALE. By using DALE's approximation this limitation is resolved, however this is directly applicable only for differentiable models. Furthermore, UALE quantifies only the standard deviation of instance-level effects, providing limited intuition about the sources of the uncertainty. Future work should therefore aim at developing methods for identifying which features and to what degree contribute to the heterogeneity of instance-level effects.
 
-There are, though, limitations and open issues. First, for efficiently finding the optimal bin partitioning, UALE relies on DALE's approximation, so it is directly applicable only to differentiable models. Furthermore, UALE quantifies only the standard deviation of instance-level effects, providing limited intuition about the sources of the uncertainty, i.e., which features and to what degree they contribute to the heterogeneity of instance-level effects. Future work could target that.
 
 
 \clearpage
