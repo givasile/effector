@@ -264,21 +264,26 @@ def plot_fixed_vs_auto(K_list, fixed_mean, fixed_std, auto_mean, auto_std, metri
     plt.figure()
     assert metric in ["rho", "mu", "var"]
     if metric == "rho":
-        pass
-        plt.ylabel(r"$\log \mathcal{L}_{\mathtt{K}}^{\rho^2}$")
-        plt.title(r"Log of Nuisance Uncertainty ($\log \mathcal{L}_{\mathtt{K}}^{\rho^2}$)")
+        plt.ylabel(r"$\log \mathcal{L}_{\mathtt{K}}^{\rho}$")
+        plt.title(r"log mean bin-residual error($\log \mathcal{L}_{\mathtt{K}}^{\rho}$)")
     elif metric == "var":
-        plt.ylabel("$\log \mathcal{L}_{\mathtt{K}}^{\sigma^2}$")
-        plt.title("Log Error in Uncertainty ($\log \mathcal{L}_{\mathtt{K}}^{\sigma^2}$)")
+        plt.ylabel("$\log \mathcal{L}_{\mathtt{K}}^{\sigma}$")
+        plt.title("log mean bin-uncertainty error ($\log \mathcal{L}_{\mathtt{K}}^{\sigma}$)")
     elif metric == "mu":
         plt.ylabel("$\log \mathcal{L}_{\mathtt{K}}^{\mu}$")
-        plt.title("Log Error in Mean Effect ($\log \mathcal{L}_{\mathtt{K}}^{\mu}$)")
+        plt.title("log mean bin-effect error ($\log \mathcal{L}_{\mathtt{K}}^{\mu}$)")
 
     plt.plot(K_list, np.log(fixed_mean), 'x', label="fixed-bin")
     plt.plot(K_list,
              np.log(np.repeat(auto_mean, len(K_list))),
              "r--",
-             label="auto-bin")
+             label="UALE (variable-size)")
+
+    # plt.errorbar(K_list, fixed_mean, yerr=fixed_std, fmt="", linestyle='', label="fixed-size")
+    # plt.plot(K_list,
+    #          np.repeat(auto_mean, len(K_list)),
+    #          "r--",
+    #          label="UALE (variable-size)")
 
     plt.xlabel("$K$")
 

@@ -66,7 +66,7 @@ def feature_effect_plot(params,
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
 
     if title is None:
-        ax1.set_title("UALE: $x_{" + str(feature + 1) + "}$")
+        ax1.set_title(r"UALE: $x_{" + str(feature + 1) + "}$")
     else:
         ax1.set_title(title)
 
@@ -93,10 +93,10 @@ def feature_effect_plot(params,
                     gt_bins,
                     min_points_per_bin)
 
-    ax1.set_ylabel("$y$")
+    ax1.set_ylabel(r"$y$")
 
-    ax2.set_xlabel("$x_{%d}$" % (feature+1))
-    ax2.set_ylabel("$\partial y / \partial x_{%d}$" % (feature+1))
+    ax2.set_xlabel(r"$x_{%d}$" % (feature+1))
+    ax2.set_ylabel(r"$\partial y / \partial x_{%d}$" % (feature+1))
 
     if savefig:
         plt.savefig(savefig, bbox_inches="tight")
@@ -109,7 +109,7 @@ def feature_effect_plot(params,
 
 def feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty, limits, point_limit, error=True, gt=None):
     # first subplot
-    ax1.plot(x, y, "b--", label="$\hat{f}_{\mu}$")
+    ax1.plot(x, y, "b--", label=r"$\hat{f}_{\mu}$")
 
     if first_empty is not None:
         added_line = .3*(np.max(y) - np.min(y))
@@ -118,7 +118,7 @@ def feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty, limits, 
                    alpha=.7,
                    label="first bin with < " + str(point_limit) + " points")
     if error == "std":
-        ax1.fill_between(x, y-std, y+std, color='red', alpha=0.2, label="$\hat{f}_{\sigma}$")
+        ax1.fill_between(x, y-std, y+std, color='red', alpha=0.2, label=r"$\hat{f}_{\sigma}$")
         # ax1.fill_between(x, y-rem_eff, y+rem_eff, color='blue', alpha=0.7, label="std")
     elif error == "standard error":
         ax1.fill_between(x, y-2*np.sqrt(estimator_var), y+2*np.sqrt(estimator_var), color='red', alpha=0.6, label="standard error")
@@ -131,7 +131,7 @@ def feature_effect(ax1, x, y, estimator_var, std, rem_eff, first_empty, limits, 
 
     if gt is not None:
         y = gt(x)
-        ax1.plot(x, y, "m--", label="$\hat{f}^{\mathtt{GT}}_{\mu}$")
+        ax1.plot(x, y, "m--", label=r"$\hat{f}^{\mathtt{GT}}_{\mu}$")
     ax1.legend()
 
 
@@ -148,8 +148,9 @@ def effects_per_bin(ax2, bin_effects, bin_variance, error, is_bin_empty, limits,
                            color=(0.1, 0.1, 0.1, 0.1),
                            edgecolor='blue',
                            yerr=np.sqrt(bin_variance[is_bin_full]),
+                           error_kw = {"label": r"$\hat{\sigma}_k$"},
                            ecolor='red',
-                           label="$\hat{\mu}_k$")
+                           label=r"$\hat{\mu}_k$")
             # ax2.bar_label(bars, labels=['%.1f' % e for e in np.sqrt(bin_variance[is_bin_full])])
         # bins without enough points
         if np.sum(is_bin_empty):
@@ -169,7 +170,7 @@ def effects_per_bin(ax2, bin_effects, bin_variance, error, is_bin_empty, limits,
                     color=(0.1, 0.1, 0.1, 0.1),
                     edgecolor='blue',
                     ecolor='red',
-                    label="$\hat{\mu}_k$")
+                    label=r"$\hat{\mu}_k$")
         if np.sum(is_bin_empty):
             ax2.bar(x=bin_centers[is_bin_empty],
                     height = bin_effects[is_bin_empty],
@@ -261,12 +262,12 @@ def plot_PDP_ICE(s, x, y_pdp, y_ice, scale_x, scale_y, savefig):
     y_ice = y_ice if scale_y is None else affine(y_ice, scale_y)
 
     plt.figure()
-    plt.title("PDP-ICE: $x_{%d}$" % (s+1))
-    plt.plot(x, y_ice[0,:], color="red", alpha=.1, label="$f_{\mathtt{ICE}}$")
+    plt.title(r"PDP-ICE: $x_{%d}$" % (s+1))
+    plt.plot(x, y_ice[0,:], color="red", alpha=.1, label=r"$f^{\mathtt{ICE}}$")
     plt.plot(x, y_ice.T, color="red", alpha=.1)
-    plt.plot(x, y_pdp, color="blue", label="$f_{\mu}$")
-    plt.xlabel("$x_{%d}$" % (s+1))
-    plt.ylabel("$y$")
+    plt.plot(x, y_pdp, color="blue", label=r"$f^{\mathtt{PDP}}$")
+    plt.xlabel(r"$x_{%d}$" % (s+1))
+    plt.ylabel(r"$y$")
     plt.legend()
 
     if savefig is not None:

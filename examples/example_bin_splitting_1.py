@@ -72,7 +72,7 @@ utils.plot_fixed_vs_auto(K_list,
                          stats_fixed["mu_err_mean"],
                          stats_fixed["mu_err_std"],
                          stats_auto["mu_err_mean"],
-                         stats_auto["mu_err_mean"],
+                         stats_auto["mu_err_std"],
                          "mu",
                          savefig=savepath)
 
@@ -81,7 +81,7 @@ utils.plot_fixed_vs_auto(K_list,
                          stats_fixed["var_err_mean"],
                          stats_fixed["var_err_std"],
                          stats_auto["var_err_mean"],
-                         stats_auto["var_err_mean"],
+                         stats_auto["var_err_std"],
                          "var",
                          savefig=savepath)
 
@@ -90,6 +90,6 @@ utils.plot_fixed_vs_auto(K_list,
                          stats_fixed["rho_mean"],
                          stats_fixed["rho_std"],
                          stats_auto["rho_mean"],
-                         stats_auto["rho_mean"],
+                         stats_auto["rho_std"],
                          "rho",
                          savefig=savepath)

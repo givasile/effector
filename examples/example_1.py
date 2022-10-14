@@ -5,6 +5,7 @@ import numpy as np
 import feature_effect as fe
 import example_models.distributions as dist
 import example_models.models as models
+# plt.rcParams['text.usetex'] = True
 
 savefig = True
 np.random.seed(21)

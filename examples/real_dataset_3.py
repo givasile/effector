@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import Normalizer
 from sklearn.model_selection import train_test_split
 
+savefig = True
 def create_nn(X):
     nn = keras.Sequential([keras.layers.Input(shape=[X.shape[1]]),
                            keras.layers.Dense(256, activation='relu', use_bias=True),
@@ -115,7 +116,6 @@ python_random.seed(1244343)
 tf.random.set_seed(12384)
 
 folder_name = "real_dataset_3"
-savefig = True
 
 # load-prepare data
 parent_path = os.path.dirname(os.path.dirname(path))
