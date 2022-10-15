@@ -70,7 +70,7 @@ width=7.00ex, align=center, column sep=-\pgflinewidth }, }
 \aistatsaddress{ Institution 1 \And  Institution 2 \And Institution 3 } ]
 
 \begin{abstract}
-  Accumulated Local Effects (ALE) is a popular explainable AI method that quantifies how a feature influences the decisions of a model, handling well feature correlations. In case of complex interactions between features, instance-level feature effects may deviate from the ALE curve. It is crucial to quantify this deviation, namely, the uncertainty of the global effect. In this work, we define Uncertainty-aware ALE (UALE) to quantify and visualize, on a single plot, both the average effect and its uncertainty. We show that UALE quantifies uncertainty effectively, even in case of correlated features. We also note that as in ALE, UALE's approximation requires partitioning the feature domain into non-overlapping intervals (bin-splitting). The average effect and the uncertainty are computed from the instances that lie in each bin. We formally prove that to achieve an unbiased approximation of the uncertainty in each bin, bin-splitting must follow specific constraints. Based on this, we propose a method to determine the optimal intervals, balancing the estimation bias and variance. We demonstrate, through synthetic and real datasets, (a) the advantages of modeling the uncertainty with UALE compared to alternative methods and (b) the effectiveness of UALE's appropriate bin splitting for accurately approximating of the average effect and its uncertainty.
+  Accumulated Local Effects (ALE) is a popular explainable AI method that quantifies how a feature influences the decisions of a model, handling well feature correlations. In case of complex interactions between features, instance-level feature effects may deviate from the ALE curve. It is crucial to quantify this deviation, namely, the uncertainty of the global effect. In this work, we define Uncertainty-aware ALE (UALE) to quantify and visualize, on a single plot, both the average effect and its uncertainty. We also note that as in ALE, UALE's approximation requires partitioning the feature domain into non-overlapping intervals (bin-splitting). The average effect and the uncertainty are computed from the instances that lie in each bin. We formally prove that to achieve an unbiased approximation of the uncertainty in each bin, bin-splitting must follow specific constraints. Based on this, we propose a method to determine the optimal intervals, balancing the estimation bias and variance. We demonstrate, through synthetic and real datasets, (a) the advantages of modeling the uncertainty with UALE compared to alternative methods, especially in cases of correlated features and (b) the effectiveness of UALE's appropriate bin splitting for accurately approximating of the average effect and its uncertainty.
 \end{abstract}
 
 
@@ -80,7 +80,7 @@ Recently, Machine Learning (ML) has been widely adopted in mission critical doma
 
 A popular class of global XAI are feature effect (FE) methods~\citep{Gromping2020MAEP} that quantify the average (across all instances) effect of a single feature on the output. There are three widely-used FE methods: \emph{Partial Dependence Plots} (PDP)~\citep{friedman2001greedy}, \emph{Marginal Plots} (MP)~\citep{apley2020visualizing} and \emph{Accumulated Local Effects} (ALE)~\citep{apley2020visualizing}. ALE is established as the state-of-the-art, since PDP and MP have been criticized~\citep{baniecki2021fooling, Gromping2020MAEP} of providing misleading explanations in case of correlated input features.
 
-In case of complex interactions between features, the instance-level (local) feature effects may exhibit significant deviation, aka heterogeneity, from the aggregated (global) explanation, a phenomenon known as aggregation bias~\citep{mehrabi2021survey}. We call this deviation \emph{the uncertainty of the global effect}\footnote{In the paper, the \emph{uncertainty of the global effect} and the \emph{heterogeneity of instance-level effects} are used interchangeably and refer to the deviation of instance-level (local) effects from the averaged feature effect curve (global).}. Aggregation bias leads to ambiguities. For example, a feature with zero average effect may indicate (a) no effect on the output or (b) highly positive effect for some instances and highly negative for some others. As a result, there is a need for FE methods to quantify the deviation of instance-level explanations, in addition to the average effect. In the case of PDP, such deviation is visualized via the Individual Conditional Explanations (ICE)~\citep{goldstein2015peeking}. ICE plots, however, have the same limitations as PDP in case of correlated features. No method to quantify the deviation of instance-level effects has been proposed for ALE.
+In case of complex interactions between features, the instance-level (local) feature effects may exhibit significant deviation, aka heterogeneity, from the aggregated (global) explanation, a phenomenon known as aggregation bias~\citep{mehrabi2021survey}. We call this deviation \emph{the uncertainty of the global effect}\footnote{In the paper, the \emph{uncertainty of the global effect} and the \emph{heterogeneity of instance-level effects} are used interchangeably and refer to the deviation of instance-level (local) effects from the averaged feature effect curve (global).}. Aggregation bias leads to ambiguities. For example, a feature with zero average effect may indicate (a) no effect on the output or (b) highly positive effect for some instances and highly negative for some others. As a result, there is a need for FE methods to quantify the deviation of instance-level explanations, in addition to the average effect. In the case of PDP, such deviation is visualized via the Individual Conditional Explanations (ICE)~\citep{goldstein2015peeking}. ICE plots, however, have the same limitations as PDP~\citep{baniecki2021fooling} in case of correlated features. No method to quantify the deviation of instance-level effects has been proposed for ALE.
 
 In this work, we propose UALE, a global feature-effect method that extends ALE for modeling the uncertainty of the feature effect. Our method handles well cases with correlated features.  As in ALE, we provide an interval-based formulation of UALE. This formulation partitions the feature domain into non-overlapping intervals (bin-splitting) and defines the average effect (bin-effect) and its uncertainty (bin-uncertainty). We use this formulation to provide an UALE approximation. As we formally prove, a fixed equi-width partitioning that does not consider the characteristics of the instance-level effects, which is the case in ALE approximation, may lead to an erroneous (biased) estimation of the uncertainty.  Therefore, we propose a variable-width partitioning that leads to an unbiased approximation. The contributions of this paper are:
 
@@ -150,8 +150,12 @@ We define UALE and provide an interval-based formulation that partitions the fea
 
 \begin{figure}
   \centering
-  \includegraphics[width=.5\textwidth]{concept_figure/fig-1.pdf}
-  \caption{Illustration of UALE feature effect plot.}
+  \includegraphics[width=.4\textwidth]{concept_figure/fig-1.pdf}
+  \caption{Illustration of UALE feature effect plot on a toy example,
+    where \(x_1 \sim \mathcal{U}(0,1)\) and
+    \(x_2 \sim \mathcal{N}(0,\sigma^2_2)\) and
+    \(f(\xb)= f_0(\xb) + x_1x_2\), where \(f_0(\xb)\) when
+    \(x_1 < \frac{1}{5}\) and zero otherwise.}
   \label{fig:UALE-figure}
 \end{figure}
 
@@ -174,7 +178,11 @@ The uncertainty emerges from (a) the feature correlations and (b) the implicit f
 \end{equation}
 \noindent
 
-UALE defines the effect as a pair that consists of the average effect and the uncertainty \((\mu(z), \sigma(z))\). For visualizing it, we use the accumulated average effect, as defined in Eq.~(\ref{eq:ALE}), and the accumulated uncertainty, as defined in Eq.~(\ref{eq:ALE_acc_unc}). Figure~\ref{fig:UALE-figure} illustrates a toy example, where \(x_1 \sim \mathcal{U}(0,1)\) and \(x_2 \sim \mathcal{N}(0,\sigma^2_2)\) and the black-box function is \(f(\xb)= \sin(2 \pi x_1) + x_1x_2\).
+UALE defines the effect as a pair that consists of the average effect
+and the uncertainty \((\mu(z), \sigma(z))\). For visualizing it, we
+use the accumulated average effect, as defined in Eq.~(\ref{eq:ALE}),
+and the accumulated uncertainty, as defined in
+Eq.~(\ref{eq:ALE_acc_unc}). 
 
 
 For the interval-based formulation, we define the bin-effect \(\mu(z_1, z_2)\) and the bin-uncertainty \(\sigma(z_1, z_2)\) as:
@@ -205,7 +213,7 @@ Intuitively, if we randomly draw a point \(z^*\) from a uniform distribution \(z
 %
 where \(k_x\) is the index of the bin such that
 \( z_{k_x - 1} \leq x_s < z_{k_x}\). Eq.~(\ref{eq:ALE_2}) and
-Eq.~(\ref{eq:ALE_accumulated_var}) are piecewise-linear approximation
+Eq.~(\ref{eq:ALE_accumulated_var}) are piecewise linear approximation
 of Eq.~(\ref{eq:ALE}) and Eq.~(\ref{eq:ALE_acc_unc}).
 
 \subsection{UALE Interval-Based Approximation}
@@ -239,7 +247,8 @@ follows:
   \hat{\mu}(z_1, z_2) \right )^2
 \end{equation}
 %
-In the Appendix~\ref{sec:proof-1}, we show that
+In the Appendix %~\ref{sec:proof-1}
+, we show that
 \(\hat{\sigma}^2(z_1, z_2)\) is an unbiased estimator of
 \(\sigma^2_*(z_1, z_2) = \frac{\int_{z_1}^{z_2} \mathbb{E}_{X_c|X_s=z}
   \left [ (f^s(z, X_c) - \mu(z_1, z_2) )^2 \right] \partial z}{z_2 -
@@ -264,7 +273,7 @@ uncertainty.
   \end{theorem}
 
 \begin{proof}
-The proof is at Appendix~\ref{sec:proof-of-3-1}.
+The proof is at Appendix.%~\ref{sec:proof-of-3-1}.
 \end{proof}
 
 \noindent
@@ -295,8 +304,8 @@ estimated from \(\sum_{k=1}^K \hat{\sigma}^2(z_{k-1}, z_k) \Delta z_k \).
 
 \begin{corollary}
   \label{sec:coroll}
-  A bin-splitting \(\mathcal{Z}\) that minimizes the accumulated error
-  if and only if it also minimizes
+  If a bin-splitting \(\mathcal{Z}\) minimizes the accumulated error,
+  then it also minimizes
   \(\sum_{k=1}^K\sigma_*^2(z_1, z_2) \Delta z_k \)
 \end{corollary}
 
@@ -304,7 +313,7 @@ estimated from \(\sum_{k=1}^K \hat{\sigma}^2(z_{k-1}, z_k) \Delta z_k \).
   ~\label{sec:coroll-1} The proof is based on the observation that
   \(\sum_{k=1}^K \sigma^2(z_{k-1}, z_k) \Delta z_k = \sigma^2(z_0,
   z_K) (z_K - z_0)\) which is independent of the bin-splitting. A more
-  detailed proof is provided in the Appendix~\ref{sec:proof-of-coroll}.
+  detailed proof is provided in the Appendix.%~\ref{sec:proof-of-coroll}.
  \end{proof}
 
 Based on the above, we set-up the following optimization problem:
@@ -353,31 +362,28 @@ denotes the \(j\)-th multiple of the minimum step, i.e.,
 function \(T(i,j)\) computes the cost of setting \(z_i\) to \(x_j\):
 \begin{equation}
   \label{eq:recursive_cost}
-  \mathcal{T}(i,j) = \mathrm{min}_{l \in \{0, \ldots, K_{max}\}} \left [ \mathcal{T}(i-1, l) + \mathcal{B}(x_l, x_j) \right ]
+  \mathcal{T}(i,j) = \mathrm{min}_{l \in \{0, \ldots, K_{max}\}} \left [ \mathcal{T}(i-1, l) + \mathcal{B}(l, j) \right ]
 \end{equation}
 %
 % where \(\mathcal{T}(0,j)\) equals to zero if \(j=0\) and \(\infty\) in
 % any other case.
-The term \(\mathcal{B}(x_l, x_j)\) denotes the cost of creating a bin with
-limits \([x_l, x_j)\):
+The term \(\mathcal{B}(l, j)\) denotes the cost of creating a bin with
+limits \([x_l, x_j)\). \(\mathcal{B}\) can be custom-based. In our
+case, following Eq.~(\ref{eq:opt}), we set it to
+\(\tau_k \hat{\sigma}^2(x_l, x_j) (x_j-x_l)\) if the bin is valid,
+i.e., it has enough points \(|\mathcal{S}_k| \geq
+N_{\mathtt{PPB}}\). The
+optimal solution is given by solving
+\(\mathcal{L} = \mathcal{T}(K_{max}, K_{max})\) and keeping track of
+the sequence of steps.
 
-\begin{equation}
-  \label{eq:cost_step}
-  \mathcal{B}(x_l, x_j) = \begin{cases}
-                            \infty, & \text{if $x_j > x_l$ or \(|\mathcal{S}_{(x_j, x_l)}| < N\)}\\
-                            0, & \text{if $x_j = x_l$}\\
-                            \hat{\sigma}^2(x_j, x_l), &\text{if $x_j \leq x_l$}
-  \end{cases}
-\end{equation}
-
-The optimal solution is given by solving
-\(\mathcal{L} = \mathcal{T}(K_{max}, K_{max})\) and keeping track of the sequence of
-steps. 
-
-
-% \begin{algorithm}
-%   \end{algorithm}
-
+Note that in case the instance level effects are computed using the
+DALE method then there is no need to reevaluate \(f\) for each
+partitioning. The optimization algorithm simply reallocates the
+precomputed instance-level effects at each bin. Therefore, setting the
+maximum number \(K_{max}\) up to (roughly) \(100\) bins, the method
+finds the optimal partitioning in a couple of seconds. Further details
+and evaluation are provided in the Appendix.
 
 \section{SIMULATION EXAMPLES}
 \label{sec:simulation-examples}
@@ -418,7 +424,7 @@ the two correlated features, \(x_1, x_2\), and \(f_2\) is an
 interaction term between the two non-correlated, \(x_1, x_3\).  We
 evaluate the effect computed by UALE and PDP-ICE in three cases; (a)
 without interaction (\(\alpha=0\)) and equal weights (\(a_1=a_2\)),
-(b) without interaction (\(\alpha=0\)) and different weigths
+(b) without interaction (\(\alpha=0\)) and different weights
 (\( a_1 \neq a_2 \)) and (c) with interaction (\(\alpha > 0\)) and
 equal weights (\(a_1=a_2\)).
 
@@ -437,7 +443,7 @@ ground-truth. In the example above, if \(a=0\), then
 \(x_1\) is \(f^{\mathcal{GT}}(x_1) = x_1\) in the corresponding
 interval, i.e. \(x_1 \in [0, \frac{1}{4})\). For the uncertainty, we
 use the fact that under no-interactions, \(a=0\), the uncertainty must
-be zero (no heteregoneity). We discuss separately the case with
+be zero (no heterogeneity). We discuss separately the case with
 \(a>0\). Finally, we also demonstrate that UALE's approximation is
 accurate, due to the bin splitting that we propose.
 
@@ -459,7 +465,7 @@ to an accurate uncertainty estimation (near-zero cumulative bin-error
 \(\mathcal{E}_{\mathcal{Z}}\)) and (b) an easier interpretation,
 creating three wide bins, i.e.
 \([0, \frac{1}{4}), [\frac{1}{4}, \frac{1}{2}), [\frac{1}{2}, 1)\),
-that correspond to the piecewise-linear regions of the effect.
+that correspond to the piecewise linear regions of the effect.
 
 
 \begin{figure}[h]
@@ -487,7 +493,7 @@ i.e.~negative in the region \([0, \frac{1}{5})\), positive in
 existence of heterogeneous effects. As before, UALE quantifies
 correctly the ground truth effect, the zero-uncertainty and partitions
 the \(x_1\) domain into wide bins that facilitate the interpretation
-and create a zero cummulative bin-error \(\mathcal{E}_{\mathcal{Z}}\)
+and create a zero cumulative bin-error \(\mathcal{E}_{\mathcal{Z}}\)
 approximation.
 
 \begin{figure}[h]
@@ -549,7 +555,7 @@ We sample from \(p(\mathbf{x}) = p(x_2|x_1)p(x_1)\) where
 \(\mathcal{Z^*} = \{z^*_0, \cdots, z^*_K\}\) UALE's partitioning, and
 with \(\mathcal{Z^{\mathtt{K}}}\) the fixed-size splitting with \(K\)
 bins. The evaluation is based on the Mean Absolute Error (MAE) of the
-bin effect \(\mu\) and of the uncertainty \(\sigma\) accross bins,
+bin effect \(\mu\) and of the uncertainty \(\sigma\) across bins,
 i.e.,
 
 \begin{equation}
@@ -575,11 +581,11 @@ interpretation of the uncertainty error.
 
 
 We compare UALE vs fixed-size approximation, when (a) \(f\) is
-piecewise-linear and (b) \(f\) is non-linear. In all examples, we
+piecewise linear and (b) \(f\) is non-linear. In all examples, we
 execute \(t = 30\) independent runs, using each time \(N=500\)
 different samples, and we report the mean values of the metrics.
 
-\paragraph{Piecewise-Linear Function.}
+\paragraph{Piecewise Linear Function.}
 
 Here, the black-box function is \(f(\mathbf{x}) = a_1x_1 + x_1x_2\),
 with \(5\) different-width regions, i.e., \(a_1\) equals to
@@ -603,7 +609,7 @@ fact that UALE achieves lower MAE \(\mathcal{L}^{\mu}\),
   \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_2.pdf}\\
   \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_3.pdf}
   \includegraphics[width=.23\textwidth]{example_bin_splitting_1/fig_4.pdf}
-  \caption{Bin-Splitting, piecewise-linear function: UALE's approximation
+  \caption{Bin-Splitting, piecewise linear function: UALE's approximation
     (Top-Left). UALE vs fixed-size approximations in terms of:
     \(\mathcal{L}^{\mu}\) (Top-Right), \(\mathcal{L}^{\sigma}\)
     (Bottom-Left), \(\mathcal{L}^{\rho}\) (Bottom-Right).}
@@ -641,7 +647,7 @@ see in the bottom-left of Figure~\ref{fig:ex-synth-2-2}.
 
 \section{REAL-WORLD EXAMPLE}
 
-Here, we aim at demonstrating the usefuleness of uncertainty
+Here, we aim at demonstrating the usefulness of uncertainty
 quantification and the advantages of UALE's approximation, on the
 real-world California Housing dataset~\citep{pace1997sparse}.
 
@@ -671,7 +677,7 @@ Below, we illustrate the feature effect for three features: latitude
 features cover the main FE cases, e.g.~positive/negative trend and
 linear/non-linear curve, and are therefore appropriate for
 illustration purposes. Results for all features, along with in-depth
-information about the preprocessing, training and evaluation parts are
+information about the reprocessing, training and evaluation parts are
 provided in the Appendix.
 
 \paragraph{Uncertainty Quantification}
@@ -732,16 +738,34 @@ approximations.
 
 \section{CONCLUSION AND FURTHER WORK}
 
-We have introduced UALE, a method that extends ALE by quantifying the uncertainty of the global feature effect. To do that, UALE uses the standard deviation of instance-level effects. We showed that UALE models the uncertainty of feature effect more accurately than existing methods, such as ICE plots, especially in cases where there are dependencies between features. Providing an unbiased estimate of the uncertainty of the feature effect, however, is not trivial. In the case of ALE and the approximation of the average global effect, splitting the feature domain in K equal-width bins is sufficient. For estimating the uncertainty, however, we proved that this approach would introduce bias. We overcame this limitation by proposing an algorithm for automatically determining the optimal variable-size partitioning considering the instance-level effects. We show, through both synthetic and real-world examples, that UALE is an effective method for modeling both the average effect and the uncertainty.
+In this work we presented the global feature effect method UALE, that
+extends ALE to quantify the uncertainty of the feature effect. We
+showed that UALE models such uncertainty more accurately than existing
+methods, such as ICE plots, especially in cases of highly correlated
+features, where that latest fail. Providing an unbiased estimate of
+this uncertainty, however, is not trivial. In the case of ALE, for the
+approximation of the average effect, splitting the feature domain in
+fixed-width bins is sufficient. For estimating the uncertainty,
+though, we proved that this approach would introduce bias. To overcame
+this limitation, we proposed a method to automatically determine the
+optimal variable-width bin-splitting considering the underlying
+instance-level effects. We demonstrated, through both synthetic and
+real-world examples, that UALE is an effective method to model both
+the average effect and the uncertainty.
 
-There are certain limitations and open issues in the proposed approach. First, finding the optimal bin partitioning can be computationally expensive, if applied directly to ALE. By using DALE's approximation this limitation is resolved, however this is directly applicable only for differentiable models. Furthermore, UALE quantifies only the standard deviation of instance-level effects, providing limited intuition about the sources of the uncertainty. Future work should therefore aim at developing methods for identifying which features and to what degree contribute to the heterogeneity of instance-level effects.
+Future work involves exploring other summary statistics than standard
+deviation to reveal further uncertainty aspects. Also, we would like
+to study ways to quantify the contribution of each feature in the
+uncertainty. Finally, we would like to explore alternatives to
+implement UALE's bin splitting (exhaustive vs approximate computation)
+to deal with data-intensive cases.
 
 
 
 \clearpage
-\subsubsection*{Acknowledgments}
-All acknowledgments go at the end of the paper, including thanks to reviewers who gave useful comments, to colleagues who contributed to the ideas, and to funding agencies and corporate sponsors that provided financial support. 
-To preserve the anonymity, please include acknowledgments \emph{only} in the camera-ready papers.
+% \subsubsection*{Acknowledgments}
+% All acknowledgments go at the end of the paper, including thanks to reviewers who gave useful comments, to colleagues who contributed to the ideas, and to funding agencies and corporate sponsors that provided financial support. 
+% To preserve the anonymity, please include acknowledgments \emph{only} in the camera-ready papers.
 
 \bibliography{biblio}
 
