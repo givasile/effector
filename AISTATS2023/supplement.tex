@@ -3,6 +3,9 @@
 \usepackage{aistats2023}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{corollary}{Corollary}[theorem]
+\DeclareMathOperator*{\argmin}{arg\,min}
 
 \newcommand{\dfdx}{\frac{\partial f}{\partial x_s}}
 \newcommand{\xc}{\mathbf{x_c}}
@@ -51,100 +54,221 @@
 
 % Supplementary material: To improve readability, you must use a single-column format for the supplementary material.
 \onecolumn
-\aistatstitle{Instructions for Paper Submissions to AISTATS 2022: \\
+\aistatstitle{Instructions for Paper Submissions to AISTATS 2023: \\
 Supplementary Materials}
 
-\section{FORMATTING INSTRUCTIONS}
+\section{THORETICAL DERIVATIONS}
 
-To prepare a supplementary pdf file, we ask the authors to use \texttt{aistats2022.sty} as a style file and to follow the same formatting instructions as in the main paper.
-The only difference is that the supplementary material must be in a \emph{single-column} format.
-You can use \texttt{supplement.tex} in our starter pack as a starting point, or append the supplementary content to the main paper and split the final PDF into two separate files.
+\subsection{Proof that \(\hat{\sigma}^2(z_1, z_2)\) is an unbiased estimator of \(\sigma_*^2(z_1, z_2)\)}
 
-Note that reviewers are under no obligation to examine your supplementary material.
+In Section .. we use that \(\hat{\sigma}^2(z_1, z_2)\) is an unbiased
+estimator of
+\(\sigma^2_*(z_1, z_2) = \frac{\int_{z_1}^{z_2} \mathbb{E}_{X_c|X_s=z}
+  \left [ (f^s(z, X_c) - \mu(z_1, z_2) )^2 \right] \partial z}{z_2 -
+  z_1} \), under the assumption that the points are uniformly distributed in \([z_1, z_2)\),
+i.e., \(x_s^i \sim \mathcal{U}(z_1, z_2)\).
 
-\section{List with Symbols}
+\paragraph{Proof}
+
+We have made the hypothesis that the points \(\xb^i\) are
+coming from the distibution
+\(\mathcal{S} = p(X_c|X_s) p(X_s) = p(X_c|X_s) \mathcal{U}(x_s; z_1,
+z_2)= \frac{p(\xc|z)}{z_2 - z_1}\) uniformly distributed in the interval \([z_1, z_2)\) in terms
+
+\begin{align}
+  \mathbb{E}_\mathcal{S}[\hat{\sigma}^2(z_1, z_2)] &= \mathbb{E}_\mathcal{S}[\frac{1}{|\mathcal{S}|} \sum_{i=1}^{|\mathcal{S}|} (f^s(\xb^i) - \mu(z_1, z_2))^2] \\
+  & = \frac{1}{|\mathcal{S}|} \sum_{i=1}^{|\mathcal{S}|} \mathbb{E}_\mathcal{S}[(f^s(\xb^i) - \mu(z_1, z_2))^2]\\
+  & = \frac{1}{|\mathcal{S}|} \sum_{i=1}^{|\mathcal{S}|} \mathbb{E}_\mathcal{S}[(f^s(\xb^i) - \mu(z_1, z_2))^2]\\
+  \end{align}
 
 
-\section{MISSING PROOFS}
+\begin{align}
+  \sigma^2_*(z_1, z_2) & = \frac{\int_{z_1}^{z_2} \mathbb{E}_{X_c|X_s=z}
+  \left [ (f^s(z, X_c) - \mu(z_1, z_2) )^2 \right] \partial z}{z_2 -
+                         z_1} \\
+  & = \mathbb{E}_{z \sim \mathcal{U}(z_1, z_2)}\mathbb{E}_{X_c|X_s=z}
+    \left [ (f^s(z, X_c) - \mu(z_1, z_2) )^2 \right] \\
+  & = \mathbb{E}_{X} \left [ (f^s(X) - \mu(z_1, z_2) )^2 \right]
+  \end{align}
 
-The supplementary materials may contain detailed proofs of the results that are missing in the main paper.
 
-\subsection{Proof of Lemma 3}
+\subsection{Proof Of Theorem 3.1}
 
-\textit{In this section, we present the detailed proof of Lemma 3 and then [ ... ]}
+\textit{  If we define (a) the residual \(\rho(z)\) as the difference between
+  the expected effect at \(z\) and the bin-effect, i.e
+  \(\rho(z) = \mu(z) - \mu(z_1, z_2)\) and (b)
+  \(\mathcal{E}(z_1, z_2)\) as the mean squared residual of the bin,
+  i.e.
+  \(\mathcal{E}(z_1, z_2) = \frac{\int_{z_1}^{z_2}\rho^2(z) \partial
+    z}{z_2 - z_1}\), then it holds that:
+\begin{equation}
+    \label{eq:bin-uncertainty-proof}
+ \sigma_*^2(z_1, z_2) = \sigma^2(z_1, z_2) + \mathcal{E}^2(z_1, z_2)
+\end{equation}
+}
 
 
-Given that,
+\paragraph{Proof}
 
-The mean effect at a specific point \(x_s\) is:
+
+\begin{align}
+  \sigma_*^2(z_1, z_2) &= \frac{1}{z_2 - z_1}\int_{z_1}^{z_2} \mathbb{E}_{X_c|z} \left [ \left( f^s( z, X_c) - \mu(z_1, z_2) \right)^2 \right] \partial z \\
+                       &= \frac{1}{z_2 - z_1} \int_{z_1}^{z_2} \mathbb{E}_{X_c|z} \left [ \left ( f^s(z, X_c) - \mu(z) + \rho(z) \right )^2 \right] \partial z \\
+  &= \frac{1}{z_2 - z_1} \int_{z_1}^{z_2} \mathbb{E}_{X_c|z} \left [ (f^s(z, X_c) - \mu(z) )^2 + \rho(z)^2 + 2f^s(z, X_c)\mu(z) ) \right ]\\
+  &= \frac{1}{z_2 - z_1} \int_{z_1}^{z_2} \left (
+  \underbrace{\mathbb{E}_{X_c|z} \left [ (f^s(z, X_c) - \mu(z) )^2 \right ]}_{\sigma^2(z)}  +
+  \underbrace{\mathbb{E}_{X_c|z} \left [ \rho^2(z) \right]}_{\rho^2(z)} +
+  2 (\underbrace{\mathbb{E}_{X_c|z} \left [ (f^s(z, X_c)   \right ]}_{\mu(z)} - \mu(z)) \rho(z) )\right )  \partial z \\
+  &= \underbrace{\frac{1}{z_2 - z_1} \int_{z_1}^{z_2} \sigma^2(z) \partial z}_{\sigma^2(z_1, z_2)} + \underbrace{\frac{1}{z_2 - z_1} \int_{z_1}^{z_2} \rho^2(z) \partial z}_{\mathcal{E}^2(z_1, z_2)} = \sigma^2(z_1, z_2) + \mathcal{E}^2(z_1, z_2)
+\end{align}
+
+\subsection{Proof Of Corollary}
+
+\textit{ If a bin-splitting \(\mathcal{Z}\) minimizes the accumulated error, then it also minimizes
+  \(\sum_{k=1}^K\sigma_*^2(z_1, z_2) \Delta z_k \)}
+
+We want to show that
+
+\[ \mathcal{Z}^* = \argmin_{\mathcal{Z}} \sum_{k=1}^K \sigma_*^2(z_{k-1}, z_k) \Delta z_k \Leftrightarrow \mathcal{Z}^* = \argmin_{\mathcal{Z}} \sum_{k=1}^K \mathcal{E}^2(z_{k-1}, z_k) \Delta z_k \]
+
+\paragraph{Proof}
+
+\begin{align}
+  \mathcal{Z}^* &= \argmin_{\mathcal{Z}} \sum_{k=1}^K \sigma_*^2(z_{k-1}, z_k) \Delta z_k \\
+                & = \argmin_{\mathcal{Z}} \left [ \sum_{k=1}^K (\sigma^2(z_{k-1}, z_k) + \mathcal{E}^2(z_{k-1}, z_k)) \Delta z_k \right ] \\
+                & = \argmin_{\mathcal{Z}} \left [ \sum_{k=1}^K \left ( \frac{\Delta z_k}{\Delta z_k} \int_{z_{k-1}}^{z_k} \sigma^2(z) \partial z)   + \mathcal{E}^2(z_{k-1}, z_k) \Delta z_k \right ) \right ] \\
+                & = \argmin_{\mathcal{Z}} \left [ \underbrace{\int_{z_0}^{z_K} \sigma^2(z) \partial z}_{\text{independent of } \mathcal{Z}}   + \sum_{k=1}^K\mathcal{E}^2(z_{k-1}, z_k) \Delta z_k) \right ] \\
+                & = \argmin_{\mathcal{Z}} \sum_{k=1}^K\mathcal{E}^2(z_{k-1}, z_k) \Delta z_k
+  \end{align}
+
+\section{Dynamic Programming}
+\label{sec:dynamic-programming}
+
+For achieving a computationally-grounded solution we set a threshold
+\(K_{max}\) on the maximum number of bins which also discretizes the
+solution space. The width of the bin can take discrete values that are
+multiple of the minimum step
+\(u = \frac{x_{s, max} - x_{s, min}}{K_{max}}\). For defining the
+solution, we use two indexes. The index
+\(i \in \{0, \ldots, K_{max}\}\) denotes the point \((z_i)\) and the
+index \(j \in \{0, \ldots, K_{max}\} \) denotes the position of the
+\(j\)-th multiple of the minimum step, i.e.,
+\(x_j = x_{s,min} + j \cdot u\). The recursive cost function
+\(T(i,j)\) is the cost of setting \(z_i=x_j\):
+\begin{equation}
+  \label{eq:recursive_cost}
+  \mathcal{T}(i,j) = \mathrm{min}_{l \in \{0, \ldots, K_{max}\}} \left [ \mathcal{T}(i-1, l) + \mathcal{B}(x_l, x_j) \right ]
+\end{equation}
+%
+where \(\mathcal{T}(0,j)\) equals zero if \(j=0\) and \(\infty\) in
+any other case. \(\mathcal{B}(x_l, x_j)\) denotes the cost of creating a bin
+with limits \([x_l, x_j)]\):
 
 \begin{equation}
-  \label{eq:3}
-  \mu(x_s) = \mathbb{E}_{\xc|x_s}\left [\dfdx (x_s, \xc) \right ]
+  \label{eq:cost_step}
+  \mathcal{B}(x_l, x_j) = \begin{cases}
+                            \infty, & \text{if $x_j > x_l$ or \(|\mathcal{S}_{(x_j, x_l)}| < N\)}\\
+                            0, & \text{if $x_j = x_l$}\\
+                            \hat{\sigma}^2(x_j, x_l), &\text{if $x_j \leq x_l$}
+  \end{cases}
 \end{equation}
 
-
-The variance at a specific point \(x_s\) is:
-
-\begin{equation}
-  \label{eq:3}
-  \sigma^2(x_s) = \mathrm{Var}_{\xc|x_s}\left [\dfdx (x_s, \xc) \right ]
-\end{equation}
+The optimal solution is given by solving
+\(\mathcal{L} = \mathcal{T}(K_{max}, K_{max})\) and keeping track of the sequence of
+steps.
 
 
-The mean effect inside the interval \([z_1, z_2)\) is:
+\section{EXPERIMENTS APPEARED AT THE MAIN PAPER}
 
-\begin{equation}
-  \label{eq:1}
-  \mu(z_1, z_2) = \frac{1}{z_2-z_1} \int_{z_1}^{z_2} \mathbb{E}_{\xc|x_s}\left [\dfdx (x_s, \xc)\right ]
-\end{equation}
+\subsection{Simulation 1}
 
-The accumulated variance inside the interval is:
+\subsection{Simulation 2}
 
-\begin{equation}
-  \label{eq:2}
-  \sigma^2(z_1, z_2) = \int_{z_1}^{z_2} \mathbb{E}_{\xc|x_s=z} \left [ \left ( \frac{\partial f}{\partial x_s}(x_s, \xc) - \mu(z_1, z_2) \right )^2 \right] \partial z
-\end{equation}
+\subsection{Real World Example}
+
+\section{Further Experimentation}
 
 
-The residual at a specific point \(x_s\) is:
+% \section{MISSING PROOFS}
 
-\begin{equation}
-  \label{eq:4}
-  \rho(x_s) = \mu(x_s) - \mu(z_1, z_2)
-\end{equation}
+% The supplementary materials may contain detailed proofs of the results that are missing in the main paper.
 
+% % \subsection{Proof of Lemma 3}
 
-We want to prove that:
-
-\begin{equation}
-  \label{eq:5}
-  \sigma^2(z_1, z_2) = \int_{z_1}^{z_2} \sigma^2(z) + \rho^2(z) \partial z
-  = \int_{z_1}^{z_2} \sigma^2(z) + \int_{z_1}^{z_2} \rho^2(z) \partial z
-\end{equation}
-
-Proof:
+% % \textit{In this section, we present the detailed proof of Lemma 3 and then [ ... ]}
 
 
-\begin{gather}
-  \sigma^2(z_1, z_2) = \int_{z_1}^{z_2} \mathbb{E}_{\xc|x_s=z} \left [ \left( \frac{\partial f}{\partial x_s}( z, \xc) - \mu(z_1, z_2) \right)^2 \right] \partial z \\
-  = \int_{z_1}^{z_2} \mathbb{E}_{\xc|x_s=z} \left [ \left ( \frac{\partial f}{\partial x_s} - \mu(z) + \rho(z) \right )^2 \right] \partial z \\
-  = \int_{z_1}^{z_2} \left(
-  \mathbb{E}_{\xc|x_s=z} \left [ (\frac{\partial f}{\partial x_s} - \mu(z) )^2 \right ]  +
-  \mathbb{E}_{\xc|x_s=z} \left [ \rho(z)^2 \right] +
-  \mathbb{E}_{\xc|x_s=z} \left [ 2(\frac{\partial f}{\partial x_s} - \mu(z) )\rho(z) \right ] \right )  \partial z \\
-  = \int_{z_1}^{z_2}(\sigma^2(z) + \rho^2(z) + 2(\mu(z)-\mu(z))\rho(z))\partial z \\
-  = \int_{z_1}^{z_2} \sigma^2(z)  + \rho^2(z) \partial z \\
-\end{gather}
+% % Given that,
+
+% % The mean effect at a specific point \(x_s\) is:
+
+% % \begin{equation}
+% %   \label{eq:3}
+% %   \mu(x_s) = \mathbb{E}_{\xc|x_s}\left [\dfdx (x_s, \xc) \right ]
+% % \end{equation}
 
 
-\section{ADDITIONAL EXPERIMENTS}
+% % The variance at a specific point \(x_s\) is:
 
-If you have additional experimental results, you may include them in the supplementary materials.
+% % \begin{equation}
+% %   \label{eq:3}
+% %   \sigma^2(x_s) = \mathrm{Var}_{\xc|x_s}\left [\dfdx (x_s, \xc) \right ]
+% % \end{equation}
 
-\subsection{The Effect of Regularization Parameter}
 
-\textit{Our algorithm depends on the regularization parameter $\lambda$. Figure 1 below illustrates the effect of this parameter on the performance of our algorithm. As we can see, [ ... ]}
+% % The mean effect inside the interval \([z_1, z_2)\) is:
+
+% % \begin{equation}
+% %   \label{eq:1}
+% %   \mu(z_1, z_2) = \frac{1}{z_2-z_1} \int_{z_1}^{z_2} \mathbb{E}_{\xc|x_s}\left [\dfdx (x_s, \xc)\right ]
+% % \end{equation}
+
+% % The accumulated variance inside the interval is:
+
+% % \begin{equation}
+% %   \label{eq:2}
+% %   \sigma^2(z_1, z_2) = \int_{z_1}^{z_2} \mathbb{E}_{\xc|x_s=z} \left [ \left ( \frac{\partial f}{\partial x_s}(x_s, \xc) - \mu(z_1, z_2) \right )^2 \right] \partial z
+% % \end{equation}
+
+
+% % The residual at a specific point \(x_s\) is:
+
+% % \begin{equation}
+% %   \label{eq:4}
+% %   \rho(x_s) = \mu(x_s) - \mu(z_1, z_2)
+% % \end{equation}
+
+
+% % We want to prove that:
+
+% % \begin{equation}
+% %   \label{eq:5}
+% %   \sigma^2(z_1, z_2) = \int_{z_1}^{z_2} \sigma^2(z) + \rho^2(z) \partial z
+% %   = \int_{z_1}^{z_2} \sigma^2(z) + \int_{z_1}^{z_2} \rho^2(z) \partial z
+% % \end{equation}
+
+% % Proof:
+
+
+% % \begin{gather}
+% %   \sigma^2(z_1, z_2) = \int_{z_1}^{z_2} \mathbb{E}_{\xc|x_s=z} \left [ \left( \frac{\partial f}{\partial x_s}( z, \xc) - \mu(z_1, z_2) \right)^2 \right] \partial z \\
+% %   = \int_{z_1}^{z_2} \mathbb{E}_{\xc|x_s=z} \left [ \left ( \frac{\partial f}{\partial x_s} - \mu(z) + \rho(z) \right )^2 \right] \partial z \\
+% %   = \int_{z_1}^{z_2} \left(
+% %   \mathbb{E}_{\xc|x_s=z} \left [ (\frac{\partial f}{\partial x_s} - \mu(z) )^2 \right ]  +
+% %   \mathbb{E}_{\xc|x_s=z} \left [ \rho(z)^2 \right] +
+% %   \mathbb{E}_{\xc|x_s=z} \left [ 2(\frac{\partial f}{\partial x_s} - \mu(z) )\rho(z) \right ] \right )  \partial z \\
+% %   = \int_{z_1}^{z_2}(\sigma^2(z) + \rho^2(z) + 2(\mu(z)-\mu(z))\rho(z))\partial z \\
+% %   = \int_{z_1}^{z_2} \sigma^2(z)  + \rho^2(z) \partial z \\
+% % \end{gather}
+
+
+% \section{ADDITIONAL EXPERIMENTS}
+
+% If you have additional experimental results, you may include them in the supplementary materials.
+
+% \subsection{The Effect of Regularization Parameter}
+
+% \textit{Our algorithm depends on the regularization parameter $\lambda$. Figure 1 below illustrates the effect of this parameter on the performance of our algorithm. As we can see, [ ... ]}
 
 \vfill
 
