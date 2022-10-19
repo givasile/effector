@@ -110,6 +110,7 @@ def find_axislimits(X):
     return axis_limits
 
 
+
 # freeze seed
 np.random.seed(138232)
 python_random.seed(1244343)
@@ -122,9 +123,40 @@ parent_path = os.path.dirname(os.path.dirname(path))
 datapath = os.path.join(parent_path, "data", "California-Housing", "housing.csv")
 X_df, Y_df, X, Y = load_prepare_data(datapath)
 
+# statistics on data
+X_df.describe()
+Y_df.describe()
+
+path2dir = os.path.join(parent_path, "examples/real_dataset_3/")
+for i in range(8):
+    tmp = X_df.iloc[:, i:i+1].to_numpy().squeeze()
+    plt.figure()
+    plt.hist(tmp, bins=50)
+    plt.xlabel(r"$x_" + str(i) + "$")
+    plt.title(r"Feature $x_" + str(i) + "$ histogram")
+    if savefig:
+        savepath = os.path.join(path2dir, "hist_feat_" + str(i+1) + ".pdf")
+        plt.savefig(savepath)
+    plt.show(block=False)
+
 # preprocess data
 X_norm, Y_norm, X_mu, X_sigma, Y_mu, Y_sigma = preprocess_data(X, Y)
 axis_limits = find_axislimits(X_norm)
+
+# statistics on preprocessed
+path2dir = os.path.join(parent_path, "examples/real_dataset_3/")
+for i in range(8):
+    tmp = X_norm[:,i] * X_sigma[i] + X_mu[i]
+    print(tmp.min(), tmp.max(), tmp.mean(), tmp.std())
+    plt.figure()
+    plt.hist(tmp, bins=50)
+    plt.xlabel(r"$x_" + str(i+1) + "$")
+    plt.title(r"Feature $x_" + str(i+1) + "$ histogram (after preprocessing)")
+    if savefig:
+        savepath = os.path.join(path2dir, "hist_feat_" + str(i+1) + "_after.pdf")
+        plt.savefig(savepath)
+    plt.show(block=False)
+
 
 X_tr, X_te, Y_tr, Y_te = split(X_norm, Y_norm)
 

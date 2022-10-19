@@ -7,6 +7,10 @@
 \newtheorem{corollary}{Corollary}[theorem]
 \DeclareMathOperator*{\argmin}{arg\,min}
 
+\usepackage{graphicx}
+\graphicspath{ {./../examples/} }
+
+
 \newcommand{\dfdx}{\frac{\partial f}{\partial x_s}}
 \newcommand{\xc}{\mathbf{x_c}}
 \newcommand{\DY}{\mathbf{\Delta Y}}
@@ -59,42 +63,67 @@ Supplementary Materials}
 
 \section{THORETICAL DERIVATIONS}
 
-\subsection{Proof that \(\hat{\sigma}^2(z_1, z_2)\) is an unbiased estimator of \(\sigma_*^2(z_1, z_2)\)}
+\subsection{Show that \(\hat{\mu}(z_1, z_2) \approx \mu(z_1, z_2)\)}
 
-In Section .. we use that \(\hat{\sigma}^2(z_1, z_2)\) is an unbiased
+\textit{We want to show that (a)
+  \(\hat{\mu}(z_1, z_2) = \frac{1}{|\mathcal{S}|} \sum_{i:
+    \mathbf{x}^i \in \mathcal{S}} f^s(\mathbf{x}^i) \) is an unbiased
+  estimator of
+  \(\mu(z_1, z_2) = \frac{\int_{z_1}^{z_2} \mathbb{E}_{X_c|z} \left [
+      f^s(z, X_c) \right ] \partial z}{z_2 - z_1} \), under the
+  assumption that that (a) \(z\) follows a uniform distribution in
+  \([z_1, z_2)\), i.e., \(z \sim \mathcal{U}(z_1, z_2)\) and (b) that
+  the points are i.i.d.  samples from the distribution
+  \(p(\xb) = p(\xc|z)p(z) = \frac{1}{z_2-z_1}p(\xc|z) \) }
+
+\paragraph{Description}
+  We just use the the fact that the population mean is an
+  unbiased estimator of the expected value. We just show that
+  \(\mu(z_1, z_2) = \mathbb{E}_{\tilde{X}} [f^s(\tilde{X})]\).
+
+\paragraph{Proof}
+\begin{align}
+  \mu(z_1, z_2) = \frac{\int_{z_1}^{z_2} \mathbb{E}_{X_c|z} f^s(z, X_c)  \partial z}{z_2 - z_1}
+                = \mathbb{E}_{z \sim \mathcal{U}(z_1, z_2)}\mathbb{E}_{X_c|z} f^s(z, X_c)
+                = \mathbb{E}_{\tilde{X}} f^s(X)
+\end{align}
+
+\subsection{Show that \(\hat{\sigma}^2(z_1, z_2) \approx  \sigma_*^2(z_1, z_2)\)}
+
+\textit{We want to show that \(\hat{\sigma}^2(z_1, z_2) = \frac{1}{|\mathcal{S}_k|}
+\sum_{i:\mathbf{x}^i \in \mathcal{S}_k} \left ( \dfdx(\mathbf{x}^i) -
+  \hat{\mu}(z_1, z_2) \right )^2\) is an unbiased
 estimator of
 \(\sigma^2_*(z_1, z_2) = \frac{\int_{z_1}^{z_2} \mathbb{E}_{X_c|X_s=z}
   \left [ (f^s(z, X_c) - \mu(z_1, z_2) )^2 \right] \partial z}{z_2 -
-  z_1} \), under the assumption that the points are uniformly distributed in \([z_1, z_2)\),
-i.e., \(x_s^i \sim \mathcal{U}(z_1, z_2)\).
+  z_1} \), , under the
+  assumption that that (a) \(z\) follows a uniform distribution in
+  \([z_1, z_2)\), i.e., \(z \sim \mathcal{U}(z_1, z_2)\) and (b) that
+  the points are i.i.d.  samples from the distribution
+  \(p(\xb) = p(\xc|z)p(z) = \frac{1}{z_2-z_1}p(\xc|z) \).}
+
+\paragraph{Description}
+Same as before, we just use the the fact that the population variance
+is an unbiased estimator of the variance. We just show that
+\(\sigma^2_*(z_1, z_2) = \mathbb{V}_{\tilde{X}} [f^s(\tilde{X})]\).
 
 \paragraph{Proof}
-
-We have made the hypothesis that the points \(\xb^i\) are
-coming from the distibution
-\(\mathcal{S} = p(X_c|X_s) p(X_s) = p(X_c|X_s) \mathcal{U}(x_s; z_1,
-z_2)= \frac{p(\xc|z)}{z_2 - z_1}\) uniformly distributed in the interval \([z_1, z_2)\) in terms
-
-\begin{align}
-  \mathbb{E}_\mathcal{S}[\hat{\sigma}^2(z_1, z_2)] &= \mathbb{E}_\mathcal{S}[\frac{1}{|\mathcal{S}|} \sum_{i=1}^{|\mathcal{S}|} (f^s(\xb^i) - \mu(z_1, z_2))^2] \\
-  & = \frac{1}{|\mathcal{S}|} \sum_{i=1}^{|\mathcal{S}|} \mathbb{E}_\mathcal{S}[(f^s(\xb^i) - \mu(z_1, z_2))^2]\\
-  & = \frac{1}{|\mathcal{S}|} \sum_{i=1}^{|\mathcal{S}|} \mathbb{E}_\mathcal{S}[(f^s(\xb^i) - \mu(z_1, z_2))^2]\\
-  \end{align}
 
 
 \begin{align}
   \sigma^2_*(z_1, z_2) & = \frac{\int_{z_1}^{z_2} \mathbb{E}_{X_c|X_s=z}
-  \left [ (f^s(z, X_c) - \mu(z_1, z_2) )^2 \right] \partial z}{z_2 -
+                         \left [ (f^s(z, X_c) - \mu(z_1, z_2) )^2 \right] \partial z}{z_2 -
                          z_1} \\
-  & = \mathbb{E}_{z \sim \mathcal{U}(z_1, z_2)}\mathbb{E}_{X_c|X_s=z}
-    \left [ (f^s(z, X_c) - \mu(z_1, z_2) )^2 \right] \\
-  & = \mathbb{E}_{X} \left [ (f^s(X) - \mu(z_1, z_2) )^2 \right]
+                       & = \mathbb{E}_{z \sim \mathcal{U}(z_1, z_2)}\mathbb{E}_{X_c|X_s=z}
+                         \left [ (f^s(z, X_c) - \mu(z_1, z_2) )^2 \right] \\
+                       & = \mathbb{E}_{\tilde{X}} \left [ (f^s(X) - \mu(z_1, z_2) )^2 \right]\\
+                       & = \mathbb{V}_{\tilde{X}} [f^s(\tilde{X})]
   \end{align}
 
 
 \subsection{Proof Of Theorem 3.1}
 
-\textit{  If we define (a) the residual \(\rho(z)\) as the difference between
+\textit{If we define (a) the residual \(\rho(z)\) as the difference between
   the expected effect at \(z\) and the bin-effect, i.e
   \(\rho(z) = \mu(z) - \mu(z_1, z_2)\) and (b)
   \(\mathcal{E}(z_1, z_2)\) as the mean squared residual of the bin,
@@ -141,7 +170,7 @@ We want to show that
                 & = \argmin_{\mathcal{Z}} \sum_{k=1}^K\mathcal{E}^2(z_{k-1}, z_k) \Delta z_k
   \end{align}
 
-\section{Dynamic Programming}
+\section{Dynamic Programming Analysis}
 \label{sec:dynamic-programming}
 
 For achieving a computationally-grounded solution we set a threshold
@@ -178,15 +207,105 @@ The optimal solution is given by solving
 steps.
 
 
-\section{EXPERIMENTS APPEARED AT THE MAIN PAPER}
+\section{Real World Experiment}
 
-\subsection{Simulation 1}
+In this section, we provide further details on the real-world
+example. The real-world example uses the California Housing Dataset,
+which contains 8 numerical features. We exclude instances with missing
+or outlier values. If we denote as \(\mu_s\) (\(\sigma_s\)) the
+average value (standard deviation) of the \(s\)-th feature, we
+consider outliers the instances of the training set with any feature
+value over three standard deviations from the mean, i.e.
+\(|x_s^i - \mu_s| > \sigma_s\). This preprocessing step discards
+\(884\) instancies, and \(N=19549\) remain. We provide their
+description with some basic descriptive statistics in
+Table~\ref{tab:features-description} and their histogram in
+Figure~\ref{fig:feature-histograms}.
 
-\subsection{Simulation 2}
+In Figure 7 of the main paper, we provided the UALE vs PDP-ICE plots
+for features \(x_2\) (latitude), \(x_6\) (total number of people) and
+\(x_8\) (median house value). In figure 8, we compared UALE with
+fixed-size approximation, for the same features. In
+Figure~\ref{fig:ex-real-1}, we provide the same information for the
+rest of the features; \(x_1\) (longitude), \(x_3\) (median age of
+houses), \(x_4\) (total number of rooms), \(x_5\) (total number of
+bedrooms) and \(x_7\) (total number of households). The observation of
+these feautures leads us to similar conclusion. First, UALE and
+PDP-ICE plots compute similar effects and level of heterogeneity and
+UALE's approximation is (almost) as good as the best fixed-size
+approximation. More specifically, we observe that UALE's variable size
+bin splitting correctly creates wide bins for features
+\(x_3, x_4, x_5, x_7\), where the feature effect plot is (piecewise)
+linear, while using narrow bins for feature \(x_2\) where the feature
+effect is not linear.
 
-\subsection{Real World Example}
+\begin{table}
+  \caption{Description of the features apparent in the California-Housing Dataset}
+  \label{tab:features-description}
+  \centering
+  \begin{tabular}{ c|c|c|c|c|c| }
+    \hline
+    & Description & \(min\) & \(\max\) & \(\mu\) & \(\sigma\) \\
+    \hline
+    \(x_1\) & longitude & \(-124.35\) & \(-114.31\) & \(-119.58\) & \(2\) \\
+    \(x_2\) & latitude  & \(32.54\) & \(41.95\) & \(35.65\) & \(2.14\) \\
+    \(x_3\) & median age of houses & \(1\) & \(52\) & \(29.01\) & \(12.42\) \\
+    \(x_4\) & total number of rooms & \(2\) & \(9179\) & \(2390.79\) & \(1433.83\) \\
+    \(x_5\) & total number of bedrooms & \(2\) & \(1797\) & \(493.86\) & \(291\) \\
+    \(x_6\) & total number of people & \(3\) & \(4818\) & \(1310.91\) & \(771.78\) \\
+    \(x_7\) & total number of households & \(2\) & \(1644\) & \(460.3\) & \(267.34\) \\
+    \(x_8\) & median income of households & \(0.5\) & \(9.56\) & \(3.72\) & \(1.60\) \\
+    \hline
+    \(y\) & median house value & \(14.999\) & \(500000\) & \(206864.41\) & \(115435.67\) \\
+    \hline
+  \end{tabular}
+\end{table}
 
-\section{Further Experimentation}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=.43\textwidth]{real_dataset_3/hist_feat_1_after.pdf}
+  \includegraphics[width=.43\textwidth]{real_dataset_3/hist_feat_2_after.pdf}\\
+  \includegraphics[width=.43\textwidth]{real_dataset_3/hist_feat_3_after.pdf}
+  \includegraphics[width=.43\textwidth]{real_dataset_3/hist_feat_4_after.pdf}\\
+  \includegraphics[width=.43\textwidth]{real_dataset_3/hist_feat_5_after.pdf}
+  \includegraphics[width=.43\textwidth]{real_dataset_3/hist_feat_6_after.pdf}\\
+  \includegraphics[width=.43\textwidth]{real_dataset_3/hist_feat_7_after.pdf}
+  \includegraphics[width=.43\textwidth]{real_dataset_3/hist_feat_8_after.pdf}\\
+  \label{fig:feature-histograms}
+  \caption{The Histogram of each feature in the California Housing Dataset.}
+\end{figure}
+
+
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=.24\textwidth]{real_dataset_3/feature_0_ale_auto.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/feature_0_pdp_ice.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/compare_mu_err_feature_0.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/compare_var_err_feature_0.pdf}\\
+  \includegraphics[width=.24\textwidth]{real_dataset_3/feature_2_ale_auto.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/feature_2_pdp_ice.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/compare_mu_err_feature_2.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/compare_var_err_feature_2.pdf}\\
+  \includegraphics[width=.24\textwidth]{real_dataset_3/feature_3_ale_auto.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/feature_3_pdp_ice.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/compare_mu_err_feature_3.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/compare_var_err_feature_3.pdf}\\
+  \includegraphics[width=.24\textwidth]{real_dataset_3/feature_4_ale_auto.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/feature_4_pdp_ice.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/compare_mu_err_feature_4.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/compare_var_err_feature_4.pdf}\\
+  \includegraphics[width=.24\textwidth]{real_dataset_3/feature_6_ale_auto.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/feature_6_pdp_ice.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/compare_mu_err_feature_6.pdf}
+  \includegraphics[width=.24\textwidth]{real_dataset_3/compare_var_err_feature_6.pdf}\\
+  \caption{From left to right: (a) UALE plot, (b) PDP-ICE plot, (c) UALE vs fixed-size \(\mathcal{L}^{\mu}\) and (d) UALE vs fixed-size \(\mathcal{L}^{\sigma}\). From top to bottom, features \(x_1, x_3, x_4, x_5, x_7, x_8\).}
+  \label{fig:ex-real-1}
+\end{figure}
+
+
+% \section{Further Experimentation}
 
 
 % \section{MISSING PROOFS}
