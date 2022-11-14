@@ -135,7 +135,7 @@ class DALE(FeatureEffectBase):
             bin_est = be.Greedy(data, data_effect, feature=s,
                                 axis_limits=self.axis_limits)
             bin_est.solve(min_points = alg_params["min_points_per_bin"],
-                          K = alg_params["nof_bins"])
+                          n_max= alg_params["nof_bins"])
         elif alg_params["bin_method"] == "dp":
             bin_est = be.DP(data, data_effect, feature=s,
                             axis_limits=self.axis_limits)
