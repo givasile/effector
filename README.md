@@ -8,6 +8,10 @@ the repo follows the guidelines described in:
 * https://docs.python-guide.org/writing/structure/
 * https://packaging.python.org/en/latest/tutorials/packaging-projects/
 
+# Packaging
+
+* toml: https://realpython.com/python-toml/
+
 # Testing
 
 with pytest https://docs.pytest.org/en/6.2.x/contents.html

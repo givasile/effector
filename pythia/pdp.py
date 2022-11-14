@@ -2,9 +2,9 @@ import typing
 import copy
 import numpy as np
 from functools import partial
-import feature_effect.visualization as vis
-import feature_effect.helpers as helpers
-import feature_effect.utils_integrate as utils_integrate
+import pythia.visualization as vis
+import pythia.helpers as helpers
+import pythia.utils_integrate as utils_integrate
 
 
 class FeatureEffectBase:

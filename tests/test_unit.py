@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-import feature_effect.utils as utils
+import pythia.utils as utils
 
 
 def test_create_bins_1():

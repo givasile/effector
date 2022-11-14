@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import feature_effect as fe
+import pythia as fe
 
 # set global seed
 np.random.seed(21)

@@ -1,9 +1,9 @@
 import pytest
 import numpy as np
 from scipy.stats import norm
-import feature_effect.utils as utils
+import pythia.utils as utils
 import matplotlib.pyplot as plt
-import feature_effect as fe
+import pythia as fe
 import numdifftools
 
 np.random.seed(21)
@@ -72,7 +72,10 @@ class TestCase1:
         x = np.stack((x1, x2), axis=-1)
         y = self.model(x, params)
         y_grad = self.model_jac(x, params)
-        return x, y_grad
+
+        axis_limits = np.stack([x.min(axis=0), x.max(axis=0)])
+        # axis_limits =
+        return x, y_grad, axis_limits
 
 
     # def create_ale_mu(self, x):
@@ -95,11 +98,11 @@ class TestCase1:
                   {"a": 3., "b":-10., "from": .25, "to": .5},
                   {"a": 0., "b": 5., "from": .5, "to": .75},
                   {"a": 1., "b":-5., "from": .75, "to": 1}]
-        x, y_grad = self.create_data(params)
+        x, y_grad, axis_limits = self.create_data(params)
 
         # test Greedy
         min_points = 2
-        est = fe.bin_estimation.Greedy(x, y_grad, feature=0)
+        est = fe.bin_estimation.Greedy(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_Greedy = est.solve(min_points)
 
         assert limits_Greedy.size == 3
@@ -109,7 +112,7 @@ class TestCase1:
 
         # test DP
         min_points = 2
-        est = fe.bin_estimation.DP(x, y_grad, feature=0)
+        est = fe.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_DP = est.solve(min_points, K=10)
 
         assert limits_DP.size == 3
@@ -123,16 +126,16 @@ class TestCase1:
                   {"a": 3., "b":-10., "from": .25, "to": .5},
                   {"a": 0., "b": 5., "from": .5, "to": .75},
                   {"a": 1., "b":-5., "from": .75, "to": 1}]
-        x, y_grad = self.create_data(params)
+        x, y_grad, axis_limits = self.create_data(params)
         gt_limits = np.array([0, 1.])
 
         min_points = 3
-        est = fe.bin_estimation.Greedy(x, y_grad, feature=0)
+        est = fe.bin_estimation.Greedy(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_Greedy = est.solve(min_points)
         assert np.allclose(gt_limits, limits_Greedy)
 
         min_points = 3
-        est = fe.bin_estimation.DP(x, y_grad, feature=0)
+        est = fe.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_DP = est.solve(min_points)
         assert np.allclose(gt_limits, limits_DP)
 
@@ -142,16 +145,16 @@ class TestCase1:
                   {"a": 3., "b":-10., "from": .25, "to": .5},
                   {"a": 0., "b": 5., "from": .5, "to": .75},
                   {"a": 1., "b":-5., "from": .75, "to": 1}]
-        x, y_grad = self.create_data(params)
+        x, y_grad, axis_limits = self.create_data(params)
         gt_limits = np.array([0, 1.])
 
         min_points = 4
-        est = fe.bin_estimation.Greedy(x, y_grad, feature=0)
+        est = fe.bin_estimation.Greedy(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_Greedy = est.solve(min_points)
         assert np.allclose(gt_limits, limits_Greedy)
 
         min_points = 4
-        est = fe.bin_estimation.DP(x, y_grad, feature=0)
+        est = fe.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_DP = est.solve(min_points)
         assert np.allclose(gt_limits, limits_DP)
 
@@ -160,15 +163,15 @@ class TestCase1:
                   {"a": 3., "b":-10., "from": .25, "to": .5},
                   {"a": 0., "b": 5., "from": .5, "to": .75},
                   {"a": 1., "b":-5., "from": .75, "to": 1}]
-        x, y_grad = self.create_data(params)
+        x, y_grad, axis_limits = self.create_data(params)
 
         min_points = 5
-        est = fe.bin_estimation.Greedy(x, y_grad, feature=0)
+        est = fe.bin_estimation.Greedy(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_Greedy = est.solve(min_points)
         assert limits_Greedy is False
 
         min_points = 5
-        est = fe.bin_estimation.DP(x, y_grad, feature=0)
+        est = fe.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_DP = est.solve(min_points)
         assert limits_DP is False
 
@@ -183,23 +186,24 @@ class TestCase1:
         N = 1e4
         noise_level = 0
         x = self.generate_samples(N, noise_level)
-        y = self.model(x, params)
         y_grad = self.model_jac(x, params)
+        axis_limits = np.stack([x.min(axis=0), x.max(axis=0)])
+        y = self.model(x, params)
         gt_limits = np.array([0., .25, .5, .75, 1])
 
         # test Greedy
         min_points = 10
-        est = fe.bin_estimation.Greedy(x, y_grad, feature=0)
+        est = fe.bin_estimation.Greedy(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_Greedy = est.solve(min_points)
-        assert  np.sum(np.logical_and(limits_Greedy >= 0 - tol, limits_Greedy <= 0 + tol, )) >= 1
-        assert  np.sum(np.logical_and(limits_Greedy >= .25 - tol, limits_Greedy <= .25 + tol, )) >= 1
-        assert  np.sum(np.logical_and(limits_Greedy >= .5 - tol, limits_Greedy <= .5 + tol, )) >= 1
-        assert  np.sum(np.logical_and(limits_Greedy >= .75 - tol, limits_Greedy <= .75 + tol, )) >= 1
-        assert  np.sum(np.logical_and(limits_Greedy >= 1. - tol, limits_Greedy <= 1. + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_Greedy>= 0 - tol, limits_Greedy <= 0 + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_Greedy>=.25 - tol, limits_Greedy<=.25 + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_Greedy>=.5 - tol, limits_Greedy<=.5 + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_Greedy>=.75 - tol, limits_Greedy<=.75 + tol, )) >= 1
+        assert  np.sum(np.logical_and(limits_Greedy>=1. - tol, limits_Greedy<=1. + tol, )) >= 1
 
         # test DP
         min_points = 10
-        est = fe.bin_estimation.DP(x, y_grad, feature=0)
+        est = fe.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_DP = est.solve(min_points)
         assert  np.sum(np.logical_and(limits_DP >= 0 - tol, limits_DP <= 0 + tol, )) >= 1
         assert  np.sum(np.logical_and(limits_DP >= .25 - tol, limits_DP <= .25 + tol, )) >= 1

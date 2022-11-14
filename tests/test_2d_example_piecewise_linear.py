@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import feature_effect as fe
+import pythia as fe
 import scipy.stats as sps
 import scipy.integrate as integrate
 import pytest
@@ -150,7 +150,7 @@ class TestCase1:
             assert self._bin_limit_in_region(greedy.limits, point, tol)
 
         # test Greedy on points
-        greedy = fe.bin_estimation.Greedy(X, X_jac, feature=0)
+        greedy = fe.bin_estimation.Greedy(X, X_jac, feature=0, axis_limits=gen_dist.axis_limits)
         greedy.solve()
         for i, point in enumerate(gt_list):
             assert self._bin_limit_in_region(greedy.limits, point, tol)
@@ -169,7 +169,7 @@ class TestCase1:
             assert self._bin_limit_in_region(dp.limits, point, tol)
 
         # test Greedy on points
-        dp = fe.bin_estimation.DP(X, X_jac, feature=0)
+        dp = fe.bin_estimation.DP(X, X_jac, feature=0, axis_limits=gen_dist.axis_limits)
         dp.solve()
         for i, point in enumerate(gt_list):
             assert self._bin_limit_in_region(dp.limits, point, tol)

@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from feature_effect.utils import compute_remaining_effect
+from pythia.utils import compute_remaining_effect
 
 
 def affine(x, transform):

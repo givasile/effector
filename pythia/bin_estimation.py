@@ -1,6 +1,6 @@
 import numpy as np
-import feature_effect.utils as utils
-import feature_effect.utils_integrate as integrate
+import pythia.utils as utils
+import pythia.utils_integrate as integrate
 import matplotlib.pyplot as plt
 
 

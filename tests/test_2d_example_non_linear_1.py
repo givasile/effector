@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import feature_effect as fe
+import pythia as fe
 import scipy.stats as sps
 import scipy.integrate as integrate
 import pytest

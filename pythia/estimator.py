@@ -1,8 +1,8 @@
-from feature_effect.dale import DALE
-from feature_effect.ale import ALE
-from feature_effect.pdp import PDP
-from feature_effect.mplot import MPlot
-from feature_effect import visualization as vis
+from pythia.dale import DALE
+from pythia.ale import ALE
+from pythia.pdp import PDP
+from pythia.mplot import MPlot
+from pythia import visualization as vis
 
 
 class Estimator:

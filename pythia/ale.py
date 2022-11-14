@@ -1,6 +1,6 @@
 import typing
-import feature_effect.utils as utils
-import feature_effect.visualization as vis
+import pythia.utils as utils
+import pythia.visualization as vis
 import numpy as np
 
 
