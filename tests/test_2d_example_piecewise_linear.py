@@ -132,10 +132,8 @@ class TestCase1:
         assert np.allclose(y1, y2, rtol=0.1, atol=0.1)
         assert np.allclose(y1, y3, rtol=0.1, atol=0.1)
 
-
     def _bin_limit_in_region(self, limits, point, tol):
         return np.sum(np.logical_and(limits >= point - tol, limits <= point + tol, )) >= 1
-
 
     def test_bin_greedy(self):
         tol = 0.1

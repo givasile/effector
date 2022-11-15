@@ -1,12 +1,10 @@
 import examples.utils as utils
-path = utils.add_parent_path()
-import matplotlib.pyplot as plt
 import numpy as np
-import feature_effect as fe
+import pythia as fe
 import example_models.distributions as dist
 import example_models.models as models
 
-savefig = True
+savefig = False
 np.random.seed(21)
 
 # gen dist
@@ -16,19 +14,18 @@ axis_limits = gen_dist.axis_limits
 
 # model
 model = models.Example3(a1=1, a2=1, a=0)
-# model.plot(axis_limits=axis_limits, nof_points=30)
 
-# # ALE with equal bin sizes
-# dale = fe.DALE(data=X,
-#                model=model.predict,
-#                model_jac=model.jacobian,
-#                axis_limits=axis_limits)
+# ALE with equal bin sizes
+dale = fe.DALE(data=X,
+               model=model.predict,
+               model_jac=model.jacobian,
+               axis_limits=axis_limits)
 
-# alg_params = {"bin_method" : "fixed", "nof_bins" : 20, "min_points_per_bin": 5}
-# dale.fit(features=[0], alg_params=alg_params)
-# y, var, stderr = dale.eval(x=np.linspace(axis_limits[0,0], axis_limits[1,0], 100),
-#                            s=0,
-#                            uncertainty=True)
+alg_params = {"bin_method" : "fixed", "nof_bins" : 20, "min_points_per_bin": 5}
+dale.fit(features=[0], alg_params=alg_params)
+y, var, stderr = dale.eval(x=np.linspace(axis_limits[0,0], axis_limits[1,0], 100),
+                           s=0,
+                           uncertainty=True)
 # if savefig:
 #     pathname = os.path.join(path, "example_1", "dale_fixed_bins.pdf")
 #     dale.plot(s=0, error="std", savefig=pathname)

@@ -59,7 +59,7 @@ class GreedyBase:
     big_M = big_M
 
     def __init__(self, feature: int, xs_min: float, xs_max: float):
-        """Initializer
+        """Initializer.
 
         Parameters
         ----------
@@ -77,8 +77,12 @@ class GreedyBase:
         self.limits: typing.Union[None, np.ndarray] = None
         # self.statistics: typing.Union[None, int] = None
 
-    def bin_loss(self, start: float, stop: float) -> float:
-        """Cost of creating the bin with limits [start, stop]"""
+    def bin_loss(self, start: float, stop: float) -> (float, float):
+        """Cost of creating the bin with limits [start, stop].
+        Returns a tuple, with:
+         (a) f(var): cost, which is a function of the bin-variance (e.g. variance with discount)
+         (b) variance of the bin
+        """
         return NotImplementedError
 
     def bin_valid(self, start: float, stop: float) -> bool:
@@ -132,13 +136,14 @@ class GreedyBase:
 
                 # choose whether to close the bin
                 if i == n_max - 1:
+                    # if last bin, close it
                     close_bin = True
                 else:
-                    # loss_1: close here
-                    loss_1 = self.bin_loss(left_lim, limits[i + 1])[0]
+                    # loss_1: cost if close in this bin
+                    loss_1, _ = self.bin_loss(left_lim, limits[i + 1])
 
-                    # loss_2: close after the next bin
-                    loss_2 = self.bin_loss(left_lim, limits[i + 2])[0]
+                    # loss_2: cost if close after the next bin
+                    loss_2, _ = self.bin_loss(left_lim, limits[i + 2])
 
                     if loss_1 == self.big_M or loss_1 == 0:
                         close_bin = False
