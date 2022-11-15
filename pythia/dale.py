@@ -47,14 +47,14 @@ class DALEBinsGT(FeatureEffectBase):
 
         # bin estimation
         if alg_params["bin_method"] == "fixed":
-            bin_est = be.FixedSizeGT(self.mean, self.var, self.axis_limits, feature=s)
+            bin_est = be.FixedGT(self.mean, self.var, self.axis_limits, feature=s)
             bin_est.solve(min_points=alg_params["min_points_per_bin"],
                           K=alg_params["nof_bins"],
                           enforce_bin_creation = alg_params["enforce_bin_creation"])
         elif alg_params["bin_method"] == "greedy":
-            bin_est = be.GreedyGroundTruth(self.mean, self.var, self.axis_limits, feature=s)
+            bin_est = be.GreedyGT(self.mean, self.var, self.axis_limits, feature=s)
         elif alg_params["bin_method"] == "dp":
-            bin_est = be.DPGroundTruth(self.mean, self.var, self.axis_limits, feature=s)
+            bin_est = be.DPGT(self.mean, self.var, self.axis_limits, feature=s)
 
         # stats per bin
         dale_params = utils.compute_bin_statistics_gt(self.mean, self.var, bin_est.limits)
@@ -126,8 +126,8 @@ class DALE(FeatureEffectBase):
 
         # bin estimation
         if alg_params["bin_method"] == "fixed":
-            bin_est = be.FixedSize(data, data_effect, feature=s,
-                                   axis_limits=self.axis_limits)
+            bin_est = be.Fixed(data, data_effect, feature=s,
+                               axis_limits=self.axis_limits)
             bin_est.solve(min_points = alg_params["min_points_per_bin"],
                           K = alg_params["nof_bins"],
                           enforce_bin_creation = alg_params["enforce_bin_creation"])

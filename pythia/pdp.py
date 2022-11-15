@@ -41,7 +41,7 @@ class FeatureEffectBase:
         func = partial(self.eval_unnorm, s=s, uncertainty=False)
         start = self.axis_limits[0, s]
         stop = self.axis_limits[1, s]
-        z = utils_integrate.normalization_constant_1D_linspace(func, start, stop)
+        z = utils_integrate.mean_1d_linspace(func, start, stop)
         return z
 
     def fit(self,

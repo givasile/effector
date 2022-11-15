@@ -398,11 +398,11 @@ def compute_bin_statistics_gt(mean, var, limits):
     for i in range(limits.shape[0]-1):
         start = limits[i]
         stop = limits[i+1]
-        mu_bin = integrate.normalization_constant_1D(mean, start, stop) / (stop-start)
+        mu_bin = integrate.integrate_1d_quad(mean, start, stop) / (stop - start)
         mean_var = lambda x: (mean(x) - mu_bin)**2
-        var1 = integrate.normalization_constant_1D(var, start, stop)
+        var1 = integrate.integrate_1d_quad(var, start, stop)
         var1 = var1 / (stop-start)
-        var2 = integrate.normalization_constant_1D(mean_var, start, stop)
+        var2 = integrate.integrate_1d_quad(mean_var, start, stop)
         var2 = var2 / (stop-start)
         bin_variance = var1 + var2
 

@@ -2,7 +2,7 @@ import scipy.integrate as integrate
 import numpy as np
 
 
-def normalization_constant_1D(func, start, stop):
+def integrate_1d_quad(func, start, stop):
     """Computes normalization constant of PDP of feature
 
     :param s: index of feature
@@ -17,8 +17,22 @@ def normalization_constant_1D(func, start, stop):
     y = integrate.quad(wrapper, start, stop)[0]
     return y
 
-def normalization_constant_1D_linspace(func, start, stop):
-    """Computes normalization constant of PDP of feature
+
+def integrate_1d_linspace(func, start, stop):
+    """
+
+    :param s: index of feature
+    :returns:
+
+    """
+    x = np.linspace(start, stop, 1000)
+    z = np.sum(func(x)) * (stop - start) / 1000
+    return z
+
+
+def mean_1d_linspace(func, start, stop):
+    """Computes \int_{start}^{stop} func(x) dx
+    func(x) -> y: gets 1D np.array and return 1D np.array
 
     :param s: index of feature
     :returns:

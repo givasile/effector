@@ -5,6 +5,9 @@ np.random.seed(21)
 
 
 class TestCase1:
+    """
+    Tests only whether the solution is valid, not if it is the optimal.
+    """
 
     @staticmethod
     def model(x, par):
@@ -95,7 +98,7 @@ class TestCase1:
         est = pythia.bin_estimation.Greedy(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_greedy = est.solve(min_points)
 
-        assert limits_greedy.size in [1, 2]
+        assert limits_greedy.size == 3
         assert np.allclose(0, limits_greedy[0])
         assert np.allclose(1., limits_greedy[-1])
 

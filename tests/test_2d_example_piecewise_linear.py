@@ -141,9 +141,10 @@ class TestCase1:
         model, gen_dist, X, X_jac = self.create_model_data()
 
         # test greedy GT
-        greedy = fe.bin_estimation.GreedyGroundTruth(self.dale_mean, self.dale_var,
-                                                     gen_dist.axis_limits, feature=0)
-        greedy.solve()
+        greedy = fe.bin_estimation.GreedyGT(self.dale_mean, self.dale_var,
+                                            gen_dist.axis_limits, feature=0)
+
+        greedy.solve(n_max=20)
         for i, point in enumerate(gt_list):
             assert self._bin_limit_in_region(greedy.limits, point, tol)
 
@@ -160,8 +161,8 @@ class TestCase1:
         model, gen_dist, X, X_jac = self.create_model_data()
 
         # test greedy GT
-        dp = fe.bin_estimation.DPGroundTruth(self.dale_mean, self.dale_var,
-                                             gen_dist.axis_limits, feature=0)
+        dp = fe.bin_estimation.DPGT(self.dale_mean, self.dale_var,
+                                    gen_dist.axis_limits, feature=0)
         dp.solve(K=20)
         for i, point in enumerate(gt_list):
             assert self._bin_limit_in_region(dp.limits, point, tol)
