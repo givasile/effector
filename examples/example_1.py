@@ -4,12 +4,12 @@ import example_models.distributions as dist
 import example_models.models as models
 
 # creates 4 points
-x1 = np.array([0., 0.2, 0.8, 1.])
+x1 = np.array([0., 0.2, 0.4, 0.8, 1.])
 x2 = np.random.normal(loc=0, scale=0.01, size=(int(x1.shape[0])))
 x = np.stack((x1, x2), axis=-1)
 
-y_grad = np.array([[10, 10, -10, -10],
-                   [10, 10, -10, -10]]).T
+y_grad = np.array([[10, 11, 10.5, -10, -11],
+                   [10, 10, 10, -10, -10]]).T
 axis_limits = np.stack([x.min(axis=0), x.max(axis=0)])
 
 
@@ -51,6 +51,12 @@ dp.plot()
 
 
 greedy = pythia.bin_estimation.Greedy(x, y_grad, feature=0, axis_limits=axis_limits)
+greedy.solve(min_points=2, n_max=20)
+print(greedy.limits)
+print(greedy.limits_valid)
+greedy.plot()
+
+greedy = pythia.bin_estimation.GreedyGT(mu, var, feature=0, axis_limits=axis_limits)
 greedy.solve(min_points=2, n_max=20)
 print(greedy.limits)
 print(greedy.limits_valid)

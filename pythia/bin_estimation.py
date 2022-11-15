@@ -281,8 +281,8 @@ class DPBase(BinBase):
         Computes the cost for moving from the index of the previous bin (index_before)
         to the index of the next bin (index_next).
         """
-        big_M = self.big_M
 
+        big_M = self.big_M
         if index_before > index_next:
             cost = big_M
         elif index_before == index_next:
@@ -347,7 +347,6 @@ class DPBase(BinBase):
             # for all other bins
             for bin_index in range(1, K):
                 for lim_index_next in range(K + 1):
-
                     # find best solution
                     tmp = []
                     for lim_index_before in range(K + 1):
@@ -357,7 +356,6 @@ class DPBase(BinBase):
                                 lim_index_before, lim_index_next, K
                             )
                         )
-
                     # store best solution
                     matrix[lim_index_next, bin_index] = np.min(tmp)
                     argmatrix[lim_index_next, bin_index] = np.argmin(tmp)
@@ -414,11 +412,13 @@ class DP(DPBase):
         # compute cost
         if data_effect.size < min_points:
             cost = self.big_M
+            cost_var = self.big_M
         else:
             # cost = np.std(data_effect) * (stop-start) / np.sqrt(data_effect.size)
             discount_for_more_points = 1 - 0.3 * (data_effect.size / self.nof_points)
             cost = np.var(data_effect) * (stop - start) * discount_for_more_points
-        return cost, np.var(data_effect)
+            cost_var = np.var(data_effect)
+        return cost, cost_var
 
 
 class DPGT(DPBase):
