@@ -1,5 +1,4 @@
 import examples.utils as utils
-path = utils.add_parent_path()
 import matplotlib.pyplot as plt
 import numpy as np
 import feature_effect as fe

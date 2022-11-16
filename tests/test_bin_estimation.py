@@ -96,7 +96,7 @@ class TestCase1:
         # test Greedy
         min_points = 2
         est = pythia.bin_estimation.Greedy(x, y_grad, feature=0, axis_limits=axis_limits)
-        limits_greedy = est.find(min_points)
+        limits_greedy = est.find(n_max=100, fact=1.05, min_points=min_points)
 
         assert limits_greedy.size == 3
         assert np.allclose(0, limits_greedy[0])
@@ -105,7 +105,7 @@ class TestCase1:
         # test DP
         min_points = 2
         est = pythia.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
-        limits_dp = est.find(min_points, k_max=10)
+        limits_dp = est.find(k_max=10, min_points=min_points)
 
         assert limits_dp.size == 3
         assert np.allclose(0, limits_dp[0])
@@ -118,12 +118,12 @@ class TestCase1:
 
         min_points = 3
         est = pythia.bin_estimation.Greedy(x, y_grad, feature=0, axis_limits=axis_limits)
-        limits_greedy = est.find(min_points)
+        limits_greedy = est.find(n_max=100, fact=1.05, min_points=min_points)
         assert np.allclose(gt_limits, limits_greedy)
 
         min_points = 3
         est = pythia.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
-        limits_dp = est.find(min_points)
+        limits_dp = est.find(k_max=10, min_points=min_points)
         assert np.allclose(gt_limits, limits_dp)
 
     def test_min_points_4(self):
@@ -132,12 +132,12 @@ class TestCase1:
 
         min_points = 4
         est = pythia.bin_estimation.Greedy(x, y_grad, feature=0, axis_limits=axis_limits)
-        limits_greedy = est.find(min_points)
+        limits_greedy = est.find(n_max=100, fact=1.05, min_points=min_points)
         assert np.allclose(gt_limits, limits_greedy)
 
         min_points = 4
         est = pythia.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
-        limits_dp = est.find(min_points)
+        limits_dp = est.find(k_max=10, min_points=min_points)
         assert np.allclose(gt_limits, limits_dp)
 
     def test_min_points_5(self):

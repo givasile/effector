@@ -164,7 +164,7 @@ class TestExample1:
 
         pdp = fe.PDP(data=samples, model=self.f)
         x = np.linspace(0, 1, 1000)
-        y_pred = pdp.eval_unnorm(x, s=0)
+        y_pred = pdp._eval_unnorm(x, s=0)
         y_gt = self.pdp(x)
         assert np.allclose(y_pred, y_gt, atol=1.e-2)
 
@@ -186,7 +186,7 @@ class TestExample1:
 
         # DALE - fixed size
         dale = fe.DALE(data=samples, model=self.f, model_jac=self.f_der)
-        dale.fit(alg_params={"nof_bins": self.k})
+        dale.fit(binning_params={"nof_bins": self.k})
 
         x = np.linspace(0, 1, 1000)
         pred = dale.eval(x, s=0)
@@ -198,7 +198,7 @@ class TestExample1:
         assert np.allclose(pred, gt, atol=1.e-2)
 
         # DALE variable-size
-        dale.fit(alg_params={"bin_method": "dp", "max_nof_bins": 30, "min_points_per_bin": 10})
+        dale.fit(binning_params={"bin_method": "dp", "max_nof_bins": 30, "min_points_per_bin": 10})
 
         x = np.linspace(0, 1, 1000)
         pred = dale.eval(x, s=0)

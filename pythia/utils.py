@@ -327,25 +327,8 @@ def compute_normalizer(limits: np.ndarray, bin_effect: np.ndarray, x):
 
     """
     dx = np.array([limits[i + 1] - limits[i] for i in range(len(limits) - 1)])
-    # eff_on_lims = compute_accumulated_effect((limits[:-1]+ limits[1:])/2, limits, bin_effect, dx)
-    # z = np.sum(eff_on_lims[:-1]*(limits[1:] - limits[:-1]) + bin_effect/2 * ((limits[1:] - limits[:-1])**2))
-    # x = np.linspace(limits[0], limits[-1], 10000)
     z = np.mean(compute_accumulated_effect(x, limits, bin_effect, dx))
     return z
-
-
-def compute_loss(points_per_bin, bin_variance_nans, dx, min_points_per_bin):
-    # discount_for_more_points = .2*(points_per_bin / np.sum(points_per_bin))
-    normalized_error_per_bin = bin_variance_nans
-    aggregated_error_per_bin = bin_variance_nans * dx # (1. - discount_for_more_points)
-
-    if np.sum(points_per_bin < min_points_per_bin) > 0:
-        total_error = np.NaN
-    else:
-        total_error = np.sqrt(np.sum(aggregated_error_per_bin))
-        # error_per_bin = np.sqrt(bin_variance_nans) * dx / np.sqrt(points_per_bin)
-        # error = np.sum(error_per_bin)
-    return total_error, normalized_error_per_bin, aggregated_error_per_bin
 
 
 def compute_fe_parameters(data, data_effect, limits, min_points_per_bin):
@@ -369,16 +352,11 @@ def compute_fe_parameters(data, data_effect, limits, min_points_per_bin):
     # first empty bin
     first_empty_bin = find_first_nan_bin(bin_effect_nans)
 
-    loss, normalized_loss_per_bin, aggregated_loss_per_bin = compute_loss(points_per_bin, bin_variance_nans, dx, min_points_per_bin)
-
     z = compute_normalizer(limits, bin_effect, data)
 
     parameters = {"nof_bins": limits.shape[0] - 1,
                   "limits": limits,
                   "dx": dx,
-                  "loss": loss,
-                  "normalized_loss_per_bin": normalized_loss_per_bin,
-                  "aggregated_loss_per_bin": aggregated_loss_per_bin,
                   "points_per_bin": points_per_bin,
                   "is_bin_empty": is_bin_empty,
                   "bin_effect": bin_effect,

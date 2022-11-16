@@ -117,8 +117,8 @@ class BinBase:
         y_min = np.min(dy_dxs)
         y_max = np.max(dy_dxs)
         plt.vlines(limits, ymin=y_min, ymax=y_max, linestyles="dashed", label="bins")
-        plt.xlabel("x_%d" % (s+1))
-        plt.ylabel("dy/dx_%d" % (s+1))
+        plt.xlabel("x_%d" % (s + 1))
+        plt.ylabel("dy/dx_%d" % (s + 1))
         plt.legend()
         plt.show(block=block)
 
@@ -136,9 +136,10 @@ class GreedyBase(BinBase):
         super(GreedyBase, self).__init__(feature, xs_min, xs_max, data, data_effect, mu, sigma, axis_limits)
 
     def find(self,
-             min_points: typing.Union[None, int] = 10,
              n_max: int = 100,
-             fact: float = 1.05) -> typing.Union[np.ndarray, bool]:
+             fact: float = 1.05,
+             min_points: typing.Union[None, int] = 10,
+             ) -> typing.Union[np.ndarray, bool]:
         """Finds the optimal bins using the Greedy method.
 
         Parameters
@@ -151,9 +152,8 @@ class GreedyBase(BinBase):
         -------
         (K, ) np.ndarray if a solution is feasible, False otherwise
         """
-        assert (
-            min_points >= 2
-        ), "set min_points > 2. Greedy method needs at least two points per bin to estimate the variance."
+        if min_points is not None:
+            assert min_points >= 2, "set min_points > 2 to estimate the variance."
         xs_min = self.xs_min
         xs_max = self.xs_max
         self.min_points = min_points
@@ -219,6 +219,7 @@ class Greedy(GreedyBase):
     """
     Greedy bin splitting based on datapoints, i.e. data, data_effect.
     """
+
     def __init__(self,
                  data: np.ndarray,
                  data_effect: np.ndarray,
@@ -289,7 +290,7 @@ class GreedyGT(GreedyBase):
 
     def _bin_loss(self, start, stop):
         mu_bin = integrate.integrate_1d_linspace(self.mu, start, stop) / (
-            stop - start
+                stop - start
         )
 
         def mean_var(x):
@@ -334,7 +335,7 @@ class DPBase(BinBase):
         stop = self.xs_min + index_stop * dx
         return start, stop
 
-    def _cost_of_move(self, index_before, index_next, K):
+    def _cost_of_move(self, index_before, index_next, K, discount):
         """Compute the cost of move.
 
         Computes the cost for moving from the index of the previous bin (index_before)
@@ -348,7 +349,7 @@ class DPBase(BinBase):
             cost = 0
         else:
             start, stop = self._index_to_position(index_before, index_next, K)
-            cost = self._bin_loss(start, stop)
+            cost = self._bin_loss(start, stop, discount)
         return cost
 
     def _argmatrix_to_limits(self, K):
@@ -378,7 +379,7 @@ class DPBase(BinBase):
         )
         return limits, dx_list
 
-    def find(self, min_points: int = 10, k_max: int = 30):
+    def find(self, k_max: int = 30, min_points: int = 10, discount: float = 0.3):
         """
 
         Parameters
@@ -409,7 +410,7 @@ class DPBase(BinBase):
             bin_index = 0
             for lim_index in range(nof_limits):
                 matrix[lim_index, bin_index] = self._cost_of_move(
-                    bin_index, lim_index, k_max
+                    bin_index, lim_index, k_max, discount
                 )
 
             # for all other bins
@@ -421,7 +422,7 @@ class DPBase(BinBase):
                         tmp.append(
                             matrix[lim_index_before, bin_index - 1]
                             + self._cost_of_move(
-                                lim_index_before, lim_index_next, k_max
+                                lim_index_before, lim_index_next, k_max, discount
                             )
                         )
                     # store best solution
@@ -466,7 +467,7 @@ class DP(DPBase):
             valid = True
         return valid
 
-    def _bin_loss(self, start, stop):
+    def _bin_loss(self, start, stop, discount):
         min_points = self.min_points
         data = self.data[:, self.feature]
         data_effect = self.data_effect[:, self.feature]
@@ -480,7 +481,7 @@ class DP(DPBase):
             cost_var = self.big_M
         else:
             # cost = np.std(data_effect) * (stop-start) / np.sqrt(data_effect.size)
-            discount_for_more_points = 1 - 0.3 * (data_effect.size / self.nof_points)
+            discount_for_more_points = 1 - discount * (data_effect.size / self.nof_points)
             cost = np.var(data_effect) * (stop - start) * discount_for_more_points
             cost_var = np.var(data_effect)
         return cost
@@ -488,7 +489,7 @@ class DP(DPBase):
 
 class DPGT(DPBase):
     def __init__(
-        self, mean: callable, var: callable, axis_limits: np.ndarray, feature: int
+            self, mean: callable, var: callable, axis_limits: np.ndarray, feature: int
     ):
         self.axis_limits = axis_limits
         xs_min = axis_limits[0, feature]
@@ -501,9 +502,9 @@ class DPGT(DPBase):
     def _bin_valid(self, start, stop):
         return True
 
-    def _bin_loss(self, start, stop):
+    def _bin_loss(self, start, stop, discount):
         mu_bin = integrate.integrate_1d_linspace(self.mu, start, stop) / (
-            stop - start
+                stop - start
         )
         mean_var = lambda x: (self.mu(x) - mu_bin) ** 2
         var1 = integrate.integrate_1d_linspace(self.sigma, start, stop)
@@ -514,7 +515,7 @@ class DPGT(DPBase):
 
         # cost = np.std(data_effect) * (stop-start) / np.sqrt(data_effect.size)
         bin_length_pcg = (stop - start) / (self.xs_max - self.xs_min)
-        discount_for_more_points = 1 - 0.3 * bin_length_pcg
+        discount_for_more_points = 1 - discount * bin_length_pcg
         cost = total_var * (stop - start) * discount_for_more_points
         return cost
 
@@ -534,31 +535,29 @@ class FixedBase(BinBase):
     def _bin_valid(self, start, stop):
         return NotImplementedError
 
-    def find(self, nof_bins: int, min_points: typing.Union[None, int] = None, enforce_bin_creation: bool = True):
+    def find(self, nof_bins: int, min_points: typing.Union[None, int] = 10):
         self.min_points = min_points
         self.K = nof_bins
-
-        if min_points is not None:
-            assert (min_points >= 2), "We need at least two points per bin to estimate the variance"
 
         limits, dx = np.linspace(
             self.xs_min, self.xs_max, num=nof_bins + 1, endpoint=True, retstep=True
         )
-        if enforce_bin_creation:
-            self.limits = limits
-            return limits
 
-        valid_binning = True
-        for i in range(nof_bins):
-            start = limits[i]
-            stop = limits[i + 1]
-            if not self._bin_valid(start, stop):
-                valid_binning = False
+        if min_points is not None:
+            assert (min_points >= 2), "We need at least two points per bin to estimate the variance"
 
-        if not valid_binning:
-            self.limits = False
-        else:
-            self.limits = limits
+            # check if enough points in all bins
+            valid_binning = True
+            for i in range(nof_bins):
+                start = limits[i]
+                stop = limits[i + 1]
+                if not self._bin_valid(start, stop):
+                    valid_binning = False
+
+            if not valid_binning:
+                limits = False
+
+        self.limits = limits
         return self.limits
 
 
@@ -602,7 +601,7 @@ class FixedGT(FixedBase):
 
     def _cost_of_bin(self, start, stop):
         mu_bin = integrate.integrate_1d_quad(self.mu, start, stop) / (
-            stop - start
+                stop - start
         )
         mean_var = lambda x: (self.mu(x) - mu_bin) ** 2
         var1 = integrate.integrate_1d_quad(self.sigma, start, stop)

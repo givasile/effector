@@ -6,12 +6,14 @@ from pythia.utils import compute_remaining_effect
 def affine(x, transform):
      return x*transform["std"] + transform["mean"]
 
+
 def scale(x, transform, square=False):
     if square:
         y = x*transform["std"]**2
     else:
         y = x*transform["std"]
     return y
+
 
 def scale_bin(x, scale_x, scale_y, square=False):
     if square:
@@ -54,9 +56,16 @@ def feature_effect_plot(params,
     bin_variance = params["bin_variance"] if scale_y is None else scale_bin(params["bin_variance"], scale_x, scale_y, True)
     bin_effect = params["bin_effect"] if scale_y is None else scale_bin(params["bin_effect"], scale_x, scale_y)
 
-    is_bin_empty = params["points_per_bin"] < min_points_per_bin
+    if min_points_per_bin is not None:
+        is_bin_empty = params["points_per_bin"] < min_points_per_bin
+    else:
+        is_bin_empty = np.ones_like(params["points_per_bin"]) * False
 
-    bins_under_limit = np.argwhere(params["points_per_bin"] < min_points_per_bin)
+    if min_points_per_bin is not None:
+        bins_under_limit = np.argwhere(params["points_per_bin"] < min_points_per_bin)
+    else:
+        bins_under_limit = np.array([])
+
     if bins_under_limit.shape[0] > 0:
         first_empty_bin = bins_under_limit[0][0]
     else:
