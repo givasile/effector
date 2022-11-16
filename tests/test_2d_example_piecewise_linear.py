@@ -144,13 +144,13 @@ class TestCase1:
         greedy = fe.bin_estimation.GreedyGT(self.dale_mean, self.dale_var,
                                             gen_dist.axis_limits, feature=0)
 
-        greedy.solve(n_max=20)
+        greedy.find(n_max=20)
         for i, point in enumerate(gt_list):
             assert self._bin_limit_in_region(greedy.limits, point, tol)
 
         # test Greedy on points
         greedy = fe.bin_estimation.Greedy(X, X_jac, feature=0, axis_limits=gen_dist.axis_limits)
-        greedy.solve()
+        greedy.find()
         for i, point in enumerate(gt_list):
             assert self._bin_limit_in_region(greedy.limits, point, tol)
 
@@ -163,13 +163,13 @@ class TestCase1:
         # test greedy GT
         dp = fe.bin_estimation.DPGT(self.dale_mean, self.dale_var,
                                     gen_dist.axis_limits, feature=0)
-        dp.solve(K=20)
+        dp.find(k_max=20)
         for i, point in enumerate(gt_list):
             assert self._bin_limit_in_region(dp.limits, point, tol)
 
         # test Greedy on points
         dp = fe.bin_estimation.DP(X, X_jac, feature=0, axis_limits=gen_dist.axis_limits)
-        dp.solve()
+        dp.find()
         for i, point in enumerate(gt_list):
             assert self._bin_limit_in_region(dp.limits, point, tol)
 

@@ -84,7 +84,7 @@ bin_est = fe.bin_estimation.BinEstimator(data, y_grad, feature=0)
 bin_est.plot()
 
 bin_est_1 = fe.bin_estimation.BinEstimatorGreedy(data, y_grad, feature=0)
-bin_est_1.solve()
+bin_est_1.find()
 bin_est_1.plot()
 
 

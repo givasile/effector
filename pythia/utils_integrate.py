@@ -26,6 +26,7 @@ def integrate_1d_linspace(func, start, stop):
 
     """
     x = np.linspace(start, stop, 1000)
+    x = 0.5 * (x[:-1] + x[1:])
     z = np.sum(func(x)) * (stop - start) / 1000
     return z
 
@@ -39,6 +40,7 @@ def mean_1d_linspace(func, start, stop):
 
     """
     x = np.linspace(start, stop, 1000)
+    x = 0.5 * (x[:-1] + x[1:])
     z = np.mean(func(x))
     return z
 

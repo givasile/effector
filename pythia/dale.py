@@ -48,9 +48,9 @@ class DALEBinsGT(FeatureEffectBase):
         # bin estimation
         if alg_params["bin_method"] == "fixed":
             bin_est = be.FixedGT(self.mean, self.var, self.axis_limits, feature=s)
-            bin_est.solve(min_points=alg_params["min_points_per_bin"],
-                          K=alg_params["nof_bins"],
-                          enforce_bin_creation = alg_params["enforce_bin_creation"])
+            bin_est.find(nof_bins=alg_params["nof_bins"],
+                         min_points=alg_params["min_points_per_bin"],
+                         enforce_bin_creation=alg_params["enforce_bin_creation"])
         elif alg_params["bin_method"] == "greedy":
             bin_est = be.GreedyGT(self.mean, self.var, self.axis_limits, feature=s)
         elif alg_params["bin_method"] == "dp":
@@ -128,20 +128,19 @@ class DALE(FeatureEffectBase):
         if alg_params["bin_method"] == "fixed":
             bin_est = be.Fixed(data, data_effect, feature=s,
                                axis_limits=self.axis_limits)
-            bin_est.solve(min_points = alg_params["min_points_per_bin"],
-                          K = alg_params["nof_bins"],
-                          enforce_bin_creation = alg_params["enforce_bin_creation"])
+            bin_est.find(nof_bins=alg_params["nof_bins"],
+                         min_points=alg_params["min_points_per_bin"],
+                         enforce_bin_creation=alg_params["enforce_bin_creation"])
         elif alg_params["bin_method"] == "greedy":
-            bin_est = be.Greedy(data, data_effect, feature=s,
-                                axis_limits=self.axis_limits)
-            bin_est.solve(min_points = alg_params["min_points_per_bin"],
-                          n_max= alg_params["nof_bins"])
+            bin_est = be.Greedy(data, data_effect, feature=s, axis_limits=self.axis_limits)
+            bin_est.find(min_points=alg_params["min_points_per_bin"],
+                         n_max= alg_params["nof_bins"])
         elif alg_params["bin_method"] == "dp":
             bin_est = be.DP(data, data_effect, feature=s,
                             axis_limits=self.axis_limits)
-            bin_est.solve(min_points = alg_params["min_points_per_bin"],
-                          K = alg_params["max_nof_bins"])
-        self.bin_est = bin_est
+            bin_est.find(min_points=alg_params["min_points_per_bin"],
+                         k_max=alg_params["max_nof_bins"])
+        # self.bin_est = bin_est
 
         # stats per bin
         assert bin_est.limits is not False, "Impossible to compute bins with enough points for feature " + str(s+1) + " and binning strategy: " + alg_params["bin_method"] + ". Change bin strategy or method parameters."
@@ -267,7 +266,7 @@ def compute_dale_parameters(data: np.ndarray, data_effect: np.ndarray, feature: 
             limits = alg_params["limits"]
         else:
             bin_estimator = be.DP(data, data_effect, feature)
-            limits = bin_estimator.solve(min_points_per_bin, K)
+            limits = bin_estimator.find(min_points_per_bin, K)
 
         # compute dale parameters
         dale_params = utils.compute_fe_parameters(data[:, feature], data_effect[:, feature], limits, min_points_per_bin)
