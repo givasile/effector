@@ -20,7 +20,7 @@ dale = pythia.DALE(data, model_pred, model_jac, axis_limits)
 params = {"bin_method": "fixed", "nof_bins": 20, "min_points_per_bin": 5}
 # params = {"bin_method": "greedy", "max_nof_bins": 20, "min_points_per_bin": 5}
 # params = {"bin_method": "dp", "max_nof_bins": 20, "min_points_per_bin": 5}
-dale.fit(features=0, binning_params=params)
+dale.fit(features=0, params=params)
 y, var, stderr = dale.eval(x=np.linspace(axis_limits[0, 0], axis_limits[1, 0], 100),
                            s=0,
                            uncertainty=True)

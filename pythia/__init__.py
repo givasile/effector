@@ -1,4 +1,4 @@
-from pythia.estimator import Estimator
+from pythia.fe_base import FeatureEffectBase
 from pythia.dale import DALE, DALEGroundTruth, DALEBinsGT
 from pythia.ale import ALE
 from pythia.pdp import PDP, PDPNumerical, PDPGroundTruth, ICE, PDPwithICE

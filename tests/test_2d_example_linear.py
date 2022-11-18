@@ -64,14 +64,14 @@ class TestCase1:
 
         s = 0
         dale = fe.DALE(data=X, model=model.predict, model_jac=model.jacobian)
-        dale.fit(features=0, binning_params={"bin_method": "fixed", "nof_bins": 20})
+        dale.fit(features=0, params={"bin_method": "fixed", "nof_bins": 20})
 
         dale_gt = fe.DALEGroundTruth(self.dale_mean, self.dale_mean_int, self.dale_var,
                                      self.dale_var_int, gen_dist.axis_limits)
         dale_gt.fit(features=0)
 
         dale_gt_bins = fe.DALEBinsGT(self.dale_mean, self.dale_var, gen_dist.axis_limits)
-        dale_gt_bins.fit(features=0, binning_params={"bin_method": "fixed", "nof_bins": 20})
+        dale_gt_bins.fit(features=0, params={"bin_method": "fixed", "nof_bins": 20})
 
         xs = np.linspace(0, 1, 100)
         y1 = dale_gt.eval(xs, s=0)

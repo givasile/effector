@@ -1,94 +1,10 @@
 import typing
 import copy
 import numpy as np
-from functools import partial
 import pythia.visualization as vis
 import pythia.helpers as helpers
 import pythia.utils_integrate as utils_integrate
-
-
-class FeatureEffectBase:
-    empty_symbol = 1e8
-
-    def __init__(self, axis_limits: np.ndarray) -> None:
-        """
-        :param dim: int
-        :param axis_limits: np.ndarray (2, D)
-
-        """
-        # setters
-        self.axis_limits: np.ndarray = axis_limits
-        dim = self.axis_limits.shape[1]
-        self.dim = dim
-
-        # init
-        self.z: np.ndarray = np.ones([dim])*self.empty_symbol
-        self.feature_effect: typing.Dict = {}
-        self.fitted: np.ndarray = np.ones([dim]) * False
-
-    def _eval_unnorm(self, x: np.ndarray, s: int, uncertainty: int = False) -> np.ndarray:
-        raise NotImplementedError
-
-    def _fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
-        raise NotImplementedError
-
-    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
-        raise NotImplementedError
-
-    def _compute_z(self, s: int) -> float:
-        func = partial(self._eval_unnorm, s=s, uncertainty=False)
-        start = self.axis_limits[0, s]
-        stop = self.axis_limits[1, s]
-        z = utils_integrate.mean_1d_linspace(func, start, stop)
-        return z
-
-    def fit(self,
-            features: typing.Union[str, list] = "all",
-            binning_params: typing.Union[None, dict] = {},
-            compute_z: bool = True) -> None:
-        """Compute normalization constants for asked features
-
-        :param
-        :returns: None
-
-        Parameters
-        ----------
-        features: list of features to compute the normalization constant
-        alg_params
-        compute_z
-        """
-        features = helpers.prep_features(features, self.dim)
-        for s in features:
-            self.feature_effect["feature_" + str(s)] = self._fit_feature(s, binning_params)
-            if compute_z:
-                self.z[s] = self._compute_z(s)
-            self.fitted[s] = True
-
-    def eval(self, x: np.ndarray, s: int, uncertainty: bool = False) -> np.ndarray:
-        """Evaluate the feature effect method at x
-
-        Parameters
-        ----------
-        x: np.array (N,)
-        s: index of feature of interest
-        uncertainty: whether to return the std and the estimator variance
-
-        """
-        assert self.axis_limits[0, s] < self.axis_limits[1, s]
-
-        if not self.fitted[s]:
-            self.fit(features=s)
-
-        if self.z[s] == self.empty_symbol:
-            self.z[s] = self._compute_z(s)
-
-        if not uncertainty:
-            y = self._eval_unnorm(x, s, uncertainty=False) - self.z[s]
-            return y
-        else:
-            y, std, estimator_var = self._eval_unnorm(x, s, uncertainty=True)
-            y = y - self.z[s]
-            return y, std, estimator_var
+from pythia.fe_base import FeatureEffectBase
 
 
 class PDP(FeatureEffectBase):
@@ -110,7 +26,7 @@ class PDP(FeatureEffectBase):
         axis_limits = helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
         super(PDP, self).__init__(axis_limits)
 
-    def _fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+    def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
         return {}
 
     def _eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False) -> np.ndarray:
@@ -161,7 +77,7 @@ class PDPNumerical(FeatureEffectBase):
         self.s = s
 
 
-    def _fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+    def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
         return {}
 
 
@@ -213,7 +129,7 @@ class PDPGroundTruth(FeatureEffectBase):
         self.func = func
         super(PDPGroundTruth, self).__init__(axis_limits)
 
-    def _fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+    def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
         return {}
 
     def _eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False) -> np.ndarray:
@@ -262,7 +178,7 @@ class ICE(FeatureEffectBase):
         super(ICE, self).__init__(axis_limits)
 
 
-    def _fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+    def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
         return {}
 
     def _eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False) -> np.ndarray:

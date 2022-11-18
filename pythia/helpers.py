@@ -51,9 +51,4 @@ def prep_dale_fit_params(par: dict):
     else:
         par["min_points_per_bin"] = 10
 
-    if "enforce_bin_creation" in par.keys():
-        assert type(par["enforce_bin_creation"]) == bool
-    else:
-        par["enforce_bin_creation"] = True
-
     return par

@@ -3,7 +3,7 @@ import pythia.utils as utils
 import pythia.visualization as vis
 import pythia.bin_estimation as be
 import pythia.helpers as helpers
-from pythia.pdp import FeatureEffectBase
+from pythia.fe_base import FeatureEffectBase
 import numpy as np
 
 
@@ -21,7 +21,7 @@ class DALE(FeatureEffectBase):
         data: [N, D] np.array, X matrix
         model: Callable [N, D] -> [N,], prediction function
         model_jac: Callable Callable [N, D] -> [N,], jacobian function
-        axis_limits: [2, D] np.ndarray or None, if None
+        axis_limits: [2, D] np.ndarray or None, if None they will be auto computed from the data
         """
         # assertions
         assert data.ndim == 2
@@ -38,7 +38,7 @@ class DALE(FeatureEffectBase):
         self.data_effect = None
 
     def compile(self):
-        """Compute the gradients on data points, using model_jac()
+        """Prepare everything for fitting, i.e., compute the gradients on data points.
         TODO add numerical approximation
         """
         if self.model_jac is not None:
@@ -48,6 +48,21 @@ class DALE(FeatureEffectBase):
             pass
 
     def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
+        """Fit a specific feature, using DALE.
+
+        Parameters
+        ----------
+        feat: index of the feature
+        params: Dict, with fitting-specific parameters
+            - "bin_method": in ["fixed", "greedy", "dp"], which method to use
+            - "nof_bins": int (default 100), how many bins to create -> important only if "fixed" is used
+            - "max_nof_bins: int (default 20), max number of bins -> important only if "greedy" or "dp" is used
+            - "min_points_per_bin" int (default 10), min numbers per bin -> important in all cases
+
+        Returns
+        -------
+
+        """
         params = helpers.prep_dale_fit_params(params)
 
         if self.data_effect is None:
@@ -153,7 +168,7 @@ class DALEGroundTruth(FeatureEffectBase):
         self.var = var
         self.var_int = var_int
 
-    def _fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
+    def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
         return {}
 
     def _eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
@@ -180,18 +195,18 @@ class DALEBinsGT(FeatureEffectBase):
         self.mean = mean
         self.var = var
 
-    def _fit_feature(self, s: int, alg_params: typing.Dict = None) -> typing.Dict:
-        alg_params = helpers.prep_dale_fit_params(alg_params)
+    def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
+        params = helpers.prep_dale_fit_params(params)
 
         # bin estimation
-        if alg_params["bin_method"] == "fixed":
-            bin_est = be.FixedGT(self.mean, self.var, self.axis_limits, feature=s)
-            bin_est.find(nof_bins=alg_params["nof_bins"],
-                         min_points=alg_params["min_points_per_bin"])
-        elif alg_params["bin_method"] == "greedy":
-            bin_est = be.GreedyGT(self.mean, self.var, self.axis_limits, feature=s)
-        elif alg_params["bin_method"] == "dp":
-            bin_est = be.DPGT(self.mean, self.var, self.axis_limits, feature=s)
+        if params["bin_method"] == "fixed":
+            bin_est = be.FixedGT(self.mean, self.var, self.axis_limits, feature=feat)
+            bin_est.find(nof_bins=params["nof_bins"],
+                         min_points=params["min_points_per_bin"])
+        elif params["bin_method"] == "greedy":
+            bin_est = be.GreedyGT(self.mean, self.var, self.axis_limits, feature=feat)
+        elif params["bin_method"] == "dp":
+            bin_est = be.DPGT(self.mean, self.var, self.axis_limits, feature=feat)
 
         # stats per bin
         dale_params = utils.compute_bin_statistics_gt(self.mean, self.var, bin_est.limits)
