@@ -101,10 +101,10 @@ class DALE(FeatureEffectBase):
 
         # stats per bin
         assert bin_est.limits is not False, "Impossible to compute bins with enough points for feature " + str(feat + 1) + " and binning strategy: " + params["bin_method"] + ". Change bin strategy or the parameters of the method"
-        dale_params = utils.compute_fe_parameters(data[:, feat],
-                                                  data_effect[:, feat],
-                                                  bin_est.limits,
-                                                  min_points_per_bin=params["min_points_per_bin"])
+        dale_params = utils.compute_ale_parameters(data[:, feat],
+                                                   data_effect[:, feat],
+                                                   bin_est.limits)
+
         dale_params["limits"] = bin_est.limits
         dale_params["alg_params"] = params
         return dale_params
@@ -121,43 +121,42 @@ class DALE(FeatureEffectBase):
                                                    bin_effect=np.sqrt(params["bin_variance"]),
                                                    dx=params["dx"],
                                                    square=False)
-            estimator_var = utils.compute_accumulated_effect(x,
-                                                   limits=params["limits"],
-                                                   bin_effect=params["bin_estimator_variance"],
-                                                   dx=params["dx"],
-                                                   square=True)
+            std_err = utils.compute_accumulated_effect(x,
+                                                             limits=params["limits"],
+                                                             bin_effect=np.sqrt(params["bin_estimator_variance"]),
+                                                             dx=params["dx"],
+                                                             square=False)
 
-            return y, std, estimator_var
+            return y, std, std_err
         else:
             return y
 
-    def plot(self, s: int = 0,
-             error="std",
+    def plot(self,
+             s: int = 0,
+             error: str = "std",
              scale_x=None,
              scale_y=None,
-             block=False,
-             gt=None,
-             gt_bins=None,
              savefig=False):
-        vis.feature_effect_plot(self.feature_effect["feature_"+str(s)],
-                                self.eval,
-                                s,
-                                error=error,
-                                min_points_per_bin=self.feature_effect["feature_"+str(s)]["alg_params"]["min_points_per_bin"],
-                                title=None,
-                                block=block,
-                                gt=gt,
-                                gt_bins=gt_bins,
-                                scale_x=scale_x,
-                                scale_y=scale_y,
-                                savefig=savefig)
+        """
 
-    def plot_local_effects(self, s: int = 0, limits=True, block=False):
-        xs = self.data[:, s]
-        data_effect = self.data_effect[:, s]
-        if limits:
-            limits = self.feature_effect["feature_" + str(s)]["limits"]
-        vis.plot_local_effects(s, xs, data_effect, limits, block)
+        Parameters
+        ----------
+        s
+        error:
+        scale_x
+        scale_y
+        gt
+        gt_bins
+        block
+        savefig
+        """
+        vis.ale_plot(self.feature_effect["feature_" + str(s)],
+                     self.eval,
+                     s,
+                     error=error,
+                     scale_x=scale_x,
+                     scale_y=scale_y,
+                     savefig=savefig)
 
 
 class DALEGroundTruth(FeatureEffectBase):

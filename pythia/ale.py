@@ -29,7 +29,7 @@ def compute_ale_parameters(data: np.ndarray, model: np.ndarray, feature: int, al
     data_effect = utils.compute_data_effect(data, model, limits, feature)
 
     # compute parameters
-    ale_params = utils.compute_fe_parameters(data[:, feature], data_effect, limits, min_points_per_bin)
+    ale_params = utils.compute_ale_parameters(data[:, feature], data_effect, limits, min_points_per_bin)
     ale_params["method"] = "fixed-size"
     ale_params["min_points_per_bin"] = min_points_per_bin
     return ale_params
@@ -116,16 +116,16 @@ class ALE:
 
     def plot(self, s: int = 0, error="standard error", block=False, gt=None, gt_bins=None, savefig=None):
         title = "ALE: Effect of feature %d" % (s + 1)
-        vis.feature_effect_plot(self.ale_params["feature_" + str(s)],
-                                self.eval,
-                                s,
-                                error=error,
-                                min_points_per_bin=self.ale_params["feature_" + str(s)]["min_points_per_bin"],
-                                title=title,
-                                block=block,
-                                gt=gt,
-                                gt_bins=gt_bins,
-                                savefig=savefig)
+        vis.ale_plot(self.ale_params["feature_" + str(s)],
+                     self.eval,
+                     s,
+                     error=error,
+                     min_points_per_bin=self.ale_params["feature_" + str(s)]["min_points_per_bin"],
+                     title=title,
+                     block=block,
+                     gt=gt,
+                     gt_bins=gt_bins,
+                     savefig=savefig)
 
     def plot_local_effects(self, s: int = 0, K: int = 10, limits=True, block=False):
         data = self.data

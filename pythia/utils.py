@@ -181,17 +181,17 @@ def compute_bin_effect_variance(data, data_effect, limits, bin_effect_mean):
     aggregated_variance_per_bin = np.bincount(ind - 1, variance_per_point, minlength=nof_bins)
     points_per_bin = np.bincount(ind - 1, minlength=nof_bins)
 
-    # if no point lies in a bin, store Nan
+    # if less that two points in a bin, store Nan
     bin_variance = np.divide(aggregated_variance_per_bin,
                              points_per_bin,
                              out=np.ones(aggregated_variance_per_bin.shape,dtype=float)*empty_symbol,
-                             where=points_per_bin != 0)
+                             where=points_per_bin > 1)
 
     # the variance of the estimator
     bin_estimator_variance = np.divide(bin_variance,
                                        points_per_bin,
                                        out=np.ones(aggregated_variance_per_bin.shape, dtype=float)*empty_symbol,
-                                       where=points_per_bin != 0)
+                                       where=points_per_bin > 1)
     return bin_variance, bin_estimator_variance
 
 
@@ -331,7 +331,7 @@ def compute_normalizer(limits: np.ndarray, bin_effect: np.ndarray, x):
     return z
 
 
-def compute_fe_parameters(data, data_effect, limits, min_points_per_bin):
+def compute_ale_parameters(data, data_effect, limits):
 
     dx = np.array([limits[i + 1] - limits[i] for i in range(len(limits) - 1)])
 
@@ -350,9 +350,9 @@ def compute_fe_parameters(data, data_effect, limits, min_points_per_bin):
     bin_estimator_variance = fill_nans(bin_estimator_variance_nans)
 
     # first empty bin
-    first_empty_bin = find_first_nan_bin(bin_effect_nans)
-
-    z = compute_normalizer(limits, bin_effect, data)
+    # first_empty_bin = find_first_nan_bin(bin_effect_nans)
+    #
+    # z = compute_normalizer(limits, bin_effect, data)
 
     parameters = {"nof_bins": limits.shape[0] - 1,
                   "limits": limits,
@@ -362,9 +362,7 @@ def compute_fe_parameters(data, data_effect, limits, min_points_per_bin):
                   "bin_effect": bin_effect,
                   "bin_variance": bin_variance,
                   "bin_variance_nans": bin_variance_nans,
-                  "bin_estimator_variance": bin_estimator_variance,
-                  "z": z,
-                  "first_empty_bin": first_empty_bin}
+                  "bin_estimator_variance": bin_estimator_variance}
     return parameters
 
 

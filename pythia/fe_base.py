@@ -106,7 +106,7 @@ class FeatureEffectBase:
                 self.z[s] = self._compute_z(s)
             self.fitted[s] = True
 
-    def eval(self, x: np.ndarray, s: int, uncertainty: bool = False) -> np.ndarray:
+    def eval(self, x: np.ndarray, s: int, uncertainty: bool = False) -> typing.Union[np.ndarray, typing.Tuple]:
         """Evaluate the feature effect method at x
 
         Parameters
