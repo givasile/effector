@@ -22,21 +22,22 @@ class TestCase1:
         D = 2
         x1_min = 0
         x1_max = 1
-        x2_sigma = 1.
+        x2_sigma = 1.0
         gen_dist = dist.Correlated1(D, x1_min, x1_max, x2_sigma)
 
         # generate points
         X = gen_dist.generate(N=10000)
 
         # ground truth
-        self.pdp_gt = lambda x: b0 + b1*x**2 + b2*(x2_sigma + .5**2) + b3*.5*x
-        self.dale_mean = lambda x: 2*b1*x + b3*x
-        self.dale_mean_int = lambda x: b1*x**2 + b3/2*x**2
+        self.pdp_gt = (
+            lambda x: b0 + b1 * x**2 + b2 * (x2_sigma + 0.5**2) + b3 * 0.5 * x
+        )
+        self.dale_mean = lambda x: 2 * b1 * x + b3 * x
+        self.dale_mean_int = lambda x: b1 * x**2 + b3 / 2 * x**2
         self.dale_var = lambda x: b3 * x2_sigma
         self.dale_var_int = lambda x: b3 * x2_sigma * x
 
         return model, gen_dist, X
-
 
     def test_pdp(self):
         model, gen_dist, X = self.create_model_data()
@@ -50,12 +51,13 @@ class TestCase1:
         pdp_gt.fit(features=0)
 
         xs = np.linspace(gen_dist.axis_limits[0, 0], gen_dist.axis_limits[1, 0], 100)
-        y1 = pdp.eval(xs, s=0)
-        y2 = pdp_gt.eval(xs, s=0)
+        y1 = pdp.eval(xs, feature=0)
+        y2 = pdp_gt.eval(xs, feature=0)
 
         xs = np.linspace(0, 1, 100)
-        assert np.allclose(pdp.eval(xs, s=0), pdp_gt.eval(xs, s=0), rtol=0.1, atol=0.1)
-
+        assert np.allclose(
+            pdp.eval(xs, feature=0), pdp_gt.eval(xs, feature=0), rtol=0.1, atol=0.1
+        )
 
     def test_dale_fixed_bins(self):
         model, gen_dist, X = self.create_model_data()
@@ -64,17 +66,24 @@ class TestCase1:
         dale = fe.DALE(data=X, model=model.predict, model_jac=model.jacobian)
         dale.fit(features=0, params={"bin_method": "fixed", "nof_bins": 20})
 
-        dale_gt = fe.DALEGroundTruth(self.dale_mean, self.dale_mean_int, self.dale_var,
-                                     self.dale_var_int, gen_dist.axis_limits)
+        dale_gt = fe.DALEGroundTruth(
+            self.dale_mean,
+            self.dale_mean_int,
+            self.dale_var,
+            self.dale_var_int,
+            gen_dist.axis_limits,
+        )
         dale_gt.fit(features=0)
 
-        dale_gt_bins = fe.DALEBinsGT(self.dale_mean, self.dale_var, gen_dist.axis_limits)
+        dale_gt_bins = fe.DALEBinsGT(
+            self.dale_mean, self.dale_var, gen_dist.axis_limits
+        )
         dale_gt_bins.fit(features=0, params={"bin_method": "fixed", "nof_bins": 20})
 
         xs = np.linspace(0, 1, 100)
-        y1 = dale_gt.eval(xs, s=0)
-        y2 = dale_gt_bins.eval(xs, s=0)
-        y3 = dale.eval(xs, s=0)
+        y1 = dale_gt.eval(xs, feature=0)
+        y2 = dale_gt_bins.eval(xs, feature=0)
+        y3 = dale.eval(xs, feature=0)
         assert np.allclose(y1, y2, rtol=0.1, atol=0.1)
         assert np.allclose(y1, y3, rtol=0.1, atol=0.1)
 

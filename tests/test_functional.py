@@ -24,7 +24,8 @@ class TestExample1:
     .. math:: 0
 
     """
-    atol = 1.e-2
+
+    atol = 1.0e-2
     n = 100000
     k = 100
 
@@ -88,7 +89,7 @@ class TestExample1:
         y: ndarray with shape (N,2)
          array with the Jacobian on points x
         """
-        y = - np.ones_like(x)
+        y = -np.ones_like(x)
         y[x[:, 0] + x[:, 1] > 1, :] = 0
         return y
 
@@ -110,7 +111,7 @@ class TestExample1:
           the PDP effect evaluation
 
         """
-        return (1 - x)**2 / 2
+        return (1 - x) ** 2 / 2
 
     @staticmethod
     def mplot(x):
@@ -130,7 +131,7 @@ class TestExample1:
           the PDP effect evaluation
 
         """
-        y = 1 - 2*x
+        y = 1 - 2 * x
         y[x > 0.5] = 0
         return y
 
@@ -153,12 +154,11 @@ class TestExample1:
 
         """
         y = -x + 0.375
-        y[x > 0.5] = - .125
+        y[x > 0.5] = -0.125
         return y
 
     def test_pdp(self):
-        """Test PDP approximation is close, i.e. tolerance=10^-2, to the ground-truth.
-        """
+        """Test PDP approximation is close, i.e. tolerance=10^-2, to the ground-truth."""
         n = 10000
         samples = self.generate_samples(n)
 
@@ -166,11 +166,10 @@ class TestExample1:
         x = np.linspace(0, 1, 1000)
         y_pred = pdp._eval_unnorm(x, s=0)
         y_gt = self.pdp(x)
-        assert np.allclose(y_pred, y_gt, atol=1.e-2)
+        assert np.allclose(y_pred, y_gt, atol=1.0e-2)
 
     def test_mplot(self):
-        """Test MPlot approximation is close, i.e. tolerance=10^-2, to the ground-truth.
-        """
+        """Test MPlot approximation is close, i.e. tolerance=10^-2, to the ground-truth."""
         samples = self.generate_samples(self.n)
         tau = (np.max(samples) - np.min(samples)) / self.k
 
@@ -178,7 +177,7 @@ class TestExample1:
         x = np.linspace(0, 1, 1000)
         y_pred = mplot.eval(x, feature=0, tau=tau)
         y_gt = self.mplot(x)
-        assert np.allclose(y_pred, y_gt, atol=1.e-2)
+        assert np.allclose(y_pred, y_gt, atol=1.0e-2)
 
     def test_dale(self):
         # generate data
@@ -189,26 +188,27 @@ class TestExample1:
         dale.fit(params={"nof_bins": self.k})
 
         x = np.linspace(0, 1, 1000)
-        pred = dale.eval(x, s=0)
+        pred = dale.eval(x, feature=0)
         gt = self.ale(x)
-        assert np.allclose(pred, gt, atol=1.e-2)
+        assert np.allclose(pred, gt, atol=1.0e-2)
 
-        pred = dale.eval(x, s=1)
+        pred = dale.eval(x, feature=1)
         gt = self.ale(x)
-        assert np.allclose(pred, gt, atol=1.e-2)
+        assert np.allclose(pred, gt, atol=1.0e-2)
 
         # DALE variable-size
-        dale.fit(params={"bin_method": "dp", "max_nof_bins": 30, "min_points_per_bin": 10})
+        dale.fit(
+            params={"bin_method": "dp", "max_nof_bins": 30, "min_points_per_bin": 10}
+        )
 
         x = np.linspace(0, 1, 1000)
-        pred = dale.eval(x, s=0)
+        pred = dale.eval(x, feature=0)
         gt = self.ale(x)
-        assert np.allclose(pred, gt, atol=1.e-2)
+        assert np.allclose(pred, gt, atol=1.0e-2)
 
-        pred = dale.eval(x, s=1)
+        pred = dale.eval(x, feature=1)
         gt = self.ale(x)
-        assert np.allclose(pred, gt, atol=1.e-2)
-
+        assert np.allclose(pred, gt, atol=1.0e-2)
 
 
 class TestExample2:
@@ -222,7 +222,7 @@ class TestExample2:
 
     """
 
-    atol = 1.e-2
+    atol = 1.0e-2
     n = 100000
     k = 100
 
@@ -305,7 +305,7 @@ class TestExample2:
           the ALE effect evaluation
 
         """
-        z = 1/3
+        z = 1 / 3
         return x**2 - z
 
     @staticmethod
@@ -327,7 +327,7 @@ class TestExample2:
 
         """
         z = 0
-        return x/3 - z
+        return x / 3 - z
 
     # def test_dale(self):
     #     # generate data
@@ -346,14 +346,14 @@ class TestExample2:
     #     gt = self.ale_2(x)
     #     assert np.allclose(pred, gt, atol=self.atol)
 
-        # # DALE variable-size
-        # dale.fit(method="variable-size", alg_params={"max_nof_bins": 30, "min_points_per_bin": 10})
+    # # DALE variable-size
+    # dale.fit(method="variable-size", alg_params={"max_nof_bins": 30, "min_points_per_bin": 10})
 
-        # x = np.linspace(0, 1, 1000)
-        # pred, _, _ = dale.eval(x, s=0)
-        # gt = self.ale_1(x)
-        # assert np.allclose(pred, gt, atol=1.e-2)
+    # x = np.linspace(0, 1, 1000)
+    # pred, _, _ = dale.eval(x, s=0)
+    # gt = self.ale_1(x)
+    # assert np.allclose(pred, gt, atol=1.e-2)
 
-        # pred, _, _ = dale.eval(x, s=1)
-        # gt = self.ale_2(x)
-        # assert np.allclose(pred, gt, atol=1.e-2)
+    # pred, _, _ = dale.eval(x, s=1)
+    # gt = self.ale_2(x)
+    # assert np.allclose(pred, gt, atol=1.e-2)

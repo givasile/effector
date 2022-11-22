@@ -8,11 +8,13 @@ import numpy as np
 
 
 class DALE(FeatureEffectBase):
-    def __init__(self,
-                 data: np.ndarray,
-                 model: callable,
-                 model_jac: callable,
-                 axis_limits: typing.Union[None, np.ndarray] = None):
+    def __init__(
+        self,
+        data: np.ndarray,
+        model: callable,
+        model_jac: callable,
+        axis_limits: typing.Union[None, np.ndarray] = None,
+    ):
         """
         Initializes DALE.
 
@@ -30,8 +32,9 @@ class DALE(FeatureEffectBase):
         self.model = model
         self.model_jac = model_jac
         self.data = data
-        self.D = data.shape[1]
-        axis_limits = helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+        axis_limits = (
+            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+        )
         super(DALE, self).__init__(axis_limits)
 
         # init as None, it will get gradients after compile
@@ -70,8 +73,10 @@ class DALE(FeatureEffectBase):
 
         # drop points outside of limits
         if self.axis_limits is not None:
-            ind = np.logical_and(self.data[:, feat] > self.axis_limits[0, feat],
-                                 self.data[:, feat] < self.axis_limits[1, feat])
+            ind = np.logical_and(
+                self.data[:, feat] > self.axis_limits[0, feat],
+                self.data[:, feat] < self.axis_limits[1, feat],
+            )
             data = self.data[ind, :]
             data_effect = self.data_effect[ind, :]
         else:
@@ -79,84 +84,96 @@ class DALE(FeatureEffectBase):
             data_effect = self.data_effect
 
         # bin estimation
+        assert params["bin_method"] in ["fixed", "greedy", "dp"]
         if params["bin_method"] == "fixed":
-            bin_est = be.Fixed(data,
-                               data_effect,
-                               feature=feat,
-                               axis_limits=self.axis_limits)
-            bin_est.find(nof_bins=params["nof_bins"],
-                         min_points=params["min_points_per_bin"])
+            bin_est = be.Fixed(
+                data, data_effect, feature=feat, axis_limits=self.axis_limits
+            )
+            bin_est.find(
+                nof_bins=params["nof_bins"], min_points=params["min_points_per_bin"]
+            )
 
         elif params["bin_method"] == "greedy":
-            bin_est = be.Greedy(data, data_effect, feature=feat, axis_limits=self.axis_limits)
-            bin_est.find(min_points=params["min_points_per_bin"],
-                         n_max=params["nof_bins"])
-        elif params["bin_method"] == "dp":
-            bin_est = be.DP(data,
-                            data_effect,
-                            feature=feat,
-                            axis_limits=self.axis_limits)
-            bin_est.find(min_points=params["min_points_per_bin"],
-                         k_max=params["max_nof_bins"])
+            bin_est = be.Greedy(
+                data, data_effect, feature=feat, axis_limits=self.axis_limits
+            )
+            bin_est.find(
+                min_points=params["min_points_per_bin"], n_max=params["nof_bins"]
+            )
+        else:
+            bin_est = be.DP(
+                data, data_effect, feature=feat, axis_limits=self.axis_limits
+            )
+            bin_est.find(
+                min_points=params["min_points_per_bin"], k_max=params["max_nof_bins"]
+            )
 
         # stats per bin
-        assert bin_est.limits is not False, "Impossible to compute bins with enough points for feature " + str(feat + 1) + " and binning strategy: " + params["bin_method"] + ". Change bin strategy or the parameters of the method"
-        dale_params = utils.compute_ale_parameters(data[:, feat],
-                                                   data_effect[:, feat],
-                                                   bin_est.limits)
+        assert bin_est.limits is not False, (
+            "Impossible to compute bins with enough points for feature "
+            + str(feat + 1)
+            + " and binning strategy: "
+            + params["bin_method"]
+            + ". Change bin strategy or "
+            "the parameters of the method"
+        )
+        dale_params = utils.compute_ale_params_from_data(
+            data[:, feat], data_effect[:, feat], bin_est.limits
+        )
 
-        dale_params["limits"] = bin_est.limits
         dale_params["alg_params"] = params
         return dale_params
 
     def _eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
         params = self.feature_effect["feature_" + str(s)]
-        y = utils.compute_accumulated_effect(x,
-                                             limits=params["limits"],
-                                             bin_effect=params["bin_effect"],
-                                             dx=params["dx"])
+        y = utils.compute_accumulated_effect(
+            x, limits=params["limits"], bin_effect=params["bin_effect"], dx=params["dx"]
+        )
         if uncertainty:
-            std = utils.compute_accumulated_effect(x,
-                                                   limits=params["limits"],
-                                                   bin_effect=np.sqrt(params["bin_variance"]),
-                                                   dx=params["dx"],
-                                                   square=False)
-            std_err = utils.compute_accumulated_effect(x,
-                                                             limits=params["limits"],
-                                                             bin_effect=np.sqrt(params["bin_estimator_variance"]),
-                                                             dx=params["dx"],
-                                                             square=False)
+            std = utils.compute_accumulated_effect(
+                x,
+                limits=params["limits"],
+                bin_effect=np.sqrt(params["bin_variance"]),
+                dx=params["dx"],
+            )
+            std_err = utils.compute_accumulated_effect(
+                x,
+                limits=params["limits"],
+                bin_effect=np.sqrt(params["bin_estimator_variance"]),
+                dx=params["dx"],
+            )
 
             return y, std, std_err
         else:
             return y
 
-    def plot(self,
-             s: int = 0,
-             error: str = "std",
-             scale_x=None,
-             scale_y=None,
-             savefig=False):
+    def plot(
+        self,
+        s: int = 0,
+        error: typing.Union[None, str] = "std",
+        scale_x=None,
+        scale_y=None,
+        savefig=False,
+    ):
         """
 
         Parameters
         ----------
         s
         error:
-        scale_x
-        scale_y
-        gt
-        gt_bins
-        block
-        savefig
+        scale_x:
+        scale_y:
+        savefig:
         """
-        vis.ale_plot(self.feature_effect["feature_" + str(s)],
-                     self.eval,
-                     s,
-                     error=error,
-                     scale_x=scale_x,
-                     scale_y=scale_y,
-                     savefig=savefig)
+        vis.ale_plot(
+            self.feature_effect["feature_" + str(s)],
+            self.eval,
+            s,
+            error=error,
+            scale_x=scale_x,
+            scale_y=scale_y,
+            savefig=savefig,
+        )
 
 
 class DALEGroundTruth(FeatureEffectBase):
@@ -177,19 +194,23 @@ class DALEGroundTruth(FeatureEffectBase):
             return self.mean_int(x), self.var_int(x), None
 
     def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
-        """Plot the s-th feature
-        """
+        """Plot the s-th feature"""
         # getters
         x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
         if normalized:
             y = self.eval(x, s)
         else:
             y = self._eval_unnorm(x, s)
-        vis.plot_1D(x, y, title="Ground-truth ALE for feature %d" % (s+1))
+        vis.plot_1d(x, y, title="Ground-truth ALE for feature %d" % (s + 1))
 
 
 class DALEBinsGT(FeatureEffectBase):
-    def __init__(self, mean, var, axis_limits):
+    def __init__(
+        self,
+        mean: callable,
+        var: callable,
+        axis_limits: typing.Union[None, np.ndarray] = None,
+    ):
         super(DALEBinsGT, self).__init__(axis_limits)
         self.mean = mean
         self.var = var
@@ -198,32 +219,35 @@ class DALEBinsGT(FeatureEffectBase):
         params = helpers.prep_dale_fit_params(params)
 
         # bin estimation
+        assert params["bin_method"] in ["fixed", "greedy", "dp"]
         if params["bin_method"] == "fixed":
             bin_est = be.FixedGT(self.mean, self.var, self.axis_limits, feature=feat)
-            bin_est.find(nof_bins=params["nof_bins"],
-                         min_points=params["min_points_per_bin"])
+            bin_est.find(
+                nof_bins=params["nof_bins"], min_points=params["min_points_per_bin"]
+            )
         elif params["bin_method"] == "greedy":
             bin_est = be.GreedyGT(self.mean, self.var, self.axis_limits, feature=feat)
-        elif params["bin_method"] == "dp":
+        else:
             bin_est = be.DPGT(self.mean, self.var, self.axis_limits, feature=feat)
 
         # stats per bin
-        dale_params = utils.compute_bin_statistics_gt(self.mean, self.var, bin_est.limits)
+        dale_params = utils.compute_ale_params_from_gt(self.mean, bin_est.limits)
         dale_params["limits"] = bin_est.limits
         return dale_params
 
     def _eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
         params = self.feature_effect["feature_" + str(s)]
-        y = utils.compute_accumulated_effect(x,
-                                             limits=params["limits"],
-                                             bin_effect=params["bin_effect"],
-                                             dx=params["dx"])
+        y = utils.compute_accumulated_effect(
+            x, limits=params["limits"], bin_effect=params["bin_effect"], dx=params["dx"]
+        )
         if uncertainty:
-            var = utils.compute_accumulated_effect(x,
-                                                   limits=params["limits"],
-                                                   bin_effect=params["bin_variance"],
-                                                   dx=params["dx"],
-                                                   square=True)
+            var = utils.compute_accumulated_effect(
+                x,
+                limits=params["limits"],
+                bin_effect=params["bin_variance"],
+                dx=params["dx"],
+                square=True,
+            )
             return y, var
         else:
             return y
@@ -234,4 +258,4 @@ class DALEBinsGT(FeatureEffectBase):
             y = self.eval(x, s)
         else:
             y = self._eval_unnorm(x, s)
-        vis.plot_1D(x, y, title="ALE GT Bins for feature %d" % (s+1))
+        vis.plot_1d(x, y, title="ALE GT Bins for feature %d" % (s + 1))

@@ -57,10 +57,12 @@ def expectation_1D(xs, func, p_xc, s, start=-np.inf, stop=np.inf):
     :returns:
 
     """
+
     def func_wrap(xc):
         x = np.array([xs, xc]) if s == 0 else np.array([xc, xs])
         x = np.expand_dims(x, axis=0)
         return func(x)[0] * p_xc(xc)
+
     return integrate.quad(func_wrap, start, stop)
 
 
@@ -76,6 +78,7 @@ def expecation_2D(xs, func, p_xc, s, axis_limits):
     :returns:
 
     """
+
     def func_wrap(xc1, xc2):
         if s == 0:
             x = np.array([xs, xc1, xc2])
@@ -92,4 +95,6 @@ def expecation_2D(xs, func, p_xc, s, axis_limits):
     def hfun(xxc2):
         return axis_limits[1, 1]
 
-    return integrate.dblquad(func_wrap, axis_limits[0, 2], axis_limits[1, 2], gfun, hfun)
+    return integrate.dblquad(
+        func_wrap, axis_limits[0, 2], axis_limits[1, 2], gfun, hfun
+    )

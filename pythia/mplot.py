@@ -29,6 +29,6 @@ class MPlot:
         y = self.eval(x, feature, tau)
 
         plt.figure()
-        plt.title("MPlot for feature %d" % (feature+1))
+        plt.title("MPlot for feature %d" % (feature + 1))
         plt.plot(x, y, "b-")
         plt.show(block=False)

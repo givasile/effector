@@ -18,17 +18,15 @@ class FeatureEffectBase:
 
         # init now -> will be filled later
         # normalization constant per feature for centering the FE plot
-        self.z: np.ndarray = np.ones([self.dim])*self.empty_symbol
+        self.z: np.ndarray = np.ones([self.dim]) * self.empty_symbol
         # dictionary with fe plot details. keys are "feature_s", where s is the index of the feature
         self.feature_effect: typing.Dict = {}
         # boolean variable for whether a FE plot has been computed
         self.fitted: np.ndarray = np.ones([self.dim]) * False
 
-    def _eval_unnorm(self,
-                     x: np.ndarray,
-                     s: int,
-                     uncertainty: int = False
-                     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    def _eval_unnorm(
+        self, x: np.ndarray, s: int, uncertainty: int = False
+    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """Compute the effect of the s-th feature at x.
         If uncertainty is False, returns a [N,] np.ndarray with the evaluation of the plot
         If uncertainty is True, returna a tuple (y, sigma, stderr) where:
@@ -84,10 +82,12 @@ class FeatureEffectBase:
         z = utils_integrate.mean_1d_linspace(func, start, stop)
         return z
 
-    def fit(self,
-            features: typing.Union[int, str, list] = "all",
-            params: typing.Union[None, dict] = {},
-            compute_z: bool = True) -> None:
+    def fit(
+        self,
+        features: typing.Union[int, str, list] = "all",
+        params: typing.Union[None, dict] = {},
+        compute_z: bool = True,
+    ) -> None:
         """Fit feature effect plot for the asked features
 
         Parameters
@@ -106,29 +106,31 @@ class FeatureEffectBase:
                 self.z[s] = self._compute_z(s)
             self.fitted[s] = True
 
-    def eval(self, x: np.ndarray, s: int, uncertainty: bool = False) -> typing.Union[np.ndarray, typing.Tuple]:
+    def eval(
+        self, x: np.ndarray, feature: int, uncertainty: bool = False
+    ) -> typing.Union[np.ndarray, typing.Tuple]:
         """Evaluate the feature effect method at x
 
         Parameters
         ----------
 
         x: np.array (N,)
-        s: index of feature of interest
+        feature: index of feature of interest
         uncertainty: whether to return the std and the estimator variance
 
         """
-        assert self.axis_limits[0, s] < self.axis_limits[1, s]
+        assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
 
-        if not self.fitted[s]:
-            self.fit(features=s)
+        if not self.fitted[feature]:
+            self.fit(features=feature)
 
-        if self.z[s] == self.empty_symbol:
-            self.z[s] = self._compute_z(s)
+        if self.z[feature] == self.empty_symbol:
+            self.z[feature] = self._compute_z(feature)
 
         if not uncertainty:
-            y = self._eval_unnorm(x, s, uncertainty=False) - self.z[s]
+            y = self._eval_unnorm(x, feature, uncertainty=False) - self.z[feature]
             return y
         else:
-            y, std, estimator_var = self._eval_unnorm(x, s, uncertainty=True)
-            y = y - self.z[s]
+            y, std, estimator_var = self._eval_unnorm(x, feature, uncertainty=True)
+            y = y - self.z[feature]
             return y, std, estimator_var

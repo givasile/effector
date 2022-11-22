@@ -11,7 +11,6 @@ def prep_features(feat: typing.Union[str, list], D) -> list:
     return feat
 
 
-
 def axis_limits_from_data(data: np.ndarray) -> np.ndarray:
     """
 
