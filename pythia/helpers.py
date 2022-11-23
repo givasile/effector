@@ -48,6 +48,14 @@ def prep_dale_fit_params(par: dict):
     if "min_points_per_bin" in par.keys():
         assert type(par["max_nof_bins"]) == int
     else:
-        par["min_points_per_bin"] = 10
+        par["min_points_per_bin"] = None
 
+    return par
+
+
+def prep_ale_fit_params(par: dict):
+    if "nof_bins" in par.keys():
+        assert type(par["nof_bins"]) == int
+    else:
+        par["nof_bins"] = 100
     return par

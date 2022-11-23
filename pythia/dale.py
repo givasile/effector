@@ -72,16 +72,12 @@ class DALE(FeatureEffectBase):
             self.compile()
 
         # drop points outside of limits
-        if self.axis_limits is not None:
-            ind = np.logical_and(
-                self.data[:, feat] > self.axis_limits[0, feat],
-                self.data[:, feat] < self.axis_limits[1, feat],
-            )
-            data = self.data[ind, :]
-            data_effect = self.data_effect[ind, :]
-        else:
-            data = self.data
-            data_effect = self.data_effect
+        ind = np.logical_and(
+            self.data[:, feat] >= self.axis_limits[0, feat],
+            self.data[:, feat] <= self.axis_limits[1, feat],
+        )
+        data = self.data[ind, :]
+        data_effect = self.data_effect[ind, :]
 
         # bin estimation
         assert params["bin_method"] in ["fixed", "greedy", "dp"]

@@ -577,8 +577,8 @@ class Fixed(FixedBase):
     def _bin_valid(self, start, stop):
         xs = self.data[:, self.feature]
         dy_dxs = self.data_effect[:, self.feature]
-        _, effect_1 = utils.filter_points_in_bin(xs, dy_dxs, np.array([start, stop]))
-        valid = effect_1.size >= self.min_points
+        xs_1, _ = utils.filter_points_in_bin(xs, dy_dxs, np.array([start, stop]))
+        valid = xs_1.size >= self.min_points
         return valid
 
     def _cost_of_bin(self, start, stop):
