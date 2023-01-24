@@ -29,7 +29,7 @@ class FeatureEffectBase:
     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """Compute the effect of the s-th feature at x.
         If uncertainty is False, returns a [N,] np.ndarray with the evaluation of the plot
-        If uncertainty is True, returna a tuple (y, sigma, stderr) where:
+        If uncertainty is True, returns a tuple (y, sigma, stderr) where:
          - y: is a [N,] np.ndarray with the expected effect
          - sigma: is a [N,] np.ndarray with the expected uncertainty
          - stderr: is a [N,] np.ndarray with the standard error of the expeceted effect
@@ -49,7 +49,6 @@ class FeatureEffectBase:
 
     def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
         """Fit a feature effect plot.
-
 
         Parameters
         ----------

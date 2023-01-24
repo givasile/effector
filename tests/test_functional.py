@@ -3,6 +3,8 @@ import numpy as np
 import pythia as fe
 
 # set global seed
+import pythia.binning_methods
+
 np.random.seed(21)
 
 
@@ -185,7 +187,8 @@ class TestExample1:
 
         # DALE - fixed size
         dale = fe.DALE(data=samples, model=self.f, model_jac=self.f_der)
-        dale.fit(params={"nof_bins": self.k})
+        binning = pythia.binning_methods.Fixed(nof_bins=self.k)
+        dale.fit(binning_method=binning)
 
         x = np.linspace(0, 1, 1000)
         pred = dale.eval(x, feature=0)
@@ -197,9 +200,8 @@ class TestExample1:
         assert np.allclose(pred, gt, atol=1.0e-2)
 
         # DALE variable-size
-        dale.fit(
-            params={"bin_method": "dp", "max_nof_bins": 30, "min_points_per_bin": 10}
-        )
+        binning = pythia.binning_methods.DynamicProgramming(max_nof_bins=30, min_points_per_bin=10)
+        dale.fit(binning_method=binning)
 
         x = np.linspace(0, 1, 1000)
         pred = dale.eval(x, feature=0)

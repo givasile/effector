@@ -1,9 +1,5 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import pythia as fe
-import scipy.stats as sps
-import scipy.integrate as integrate
-import pytest
+import pythia
 import example_models.models as models
 import example_models.distributions as dist
 
@@ -42,7 +38,7 @@ class TestCase1:
 
         # pdp monte carlo approximation
         s = 0
-        pdp = fe.PDP(data=X, model=model.predict, axis_limits=gen_dist.axis_limits)
+        pdp = pythia.pdp.PDP(data=X, model=model.predict, axis_limits=gen_dist.axis_limits)
         pdp.fit(features=0)
 
         # pdp numerical approximation
@@ -51,7 +47,7 @@ class TestCase1:
         # pdp_numerical.fit(features=0)
 
         # pdp ground truth
-        pdp_gt = fe.PDPGroundTruth(self.pdp_gt, gen_dist.axis_limits)
+        pdp_gt = pythia.pdp.PDPGroundTruth(self.pdp_gt, gen_dist.axis_limits)
         pdp_gt.fit(features=0)
 
         xs = np.linspace(gen_dist.axis_limits[0, 0], gen_dist.axis_limits[1, 0], 100)
@@ -63,10 +59,11 @@ class TestCase1:
         model, gen_dist, X = self.create_model_data()
 
         s = 0
-        dale = fe.DALE(data=X, model=model.predict, model_jac=model.jacobian)
-        dale.fit(features=0, params={"bin_method": "fixed", "nof_bins": 20})
+        dale = pythia.DALE(data=X, model=model.predict, model_jac=model.jacobian)
+        binning = pythia.binning_methods.Fixed(nof_bins=20)
+        dale.fit(features=0, binning_method=binning)
 
-        dale_gt = fe.DALEGroundTruth(
+        dale_gt = pythia.dale.DALEGroundTruth(
             self.dale_mean,
             self.dale_mean_int,
             self.dale_var,
@@ -75,10 +72,11 @@ class TestCase1:
         )
         dale_gt.fit(features=0)
 
-        dale_gt_bins = fe.DALEBinsGT(
+        dale_gt_bins = pythia.dale.DALEBinsGT(
             self.dale_mean, self.dale_var, gen_dist.axis_limits
         )
-        dale_gt_bins.fit(features=0, params={"bin_method": "fixed", "nof_bins": 20})
+        binning = pythia.binning_methods.Fixed(nof_bins=20)
+        dale_gt_bins.fit(features=0, binning_method=binning)
 
         xs = np.linspace(0, 1, 100)
         y1 = dale_gt.eval(xs, feature=0)

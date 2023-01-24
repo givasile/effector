@@ -2,7 +2,7 @@ import typing
 import pythia.utils as utils
 import pythia.visualization as vis
 import numpy as np
-from pythia import FeatureEffectBase
+from pythia.fe_base import FeatureEffectBase
 from pythia import helpers
 from pythia import bin_estimation as be
 

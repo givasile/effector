@@ -5,7 +5,7 @@ import sys
 
 # hack to import mdale
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-import feature_effect.utils as utils
+import pythia.utils as utils
 
 
 def measure_time(k, n):

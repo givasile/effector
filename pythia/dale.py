@@ -1,4 +1,6 @@
 import typing
+
+import pythia.binning_methods
 import pythia.utils as utils
 import pythia.visualization as vis
 import pythia.bin_estimation as be
@@ -22,7 +24,7 @@ class DALE(FeatureEffectBase):
         ----------
         data: [N, D] np.array, X matrix
         model: Callable [N, D] -> [N,], prediction function
-        model_jac: Callable Callable [N, D] -> [N,], jacobian function
+        model_jac: Callable [N, D] -> [N,D], jacobian function
         axis_limits: [2, D] np.ndarray or None, if None they will be auto computed from the data
         """
         # assertions
@@ -50,7 +52,7 @@ class DALE(FeatureEffectBase):
             # TODO add numerical approximation
             pass
 
-    def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
+    def _fit_feature(self, feat: int, params) -> typing.Dict:
         """Fit a specific feature, using DALE.
 
         Parameters
@@ -66,7 +68,7 @@ class DALE(FeatureEffectBase):
         -------
 
         """
-        params = helpers.prep_dale_fit_params(params)
+        # params = helpers.prep_dale_fit_params(params)
 
         if self.data_effect is None:
             self.compile()
@@ -80,28 +82,25 @@ class DALE(FeatureEffectBase):
         data_effect = self.data_effect[ind, :]
 
         # bin estimation
-        assert params["bin_method"] in ["fixed", "greedy", "dp"]
-        if params["bin_method"] == "fixed":
+        # assert params["bin_method"] in ["fixed", "greedy", "dp"]
+        if isinstance(params, pythia.binning_methods.Fixed):
             bin_est = be.Fixed(
                 data, data_effect, feature=feat, axis_limits=self.axis_limits
             )
-            bin_est.find(
-                nof_bins=params["nof_bins"], min_points=params["min_points_per_bin"]
-            )
-
-        elif params["bin_method"] == "greedy":
+            bin_est.find(nof_bins=params.nof_bins, min_points=params.min_points_per_bin)
+        elif isinstance(params, pythia.binning_methods.Greedy):
             bin_est = be.Greedy(
                 data, data_effect, feature=feat, axis_limits=self.axis_limits
             )
             bin_est.find(
-                min_points=params["min_points_per_bin"], n_max=params["nof_bins"]
+                min_points=params.min_points_per_bin, n_max=params.max_nof_bins, fact=params.fact
             )
-        else:
+        elif isinstance(params, pythia.binning_methods.DynamicProgramming):
             bin_est = be.DP(
                 data, data_effect, feature=feat, axis_limits=self.axis_limits
             )
             bin_est.find(
-                min_points=params["min_points_per_bin"], k_max=params["max_nof_bins"]
+                min_points=params.min_points_per_bin, k_max=params.max_nof_bins, discount=params.discount
             )
 
         # stats per bin
@@ -119,6 +118,41 @@ class DALE(FeatureEffectBase):
 
         dale_params["alg_params"] = params
         return dale_params
+
+    def fit(self,
+            features: typing.Union[int, str, list] = "all",
+            binning_method="fixed",
+            compute_z: bool = True,
+        ) -> None:
+        """Fit feature effect plot for the asked features
+
+        Parameters
+        ----------
+        features: features to compute the normalization constant
+            - "all", all features
+            - int, the index of the feature
+            - list, list of indexes of the features
+        binning_method: dictionary with method-specific parameters for fitting the FE plots
+        compute_z: bool, whether to compute the normalization constants
+        """
+
+        # if binning_method is a string -> make it a class
+        if isinstance(binning_method, str):
+            assert binning_method in ["fixed", "greedy", "dynamic_programming"]
+            if binning_method == "fixed":
+                tmp = pythia.binning_methods.Fixed()
+            elif binning_method == "greedy":
+                tmp = pythia.binning_methods.Greedy()
+            else:
+                tmp = pythia.binning_methods.DynamicProgramming()
+            binning_method = tmp
+
+        features = helpers.prep_features(features, self.dim)
+        for s in features:
+            self.feature_effect["feature_" + str(s)] = self._fit_feature(s, binning_method)
+            if compute_z:
+                self.z[s] = self._compute_z(s)
+            self.fitted[s] = True
 
     def _eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
         params = self.feature_effect["feature_" + str(s)]
@@ -183,6 +217,11 @@ class DALEGroundTruth(FeatureEffectBase):
     def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
         return {}
 
+    def fit(self, features: typing.Union[int, str, list] = "all"):
+        features = helpers.prep_features(features, self.dim)
+        for s in features:
+            self.fitted[s] = True
+
     def _eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
         if not uncertainty:
             return self.mean_int(x)
@@ -211,22 +250,45 @@ class DALEBinsGT(FeatureEffectBase):
         self.mean = mean
         self.var = var
 
-    def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
-        params = helpers.prep_dale_fit_params(params)
+    def _fit_feature(self, feat: int, params) -> typing.Dict:
+        """Fit a specific feature, using DALE.
 
-        # bin estimation
-        assert params["bin_method"] in ["fixed", "greedy", "dp"]
-        if params["bin_method"] == "fixed":
+        Parameters
+        ----------
+        feat: index of the feature
+        params: Dict, with fitting-specific parameters
+            - "bin_method": in ["fixed", "greedy", "dp"], which method to use
+            - "nof_bins": int (default 100), how many bins to create -> important only if "fixed" is used
+            - "max_nof_bins: int (default 20), max number of bins -> important only if "greedy" or "dp" is used
+            - "min_points_per_bin" int (default 10), min numbers per bin -> important in all cases
+
+        Returns
+        -------
+
+        """
+        if isinstance(params, pythia.binning_methods.Fixed):
             bin_est = be.FixedGT(self.mean, self.var, self.axis_limits, feature=feat)
-            bin_est.find(
-                nof_bins=params["nof_bins"], min_points=params["min_points_per_bin"]
-            )
-        elif params["bin_method"] == "greedy":
+            bin_est.find(nof_bins=params.nof_bins, min_points=params.min_points_per_bin)
+        elif isinstance(params, pythia.binning_methods.Greedy):
             bin_est = be.GreedyGT(self.mean, self.var, self.axis_limits, feature=feat)
-        else:
+            bin_est.find(
+                min_points=params.min_points_per_bin, n_max=params.max_nof_bins, fact=params.fact
+            )
+        elif isinstance(params, pythia.binning_methods.DynamicProgramming):
             bin_est = be.DPGT(self.mean, self.var, self.axis_limits, feature=feat)
+            bin_est.find(
+                min_points=params.min_points_per_bin, k_max=params.max_nof_bins, discount=params.discount
+            )
 
         # stats per bin
+        assert bin_est.limits is not False, (
+            "Impossible to compute bins with enough points for feature "
+            + str(feat + 1)
+            + " and binning strategy: "
+            + params["bin_method"]
+            + ". Change bin strategy or "
+            "the parameters of the method"
+        )
         dale_params = utils.compute_ale_params_from_gt(self.mean, bin_est.limits)
         dale_params["limits"] = bin_est.limits
         return dale_params
@@ -247,6 +309,41 @@ class DALEBinsGT(FeatureEffectBase):
             return y, var
         else:
             return y
+
+    def fit(self,
+            features: typing.Union[int, str, list] = "all",
+            binning_method="fixed",
+            compute_z: bool = True,
+        ) -> None:
+        """Fit feature effect plot for the asked features
+
+        Parameters
+        ----------
+        features: features to compute the normalization constant
+            - "all", all features
+            - int, the index of the feature
+            - list, list of indexes of the features
+        binning_method: dictionary with method-specific parameters for fitting the FE plots
+        compute_z: bool, whether to compute the normalization constants
+        """
+
+        # if binning_method is a string -> make it a class
+        if isinstance(binning_method, str):
+            assert binning_method in ["fixed", "greedy", "dynamic_programming"]
+            if binning_method == "fixed":
+                tmp = pythia.binning_methods.Fixed()
+            elif binning_method == "greedy":
+                tmp = pythia.binning_methods.Greedy()
+            else:
+                tmp = pythia.binning_methods.DynamicProgramming()
+            binning_method = tmp
+
+        features = helpers.prep_features(features, self.dim)
+        for s in features:
+            self.feature_effect["feature_" + str(s)] = self._fit_feature(s, binning_method)
+            if compute_z:
+                self.z[s] = self._compute_z(s)
+            self.fitted[s] = True
 
     def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
         x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
