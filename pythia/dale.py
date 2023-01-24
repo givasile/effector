@@ -122,8 +122,8 @@ class DALE(FeatureEffectBase):
     def fit(self,
             features: typing.Union[int, str, list] = "all",
             binning_method="fixed",
-            compute_z: bool = True,
-        ) -> None:
+            normalize: bool = True,
+            ) -> None:
         """Fit feature effect plot for the asked features
 
         Parameters
@@ -133,7 +133,7 @@ class DALE(FeatureEffectBase):
             - int, the index of the feature
             - list, list of indexes of the features
         binning_method: dictionary with method-specific parameters for fitting the FE plots
-        compute_z: bool, whether to compute the normalization constants
+        normalize: bool, whether to compute the normalization constants
         """
 
         # if binning_method is a string -> make it a class
@@ -150,12 +150,12 @@ class DALE(FeatureEffectBase):
         features = helpers.prep_features(features, self.dim)
         for s in features:
             self.feature_effect["feature_" + str(s)] = self._fit_feature(s, binning_method)
-            if compute_z:
-                self.z[s] = self._compute_z(s)
-            self.fitted[s] = True
+            if normalize:
+                self.norm_const[s] = self._compute_norm_const(s)
+            self.is_fitted[s] = True
 
-    def _eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
-        params = self.feature_effect["feature_" + str(s)]
+    def _eval_unnorm(self, feature: int, x: np.ndarray, uncertainty: bool = False):
+        params = self.feature_effect["feature_" + str(feature)]
         y = utils.compute_accumulated_effect(
             x, limits=params["limits"], bin_effect=params["bin_effect"], dx=params["dx"]
         )
@@ -179,7 +179,7 @@ class DALE(FeatureEffectBase):
 
     def plot(
         self,
-        s: int = 0,
+        feature: int = 0,
         error: typing.Union[None, str] = "std",
         scale_x=None,
         scale_y=None,
@@ -196,9 +196,9 @@ class DALE(FeatureEffectBase):
         savefig:
         """
         vis.ale_plot(
-            self.feature_effect["feature_" + str(s)],
+            self.feature_effect["feature_" + str(feature)],
             self.eval,
-            s,
+            feature,
             error=error,
             scale_x=scale_x,
             scale_y=scale_y,
@@ -220,22 +220,22 @@ class DALEGroundTruth(FeatureEffectBase):
     def fit(self, features: typing.Union[int, str, list] = "all"):
         features = helpers.prep_features(features, self.dim)
         for s in features:
-            self.fitted[s] = True
+            self.is_fitted[s] = True
 
-    def _eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
+    def _eval_unnorm(self, feature: int, x: np.ndarray, uncertainty: bool = False):
         if not uncertainty:
             return self.mean_int(x)
         else:
             return self.mean_int(x), self.var_int(x), None
 
-    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+    def plot(self, feature: int, normalized: bool = True, nof_points: int = 30) -> None:
         """Plot the s-th feature"""
         # getters
-        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+        x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
         if normalized:
-            y = self.eval(x, s)
+            y = self.eval(x, feature)
         else:
-            y = self._eval_unnorm(x, s)
+            y = self._eval_unnorm(x, feature)
         vis.plot_1d(x, y, title="Ground-truth ALE for feature %d" % (s + 1))
 
 
@@ -293,8 +293,8 @@ class DALEBinsGT(FeatureEffectBase):
         dale_params["limits"] = bin_est.limits
         return dale_params
 
-    def _eval_unnorm(self, x: np.ndarray, s: int, uncertainty: bool = False):
-        params = self.feature_effect["feature_" + str(s)]
+    def _eval_unnorm(self, feature: int, x: np.ndarray, uncertainty: bool = False):
+        params = self.feature_effect["feature_" + str(feature)]
         y = utils.compute_accumulated_effect(
             x, limits=params["limits"], bin_effect=params["bin_effect"], dx=params["dx"]
         )
@@ -313,8 +313,8 @@ class DALEBinsGT(FeatureEffectBase):
     def fit(self,
             features: typing.Union[int, str, list] = "all",
             binning_method="fixed",
-            compute_z: bool = True,
-        ) -> None:
+            normalize: bool = True,
+            ) -> None:
         """Fit feature effect plot for the asked features
 
         Parameters
@@ -324,7 +324,7 @@ class DALEBinsGT(FeatureEffectBase):
             - int, the index of the feature
             - list, list of indexes of the features
         binning_method: dictionary with method-specific parameters for fitting the FE plots
-        compute_z: bool, whether to compute the normalization constants
+        normalize: bool, whether to compute the normalization constants
         """
 
         # if binning_method is a string -> make it a class
@@ -341,14 +341,14 @@ class DALEBinsGT(FeatureEffectBase):
         features = helpers.prep_features(features, self.dim)
         for s in features:
             self.feature_effect["feature_" + str(s)] = self._fit_feature(s, binning_method)
-            if compute_z:
-                self.z[s] = self._compute_z(s)
-            self.fitted[s] = True
+            if normalize:
+                self.norm_const[s] = self._compute_norm_const(s)
+            self.is_fitted[s] = True
 
-    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
-        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+    def plot(self, feature: int, normalized: bool = True, nof_points: int = 30) -> None:
+        x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
         if normalized:
-            y = self.eval(x, s)
+            y = self.eval(x, feature)
         else:
-            y = self._eval_unnorm(x, s)
-        vis.plot_1d(x, y, title="ALE GT Bins for feature %d" % (s + 1))
+            y = self._eval_unnorm(x, feature)
+        vis.plot_1d(x, y, title="ALE GT Bins for feature %d" % (feature + 1))

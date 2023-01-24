@@ -166,7 +166,7 @@ class TestExample1:
 
         pdp = fe.PDP(data=samples, model=self.f)
         x = np.linspace(0, 1, 1000)
-        y_pred = pdp._eval_unnorm(x, s=0)
+        y_pred = pdp._eval_unnorm(feature=0, x=x)
         y_gt = self.pdp(x)
         assert np.allclose(y_pred, y_gt, atol=1.0e-2)
 
@@ -177,7 +177,7 @@ class TestExample1:
 
         mplot = fe.MPlot(data=samples, model=self.f)
         x = np.linspace(0, 1, 1000)
-        y_pred = mplot.eval(x, feature=0, tau=tau)
+        y_pred = mplot.eval(feature=0, x=x, tau=tau)
         y_gt = self.mplot(x)
         assert np.allclose(y_pred, y_gt, atol=1.0e-2)
 
@@ -191,11 +191,11 @@ class TestExample1:
         dale.fit(binning_method=binning)
 
         x = np.linspace(0, 1, 1000)
-        pred = dale.eval(x, feature=0)
+        pred = dale.eval(feature=0, x=x)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.0e-2)
 
-        pred = dale.eval(x, feature=1)
+        pred = dale.eval(feature=1, x=x)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.0e-2)
 
@@ -204,11 +204,11 @@ class TestExample1:
         dale.fit(binning_method=binning)
 
         x = np.linspace(0, 1, 1000)
-        pred = dale.eval(x, feature=0)
+        pred = dale.eval(feature=0, x=x)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.0e-2)
 
-        pred = dale.eval(x, feature=1)
+        pred = dale.eval(feature=1, x=x)
         gt = self.ale(x)
         assert np.allclose(pred, gt, atol=1.0e-2)
 

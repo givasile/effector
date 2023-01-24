@@ -48,7 +48,7 @@ def ale_plot(
     )
 
     x = np.linspace(ale_params["limits"][0], ale_params["limits"][-1], 1000)
-    y, std, std_err = accum_effect_func(x, feature, True)
+    y, std, std_err = accum_effect_func(feature, x, True)
 
     # transform
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])

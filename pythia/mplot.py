@@ -1,7 +1,8 @@
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
-
+import typing
+import pythia.helpers as helpers
 
 class MPlot:
     def __init__(self, data, model):
@@ -18,7 +19,18 @@ class MPlot:
             y.append(np.mean(f(points1)))
         return np.array(y)
 
-    def eval(self, x, feature, tau):
+    def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
+        return {}
+
+    def fit(self, features: typing.Union[int, str, list] = "all", normalize: bool = True) -> None:
+        features = helpers.prep_features(features, self.dim)
+        for s in features:
+            self.feature_effect["feature_" + str(s)] = {}
+            if normalize:
+                self.norm_const[s] = self._compute_norm_const(s)
+            self.is_fitted[s] = True
+
+    def eval(self, feature, x, tau):
         return self._mplot(x, self.data, self.model, feature, tau)
 
     def plot(self, feature, tau=0.5, step=1000):

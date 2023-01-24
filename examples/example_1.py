@@ -24,6 +24,6 @@ dale.fit(features="all", binning_method=binning_method)
 y, var, stderr = dale.eval(x=np.linspace(axis_limits[0, 0], axis_limits[1, 0], 100),
                            feature=1,
                            uncertainty=True)
-dale.plot(s=0, error="std")
-dale.plot(s=1, error="std")
-dale.plot(s=2, error="std")
+dale.plot(feature=0, error="std")
+dale.plot(feature=1, error="std")
+dale.plot(feature=2, error="std")

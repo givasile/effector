@@ -3,7 +3,6 @@ import copy
 import numpy as np
 import pythia.visualization as vis
 import pythia.helpers as helpers
-import pythia.utils_integrate as utils_integrate
 from pythia.fe_base import FeatureEffectBase
 
 
@@ -36,8 +35,16 @@ class PDP(FeatureEffectBase):
     def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
         return {}
 
+    def fit(self, features: typing.Union[int, str, list] = "all", normalize: bool = True) -> None:
+        features = helpers.prep_features(features, self.dim)
+        for s in features:
+            self.feature_effect["feature_" + str(s)] = {}
+            if normalize:
+                self.norm_const[s] = self._compute_norm_const(s)
+            self.is_fitted[s] = True
+
     def _eval_unnorm(
-        self, x: np.ndarray, s: int, uncertainty: bool = False
+        self, feature: int, x: np.ndarray, uncertainty: bool = False
     ) -> np.ndarray:
         """Evaluate the unnormalized PDP at positions x
 
@@ -52,19 +59,19 @@ class PDP(FeatureEffectBase):
         y = []
         for i in range(x.shape[0]):
             data1 = copy.deepcopy(self.data)
-            data1[:, s] = x[i]
+            data1[:, feature] = x[i]
             y.append(np.mean(self.model(data1)))
         return np.array(y)
 
-    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+    def plot(self, feature: int, normalized: bool = True, nof_points: int = 30) -> None:
         """Plot the s-th feature"""
         # getters
-        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+        x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
         if normalized:
-            y = self.eval(x, s)
+            y = self.eval(x, feature)
         else:
-            y = self._eval_unnorm(x, s)
-        vis.plot_1d(x, y, title="PDP Monte Carlo feature %d" % (s + 1))
+            y = self._eval_unnorm(x, feature)
+        vis.plot_1d(x, y, title="PDP Monte Carlo feature %d" % (feature + 1))
 
 
 class PDPGroundTruth(FeatureEffectBase):
@@ -75,8 +82,16 @@ class PDPGroundTruth(FeatureEffectBase):
     def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
         return {}
 
+    def fit(self, features: typing.Union[int, str, list] = "all", normalize: bool = True) -> None:
+        features = helpers.prep_features(features, self.dim)
+        for s in features:
+            self.feature_effect["feature_" + str(s)] = {}
+            if normalize:
+                self.norm_const[s] = self._compute_norm_const(s)
+            self.is_fitted[s] = True
+
     def _eval_unnorm(
-        self, x: np.ndarray, s: int, uncertainty: bool = False
+        self, feature: int, x: np.ndarray, uncertainty: bool = False
     ) -> np.ndarray:
         """
 
@@ -86,15 +101,15 @@ class PDPGroundTruth(FeatureEffectBase):
         """
         return self.func(x)
 
-    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+    def plot(self, feature: int, normalized: bool = True, nof_points: int = 30) -> None:
         """Plot the s-th feature"""
         # getters
-        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+        x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
         if normalized:
-            y = self.eval(x, s)
+            y = self.eval(x, feature)
         else:
-            y = self._eval_unnorm(x, s)
-        vis.plot_1d(x, y, title="Ground-truth PDP for feature %d" % (s + 1))
+            y = self._eval_unnorm(x, feature)
+        vis.plot_1d(x, y, title="Ground-truth PDP for feature %d" % (feature + 1))
 
 
 class ICE(FeatureEffectBase):
@@ -127,8 +142,16 @@ class ICE(FeatureEffectBase):
     def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
         return {}
 
+    def fit(self, features: typing.Union[int, str, list] = "all", normalize: bool = True) -> None:
+        features = helpers.prep_features(features, self.dim)
+        for s in features:
+            self.feature_effect["feature_" + str(s)] = {}
+            if normalize:
+                self.norm_const[s] = self._compute_norm_const(s)
+            self.is_fitted[s] = True
+
     def _eval_unnorm(
-        self, x: np.ndarray, s: int, uncertainty: bool = False
+        self, feature: int, x: np.ndarray, uncertainty: bool = False
     ) -> np.ndarray:
         """Evaluate the unnormalized PDP at positions x
 
@@ -143,20 +166,20 @@ class ICE(FeatureEffectBase):
         i = self.instance
         xi = copy.deepcopy(self.data[i, :])
         xi_repeat = np.tile(xi, (x.shape[0], 1))
-        xi_repeat[:, s] = x
+        xi_repeat[:, feature] = x
         y = self.model(xi_repeat)
         return y
 
-    def plot(self, s: int, normalized: bool = True, nof_points: int = 30) -> None:
+    def plot(self, feature: int, normalized: bool = True, nof_points: int = 30) -> None:
         """Plot the s-th feature"""
         # getters
-        x = np.linspace(self.axis_limits[0, s], self.axis_limits[1, s], nof_points)
+        x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
         if normalized:
-            y = self.eval(x, s)
+            y = self.eval(x, feature)
         else:
-            y = self._eval_unnorm(x, s)
+            y = self._eval_unnorm(x, feature)
         vis.plot_1d(
-            x, y, title="ICE for Instance %d, Feature %d" % (self.instance, s + 1)
+            x, y, title="ICE for Instance %d, Feature %d" % (self.instance, feature + 1)
         )
 
 
@@ -215,7 +238,7 @@ class PDPwithICE:
 
     def plot(
         self,
-        s: int,
+        feature: int,
         scale_x=None,
         scale_y=None,
         normalized: bool = True,
@@ -223,7 +246,7 @@ class PDPwithICE:
         savefig=None,
     ) -> None:
         """Plot the s-th feature"""
-        self.fit(s, normalized, nof_points)
+        self.fit(feature, normalized, nof_points)
 
         axis_limits = self.axis_limits
-        vis.plot_pdp_ice(s, self.x, self.y_pdp, self.y_ice, scale_x, scale_y, savefig)
+        vis.plot_pdp_ice(feature, self.x, self.y_pdp, self.y_ice, scale_x, scale_y, savefig)

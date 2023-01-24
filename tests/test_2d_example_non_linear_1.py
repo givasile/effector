@@ -47,12 +47,12 @@ class TestCase1:
         pdp_gt.fit(features=0)
 
         xs = np.linspace(gen_dist.axis_limits[0, 0], gen_dist.axis_limits[1, 0], 100)
-        y1 = pdp.eval(xs, feature=0)
-        y2 = pdp_gt.eval(xs, feature=0)
+        y1 = pdp.eval(feature=0, x=xs)
+        y2 = pdp_gt.eval(feature=0, x=xs)
 
         xs = np.linspace(0, 1, 100)
         assert np.allclose(
-            pdp.eval(xs, feature=0), pdp_gt.eval(xs, feature=0), rtol=0.1, atol=0.1
+            pdp.eval(feature=0, x=xs), pdp_gt.eval(feature=0, x=xs), rtol=0.1, atol=0.1
         )
 
     def test_dale_fixed_bins(self):
@@ -79,9 +79,9 @@ class TestCase1:
         dale_gt_bins.fit(features=0, binning_method=binning)
 
         xs = np.linspace(0, 1, 100)
-        y1 = dale_gt.eval(xs, feature=0)
-        y2 = dale_gt_bins.eval(xs, feature=0)
-        y3 = dale.eval(xs, feature=0)
+        y1 = dale_gt.eval(feature=0, x=xs)
+        y2 = dale_gt_bins.eval(feature=0, x=xs)
+        y3 = dale.eval(feature=0, x=xs)
         assert np.allclose(y1, y2, rtol=0.1, atol=0.1)
         assert np.allclose(y1, y3, rtol=0.1, atol=0.1)
 
