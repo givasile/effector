@@ -1,9 +1,10 @@
 import numpy as np
 import typing
 from pythia import utils_integrate
+from abc import ABC, abstractmethod
 
 
-class FeatureEffectBase:
+class FeatureEffectBase(ABC):
     empty_symbol = 1e8
 
     def __init__(self, axis_limits: np.ndarray) -> None:
@@ -45,21 +46,18 @@ class FeatureEffectBase:
         """
         raise NotImplementedError
 
-    def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
+    @abstractmethod
+    def _fit_feature(self, feature):
         """Fit a feature effect plot.
 
         Parameters
         ----------
-        feat: int, the index of the feature
-        params: method-specific parameters for fitting the feature
-
-        Returns
-        -------
-        Dictionary, with all the important quantities for the feature effect plot
+        feature: int, the index of the feature
         """
         raise NotImplementedError
 
-    def fit(self, features, *args):
+    @abstractmethod
+    def fit(self, features: typing.Union[int, str, list] = "all"):
         """Iterates over _fit_feature for all features,
         computes the normalization constant if asked
         and updates self.is_fitted.
@@ -67,15 +65,11 @@ class FeatureEffectBase:
         Parameters
         ----------
         features
-        args
-
-        Returns
-        -------
-
         """
         raise NotImplementedError
 
-    def plot(self, feature: int, *args) -> None:
+    @abstractmethod
+    def plot(self, feature: int) -> None:
         """
 
         Parameters
@@ -85,23 +79,26 @@ class FeatureEffectBase:
         """
         raise NotImplementedError
 
-    def _compute_norm_const(self, feature: int) -> float:
+    def _compute_norm_const(self, feature: int, method: str = "zero_integral") -> float:
         """Compute the normalization constant.
         Uses integration with linspace..
         """
-        def create_func(feature):
-            def func(x):
+        def create_partial_eval(feature):
+            def partial_eval(x):
                 return self._eval_unnorm(feature, x, uncertainty=False)
-            return func
-        func = create_func(feature)
+            return partial_eval
+        partial_eval = create_partial_eval(feature)
         start = self.axis_limits[0, feature]
         stop = self.axis_limits[1, feature]
-        z = utils_integrate.mean_1d_linspace(func, start, stop)
+
+        if method == "zero_integral":
+            z = utils_integrate.mean_1d_linspace(partial_eval, start, stop)
+        elif method == "zero_start":
+            z = partial_eval(np.array([start])).item()
         return z
 
     def eval(
-        self, feature: int, x: np.ndarray, uncertainty: bool = False
-    ) -> typing.Union[np.ndarray, typing.Tuple]:
+        self, feature: int, x: np.ndarray, uncertainty: bool = False) -> typing.Union[np.ndarray, typing.Tuple]:
         """Evaluate the feature effect method at x
 
         Parameters

@@ -75,7 +75,6 @@ class Uncorrelated1(GenerativeBase):
         return x2_dist.pdf(x2)
 
 
-
 class Correlated_3D_1(GenerativeBase):
     """
     x1 ~ U(x1_min, x1_max)

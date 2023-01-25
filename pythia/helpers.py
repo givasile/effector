@@ -11,6 +11,16 @@ def prep_features(feat: typing.Union[str, list], D) -> list:
     return feat
 
 
+def prep_normalize(normalize):
+    assert type(normalize) in [bool, str]
+    if type(normalize) is str:
+        assert normalize in ["zero_start", "zero_integral"]
+
+    if normalize is True:
+        normalize = "zero_integral"
+    return normalize
+
+
 def axis_limits_from_data(data: np.ndarray) -> np.ndarray:
     """
 

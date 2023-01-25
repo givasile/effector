@@ -100,7 +100,7 @@ def ale_curve(ax1, x, y, std_err, std, error=None):
 
     if error == "std":
         ax1.fill_between(
-            x, y - std, y + std, color="red", alpha=0.2, label="$\hat{f}_{\sigma^2}$"
+            x, y - std, y + std, color="red", alpha=0.2, label="$\hat{f}_{\sigma}$"
         )
     elif error == "stderr":
         ax1.fill_between(
@@ -140,35 +140,59 @@ def ale_bins(ax2, bin_effects, bin_variance, limits, dx, error):
     ax2.legend()
 
 
-def plot_1d(x, y, title):
+def plot_1d(x, feature, eval, confidence=None, title=None):
     plt.figure()
     plt.title(title)
-    plt.plot(x, y, "b-")
+
+    assert confidence in [None, "std", "stderr"]
+    if confidence is None:
+        plt.plot(x, eval(feature, x, uncertainty=False), "b-")
+    elif confidence == "std":
+        y, std, var_est = eval(feature, x, uncertainty=True)
+        plt.plot(x, y, "b-", label="$\hat{f}_\mu$")
+        plt.fill_between(
+            x, y - std, y + std, color="red", alpha=0.4, label="$\hat{f}_{\sigma}$"
+        )
+    elif confidence == "stderr":
+        y, std, var_est = eval(feature, x, uncertainty=True)
+        stderr = 2*np.sqrt(var_est)
+        plt.plot(x, y, "b-", label="mean PDP")
+        plt.fill_between(x, y - stderr, y + stderr, color="red", alpha=0.4, label="std err")
     plt.show(block=False)
 
 
-def plot_pdp_ice(s, x, y_pdp, y_ice, scale_x, scale_y, savefig):
+def plot_pdp_ice(x, feature, y_pdp, y_ice, title, normalize, scale_x=None, scale_y=None, savefig=None):
+    plt.figure()
+    plt.title(title)
+    if normalize:
+        y_ice_outputs = [y_ice[i].eval(feature, x) for i in range(len(y_ice))]
+        y_pdp_output = y_pdp.eval(feature, x)
+    else:
+        y_ice_outputs = [y_ice[i]._eval_unnorm(feature, x) for i in range(len(y_ice))]
+        y_pdp_output = y_pdp._eval_unnorm(feature, x)
+    y_ice_outputs = np.array(y_ice_outputs)
+    y_pdp_output = np.array(y_pdp_output)
+
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
-    y_pdp = (
-        y_pdp
+    y_pdp_output = (
+        y_pdp_output
         if scale_y is None
-        else trans_affine(y_pdp, scale_y["mean"], scale_y["std"])
+        else trans_affine(y_pdp_output, scale_y["mean"], scale_y["std"])
     )
-    y_ice = (
-        y_ice
+    y_ice_outputs = (
+        y_ice_outputs
         if scale_y is None
-        else trans_affine(y_ice, scale_y["mean"], scale_y["std"])
+        else trans_affine(y_ice_outputs, scale_y["mean"], scale_y["std"])
     )
 
-    plt.figure()
-    plt.title("PDP-ICE: $x_{%d}$" % (s + 1))
-    plt.plot(x, y_ice[0, :], color="red", alpha=0.1, label="$f_{\mathtt{ICE}}$")
-    plt.plot(x, y_ice.T, color="red", alpha=0.1)
-    plt.plot(x, y_pdp, color="blue", label="$f_{\mu}$")
-    plt.xlabel("$x_{%d}$" % (s + 1))
+    plt.plot(x, y_ice_outputs[0, :], color="red", alpha=0.1, label="$f_{\mathtt{ICE}}$")
+    plt.plot(x, y_ice_outputs.T, color="red", alpha=0.1)
+    plt.plot(x, y_pdp_output, color="blue", label="$f_{\mu}$")
+    plt.xlabel("$x_{%d}$" % (feature + 1))
     plt.ylabel("$y$")
     plt.legend()
-
     if savefig is not None:
         plt.savefig(savefig, bbox_inches="tight")
+
     plt.show(block=False)
+

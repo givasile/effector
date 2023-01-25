@@ -253,18 +253,21 @@ class PiecewiseLinear(ModelBase):
 
 
 class LinearWithInteraction3D(ModelBase):
-    def __init__(self, b0, b1, b2, b3):
+    def __init__(self, b0, b1, b2, b3, b4):
+        """f(x1, x2, x3) = b0 + b1*x1 + b2*x2 + b3*x1*x2 + b4*x3
+        """
         self.b0 = b0
         self.b1 = b1
         self.b2 = b2
         self.b3 = b3
+        self.b4 = b4
 
     def predict(self, x):
-        y = self.b0 + self.b1*x[:, 0] + self.b2*x[:, 1] + self.b3*x[:, 0]*x[:, 1] + 100*x[:, 2]
+        y = self.b0 + self.b1*x[:, 0] + self.b2*x[:, 1] + self.b3*x[:, 0]*x[:, 1] + self.b4*x[:, 2]
         return y
 
     def jacobian(self, x):
         df_dx1 = self.b1 + self.b3 * x[:, 1]
         df_dx2 = self.b2 + self.b3 * x[:, 0]
-        df_dx3 = np.ones([x.shape[0]])*100
-        return np.stack([df_dx1, df_dx2], axis=-1)
+        df_dx3 = np.ones([x.shape[0]]) * self.b4
+        return np.stack([df_dx1, df_dx2, df_dx3], axis=-1)

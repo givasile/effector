@@ -64,9 +64,7 @@ class TestCase1:
         dale.fit(features=0, binning_method=binning)
 
         dale_gt = pythia.dale.DALEGroundTruth(
-            self.dale_mean,
             self.dale_mean_int,
-            self.dale_var,
             self.dale_var_int,
             gen_dist.axis_limits,
         )
