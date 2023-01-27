@@ -116,3 +116,26 @@ class Correlated_3D_1(GenerativeBase):
 
     def pdf_x2_x3(self, x2, x3):
         return self.pdf_x2(x2) * self.pdf_x3(x3)
+
+
+class RepidSimpleDist(GenerativeBase):
+    """
+    x1 ~ U(-1, 1)
+    x2 ~ U(-1, 1)
+    """
+
+    def __init__(self):
+        self.D = 2
+        self.axis_limits = np.array([[-1, 1], [-1, 1], [0, 1]]).T
+
+    def generate(self, N):
+        x1 = np.concatenate((np.array([0]),
+                             np.random.uniform(-1, 1., size=int(N-2)),
+                             np.array([1])))
+        x2 = np.concatenate((np.array([0]),
+                             np.random.uniform(-1, 1., size=int(N-2)),
+                             np.array([1])))
+        x3 = np.random.choice([0, 1], int(N), p=[0.5, 0.5])
+
+        x = np.stack((x1, x2, x3), axis=-1)
+        return x

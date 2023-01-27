@@ -5,25 +5,56 @@ import example_models.models as models
 
 np.random.seed(21)
 
-# gen dist
-gen_dist = dist.Correlated_3D_1(D=3, x1_min=0, x1_max=1, x2_sigma=.1, x3_sigma=0.5)
-data = gen_dist.generate(N=1000)
-axis_limits = gen_dist.axis_limits
+# define distribution and model
+dist = dist.Correlated_3D_1(D=3, x1_min=0, x1_max=1, x2_sigma=.01, x3_sigma=1.)
+model = models.LinearWithInteraction3D(b0=0, b1=1, b2=1, b3=30, b4=10)
 
-# model
-model = models.Example3(a1=1, a2=1, a=0)
-model_pred = model.predict
-model_jac = model.jacobian
+# generate data
+X = dist.generate(N=1000)
+Y = model.predict(X)
 
-# DALE with equal bin sizes
-dale = pythia.DALE(data, model_pred, model_jac, axis_limits)
-# params = {"bin_method": "fixed", "nof_bins": 20, "min_points_per_bin": 5}
-# params = {"bin_method": "greedy", "max_nof_bins": 20, "min_points_per_bin": 5}
-binning_method = pythia.binning_methods.Greedy(max_nof_bins=100, min_points_per_bin=10)
-dale.fit(features="all", binning_method=binning_method)
-y, var, stderr = dale.eval(x=np.linspace(axis_limits[0, 0], axis_limits[1, 0], 100),
-                           feature=1,
-                           uncertainty=True)
-dale.plot(feature=0, error="std")
-dale.plot(feature=1, error="std")
-dale.plot(feature=2, error="std")
+# PDP
+pdp = pythia.PDP(X, model.predict, dist.axis_limits)
+pdp.fit(features="all", normalize=True)
+for feat in [0, 1, 2]:
+    pdp.plot(feature=feat, normalized=True, confidence_interval="std", nof_points=50)
+
+# # dPDP
+# dpdp = pythia.pdp.dPDP(X, model.predict, model.jacobian, dist.axis_limits)
+# dpdp.fit(features="all", normalize="zero_start")
+# for feat in [0, 1, 2]:
+#     dpdp.plot(feature=feat, normalized=True, confidence_interval="std", nof_points=50)
+
+
+#
+# # ICE
+# ice = pythia.pdp.ICE(X, model.predict, dist.axis_limits, 0)
+# ice.plot(feature=0)
+#
+# ice = pythia.pdp.ICE(X, model.predict, dist.axis_limits, 10)
+# ice.plot(feature=0, normalized=False)
+
+
+# d-ICE
+# dice = pythia.pdp.dICE(X, model.predict, model.jacobian, dist.axis_limits, 0)
+# dice.plot(feature=0)
+
+
+pdp_ice = pythia.pdp.PDPwithICE(X, model.predict, dist.axis_limits)
+pdp_ice.fit("all", "zero_start")
+pdp_ice.plot(0, normalized=True)
+
+pdp_dice = pythia.pdp.PDPwithdICE(X, model.predict, model.jacobian, dist.axis_limits)
+pdp_dice.fit("all", "zero_start")
+pdp_dice.plot(0, normalized=False)
+
+
+# # DALE
+# dale = pythia.DALE(X, model.predict, model.jacobian, dist.axis_limits)
+# binning_method = pythia.binning_methods.Fixed(nof_bins=100)
+# dale.fit(features="all", binning_method=binning_method)
+#
+# # plot
+# dale.plot(feature=0, confidence_interval="std")
+# dale.plot(feature=1, confidence_interval="std")
+# dale.plot(feature=2, confidence_interval="std")
