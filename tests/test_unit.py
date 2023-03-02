@@ -1,47 +1,5 @@
-import pytest
 import numpy as np
 import pythia.utils as utils
-
-
-# def test_create_bins_1():
-#     """Test data with one point.
-#
-#     Notes
-#     =====
-#     It must raise AssertionError
-#     """
-#     k = 10
-#     data = np.array([1.])
-#     with pytest.raises(AssertionError):
-#         utils.create_fix_size_bins(data, k)
-#
-#
-# def test_create_bins_2():
-#     """Test data with only one discrete point.
-#
-#     Notes
-#     =====
-#     It must raise AssertionError. The data must contain at least two
-#     distinct values per feature.
-#     """
-#     k = 10
-#     data = np.ones(1000)
-#     with pytest.raises(AssertionError):
-#         utils.create_fix_size_bins(data, k)
-#
-#
-# def test_create_bins_3():
-#     """Test data with enough points.
-#
-#     Notes
-#     =====
-#     The function must return 10 equal-sized bins.
-#     """
-#     k = 4
-#     data = np.array([0, 1])
-#     limits = utils.create_fix_size_bins(data, k=k)
-#     limits_gt = np.array([0., .25, .5, .75, 1.])
-#     assert np.array_equal(limits_gt, limits)
 
 
 def test_compute_data_effect_1():

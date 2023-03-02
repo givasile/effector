@@ -45,8 +45,8 @@ with Sphinx: https://www.sphinx-doc.org/en/master/index.html
 
 # TODO:
 
-* remove example_models
-  * keep only one/two models as synthetic examples
+* remove example_models :heavy_check_mark:
+  * keep only one/two models as synthetic examples :heavy_check_mark:
 * create two examples with real datasets: 
   * Risk Factors for Cervical Cancer (Classification)
   * Bike Sharing Dataset (Regression)
