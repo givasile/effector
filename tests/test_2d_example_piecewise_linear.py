@@ -1,9 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pythia as fe
-import scipy.stats as sps
-import scipy.integrate as integrate
-import pytest
 from functools import partial
 import example_models.models as models
 import example_models.distributions as dist

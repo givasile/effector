@@ -275,32 +275,3 @@ class LinearWithInteraction3D(ModelBase):
         return np.stack([df_dx1, df_dx2, df_dx3], axis=-1)
 
 
-class RepidSimpleModel:
-    def __init__(self, a1=0.2, a2=-8, a3=8, a4=16):
-        self.a1 = a1
-        self.a2 = a2
-        self.a3 = a3
-        self.a4 = a4
-
-    def predict(self, x):
-        y = self.a1*x[:, 0] + self.a2*x[:, 1]
-
-        cond = x[:, 0] > 0
-        y[cond] += self.a3*x[cond, 1]
-
-        cond = x[:, 2] == 0
-        y[cond] += self.a4*x[cond, 1]
-
-        eps = np.random.normal(loc=0, scale=0.1, size=y.shape[0])
-        y += eps
-        return y
-
-    def jacobian(self, x):
-        y = np.stack([self.a1*np.ones(x.shape[0]), self.a2*np.ones(x.shape[0]), np.zeros(x.shape[0])], axis=-1)
-
-        cond = x[:, 0] > 0
-        y[cond, 1] += self.a3
-
-        cond = x[:, 2] == 0
-        y[cond, 1] += self.a4
-        return y
