@@ -30,7 +30,7 @@ class FeatureEffectBase(ABC):
         If uncertainty is False, returns a [N,] np.ndarray with the evaluation of the plot
         If uncertainty is True, returns a tuple (y, sigma, stderr) where:
          - y: is a [N,] np.ndarray with the expected effect
-         - sigma: is a [N,] np.ndarray with the expected uncertainty
+         - sigma: is a [N,] np.ndarray with the std of the expected effect
          - stderr: is a [N,] np.ndarray with the standard error of the expeceted effect
 
         Parameters
@@ -49,6 +49,8 @@ class FeatureEffectBase(ABC):
     @abstractmethod
     def _fit_feature(self, feature):
         """Fit a feature effect plot.
+
+        Returns a dictionary with all the information needed to plot the FE plot.
 
         Parameters
         ----------
@@ -83,6 +85,7 @@ class FeatureEffectBase(ABC):
         """Compute the normalization constant.
         Uses integration with linspace..
         """
+        assert method in ["zero_integral", "zero_start"]
         def create_partial_eval(feature):
             def partial_eval(x):
                 return self._eval_unnorm(feature, x, uncertainty=False)

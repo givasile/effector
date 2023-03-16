@@ -58,3 +58,6 @@ with Sphinx: https://www.sphinx-doc.org/en/master/index.html
 * add new methods:
   * REPID
   * PFI
+
+* check why in linear case RHALE is not merging all bins
+* check scaling of RHALE y axis

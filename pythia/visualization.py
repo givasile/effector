@@ -58,7 +58,7 @@ def ale_plot(
     limits = (
         ale_params["limits"]
         if scale_x is None
-        else trans_affine(ale_params["limits"], scale_x["mean", scale_x["std"]])
+        else trans_affine(ale_params["limits"], scale_x["mean"], scale_x["std"])
     )
     dx = (
         ale_params["dx"]
