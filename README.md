@@ -49,15 +49,17 @@ with Sphinx: https://www.sphinx-doc.org/en/master/index.html
   * keep only one/two models as synthetic examples :heavy_check_mark:
 * create two examples with real datasets: 
   * Risk Factors for Cervical Cancer (Classification)
-  * Bike Sharing Dataset (Regression)
-* Refactor tests based on the two synthetic examples
+  * Bike Sharing Dataset (Regression) :heavy_check_mark:
+* Refactor tests based on the two synthetic examples :heavy_check_mark:
 * refactor `src`:
   * scan code to remove functions used only for research purposes
-  * aggree on the final API
+  * agree on the final API
   * check on syntetic and real examples
 * add new methods:
   * REPID
   * PFI
 
+Backlog:
 * check why in linear case RHALE is not merging all bins
 * check scaling of RHALE y axis
+* check if changing the API; pass the data to .fit() instead of the constructor

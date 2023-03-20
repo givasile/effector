@@ -147,13 +147,14 @@ class PDPwithICE:
         data: np.ndarray,
         model: callable,
         axis_limits: typing.Union[None, np.ndarray] = None,
+        nof_instances: int = 100,
     ):
         """
 
         :param data: np.array (N, D), the design matrix
         :param model: Callable (N, D) -> (N,)
         :param axis_limits: Union[None, np.ndarray(2, D)]
-
+        :param nof_instances: int, number of instances to be used for the ICE plots
         """
         # assertions
         assert data.ndim == 2
@@ -165,9 +166,15 @@ class PDPwithICE:
         self.axis_limits = (
             helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
         )
+        self.nof_instances = nof_instances
 
+        assert nof_instances <= data.shape[0], "Number of instances must be smaller than the number of data points."
         self.y_pdp = PDP(data=data, model=model, axis_limits=axis_limits)
-        self.y_ice = [ICE(data=data, model=model, axis_limits=axis_limits, instance=i) for i in range(data.shape[0])]
+
+        # choose nof_instances from the data with replacement
+        self.indices = np.random.choice(data.shape[0], size=nof_instances, replace=False)
+
+        self.y_ice = [ICE(data=data, model=model, axis_limits=axis_limits, instance=i) for i in self.indices]
 
         # boolean variable for whether a FE plot has been computed
         self.is_fitted: np.ndarray = np.ones([self.dim]) * False
@@ -177,7 +184,7 @@ class PDPwithICE:
         self.y_pdp.fit(features, normalize)
 
         # ice curves
-        for i in range(self.data.shape[0]):
+        for i in range(self.nof_instances):
             self.y_ice[i].fit(features, normalize)
 
     def plot(
@@ -356,8 +363,8 @@ class PDPwithdICE:
         )
 
         self.y_pdp = dPDP(data=data, model=model, model_jac=model_jac, axis_limits=axis_limits)
-        self.y_ice = [dICE(data=data, model=model, model_jac=model_jac, axis_limits=axis_limits, instance=i) for i in
-                      range(data.shape[0])]
+        self.y_dice = [dICE(data=data, model=model, model_jac=model_jac, axis_limits=axis_limits, instance=i) for i in
+                       range(data.shape[0])]
 
         # boolean variable for whether a FE plot has been computed
         self.is_fitted: np.ndarray = np.ones([self.dim]) * False
@@ -368,7 +375,7 @@ class PDPwithdICE:
 
         # ice curves
         for i in range(self.data.shape[0]):
-            self.y_ice[i].fit(features, normalize)
+            self.y_dice[i].fit(features, normalize)
 
     def plot(
             self,
@@ -381,7 +388,7 @@ class PDPwithdICE:
     ) -> None:
         x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
         title = "PDP-ICE: feature %d" % (feature + 1)
-        vis.plot_pdp_ice(x, feature, self.y_pdp, self.y_ice, title=title, normalize=normalized,
+        vis.plot_pdp_ice(x, feature, self.y_pdp, self.y_dice, title=title, normalize=normalized,
                          scale_x=scale_x, scale_y=scale_y, savefig=savefig)
 
 

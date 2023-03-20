@@ -1,5 +1,4 @@
 import typing
-
 import pythia.binning_methods
 import pythia.utils as utils
 import pythia.visualization as vis
@@ -9,7 +8,7 @@ from pythia.fe_base import FeatureEffectBase
 import numpy as np
 
 
-class DALE(FeatureEffectBase):
+class RHALE(FeatureEffectBase):
     def __init__(
         self,
         data: np.ndarray,
@@ -38,7 +37,7 @@ class DALE(FeatureEffectBase):
             helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
         )
 
-        super(DALE, self).__init__(axis_limits)
+        super(RHALE, self).__init__(axis_limits)
 
         # init as None, it will get gradients after compile
         self.data_effect = None
@@ -61,8 +60,6 @@ class DALE(FeatureEffectBase):
         feature: index of the feature
         binning_method: str or instance of appropriate binning class
         """
-
-        # params = helpers.prep_dale_fit_params(params)
         if self.data_effect is None:
             self.compile()
 

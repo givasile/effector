@@ -95,7 +95,7 @@ for feat in [0, 1, 2]:
 
 
 # DALE
-dale = pythia.DALE(X, model.predict, model.jacobian, dist.axis_limits)
+dale = pythia.RHALE(X, model.predict, model.jacobian, dist.axis_limits)
 binning_method = pythia.binning_methods.Fixed(nof_bins=100)
 dale.fit(features="all", binning_method=binning_method)
 

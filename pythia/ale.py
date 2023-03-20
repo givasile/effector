@@ -9,7 +9,6 @@ import pythia
 
 empty_symbol = 1e10
 
-
 class ALE(FeatureEffectBase):
     def __init__(
         self,
@@ -37,7 +36,7 @@ class ALE(FeatureEffectBase):
         )
         super(ALE, self).__init__(axis_limits)
 
-        # init as None, it will get gradients after compile
+        # init as None
         self.data_effect = None
 
     def compile(self):
@@ -46,62 +45,50 @@ class ALE(FeatureEffectBase):
         """
         self.data_effect = np.ones_like(self.data) * empty_symbol
 
-    def _fit_feature(self, feat: int, params: typing.Dict = None) -> typing.Dict:
+    def _fit_feature(self, feature: int, nof_bins: int = 100) -> typing.Dict:
         """Fit a specific feature, using ALE.
 
         Parameters
         ----------
-        feat: index of the feature
-        params: Dict, with fitting-specific parameters
-            - "nof_bins": int (default 100), how many bins to create
+        feature: index of the feature
+        nof_bins: number of bins
 
         Returns
         -------
 
         """
-        params = helpers.prep_ale_fit_params(params)
-
         if self.data_effect is None:
             self.compile()
 
         # drop points outside of limits
         ind = np.logical_and(
-            self.data[:, feat] >= self.axis_limits[0, feat],
-            self.data[:, feat] <= self.axis_limits[1, feat],
+            self.data[:, feature] >= self.axis_limits[0, feature],
+            self.data[:, feature] <= self.axis_limits[1, feature],
         )
         data = self.data[ind, :]
 
-
-        # Compute data effect
         limits, dx = np.linspace(
-            self.axis_limits[0, feat],
-            self.axis_limits[1, feat],
-            num=params["nof_bins"] + 1, endpoint=True, retstep=True
+            self.axis_limits[0, feature],
+            self.axis_limits[1, feature],
+            num=nof_bins + 1, endpoint=True, retstep=True
         )
 
         data_effect = utils.compute_local_effects_at_bin_limits(
-            self.data, self.model, limits, feat
+            self.data, self.model, limits, feature
         )
-        self.data_effect[:, feat] = data_effect
+        self.data_effect[:, feature] = data_effect
         data_effect = self.data_effect
 
-        # bin estimation
-        bin_est = be.Fixed(
-                data, data_effect, feature=feat, axis_limits=self.axis_limits
-            )
-        bin_est.find(nof_bins=params["nof_bins"], min_points=None)
-
         dale_params = utils.compute_ale_params_from_data(
-            data[:, feat], data_effect[:, feat], bin_est.limits
+            data[:, feature], data_effect[:, feature], limits
         )
 
-        dale_params["alg_params"] = params
         return dale_params
 
 
     def fit(self,
             features: typing.Union[int, str, list] = "all",
-            binning_method="fixed",
+            nof_bins: int = 100,
             normalize: bool = True,
             ) -> None:
         """Fit feature effect plot for the asked features
@@ -112,28 +99,16 @@ class ALE(FeatureEffectBase):
             - "all", all features
             - int, the index of the feature
             - list, list of indexes of the features
-        binning_method: dictionary with method-specific parameters for fitting the FE plots
+        nof_bins: number of bins
         normalize: bool, whether to compute the normalization constants
         """
 
-        # if binning_method is a string -> make it a class
-        if isinstance(binning_method, str):
-            assert binning_method in ["fixed", "greedy", "dynamic_programming"]
-            if binning_method == "fixed":
-                tmp = pythia.binning_methods.Fixed()
-            elif binning_method == "greedy":
-                tmp = pythia.binning_methods.Greedy()
-            else:
-                tmp = pythia.binning_methods.DynamicProgramming()
-            binning_method = tmp
-
         features = helpers.prep_features(features, self.dim)
         for s in features:
-            self.feature_effect["feature_" + str(s)] = self._fit_feature(s, binning_method)
+            self.feature_effect["feature_" + str(s)] = self._fit_feature(s, nof_bins)
             if normalize:
                 self.norm_const[s] = self._compute_norm_const(s)
             self.is_fitted[s] = True
-
 
 
     def _eval_unnorm(self, feature: int, x: np.ndarray, uncertainty: bool = False):

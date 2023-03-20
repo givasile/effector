@@ -68,7 +68,7 @@ class TestExample2:
         samples = self.generate_samples(self.n)
 
         # prediction
-        dale = pythia.DALE(data=samples, model=self.f, model_jac=self.f_der)
+        dale = pythia.RHALE(data=samples, model=self.f, model_jac=self.f_der)
         fixed = pythia.binning_methods.Fixed(nof_bins=self.k)
         dale.fit(binning_method=fixed)
 

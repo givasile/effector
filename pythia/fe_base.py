@@ -47,14 +47,14 @@ class FeatureEffectBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _fit_feature(self, feature):
+    def _fit_feature(self, *args):
         """Fit a feature effect plot.
 
         Returns a dictionary with all the information needed to plot the FE plot.
 
         Parameters
         ----------
-        feature: int, the index of the feature
+        *args: all fit-specific arguments
         """
         raise NotImplementedError
 
@@ -71,13 +71,13 @@ class FeatureEffectBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def plot(self, feature: int) -> None:
+    def plot(self, feature: int, *args) -> None:
         """
 
         Parameters
         ----------
         feature: index of the feature to plot
-        args: all other plot-specific arguments
+        *args: all other plot-specific arguments
         """
         raise NotImplementedError
 

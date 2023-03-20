@@ -1,6 +1,6 @@
 import numpy as np
 import pythia
-
+import pythia.regions as regions
 
 class RepidSimpleDist:
     """
@@ -62,22 +62,63 @@ dist = RepidSimpleDist()
 model = RepidSimpleModel()
 
 # generate data
-X = dist.generate(N=10000)
+X = dist.generate(N=1000)
 Y = model.predict(X)
 
-# PDP
-pdp = pythia.PDP(X, model.predict, dist.axis_limits)
-pdp.fit(features="all", normalize=True)
-pdp.plot(feature=0, normalized=True, confidence_interval=None, nof_points=200)
-pdp.plot(feature=1, normalized=True, confidence_interval=None, nof_points=200)
-pdp.plot(feature=2, normalized=True, confidence_interval=None, nof_points=200)
+def func(data):
+    # if data is empty, return zero
+    if data.shape[0] == 0:
+        return 1000000
+    feat = 1
+    dpdp = pythia.pdp.dPDP(data, model.predict, model.jacobian, dist.axis_limits)
+    dpdp.fit(features="all", normalize=False)
+    start = dist.axis_limits[:, feat][0]
+    stop = dist.axis_limits[:, feat][1]
+    x = np.linspace(start, stop, 1000)
+    x = 0.5 * (x[:-1] + x[1:])
+    pdp_m, pdp_std, pdp_stderr = dpdp.eval(feature=feat, x=x, uncertainty=True)
+    z = np.mean(pdp_std)
+    return z
 
-dale = pythia.DALE(X, model.predict, model.jacobian, dist.axis_limits)
-binning_method = pythia.binning_methods.Fixed(nof_bins=100)
-dale.fit(features="all", binning_method=binning_method, normalize=True)
-dale.plot(feature=0, confidence_interval="std")
-dale.plot(feature=1, confidence_interval=None)
-dale.plot(feature=2, confidence_interval=None)
+nof_levels = 2
 
-# for feat in [0, 1, 2]:
-#     pdp.plot(feature=feat, normalized=True, confidence_interval="std", nof_points=50)
+# iterate to find nof_levels optimal splits
+positions = []
+features = []
+list_of_X = [X]
+for i in range(nof_levels):
+    I_start, I, i, j, feature, position = regions.find_optimal_split(func, list_of_X, 1, [0, 2], 10, dist.axis_limits)
+
+    positions.append(position)
+    features.append(feature)
+
+    new_list_of_X = []
+    for x in list_of_X:
+        # split X on the optimal feature and position
+        X1 = x[x[:, feature] < position]
+        X2 = x[x[:, feature] >= position]
+        new_list_of_X.append(X1)
+        new_list_of_X.append(X2)
+    list_of_X = new_list_of_X
+
+
+
+
+
+# I_start_0, I_0, i_0, j_0, feature_0, position_0 = regions.find_optimal_split(func, [X], 1, [0, 2], 10, dist.axis_limits)
+#
+# # split X on the optimal feature and position
+# X1 = X[X[:, feature_0] < position_0]
+# X2 = X[X[:, feature_0] >= position_0]
+# I_start_1, I_1, i_1, j_1, feature_1, position_1 = regions.find_optimal_split(func, [X1], 1, [0, 2], 10, dist.axis_limits)
+#
+#
+#
+#
+#
+#
+#
+# # pdp_dice = pythia.pdp.PDPwithdICE(X, model.predict, model.jacobian, dist.axis_limits)
+# # pdp_dice.fit(features="all", normalize=False)
+# # pdp_dice.plot(feature=2, normalized=False)
+# # pdp_dice.eval(feature=2, x=x, uncertainty=True)
