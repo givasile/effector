@@ -1,6 +1,8 @@
+import sys, os
+sys.path.append(os.path.dirname(os.getcwd()))
 import numpy as np
 import pythia
-
+import matplotlib.pyplot as plt
 
 class GeneratingDist:
     """
@@ -63,6 +65,7 @@ pdp = pythia.PDP(X, model.predict, dist.axis_limits)
 pdp.fit(features="all", normalize=True)
 for feat in [0, 1, 2]:
     pdp.plot(feature=feat, normalized=True, confidence_interval="std", nof_points=50)
+    plt.show()
 
 # # dPDP
 # dpdp = pythia.pdp.dPDP(X, model.predict, model.jacobian, dist.axis_limits)
@@ -101,5 +104,10 @@ dale.fit(features="all", binning_method=binning_method)
 
 # plot
 dale.plot(feature=0, confidence_interval="std")
+plt.show()
+
 dale.plot(feature=1, confidence_interval="std")
+plt.show()
+
 dale.plot(feature=2, confidence_interval="std")
+plt.show()

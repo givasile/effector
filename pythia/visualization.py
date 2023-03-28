@@ -21,6 +21,7 @@ def ale_plot(
     ale_params: dict,
     accum_effect_func: callable,
     feature: int,
+    feature_name: typing.Union[None, str] = None,
     error: typing.Union[None, str] = None,
     scale_x: typing.Union[None, dict] = None,
     scale_y: typing.Union[None, dict] = None,
@@ -78,7 +79,10 @@ def ale_plot(
 
     # PLOT
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
-    ax1.set_title("ALE plot for: $x_{" + str(feature + 1) + "}$")
+    if feature_name is not None:
+        title = "ALE plot for: " + str(feature_name) + "($x_{" + str(feature + 1) + "}$)"
+    else:
+        ax1.set_title("ALE plot for: $x_{" + str(feature + 1) + "}$")
 
     # first subplot
     ale_curve(ax1, x, y, std_err, std, error=error)
@@ -140,7 +144,7 @@ def ale_bins(ax2, bin_effects, bin_variance, limits, dx, error):
     ax2.legend()
 
 
-def plot_1d(x, feature, eval, confidence=None, title=None):
+def plot_1d(x, feature, eval, confidence=None, title=None, feature_name: typing.Union[None, str] = None):
     plt.figure()
     plt.title(title)
 
@@ -161,7 +165,7 @@ def plot_1d(x, feature, eval, confidence=None, title=None):
     plt.show(block=False)
 
 
-def plot_pdp_ice(x, feature, y_pdp, y_ice, title, normalize, scale_x=None, scale_y=None, savefig=None):
+def plot_pdp_ice(x, feature, y_pdp, y_ice, title, normalize, scale_x=None, scale_y=None, savefig=None, feature_name: typing.Union[None, str] = None):
     plt.figure()
     plt.title(title)
     if normalize:

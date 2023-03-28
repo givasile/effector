@@ -137,6 +137,7 @@ class ALE(FeatureEffectBase):
     def plot(
         self,
         feature: int = 0,
+        feature_name: typing.Union[None, str] = None,
         error: typing.Union[None, str] = "std",
         scale_x=None,
         scale_y=None,
@@ -156,6 +157,7 @@ class ALE(FeatureEffectBase):
             self.feature_effect["feature_" + str(feature)],
             self.eval,
             feature,
+            feature_name,
             error=error,
             scale_x=scale_x,
             scale_y=scale_y,

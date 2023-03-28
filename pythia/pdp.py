@@ -70,9 +70,15 @@ class PDP(FeatureEffectBase):
 
     def plot(self,
              feature: int,
+             feature_name: typing.Union[None, str] = None,
              normalized: bool = True,
              confidence_interval: typing.Union[None, str] = None,
              nof_points: int = 30) -> None:
+        
+        if feature_name is not None:
+            title = "PDP: feature %s (%d)" % (str(feature_name), (feature + 1))
+        else:
+            title = "PDP: feature %d" % (feature + 1)
         title = "PDP: feature %d" % (feature + 1)
         x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
         if normalized:
@@ -190,6 +196,7 @@ class PDPwithICE:
     def plot(
         self,
         feature: int,
+        feature_name: typing.Union[None, str] = None,
         normalized: bool = True,
         nof_points: int = 30,
         scale_x=None,
@@ -198,7 +205,11 @@ class PDPwithICE:
     ) -> None:
 
         x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
-        title = "PDP-ICE: feature %d" % (feature + 1)
+        if feature_name is not None:
+            title = "PDP-ICE: feature %s (%d)" % (str(feature_name), (feature + 1))
+        else:
+            title = "PDP-ICE: feature %d" % (feature + 1)
+        
         vis.plot_pdp_ice(x, feature, self.y_pdp, self.y_ice, title=title, normalize=normalized,
                          scale_x=scale_x, scale_y=scale_y, savefig=savefig)
 
@@ -269,10 +280,15 @@ class dPDP(FeatureEffectBase):
 
     def plot(self,
              feature: int,
+             feature_name: typing.Union[None, str] = None,
              normalized: bool = True,
              confidence_interval: typing.Union[None, str] = None,
              nof_points: int = 30) -> None:
-        title = "d-PDP: feature %d" % (feature + 1)
+        if feature_name is not None:
+            title = "d-PDP: feature %s (%d)" % (str(feature_name), (feature + 1))
+        else:
+            title = "d-PDP: feature %d" % (feature + 1)
+        
         x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
         if normalized:
             vis.plot_1d(x, feature, self.eval, confidence=confidence_interval, title=title)
@@ -331,7 +347,7 @@ class dICE(FeatureEffectBase):
         y = self.model_jac(xi_repeat)[:, feature]
         return y
 
-    def plot(self, feature: int, normalized: bool = True, nof_points: int = 30) -> None:
+    def plot(self, feature: int, feature_name: typing.Union[None, str] = None, normalized: bool = True, nof_points: int = 30) -> None:
         """Plot the s-th feature"""
         # getters
         x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
@@ -380,6 +396,7 @@ class PDPwithdICE:
     def plot(
             self,
             feature: int,
+            feature_name: typing.Union[None, str] = None,
             normalized: bool = True,
             nof_points: int = 30,
             scale_x=None,
@@ -387,6 +404,10 @@ class PDPwithdICE:
             savefig=None
     ) -> None:
         x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
+        if feature_name is not None:
+            title = "PDP-ICE: feature %s (%d)" % (str(feature_name), (feature + 1))
+        else:
+            title = "PDP-ICE: feature %d" % (feature + 1)
         title = "PDP-ICE: feature %d" % (feature + 1)
         vis.plot_pdp_ice(x, feature, self.y_pdp, self.y_dice, title=title, normalize=normalized,
                          scale_x=scale_x, scale_y=scale_y, savefig=savefig)
@@ -419,7 +440,7 @@ class PDPGroundTruth(FeatureEffectBase):
         """
         return self.func(x)
 
-    def plot(self, feature: int, normalized: bool = True, nof_points: int = 30) -> None:
+    def plot(self, feature: int, feature_name: typing.Union[None, str] = None, normalized: bool = True, nof_points: int = 30) -> None:
         """Plot the s-th feature"""
         # getters
         x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)

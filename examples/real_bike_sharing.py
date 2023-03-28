@@ -1,3 +1,5 @@
+import sys, os
+sys.path.append(os.path.dirname(os.getcwd()))
 import pythia
 import numpy as np
 import pandas as pd
@@ -5,7 +7,7 @@ from sklearn import linear_model, metrics
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
-
+import matplotlib.pyplot as plt
 
 def preprocess(df):
     # shuffle
@@ -120,7 +122,8 @@ feat = 3
 
 pdp_ice = pythia.pdp.PDPwithICE(data=X_train.to_numpy(), model=model_forward, nof_instances=100)
 pdp_ice.fit(features=feat, normalize=False)
-pdp_ice.plot(feature=feat, normalized=False)
+pdp_ice.plot(feature=feat, feature_name=df.columns[feat], normalized=False)
+plt.show()
 
 
 # # Regional Plot

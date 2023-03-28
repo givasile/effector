@@ -1,6 +1,9 @@
+import sys, os
+sys.path.append(os.path.dirname(os.getcwd()))
 import numpy as np
 import pythia
 import pythia.regions as regions
+
 
 class RepidSimpleDist:
     """
