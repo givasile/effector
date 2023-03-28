@@ -210,6 +210,7 @@ class dPDP(FeatureEffectBase):
         model: callable,
         model_jac: callable,
         axis_limits: typing.Union[None, np.ndarray] = None,
+        nof_instances: typing.Union[int, str] = "all",
     ):
         """
 
@@ -227,7 +228,14 @@ class dPDP(FeatureEffectBase):
         # setters
         self.model = model
         self.model_jac = model_jac
-        self.data = data
+
+        assert nof_instances <= data.shape[0], "Number of instances must be smaller than the number of data points."
+        if nof_instances == "all":
+            self.data = data
+        else:
+            self.indices = np.random.choice(data.shape[0], size=nof_instances, replace=False)
+            self.data = data[self.indices]
+
         self.D = data.shape[1]
         axis_limits = (
             helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits

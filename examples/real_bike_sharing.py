@@ -102,18 +102,18 @@ def model_forward(x):
 
 # Explain
 feat = 3
-#
-# ale = pythia.ALE(data=X_train.to_numpy(), model=model)
-# ale.fit(features=feat, nof_bins=100)
-# ale.plot(feature=feat)
-#
-#
-# rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
-# binning_method = pythia.binning_methods.Fixed(nof_bins=100)
-# rhale.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
-# scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
-# scale_y = {"mean": 0, "std": y_std}
-# rhale.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)
+
+ale = pythia.ALE(data=X_train.to_numpy(), model=model)
+ale.fit(features=feat, nof_bins=100)
+ale.plot(feature=feat)
+
+
+rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
+binning_method = pythia.binning_methods.Fixed(nof_bins=100)
+rhale.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
+scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
+scale_y = {"mean": 0, "std": y_std}
+rhale.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)
 
 # pdp = pythia.PDP(data=X_train.to_numpy(), model=model)
 # pdp.plot(feature=feat)
@@ -121,6 +121,12 @@ feat = 3
 pdp_ice = pythia.pdp.PDPwithICE(data=X_train.to_numpy(), model=model_forward, nof_instances=100)
 pdp_ice.fit(features=feat, normalize=False)
 pdp_ice.plot(feature=feat, normalized=False)
+
+# dpdp = pythia.pdp.dPDP(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, nof_instances=100)
+# dpdp.fit(features=feat, normalize=False)
+# dpdp.plot(feature=feat, normalized=False)
+
+# find the best splits
 
 
 # # Regional Plot
