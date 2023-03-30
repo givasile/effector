@@ -1,6 +1,9 @@
+import sys, os
+sys.path.append(os.path.dirname(os.getcwd()))
 import numpy as np
 import pythia
 import pythia.regions as regions
+import matplotlib.pyplot as plt
 
 class RepidSimpleDist:
     """
@@ -69,40 +72,48 @@ nof_levels = 2
 nof_splits = 10
 foi = 1
 foc = "all"
-features, types, positions, heterogeneity = regions.find_dICE_splits(nof_levels, nof_splits, foi, foc, X, model.predict, model.jacobian, dist.axis_limits)
+features, types, positions, heterogeneity = regions.find_dICE_splits(nof_levels, nof_splits, foi, foc, X, model.predict, model.jacobian, dist.axis_limits, nof_instances='all')
+
+# exit(0)
 
 # plot global effect
 pdp_ice = pythia.pdp.PDPwithICE(X, model.predict, dist.axis_limits)
 pdp_ice.fit(features="all", normalize=True)
 pdp_ice.plot(feature=foi, normalized=True)
+plt.show()
 
 # plot regional effects based on split of the first level
 pdp_ice = pythia.pdp.PDPwithICE(X[X[:, features[0]] == positions[0], :], model.predict, dist.axis_limits)
 pdp_ice.fit(features=foi, normalize=True)
 pdp_ice.plot(feature=foi, normalized=True)
+plt.show()
 
 pdp_ice = pythia.pdp.PDPwithICE(X[X[:, features[0]] != positions[0], :], model.predict, dist.axis_limits)
 pdp_ice.fit(features=foi, normalize=True)
 pdp_ice.plot(feature=foi, normalized=True)
-
+plt.show()
 
 # plot regional effects based on both splits
 ind = np.logical_and(X[:, features[0]] == positions[0], X[:, features[1]] < positions[1])
 pdp_ice = pythia.pdp.PDPwithICE(X[ind, :], model.predict, dist.axis_limits)
 pdp_ice.fit(features=foi, normalize=True)
 pdp_ice.plot(feature=foi, normalized=True)
+plt.show()
 
 ind = np.logical_and(X[:, features[0]] != positions[0], X[:, features[1]] >= positions[1])
 pdp_ice = pythia.pdp.PDPwithICE(X[ind, :], model.predict, dist.axis_limits)
 pdp_ice.fit(features=foi, normalize=True)
 pdp_ice.plot(feature=foi, normalized=True)
+plt.show()
 
-ind = np.logical_and(X[:, features[0]] == positions[0], X[:, features[1]] < positions[1])
-pdp_ice = pythia.pdp.PDPwithICE(X[ind, :], model.predict, dist.axis_limits)
-pdp_ice.fit(features=foi, normalize=True)
-pdp_ice.plot(feature=foi, normalized=True)
+# ind = np.logical_and(X[:, features[0]] == positions[0], X[:, features[1]] < positions[1])
+# pdp_ice = pythia.pdp.PDPwithICE(X[ind, :], model.predict, dist.axis_limits)
+# pdp_ice.fit(features=foi, normalize=True)
+# pdp_ice.plot(feature=foi, normalized=True)
+# plt.show()
 
-ind = np.logical_and(X[:, features[0]] != positions[0], X[:, features[1]] >= positions[1])
-pdp_ice = pythia.pdp.PDPwithICE(X[ind, :], model.predict, dist.axis_limits)
-pdp_ice.fit(features=foi, normalize=True)
-pdp_ice.plot(feature=foi, normalized=True)
+# ind = np.logical_and(X[:, features[0]] != positions[0], X[:, features[1]] >= positions[1])
+# pdp_ice = pythia.pdp.PDPwithICE(X[ind, :], model.predict, dist.axis_limits)
+# pdp_ice.fit(features=foi, normalize=True)
+# pdp_ice.plot(feature=foi, normalized=True)
+# plt.show()

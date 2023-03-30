@@ -1,3 +1,5 @@
+import sys, os
+sys.path.append(os.path.dirname(os.getcwd()))
 import pythia
 import numpy as np
 import pandas as pd
@@ -5,7 +7,7 @@ from sklearn import linear_model, metrics
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
-
+import matplotlib.pyplot as plt
 
 def preprocess(df):
     # shuffle
@@ -40,11 +42,16 @@ df = pd.read_csv("./../data/Bike-Sharing-Dataset/hour.csv")
 # drop columns
 df = df.drop(["instant", "dteday", "casual", "registered", "atemp"], axis=1)
 
+# print(df.columns)
+# exit()
+
 # shuffle and standarize all features
 X_df, Y_df, x_mean, x_std, y_mean, y_std = preprocess(df)
 
 # train/test split
 X_train, Y_train, X_test, Y_test = split(X_df, Y_df)
+
+print(df.columns)
 
 # # train model
 # lin_model = linear_model.LinearRegression()
@@ -100,47 +107,89 @@ def model_jac(x):
 def model_forward(x):
     return model(x).numpy().squeeze()
 
-# Explain
+# # Explain
 feat = 3
 
-ale = pythia.ALE(data=X_train.to_numpy(), model=model)
-ale.fit(features=feat, nof_bins=100)
-ale.plot(feature=feat)
+# # ale = pythia.ALE(data=X_train.to_numpy(), model=model)
+# # ale.fit(features=feat, nof_bins=100)
+# # ale.plot(feature=feat)
 
 
-rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
+# # rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
+# # binning_method = pythia.binning_methods.Fixed(nof_bins=100)
+# # rhale.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
+# # scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
+# # scale_y = {"mean": 0, "std": y_std}
+# # rhale.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)
+# # plt.show() 
+
+# # pdp = pythia.PDP(data=X_train.to_numpy(), model=model)
+# # pdp.plot(feature=feat)
+
+# # pdp_ice = pythia.pdp.PDPwithICE(data=X_train.to_numpy(), model=model_forward, nof_instances=100)
+# # pdp_ice.fit(features=feat, normalize=False)
+# # pdp_ice.plot(feature=feat, normalized=False)
+# # plt.show()
+# # dpdp = pythia.pdp.dPDP(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, nof_instances=100)
+# # dpdp.fit(features=feat, normalize=False)
+# # dpdp.plot(feature=feat, normalized=False)
+
+# # find the best splits
+
+
+# # # Regional Plot
+# # dale = pythia.RHALE(data=X_train[X_train.loc[:, "workingday"] < 0].to_numpy(), model=model, model_jac=model_jac)
+# # binning_method = pythia.binning_methods.Fixed(nof_bins=100)
+# # dale.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
+# # scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
+# # scale_y = {"mean": 0, "std": y_std}
+# # dale.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)
+# #
+# #
+# # dale = pythia.RHALE(data=X_train[X_train.loc[:, "workingday"] > 0].to_numpy(), model=model, model_jac=model_jac)
+# # binning_method = pythia.binning_methods.Fixed(nof_bins=100)
+# # dale.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
+# # scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
+# # scale_y = {"mean": 0, "std": y_std}
+# # dale.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)
+
+# # find axis limits
+import pythia.regions as regions
+axis_limits = pythia.helpers.axis_limits_from_data(X_train.to_numpy())
+nof_levels = 1 # 2
+nof_splits = 10
+foi = feat
+# foc = "all"
+foc = 'all'
+
+features, types, positions, heterogeneity = regions.find_dICE_splits(nof_levels, nof_splits, foi, foc, X_train.to_numpy(), model_forward, model_jac, axis_limits, nof_instances=100)
+
+
+# # # Regional Plot
+if types[0] == "categorical":
+    rhale = pythia.RHALE(data=X_train[X_train].to_numpy(), model=model, model_jac=model_jac)
+    rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, features[0]] == positions[0]].to_numpy(), model=model, model_jac=model_jac)
+    rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, features[0]] != positions[0]].to_numpy(), model=model, model_jac=model_jac)
+else:
+    rhale = pythia.RHALE(data=X_train[X_train].to_numpy(), model=model, model_jac=model_jac)
+    rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, features[0]] <= positions[0]].to_numpy(), model=model, model_jac=model_jac)
+    rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, features[0]] > positions[0]].to_numpy(), model=model, model_jac=model_jac)
+
+# global plot
 binning_method = pythia.binning_methods.Fixed(nof_bins=100)
 rhale.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
 scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
 scale_y = {"mean": 0, "std": y_std}
 rhale.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)
 
-# pdp = pythia.PDP(data=X_train.to_numpy(), model=model)
-# pdp.plot(feature=feat)
+# regional plots
+rhale_1.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
+scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
+scale_y = {"mean": 0, "std": y_std}
+rhale_1.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)
 
-pdp_ice = pythia.pdp.PDPwithICE(data=X_train.to_numpy(), model=model_forward, nof_instances=100)
-pdp_ice.fit(features=feat, normalize=False)
-pdp_ice.plot(feature=feat, normalized=False)
+rhale_2.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
+scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
+scale_y = {"mean": 0, "std": y_std}
+rhale_2.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)
 
-# dpdp = pythia.pdp.dPDP(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, nof_instances=100)
-# dpdp.fit(features=feat, normalize=False)
-# dpdp.plot(feature=feat, normalized=False)
-
-# find the best splits
-
-
-# # Regional Plot
-# dale = pythia.RHALE(data=X_train[X_train.loc[:, "workingday"] < 0].to_numpy(), model=model, model_jac=model_jac)
-# binning_method = pythia.binning_methods.Fixed(nof_bins=100)
-# dale.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
-# scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
-# scale_y = {"mean": 0, "std": y_std}
-# dale.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)
-#
-#
-# dale = pythia.RHALE(data=X_train[X_train.loc[:, "workingday"] > 0].to_numpy(), model=model, model_jac=model_jac)
-# binning_method = pythia.binning_methods.Fixed(nof_bins=100)
-# dale.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
-# scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
-# scale_y = {"mean": 0, "std": y_std}
-# dale.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)

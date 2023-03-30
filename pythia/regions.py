@@ -2,24 +2,32 @@
 import typing
 import numpy as np
 from pythia import pdp
+from tqdm import tqdm
 
 foc = [0, 2]
 foi = 1
 nof_splits = 10
 
 
-def pdp_heterogeneity(data, model, model_jac, axis_limits, nof_instances):
+def pdp_heterogeneity(data, model, model_jac, axis_limits, nof_instances, foi):
     # if data is empty, return zero
-    if data.shape[0] == 0:
+    if data.shape[0] < 50:
         return 1000000
-    feat = 1
+    feat = foi
+   
+    # Initialize dpdp 
     dpdp = pdp.dPDP(data, model, model_jac, axis_limits, nof_instances)
-    dpdp.fit(features="all", normalize=False)
+   
+    # Fit dpdp
+    dpdp.fit(features=foi, normalize=False)
+
     start = axis_limits[:, feat][0]
     stop = axis_limits[:, feat][1]
-    x = np.linspace(start, stop, 1000)
+
+    x = np.linspace(start, stop, 51)
     x = 0.5 * (x[:-1] + x[1:])
-    pdp_m, pdp_std, pdp_stderr = dpdp.eval(feature=feat, x=x, uncertainty=True)
+
+    pdp_m, pdp_std, pdp_stderr = dpdp._eval_unnorm(feature=feat, x=x, uncertainty=True)
     z = np.mean(pdp_std)
     return z
 
@@ -41,10 +49,11 @@ def find_optimal_split(model, model_jac, data, D1: list, foi: int, feature_types
     I = np.ones([len(foc), nof_splits]) * big_M
 
     # evaluate heterogeneity before split
-    I_start = np.mean([pdp_heterogeneity(D, model, model_jac, axis_limits, nof_instances) for D in D1])
+    print('evaluate heterogeneity before split')
+    I_start = np.mean([pdp_heterogeneity(D, model, model_jac, axis_limits, nof_instances, foi) for D in D1])
 
     # for each feature of conditioning
-    for i, foc_i in enumerate(foc):
+    for i, foc_i in enumerate(tqdm(foc)):
         # if feature is categorical, split at each possible value
         if feature_types[i] == "categorical":
             for j, position in enumerate(np.unique(data[:, foc_i])):
@@ -53,7 +62,7 @@ def find_optimal_split(model, model_jac, data, D1: list, foi: int, feature_types
                 for d in D1:
                     D2.append(d[d[:, foc_i] == position])
                     D2.append(d[d[:, foc_i] != position])
-                I[i, j] = np.mean([pdp_heterogeneity(d, model, model_jac, axis_limits, nof_instances) for d in D2])
+                I[i, j] = np.mean([pdp_heterogeneity(d, model, model_jac, axis_limits, nof_instances, foi) for d in D2])
         # else split at nof_splits positions
         else:
             step = (axis_limits[1, foc_i] - axis_limits[0, foc_i]) / nof_splits
@@ -66,7 +75,7 @@ def find_optimal_split(model, model_jac, data, D1: list, foi: int, feature_types
                 for d in D1:
                     D2.append(d[d[:, foc_i] < position])
                     D2.append(d[d[:, foc_i] >= position])
-                I[i, j] = np.mean([pdp_heterogeneity(d, model, model_jac, axis_limits, nof_instances) for d in D2])
+                I[i, j] = np.mean([pdp_heterogeneity(d, model, model_jac, axis_limits, nof_instances, foi) for d in D2])
 
     # find minimum heterogeneity split
     i, j = np.unravel_index(np.argmin(I, axis=None), I.shape)
@@ -110,7 +119,6 @@ def find_dICE_splits(
     list_of_heterogeneity = []
     list_of_X = [data]
     for lev in range(nof_levels):
-
         I_start, I, i, j, feature, position, f_type = find_optimal_split(model, model_jac, data, list_of_X, foi, feature_types, foc, nof_split_positions, axis_limits, nof_instances)
         list_of_heterogeneity.append(I_start)
         if lev == nof_levels - 1:

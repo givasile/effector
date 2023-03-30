@@ -147,7 +147,8 @@ class PDPwithICE:
         data: np.ndarray,
         model: callable,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        nof_instances: int = 100,
+        # nof_instances: int = 100, code by rg
+        nof_instances: typing.Union[int, str] = "all",
     ):
         """
 
@@ -161,18 +162,21 @@ class PDPwithICE:
 
         # setters
         self.model = model
-        self.data = data
+        # self.data = data
         self.dim = data.shape[1]
         self.axis_limits = (
             helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
         )
         self.nof_instances = nof_instances
-
-        assert nof_instances <= data.shape[0], "Number of instances must be smaller than the number of data points."
+        # code by rg
+        if self.nof_instances == 'all':
+            self.nof_instances = data.shape[0]
+        
+        assert self.nof_instances <= data.shape[0], "Number of instances must be smaller than the number of data points."
         self.y_pdp = PDP(data=data, model=model, axis_limits=axis_limits)
 
         # choose nof_instances from the data with replacement
-        self.indices = np.random.choice(data.shape[0], size=nof_instances, replace=False)
+        self.indices = np.random.choice(data.shape[0], size=self.nof_instances, replace=False)
 
         self.y_ice = [ICE(data=data, model=model, axis_limits=axis_limits, instance=i) for i in self.indices]
 
@@ -228,17 +232,21 @@ class dPDP(FeatureEffectBase):
         # setters
         self.model = model
         self.model_jac = model_jac
-
-        assert nof_instances <= data.shape[0], "Number of instances must be smaller than the number of data points."
-        if nof_instances == "all":
+        self.nof_instances = nof_instances
+        
+        if self.nof_instances == "all" or self.nof_instances > data.shape[0]:
+            self.nof_instances = data.shape[0]
             self.data = data
         else:
-            self.indices = np.random.choice(data.shape[0], size=nof_instances, replace=False)
+            # code by rg
+            # assert self.nof_instances <= data.shape[0], "Number of instances (" + str(self.nof_instances) + ") must be smaller than the number of data points (" + str(data.shape[0]) + ")."
+            self.indices = np.random.choice(data.shape[0], size=self.nof_instances, replace=False)
             self.data = data[self.indices]
+            # code by rg
 
-        self.D = data.shape[1]
+        self.D = self.data.shape[1]
         axis_limits = (
-            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+            helpers.axis_limits_from_data(self.data) if axis_limits is None else axis_limits
         )
         super(dPDP, self).__init__(axis_limits)
 
@@ -357,6 +365,7 @@ class PDPwithdICE:
             model: callable,
             model_jac: callable,
             axis_limits: typing.Union[None, np.ndarray] = None,
+            nof_instances: typing.Union[int, str] = "all",
     ):
         # assertions
         assert data.ndim == 2
@@ -370,9 +379,19 @@ class PDPwithdICE:
             helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
         )
 
-        self.y_pdp = dPDP(data=data, model=model, model_jac=model_jac, axis_limits=axis_limits)
+        # code by rg
+        self.nof_instances = nof_instances
+
+        if self.nof_instances == 'all':
+            self.nof_instances = data.shape[0]
+        
+        assert self.nof_instances <= data.shape[0], "Number of instances must be smaller than the number of data points."
+        
+        # code by rg
+
+        self.y_pdp = dPDP(data=data, model=model, model_jac=model_jac, axis_limits=axis_limits, nof_instances=self.nof_instances)
         self.y_dice = [dICE(data=data, model=model, model_jac=model_jac, axis_limits=axis_limits, instance=i) for i in
-                       range(data.shape[0])]
+                       range(self.nof_instances)]
 
         # boolean variable for whether a FE plot has been computed
         self.is_fitted: np.ndarray = np.ones([self.dim]) * False
