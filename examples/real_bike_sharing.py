@@ -159,19 +159,19 @@ axis_limits = pythia.helpers.axis_limits_from_data(X_train.to_numpy())
 nof_levels = 1 # 2
 nof_splits = 10
 foi = feat
-# foc = "all"
-foc = 'all'
+foc = [2, 4]
+# foc = 'all'
 
 features, types, positions, heterogeneity = regions.find_dICE_splits(nof_levels, nof_splits, foi, foc, X_train.to_numpy(), model_forward, model_jac, axis_limits, nof_instances=100)
 
 
 # # # Regional Plot
 if types[0] == "categorical":
-    rhale = pythia.RHALE(data=X_train[X_train].to_numpy(), model=model, model_jac=model_jac)
+    rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
     rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, features[0]] == positions[0]].to_numpy(), model=model, model_jac=model_jac)
     rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, features[0]] != positions[0]].to_numpy(), model=model, model_jac=model_jac)
 else:
-    rhale = pythia.RHALE(data=X_train[X_train].to_numpy(), model=model, model_jac=model_jac)
+    rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
     rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, features[0]] <= positions[0]].to_numpy(), model=model, model_jac=model_jac)
     rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, features[0]] > positions[0]].to_numpy(), model=model, model_jac=model_jac)
 
@@ -181,15 +181,17 @@ rhale.fit(features=feat, binning_method=binning_method, normalize="zero_integral
 scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
 scale_y = {"mean": 0, "std": y_std}
 rhale.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)
+plt.show()
 
 # regional plots
 rhale_1.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
 scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
 scale_y = {"mean": 0, "std": y_std}
 rhale_1.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)
+plt.show()
 
 rhale_2.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
 scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
 scale_y = {"mean": 0, "std": y_std}
 rhale_2.plot(feature=feat, confidence_interval="std", scale_x=scale_x, scale_y=scale_y)
-
+plt.show()
