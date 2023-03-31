@@ -72,7 +72,7 @@ nof_levels = 2
 nof_splits = 10
 foi = 1
 foc = "all"
-features, types, positions, heterogeneity = regions.find_dICE_splits(nof_levels, nof_splits, foi, foc, X, model.predict, model.jacobian, dist.axis_limits, nof_instances='all')
+features, types, positions, heterogeneity = regions.find_splits(nof_levels, nof_splits, foi, foc, X, model.predict, model.jacobian, dist.axis_limits, nof_instances='all')
 
 # exit(0)
 

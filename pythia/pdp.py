@@ -147,8 +147,7 @@ class PDPwithICE:
         data: np.ndarray,
         model: callable,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        # nof_instances: int = 100, code by rg
-        nof_instances: typing.Union[int, str] = "all",
+        nof_instances: typing.Union[int, str] = 100,
     ):
         """
 
