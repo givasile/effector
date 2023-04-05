@@ -88,7 +88,7 @@ class RHALE(FeatureEffectBase):
                 data, data_effect, feature=feature, axis_limits=self.axis_limits
             )
             bin_est.find(
-                min_points=binning_method.min_points_per_bin, n_max=binning_method.max_nof_bins, fact=binning_method.fact
+                min_points=binning_method.min_points_per_bin, init_nof_bins=binning_method.max_nof_bins, discount=binning_method.discount
             )
         elif isinstance(binning_method, pythia.binning_methods.DynamicProgramming):
             bin_name = "Dynamic Programming"

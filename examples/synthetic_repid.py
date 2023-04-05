@@ -37,7 +37,7 @@ class RepidSimpleModel:
         self.a4 = a4
 
     def predict(self, x):
-        y = self.a1*x[:, 0] + self.a2*x[:, 1]
+        y = self.a1*x[:, 0] + self.a2*x[:, 1] + x[:, 2]
 
         cond = x[:, 0] > 0
         y[cond] += self.a3*x[cond, 1]
@@ -50,7 +50,7 @@ class RepidSimpleModel:
         return y
 
     def jacobian(self, x):
-        y = np.stack([self.a1*np.ones(x.shape[0]), self.a2*np.ones(x.shape[0]), np.zeros(x.shape[0])], axis=-1)
+        y = np.stack([self.a1*np.ones(x.shape[0]), self.a2*np.ones(x.shape[0]), np.ones(x.shape[0])], axis=-1)
 
         cond = x[:, 0] > 0
         y[cond, 1] += self.a3
@@ -68,52 +68,30 @@ model = RepidSimpleModel()
 X = dist.generate(N=1000)
 Y = model.predict(X)
 
-nof_levels = 2
-nof_splits = 10
-foi = 1
-foc = "all"
-features, types, positions, heterogeneity = regions.find_splits(nof_levels, nof_splits, foi, foc, X, model.predict, model.jacobian, dist.axis_limits, nof_instances='all')
+# # find regions
+# nof_levels = 2
+# nof_splits = 10
+# foi = 1
+# foc = "all"
+# splits = regions.find_splits(
+#     nof_levels=nof_levels,
+#     nof_splits=nof_splits,
+#     foi=foi,
+#     foc=foc,
+#     cat_limit=10,
+#     data=X,
+#     model=model.predict,
+#     model_jac=model.jacobian,
+#     criterion="ale"
+# )
 
-# exit(0)
 
 # plot global effect
-pdp_ice = pythia.pdp.PDPwithICE(X, model.predict, dist.axis_limits)
-pdp_ice.fit(features="all", normalize=True)
-pdp_ice.plot(feature=foi, normalized=True)
-plt.show()
-
-# plot regional effects based on split of the first level
-pdp_ice = pythia.pdp.PDPwithICE(X[X[:, features[0]] == positions[0], :], model.predict, dist.axis_limits)
-pdp_ice.fit(features=foi, normalize=True)
-pdp_ice.plot(feature=foi, normalized=True)
-plt.show()
-
-pdp_ice = pythia.pdp.PDPwithICE(X[X[:, features[0]] != positions[0], :], model.predict, dist.axis_limits)
-pdp_ice.fit(features=foi, normalize=True)
-pdp_ice.plot(feature=foi, normalized=True)
-plt.show()
-
-# plot regional effects based on both splits
-ind = np.logical_and(X[:, features[0]] == positions[0], X[:, features[1]] < positions[1])
-pdp_ice = pythia.pdp.PDPwithICE(X[ind, :], model.predict, dist.axis_limits)
-pdp_ice.fit(features=foi, normalize=True)
-pdp_ice.plot(feature=foi, normalized=True)
-plt.show()
-
-ind = np.logical_and(X[:, features[0]] != positions[0], X[:, features[1]] >= positions[1])
-pdp_ice = pythia.pdp.PDPwithICE(X[ind, :], model.predict, dist.axis_limits)
-pdp_ice.fit(features=foi, normalize=True)
-pdp_ice.plot(feature=foi, normalized=True)
-plt.show()
-
-# ind = np.logical_and(X[:, features[0]] == positions[0], X[:, features[1]] < positions[1])
-# pdp_ice = pythia.pdp.PDPwithICE(X[ind, :], model.predict, dist.axis_limits)
-# pdp_ice.fit(features=foi, normalize=True)
-# pdp_ice.plot(feature=foi, normalized=True)
-# plt.show()
-
-# ind = np.logical_and(X[:, features[0]] != positions[0], X[:, features[1]] >= positions[1])
-# pdp_ice = pythia.pdp.PDPwithICE(X[ind, :], model.predict, dist.axis_limits)
-# pdp_ice.fit(features=foi, normalize=True)
-# pdp_ice.plot(feature=foi, normalized=True)
-# plt.show()
+rhale = pythia.RHALE(data=X, model=model.predict, model_jac=model.jacobian)
+fixed = pythia.binning_methods.Fixed(nof_bins=10)
+dp = pythia.binning_methods.DynamicProgramming(max_nof_bins=10)
+greedy = pythia.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=100, discount=0.5)
+rhale.fit(features="all", binning_method=greedy)
+rhale.plot(feature=0, confidence_interval="std")
+rhale.plot(feature=1, confidence_interval="std")
+rhale.plot(feature=2, confidence_interval="std")

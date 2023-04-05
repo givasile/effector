@@ -43,7 +43,8 @@ def ale_heter(x, x_jac, model, foi):
 
     # Initialize rhale
     rhale = pythia.RHALE(x, model, None, None, x_jac)
-    binning_method = pythia.binning_methods.Fixed(nof_bins=40)
+    # binning_method = pythia.binning_methods.Fixed(nof_bins=40)
+    binning_method = pythia.binning_methods.Greedy(init_nof_bins=50, min_points_per_bin=10, discount=0.5)
     rhale.fit(features=foi, binning_method=binning_method)
 
     # heterogeneity is the accumulated std at the end of the curve
@@ -103,13 +104,15 @@ def split_pdp(model, model_jac, data, D1: list, foi: int, feature_types: list, f
 
 
 def split_rhale(model, model_jac, data, x_list: list, x_jac_list: list, foi: int, foc_types: list, foc: list, nof_splits: int, cat_limit, heter_before):
-    # init heter_mat[i,j] (i index of foc and j index of split position)
+    # init heter_drop[i,j] (i index of foc and j index of split position)
     big_M = -10000000000
-    heter_mat = np.ones([len(foc), max(nof_splits, cat_limit)]) * big_M
+    weigthed_heter_drop = np.ones([len(foc), max(nof_splits, cat_limit)]) * big_M
+
+    # interval of the feature of interest
+    lims = np.array([pythia.helpers.axis_limits_from_data(xx)[:,foi] for xx in x_list])
 
     # find all split positions
     positions = [find_positions_cat(data, foc_i) if foc_types[i] == "cat" else find_positions_cont(data, foc_i, nof_splits) for i, foc_i in enumerate(foc)]
-
 
     # exhaustive search on all split positions
     for i, foc_i in enumerate(tqdm(foc)):
@@ -118,15 +121,20 @@ def split_rhale(model, model_jac, data, x_list: list, x_jac_list: list, foi: int
             x_list_2 = flatten_list([split_dataset(x, None, foc_i, position, foc_types[i]) for x in x_list])
             x_jac_list_2 = flatten_list([split_dataset(x, x_jac, foc_i, position, foc_types[i]) for x, x_jac in zip(x_list, x_jac_list)])
 
+            # assert foi interval is wide enough for all split datasets
+            # lims = [pythia.helpers.axis_limits_from_data(xx)[:,foi] for xx in x_list_2]
+
+
             # evaluate heterogeneity after split
             sub_heter = [ale_heter(x, x_jac, model, foi) for x, x_jac in zip(x_list_2, x_jac_list_2)]
             heter_drop = np.array(flatten_list([[heter_bef - sub_heter[int(2*i)], heter_bef - sub_heter[int(2*i + 1)]] for i, heter_bef in enumerate(heter_before)]))
             populations = np.array([len(xx) for xx in x_list_2])
             weights = (populations+1) / (np.sum(populations + 1))
-            heter_mat[i, j] = np.sum(heter_drop * weights)
+            weigthed_heter_drop[i, j] = np.sum(heter_drop * weights)
+
 
     # find min heterogeneity split
-    i, j = np.unravel_index(np.argmax(heter_mat, axis=None), heter_mat.shape)
+    i, j = np.unravel_index(np.argmax(weigthed_heter_drop, axis=None), weigthed_heter_drop.shape)
     feature = foc[i]
     position = positions[i][j]
     split_positions = positions[i]
@@ -135,7 +143,7 @@ def split_rhale(model, model_jac, data, x_list: list, x_jac_list: list, foi: int
     x_jac_list_2 = flatten_list([split_dataset(x, x_jac, foc[i], position, foc_types[i]) for x, x_jac in zip(x_list, x_jac_list)])
     nof_instances = [len(x) for x in x_list_2]
     sub_heter = [ale_heter(x, x_jac, model, foi) for x, x_jac in zip(x_list_2, x_jac_list_2)]
-    split = {"feature": feature, "position": position, "candidate_split_positions": split_positions, "nof_instances": nof_instances, "type": foc_types[i], "heterogeneity": sub_heter, "split_i": i, "split_j": j, "foc": foc, "weighted_heter": heter_mat[i, j]}
+    split = {"feature": feature, "position": position, "candidate_split_positions": split_positions, "nof_instances": nof_instances, "type": foc_types[i], "heterogeneity": sub_heter, "split_i": i, "split_j": j, "foc": foc, "weighted_heter": weigthed_heter_drop[i, j]}
     return split
 
 

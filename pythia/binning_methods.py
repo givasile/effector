@@ -13,16 +13,18 @@ class DynamicProgramming:
 
 class Greedy:
     def __init__(self,
-                 max_nof_bins: int = 100,
+                 init_nof_bins: int = 100,
                  min_points_per_bin: int = 10,
-                 fact: float = 1.05,
+                 discount: float = 0.3,
                  ):
-        self.max_nof_bins = max_nof_bins
+        self.max_nof_bins = init_nof_bins
         self.min_points_per_bin = min_points_per_bin
-        self.fact = fact
+        self.discount = discount
 
 
 class Fixed:
-    def __init__(self, nof_bins: int = 100, min_points_per_bin = None):
+    def __init__(self,
+                 nof_bins: int = 100,
+                 min_points_per_bin = 10):
         self.nof_bins = nof_bins
         self.min_points_per_bin = min_points_per_bin

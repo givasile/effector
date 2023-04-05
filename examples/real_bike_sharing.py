@@ -58,7 +58,7 @@ def plot_subregions_rhale(feat, feature, type, position, X_train, model, model_j
     plot(rhale_2)
 
 
-def plot_subregions_pdp_ice(features, types, positions, X_train, model):
+def plot_subregions_pdp_ice(feat, features, types, positions, X_train, model):
     # Regional Plot
     if types[0] == "categorical":
         pdp = pythia.pdp.PDPwithICE(data=X_train.to_numpy(), model=model)
@@ -167,12 +167,12 @@ splits = regions.find_splits(nof_levels, nof_splits, foi, foc, cat_limit, X_trai
 #
 # for split in splits:
 #     print(split)
-print(splits[1]["feature"])
-rhale = pythia.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
-rhale.fit(features=[8], binning_method=pythia.binning_methods.Fixed(nof_bins=30))
-rhale.plot(feature=8, confidence_interval=False)
-
-features, types, positions, heterogeneity = splits[1]["feature"], splits[1]["type"], splits[1]["position"], splits[1]["heterogeneity"]
-plot_subregions_rhale(foi, features, types, positions, X_train, model_forward, model_jac)
+# print(splits[1]["feature"])
+# rhale = pythia.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
+# rhale.fit(features=[8], binning_method=pythia.binning_methods.Fixed(nof_bins=30))
+# rhale.plot(feature=8, confidence_interval=False)
+#
+# features, types, positions, heterogeneity = splits[1]["feature"], splits[1]["type"], splits[1]["position"], splits[1]["heterogeneity"]
+# plot_subregions_rhale(foi, features, types, positions, X_train, model_forward, model_jac)
 
 #

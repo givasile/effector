@@ -2,7 +2,6 @@ import typing
 
 import numpy as np
 import pythia.utils as utils
-import pythia.utils_integrate as integrate
 import matplotlib.pyplot as plt
 
 # global (script-level) variables
@@ -12,40 +11,24 @@ big_M = 1.0e10
 class BinBase:
     big_M = big_M
 
-    def __init__(
-        self,
-        feature: int,
-        xs_min: float,
-        xs_max: float,
-        data: typing.Union[None, np.ndarray],
-        data_effect: typing.Union[None, np.ndarray],
-        mu: typing.Union[None, callable],
-        sigma: typing.Union[None, callable],
-        axis_limits: typing.Union[None, np.ndarray] = None,
-    ):
+    def __init__(self, feature: int, data: typing.Union[None, np.ndarray], data_effect: typing.Union[None, np.ndarray], axis_limits: typing.Union[None, np.ndarray]):
         """Initializer.
 
         Parameters
         ----------
         feature: feature index
-        xs_min: min value on axis
-        xs_max: max value on axis
         data: np.ndarray with X if binning is based on data, else, None
         data_effect: np.ndarray with dy/dX if binning is based on data, else, None
-        mu: mu(xs) function
-        sigma: sigma(xs) function if binning
-        axis_limits: np.ndarray (2, D) or None, if it given it gets priority over xs_min, xs_max
+        axis_limits: np.ndarray (2, D) or None, if None, then axis_limits are set to [xs_min, xs_max]
         """
         # set immediately
         self.feature: int = feature
-        self.xs_min: float = xs_min
-        self.xs_max: float = xs_max
+        self.xs_min: float = axis_limits[0, feature] if axis_limits is not None else data[:, feature].min()
+        self.xs_max: float = axis_limits[1, feature] if axis_limits is not None else data[:, feature].max()
 
         self.data = data
         self.data_effect = data_effect
-        self.mu = mu
-        self.sigma = sigma
-        self.axis_limits = axis_limits
+        # self.axis_limits = axis_limits if axis_limits is not None else np.array([[xs_min, xs_max]])
 
         # set after execution of method `find`
 
@@ -60,158 +43,184 @@ class BinBase:
         #  - np.ndarray -> the limits
         self.limits: typing.Union[None, False, np.ndarray] = None
 
-    def _bin_loss(self, start: float, stop: float):
-        """Cost of creating the bin with limits [start, stop].
+    def _bin_cost(self, start, stop, discount):
+        nof_points = self.data.shape[0]
+        min_points = self.min_points
+        data = self.data[:, self.feature]
+        data_effect = self.data_effect[:, self.feature]
+        data, data_effect = utils.filter_points_in_bin(
+            data, data_effect, np.array([start, stop])
+        )
 
-        If the bin contains less points than the specified min_points (min_points is not None)
-        then big_M is passed as return value.
+        # compute cost
+        if data_effect.size < min_points:
+            cost = self.big_M
+        else:
+            discount_for_more_points = 1 - discount * (data_effect.size / nof_points)
+            cost = np.var(data_effect) * (stop - start) * discount_for_more_points
+        return cost
+
+    def _bin_valid(self, start, stop):
+        """Check if creating a bin with limits [start, stop] is valid.
 
         Returns:
-            cost of creating the particular bin
+            Boolean, True if the bin is valid, False otherwise
         """
-        return NotImplementedError
+        if self.min_points is None:
+            return True
 
-    def _bin_valid(self, start: float, stop: float):
-        """Whether the bin is valid.
+        xs = self.data[:, self.feature]
+        dy_dxs = self.data_effect[:, self.feature]
+        _, effect_1 = utils.filter_points_in_bin(xs, dy_dxs, np.array([start, stop]))
+        valid = effect_1.size >= self.min_points
+        return valid
+        
+    def _none_valid_binning(self):
+        """Check if it is impossible to create any binning
 
-        Returns a boolean value
+        Returns:
+            Boolean, True if it is impossible to create any binning, False otherwise
         """
-        return NotImplementedError
 
-    def _none_bin_possible(self):
-        """True, if non bin is possible
+        dy_dxs = self.data_effect[:, self.feature]
+        return dy_dxs.size < self.min_points
 
-        Returns a boolean value
+    def _only_one_bin_possible(self):
+        """Check if the only possible binning is all points in one bin
+
+        Returns:
+            Boolean, True if the only possible binning is all points in one bin, False otherwise
         """
-        return NotImplementedError
+        # if xs is categorical, then only one bin is possible
+        is_categorical = np.allclose(self.xs_min, self.xs_max)
 
-    def _one_bin_possible(self):
-        """True, if only one bin is possible
+        # if xs is not categorical, then one bin is possible if there are enough points only in one bin
+        dy_dxs = self.data_effect[:, self.feature]
+        enough_for_one_bin = self.min_points <= dy_dxs.size < 2 * self.min_points
+        return is_categorical or enough_for_one_bin
 
-        Returns a boolean value
+    def _is_categorical(self):
+        """Check if the feature is categorical, i.e. has less than 10 unique values, and if so, set the limits
+
+        Returns:
+            Boolean, True if the feature is categorical, False otherwise
         """
-        return NotImplementedError
+        # if unique values are leq 10, then it is categorical
+        is_cat = len(np.unique(self.data[:, self.feature])) <= 10
+        if is_cat:
+            # set unique values as the center of the bins
+            uniq = np.sort(np.unique(self.data[:, self.feature]))
+            dx = [uniq[i + 1] - uniq[i] for i in range(len(uniq) - 1)]
+            lims = np.array([uniq[0] - dx[0] / 2] + [uniq[i] + dx[i] / 2 for i in range(len(uniq) - 1)] + [uniq[-1] + dx[-1] / 2])
+
+            # if all limits are valid, then set them
+            if np.all([self._bin_valid(lims[i], lims[i + 1]) for i in range(len(lims) - 1)]):
+
+                self.limits = lims
+            else:
+                self.limits = False
+        return is_cat
 
     def find(self, *args):
-        """Finds the optimal bins
-        If it is possible to find a set of optimal bins, it returns the limits as np.ndarray
-        If it is not, returns False
-
+        """Find the optimal binning for the feature.
         """
         return NotImplementedError
 
-    def plot(self, s=0, block=False):
+    def plot(self, feature=0, block=False):
         assert self.limits is not None
+        assert self.data is not None
+        assert self.data_effect is not None
+
         limits = self.limits
 
         plt.figure()
-        plt.title("Bin splitting for feature %d" % (s + 1))
-        if self.data is not None:
-            xs = self.data[:, self.feature]
-            dy_dxs = self.data_effect[:, self.feature]
-            plt.plot(xs, dy_dxs, "bo", label="local effects")
-        elif self.mu is not None:
-            xs = np.linspace(self.xs_min, self.xs_max, 1000)
-            dy_dxs = self.mu(xs)
-            plt.plot(xs, dy_dxs, "b-", label="mu(x)")
-
+        plt.title("Bin splitting for feature %d" % (feature + 1))
+        xs = self.data[:, self.feature]
+        dy_dxs = self.data_effect[:, self.feature]
+        plt.plot(xs, dy_dxs, "bo", label="local effects")
         y_min = np.min(dy_dxs)
         y_max = np.max(dy_dxs)
         plt.vlines(limits, ymin=y_min, ymax=y_max, linestyles="dashed", label="bins")
-        plt.xlabel("x_%d" % (s + 1))
-        plt.ylabel("dy/dx_%d" % (s + 1))
+        plt.xlabel("x_%d" % (feature + 1))
+        plt.ylabel("dy/dx_%d" % (feature + 1))
         plt.legend()
         plt.show(block=block)
 
 
-class GreedyBase(BinBase):
-    def __init__(
-        self,
-        feature: int,
-        xs_min: float,
-        xs_max: float,
-        data,
-        data_effect,
-        mu,
-        sigma,
-        axis_limits,
-    ):
-        super(GreedyBase, self).__init__(
-            feature, xs_min, xs_max, data, data_effect, mu, sigma, axis_limits
-        )
+class Greedy(BinBase):
+    """
+    Greedy binning algorithm
+    """
+    def __init__(self, 
+                 data: np.ndarray, 
+                 data_effect: np.ndarray, 
+                 feature: int, 
+                 axis_limits: typing.Union[None, np.ndarray]):
+        super(Greedy, self).__init__(feature, data, data_effect, axis_limits)
+
 
     def find(
         self,
-        n_max: int = 100,
-        fact: float = 1.05,
+        init_nof_bins: int = 100,
+        discount: float = 0.3,
         min_points: typing.Union[None, int] = 10,
     ) -> typing.Union[np.ndarray, bool]:
-        """Finds the optimal bins using the Greedy method.
 
-        Parameters
-        ----------
-        min_points: min points per bin
-        n_max: initial (maximum) number of bins, before merging
-        fact: factor for deciding to close the window or not
+        # if categorical, then return the limits
+        if self._is_categorical():
+            return self.limits
 
-        Returns
-        -------
-        (K, ) np.ndarray if a solution is feasible, False otherwise
-        """
-        if min_points is not None:
-            assert min_points >= 2, "set min_points > 2 to estimate the variance."
         xs_min = self.xs_min
         xs_max = self.xs_max
         self.min_points = min_points
 
-        if self._none_bin_possible():
+        if self._none_valid_binning():
             self.limits = False
-        elif self._one_bin_possible():
+        elif self._only_one_bin_possible():
             self.limits = np.array([self.xs_min, self.xs_max])
         else:
             # limits with high resolution
-            limits, _ = np.linspace(
-                xs_min, xs_max, num=n_max + 1, endpoint=True, retstep=True
-            )
-            # bin merging
+            limits, _ = np.linspace(xs_min, xs_max, num=init_nof_bins + 1, endpoint=True, retstep=True)
+            
+            # merging
             i = 0
             merged_limits = [limits[0]]
-            while i < n_max:
-                # left limit is always the last item of merged_limits
+            while i < init_nof_bins:
+                # left limit is the last item of the merged_limits list
                 left_lim = merged_limits[-1]
 
                 # choose whether to close the bin
-                if i == n_max - 1:
+                if i == init_nof_bins - 1:
                     # if last bin, close it
                     close_bin = True
                 else:
-                    # bin_1_loss: cost if close in this bin
-                    bin_1_loss = self._bin_loss(left_lim, limits[i + 1])
+                    # bin_1, the bin if I close it here
+                    bin_1_loss = self._bin_cost(left_lim, limits[i + 1], discount)
                     bin_1_valid = self._bin_valid(left_lim, limits[i + 1])
 
-                    # bin_2_loss: cost if close after the next bin
-                    bin_2_loss = self._bin_loss(left_lim, limits[i + 2])
+                    # bin_2: the bin if I close it in the next limit
+                    bin_2_loss = self._bin_cost(left_lim, limits[i + 2], discount)
                     bin_2_valid = self._bin_valid(left_lim, limits[i + 2])
 
+                    # if both bins valid
                     if bin_1_valid and bin_2_valid:
-                        # if both bins valid
+                        # if first zero, second positive -> close
                         if bin_1_loss == 0.0 and bin_2_loss > 0:
-                            # if first zero, second positive -> close
                             close_bin = True
+                        # if both zero, keep it (we could close as well)
                         elif bin_1_loss == 0.0 and bin_2_loss == 0:
-                            # if both zero, keep it (we could close as well)
                             close_bin = False
+                        # if both positive, compare and decide
                         else:
-                            # if both positive, compare and decide
-                            close_bin = (
-                                False if (bin_2_loss / bin_1_loss <= fact) else True
-                            )
+                            close_bin = False if bin_2_loss <= bin_1_loss else True
                     else:
                         # if either invalid, keep open
                         close_bin = False
-
+                
+                # if close_bin, then add the next limit to the merged_limits
                 if close_bin:
                     merged_limits.append(limits[i + 1])
+                
                 i += 1
 
             # if last bin is without enough points, merge it with the previous
@@ -223,110 +232,15 @@ class GreedyBase(BinBase):
         return self.limits
 
 
-class Greedy(GreedyBase):
-    """
-    Greedy bin splitting based on datapoints, i.e. data, data_effect.
-    """
+class DP(BinBase):
 
-    def __init__(
-        self,
-        data: np.ndarray,
-        data_effect: np.ndarray,
-        feature: int,
-        axis_limits: typing.Union[None, np.ndarray],
-    ):
-        """
-
-        Parameters
-        ----------
-        data: (N, D) np.ndarray: input X
-        data_effect: (N, D) np.ndarray, jacobian
-        feature: column
-        axis_limits: (2, D) np.ndarray or None, if None limits is given by data points
-        """
-        xs_min = (
-            data[:, feature].min() if axis_limits is None else axis_limits[0, feature]
-        )
-        xs_max = (
-            data[:, feature].max() if axis_limits is None else axis_limits[1, feature]
-        )
-        super(Greedy, self).__init__(
-            feature, xs_min, xs_max, data, data_effect, None, None, axis_limits
-        )
-
-    def _bin_loss(self, start, stop):
-        xs = self.data[:, self.feature]
-        dy_dxs = self.data_effect[:, self.feature]
-        _, effect_1 = utils.filter_points_in_bin(xs, dy_dxs, np.array([start, stop]))
-        loss = np.var(effect_1) if effect_1.size >= self.min_points else self.big_M
-        return loss
-
-    def _bin_valid(self, start, stop):
-        xs = self.data[:, self.feature]
-        dy_dxs = self.data_effect[:, self.feature]
-        _, effect_1 = utils.filter_points_in_bin(xs, dy_dxs, np.array([start, stop]))
-        valid = effect_1.size >= self.min_points
-        return valid
-
-    def _none_bin_possible(self):
-        dy_dxs = self.data_effect[:, self.feature]
-        return dy_dxs.size < self.min_points
-
-    def _one_bin_possible(self):
-        dy_dxs = self.data_effect[:, self.feature]
-        return self.min_points <= dy_dxs.size < 2 * self.min_points
-
-
-class GreedyGT(GreedyBase):
-    """
-    Greedy bin splitting based on callables, i.e. mean, var.
-    """
-
-    def __init__(
-        self, mean: callable, var: callable, axis_limits: np.ndarray, feature: int
-    ):
-        self.axis_limits: np.ndarray = axis_limits
-
-        xs_min = axis_limits[0, feature]
-        xs_max = axis_limits[1, feature]
-        super(GreedyGT, self).__init__(
-            feature, xs_min, xs_max, None, None, mean, var, axis_limits
-        )
-
-    def _bin_loss(self, start, stop):
-        mu_bin = integrate.integrate_1d_linspace(self.mu, start, stop) / (stop - start)
-
-        def mean_var(x):
-            return (self.mu(x) - mu_bin) ** 2
-
-        var1 = integrate.integrate_1d_linspace(self.sigma, start, stop)
-        var1 = var1 / (stop - start)
-        var2 = integrate.integrate_1d_linspace(mean_var, start, stop)
-        var2 = var2 / (stop - start)
-        return var1 + var2
-
-    def _bin_valid(self, start, stop):
-        return True
-
-    def _none_bin_possible(self):
-        return False
-
-    def _one_bin_possible(self):
-        return False
-
-
-class DPBase(BinBase):
-    def __init__(
-        self, feature, xs_min, xs_max, data, data_effect, mu, sigma, axis_limits
-    ):
+    def __init__(self, data, data_effect, feature, axis_limits):
 
         # self.dx_list = None
         self.matrix = None
         self.argmatrix = None
 
-        super(DPBase, self).__init__(
-            feature, xs_min, xs_max, data, data_effect, mu, sigma, axis_limits
-        )
+        super(DP, self).__init__(feature, data, data_effect, axis_limits)
 
     def _index_to_position(self, index_start, index_stop, K):
         dx = (self.xs_max - self.xs_min) / K
@@ -348,7 +262,7 @@ class DPBase(BinBase):
             cost = 0
         else:
             start, stop = self._index_to_position(index_before, index_next, K)
-            cost = self._bin_loss(start, stop, discount)
+            cost = self._bin_cost(start, stop, discount)
         return cost
 
     def _argmatrix_to_limits(self, K):
@@ -378,6 +292,7 @@ class DPBase(BinBase):
         )
         return limits, dx_list
 
+
     def find(self, k_max: int = 30, min_points: int = 10, discount: float = 0.3):
         """
 
@@ -390,13 +305,20 @@ class DPBase(BinBase):
         -------
 
         """
+        # if is categorical, then only one bin is possible
+        if self._is_categorical():
+            return self.limits
+
         self.min_points = min_points
         big_M = self.big_M
         nof_limits = k_max + 1
         nof_bins = k_max
 
-        if self._none_bin_possible():
+        if self._none_valid_binning():
             self.limits = False
+        elif self._only_one_bin_possible():
+            self.limits = np.array([self.xs_min, self.xs_max])
+            self.dx_list = np.array([self.xs_max - self.xs_min])
         elif k_max == 1:
             self.limits = np.array([self.xs_min, self.xs_max])
             self.dx_list = np.array([self.xs_max - self.xs_min])
@@ -438,174 +360,22 @@ class DPBase(BinBase):
         return self.limits
 
 
-class DP(DPBase):
+class Fixed(BinBase):
     def __init__(self, data, data_effect, feature, axis_limits):
-        xs_min = (
-            data[:, feature].min() if axis_limits is None else axis_limits[0, feature]
-        )
-        xs_max = (
-            data[:, feature].max() if axis_limits is None else axis_limits[1, feature]
-        )
-        self.nof_points = data.shape[0]
-        self.feature = feature
-        super(DP, self).__init__(
-            feature, xs_min, xs_max, data, data_effect, None, None, axis_limits
-        )
-
-    def _none_bin_possible(self):
-        dy_dxs = self.data_effect[:, self.feature]
-        return dy_dxs.size < self.min_points
-
-    def _bin_valid(self, start: float, stop: float) -> bool:
-        data = self.data[:, self.feature]
-        data_effect = self.data_effect[:, self.feature]
-        data, data_effect = utils.filter_points_in_bin(
-            data, data_effect, np.array([start, stop])
-        )
-        if data_effect.size < self.min_points:
-            valid = False
-        else:
-            valid = True
-        return valid
-
-    def _bin_loss(self, start, stop, discount):
-        min_points = self.min_points
-        data = self.data[:, self.feature]
-        data_effect = self.data_effect[:, self.feature]
-        data, data_effect = utils.filter_points_in_bin(
-            data, data_effect, np.array([start, stop])
-        )
-
-        # compute cost
-        if data_effect.size < min_points:
-            cost = self.big_M
-            cost_var = self.big_M
-        else:
-            # cost = np.std(data_effect) * (stop-start) / np.sqrt(data_effect.size)
-            discount_for_more_points = 1 - discount * (
-                data_effect.size / self.nof_points
-            )
-            cost = np.var(data_effect) * (stop - start) * discount_for_more_points
-            cost_var = np.var(data_effect)
-        return cost
-
-
-class DPGT(DPBase):
-    def __init__(
-        self, mean: callable, var: callable, axis_limits: np.ndarray, feature: int
-    ):
-        self.axis_limits = axis_limits
-        xs_min = axis_limits[0, feature]
-        xs_max = axis_limits[1, feature]
-        super(DPGT, self).__init__(
-            feature, xs_min, xs_max, None, None, mean, var, axis_limits
-        )
-
-    def _none_bin_possible(self):
-        return False
-
-    def _bin_valid(self, start, stop):
-        return True
-
-    def _bin_loss(self, start, stop, discount):
-        mu_bin = integrate.integrate_1d_linspace(self.mu, start, stop) / (stop - start)
-        mean_var = lambda x: (self.mu(x) - mu_bin) ** 2
-        var1 = integrate.integrate_1d_linspace(self.sigma, start, stop)
-        var1 = var1 / (stop - start)
-        var2 = integrate.integrate_1d_linspace(mean_var, start, stop)
-        var2 = var2 / (stop - start)
-        total_var = var1 + var2
-
-        # cost = np.std(data_effect) * (stop-start) / np.sqrt(data_effect.size)
-        bin_length_pcg = (stop - start) / (self.xs_max - self.xs_min)
-        discount_for_more_points = 1 - discount * bin_length_pcg
-        cost = total_var * (stop - start) * discount_for_more_points
-        return cost
-
-
-class FixedBase(BinBase):
-    def __init__(
-        self, feature, xs_min, xs_max, data, data_effect, mu, sigma, axis_limits
-    ):
-        super(FixedBase, self).__init__(
-            feature, xs_min, xs_max, data, data_effect, mu, sigma, axis_limits
-        )
-
-    def _bin_valid(self, start, stop):
-        return NotImplementedError
+        super(Fixed, self).__init__(feature, data, data_effect, axis_limits)
 
     def find(self, nof_bins: int, min_points: typing.Union[None, int] = 10):
+        if self._is_categorical():
+            return self.limits
         self.min_points = min_points
-        self.K = nof_bins
 
-        limits, dx = np.linspace(
-            self.xs_min, self.xs_max, num=nof_bins + 1, endpoint=True, retstep=True
-        )
-
+        limits, dx = np.linspace(self.xs_min, self.xs_max, num=nof_bins + 1, endpoint=True, retstep=True)
         if min_points is not None:
-            assert (
-                min_points >= 2
-            ), "We need at least two points per bin to estimate the variance"
+            limits_valid = all(self._bin_valid(limits[i], limits[i + 1]) for i in range(nof_bins))
+            self.limits = limits if limits_valid else False
+        else:
+            self.limits = limits
 
-            # check if enough points in all bins
-            valid_binning = True
-            for i in range(nof_bins):
-                start = limits[i]
-                stop = limits[i + 1]
-                if not self._bin_valid(start, stop):
-                    valid_binning = False
-
-            if not valid_binning:
-                limits = False
-
-        self.limits = limits
         return self.limits
 
 
-class Fixed(FixedBase):
-    def __init__(self, data, data_effect, feature, axis_limits):
-        xs_min = (
-            data[:, feature].min() if axis_limits is None else axis_limits[0, feature]
-        )
-        xs_max = (
-            data[:, feature].max() if axis_limits is None else axis_limits[1, feature]
-        )
-        super(Fixed, self).__init__(
-            feature, xs_min, xs_max, data, data_effect, None, None, axis_limits
-        )
-
-    def _bin_valid(self, start, stop):
-        xs = self.data[:, self.feature]
-        dy_dxs = self.data_effect[:, self.feature]
-        xs_1, _ = utils.filter_points_in_bin(xs, dy_dxs, np.array([start, stop]))
-        valid = xs_1.size >= self.min_points
-        return valid
-
-    def _cost_of_bin(self, start, stop):
-        xs = self.data[:, self.feature]
-        dy_dxs = self.data_effect[:, self.feature]
-        _, effect_1 = utils.filter_points_in_bin(xs, dy_dxs, np.array([start, stop]))
-        return np.var(effect_1), np.var(effect_1)
-
-
-class FixedGT(FixedBase):
-    def __init__(self, mean: callable, var: callable, axis_limits, feature):
-        self.axis_limits = axis_limits
-        xs_min = axis_limits[0, feature]
-        xs_max = axis_limits[1, feature]
-        super(FixedGT, self).__init__(
-            feature, xs_min, xs_max, None, None, mean, var, axis_limits
-        )
-
-    def _bin_valid(self, start, stop):
-        return True
-
-    def _cost_of_bin(self, start, stop):
-        mu_bin = integrate.integrate_1d_quad(self.mu, start, stop) / (stop - start)
-        mean_var = lambda x: (self.mu(x) - mu_bin) ** 2
-        var1 = integrate.integrate_1d_quad(self.sigma, start, stop)
-        var1 = var1 / (stop - start)
-        var2 = integrate.integrate_1d_quad(mean_var, start, stop)
-        var2 = var2 / (stop - start)
-        total_var = var1 + var2
-        return total_var, total_var

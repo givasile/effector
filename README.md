@@ -51,12 +51,12 @@ with Sphinx: https://www.sphinx-doc.org/en/master/index.html
   * Risk Factors for Cervical Cancer (Classification)
   * Bike Sharing Dataset (Regression) :heavy_check_mark:
 * Refactor tests based on the two synthetic examples :heavy_check_mark:
-* refactor `src`:
-  * scan code to remove functions used only for research purposes
-  * agree on the final API
-  * check on syntetic and real examples
+* refactor `src`: :heavy_check_mark:
+  * scan code to remove functions used only for research purposes :heavy_check_mark:
+  * agree on the final API :heavy_check_mark:
+  * check on syntetic and real examples :heavy_check_mark:
 * add new methods:
-  * REPID
+  * REPID :heavy_check_mark:
   * PFI
 
 Backlog:
