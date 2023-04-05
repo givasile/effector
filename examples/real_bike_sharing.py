@@ -1,10 +1,7 @@
 import sys, os
 sys.path.append(os.path.dirname(os.getcwd()))
 import pythia
-import numpy as np
 import pandas as pd
-from sklearn import linear_model, metrics
-import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
 import matplotlib.pyplot as plt
@@ -36,20 +33,16 @@ def split(X_df, Y_df):
     return X_train, Y_train, X_test, Y_test
 
 
-def plot_subregions_rhale(features, types, positions, X_train, model, model_jac):
+def plot_subregions_rhale(feat, feature, type, position, X_train, model, model_jac):
     # Regional Plot
-    if types[0] == "categorical":
+    if type == "cat":
         rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
-        rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, features[0]] == positions[0]].to_numpy(), model=model,
-                               model_jac=model_jac)
-        rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, features[0]] != positions[0]].to_numpy(), model=model,
-                               model_jac=model_jac)
+        rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] == position].to_numpy(), model=model, model_jac=model_jac)
+        rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] != position].to_numpy(), model=model, model_jac=model_jac)
     else:
         rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
-        rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, features[0]] <= positions[0]].to_numpy(), model=model,
-                               model_jac=model_jac)
-        rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, features[0]] > positions[0]].to_numpy(), model=model,
-                               model_jac=model_jac)
+        rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] <= position].to_numpy(), model=model, model_jac=model_jac)
+        rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] > position].to_numpy(), model=model, model_jac=model_jac)
 
     def plot(rhale):
         binning_method = pythia.binning_methods.Fixed(nof_bins=100)
@@ -103,7 +96,7 @@ X_df, Y_df, x_mean, x_std, y_mean, y_std = preprocess(df)
 # train/test split
 X_train, Y_train, X_test, Y_test = split(X_df, Y_df)
 
-print(df.columns)
+cols = df.columns
 
 # # train model
 # lin_model = linear_model.LinearRegression()
@@ -160,17 +153,26 @@ def model_forward(x):
     return model(x).numpy().squeeze()
 
 # # Explain
-feat = 3
 
 # find subregions
 import pythia.regions as regions
 axis_limits = pythia.helpers.axis_limits_from_data(X_train.to_numpy())
-nof_levels = 2
+nof_levels = 6
 nof_splits = 10
-foi = feat
+foi = 10
 foc = "all"
-features, types, positions, heterogeneity = regions.find_splits(nof_levels, nof_splits, foi, foc, X_train.to_numpy(), model_forward, model_jac, axis_limits, nof_instances=100)
+cat_limit = 25
+splits = regions.find_splits(nof_levels, nof_splits, foi, foc, cat_limit, X_train.to_numpy(), model_forward, model_jac)
+# print([split["weighted_heter"] for split in splits])
+#
+# for split in splits:
+#     print(split)
+print(splits[1]["feature"])
+rhale = pythia.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
+rhale.fit(features=[8], binning_method=pythia.binning_methods.Fixed(nof_bins=30))
+rhale.plot(feature=8, confidence_interval=False)
 
-plot_subregions_rhale(features, types, positions, X_train, model_forward, model_jac)
-# plot_subregions_pdp_ice(features, types, positions, X_train, model_forward)
+features, types, positions, heterogeneity = splits[1]["feature"], splits[1]["type"], splits[1]["position"], splits[1]["heterogeneity"]
+plot_subregions_rhale(foi, features, types, positions, X_train, model_forward, model_jac)
 
+#

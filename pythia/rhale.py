@@ -13,8 +13,9 @@ class RHALE(FeatureEffectBase):
         self,
         data: np.ndarray,
         model: callable,
-        model_jac: callable,
+        model_jac: typing.Union[None, callable],
         axis_limits: typing.Union[None, np.ndarray] = None,
+        data_effect: typing.Union[None, np.ndarray] = None,
     ):
         """
         Initializes DALE.
@@ -25,9 +26,11 @@ class RHALE(FeatureEffectBase):
         model: Callable [N, D] -> [N,], prediction function
         model_jac: Callable [N, D] -> [N,D], jacobian function
         axis_limits: [2, D] np.ndarray or None, if None they will be auto computed from the data
+        data_effect: [N, D] np.ndarray or None, if None they will be computed from the model_jac
         """
         # assertions
         assert data.ndim == 2
+        assert (model_jac is not None) or (data_effect is not None)
 
         # setters
         self.model = model
@@ -40,13 +43,13 @@ class RHALE(FeatureEffectBase):
         super(RHALE, self).__init__(axis_limits)
 
         # init as None, it will get gradients after compile
-        self.data_effect = None
+        self.data_effect = None if data_effect is None else data_effect
 
     def compile(self):
         """Prepare everything for fitting, i.e., compute the gradients on data points.
         TODO add numerical approximation
         """
-        if self.model_jac is not None:
+        if self.data_effect is None:
             self.data_effect = self.model_jac(self.data)
         else:
             # TODO add numerical approximation
