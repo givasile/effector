@@ -82,7 +82,7 @@ class TestExample2:
         assert np.allclose(pred, gt, atol=self.atol)
 
         # DALE variable-size
-        dp = pythia.binning_methods.DynamicProgramming(max_nof_bins=20, min_points_per_bin=10)
+        dp = pythia.binning_methods.DynamicProgramming(max_nof_bins=20, min_points_per_bin=10, cat_limit=1)
         dale.fit(binning_method=dp)
 
         pred = dale.eval(feature=0, x=x)
@@ -202,7 +202,7 @@ class TestBinEstimation:
         est = pythia.bin_estimation.Greedy(
             x, y_grad, feature=0, axis_limits=axis_limits
         )
-        limits_greedy = est.find(n_max=100, discount=1.05, min_points=min_points)
+        limits_greedy = est.find(init_nof_bins=100, discount=.3, min_points=min_points, cat_limit=1)
 
         assert limits_greedy.size == 3
         assert np.allclose(0, limits_greedy[0])
@@ -211,7 +211,7 @@ class TestBinEstimation:
         # test DP
         min_points = 2
         est = pythia.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
-        limits_dp = est.find(k_max=10, min_points=min_points)
+        limits_dp = est.find(max_nof_bins=10, min_points=min_points, cat_limit=1)
 
         assert limits_dp.size == 3
         assert np.allclose(0, limits_dp[0])
@@ -226,12 +226,12 @@ class TestBinEstimation:
         est = pythia.bin_estimation.Greedy(
             x, y_grad, feature=0, axis_limits=axis_limits
         )
-        limits_greedy = est.find(n_max=100, discount=1.05, min_points=min_points)
+        limits_greedy = est.find(init_nof_bins=100, discount=1.05, min_points=min_points, cat_limit=1)
         assert np.allclose(gt_limits, limits_greedy)
 
         min_points = 3
         est = pythia.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
-        limits_dp = est.find(k_max=10, min_points=min_points)
+        limits_dp = est.find(max_nof_bins=10, min_points=min_points, cat_limit=1)
         assert np.allclose(gt_limits, limits_dp)
 
     def test_min_points_4(self):
@@ -242,12 +242,12 @@ class TestBinEstimation:
         est = pythia.bin_estimation.Greedy(
             x, y_grad, feature=0, axis_limits=axis_limits
         )
-        limits_greedy = est.find(n_max=100, discount=1.05, min_points=min_points)
+        limits_greedy = est.find(init_nof_bins=100, discount=1.05, min_points=min_points, cat_limit=1)
         assert np.allclose(gt_limits, limits_greedy)
 
         min_points = 4
         est = pythia.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
-        limits_dp = est.find(k_max=10, min_points=min_points)
+        limits_dp = est.find(max_nof_bins=10, min_points=min_points, cat_limit=1)
         assert np.allclose(gt_limits, limits_dp)
 
     def test_min_points_5(self):
@@ -257,12 +257,12 @@ class TestBinEstimation:
         est = pythia.bin_estimation.Greedy(
             x, y_grad, feature=0, axis_limits=axis_limits
         )
-        limits_Greedy = est.find(min_points)
+        limits_Greedy = est.find(min_points, cat_limit=1)
         assert limits_Greedy is False
 
         min_points = 5
         est = pythia.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
-        limits_DP = est.find(min_points)
+        limits_DP = est.find(min_points, cat_limit=1)
         assert limits_DP is False
 
     def test_many_points(self):
@@ -274,7 +274,7 @@ class TestBinEstimation:
         est = pythia.bin_estimation.Greedy(
             x, y_grad, feature=0, axis_limits=axis_limits
         )
-        limits_greedy = est.find(min_points)
+        limits_greedy = est.find(min_points, cat_limit=1)
         assert (
             np.sum(
                 np.logical_and(
@@ -324,7 +324,7 @@ class TestBinEstimation:
         # test DP
         min_points = 10
         est = pythia.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
-        limits_dp = est.find(min_points)
+        limits_dp = est.find(min_points, cat_limit=1)
         assert (
             np.sum(
                 np.logical_and(

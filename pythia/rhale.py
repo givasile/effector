@@ -81,14 +81,14 @@ class RHALE(FeatureEffectBase):
             bin_est = be.Fixed(
                 data, data_effect, feature=feature, axis_limits=self.axis_limits
             )
-            bin_est.find(nof_bins=binning_method.nof_bins, min_points=binning_method.min_points_per_bin)
+            bin_est.find(nof_bins=binning_method.nof_bins, min_points=binning_method.min_points_per_bin, cat_limit=binning_method.cat_limit)
         elif isinstance(binning_method, pythia.binning_methods.Greedy):
             bin_name = "Greedy"
             bin_est = be.Greedy(
                 data, data_effect, feature=feature, axis_limits=self.axis_limits
             )
             bin_est.find(
-                min_points=binning_method.min_points_per_bin, init_nof_bins=binning_method.max_nof_bins, discount=binning_method.discount
+                min_points=binning_method.min_points_per_bin, init_nof_bins=binning_method.max_nof_bins, discount=binning_method.discount, cat_limit=binning_method.cat_limit
             )
         elif isinstance(binning_method, pythia.binning_methods.DynamicProgramming):
             bin_name = "Dynamic Programming"
@@ -96,7 +96,7 @@ class RHALE(FeatureEffectBase):
                 data, data_effect, feature=feature, axis_limits=self.axis_limits
             )
             bin_est.find(
-                min_points=binning_method.min_points_per_bin, k_max=binning_method.max_nof_bins, discount=binning_method.discount
+                min_points=binning_method.min_points_per_bin, max_nof_bins=binning_method.max_nof_bins, discount=binning_method.discount, cat_limit=binning_method.cat_limit
             )
 
         # stats per bin

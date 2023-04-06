@@ -35,13 +35,13 @@ equi.plot()
 
 # Dynamic programming
 dp = pythia.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
-dp.find(min_points=2, k_max=20, discount=.3)
+dp.find(min_points=2, max_nof_bins=20, discount=.3)
 print(dp.limits)
 dp.plot()
 
 
 dp = pythia.bin_estimation.DPGT(mu, var, feature=0, axis_limits=axis_limits)
-dp.find(k_max=20)
+dp.find(max_nof_bins=20)
 print(dp.limits)
 dp.plot()
 

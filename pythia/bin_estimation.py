@@ -11,7 +11,11 @@ big_M = 1.0e10
 class BinBase:
     big_M = big_M
 
-    def __init__(self, feature: int, data: typing.Union[None, np.ndarray], data_effect: typing.Union[None, np.ndarray], axis_limits: typing.Union[None, np.ndarray]):
+    def __init__(self,
+                 feature: int,
+                 data: typing.Union[None, np.ndarray],
+                 data_effect: typing.Union[None, np.ndarray],
+                 axis_limits: typing.Union[None, np.ndarray]):
         """Initializer.
 
         Parameters
@@ -25,27 +29,21 @@ class BinBase:
         self.feature: int = feature
         self.xs_min: float = axis_limits[0, feature] if axis_limits is not None else data[:, feature].min()
         self.xs_max: float = axis_limits[1, feature] if axis_limits is not None else data[:, feature].max()
+        self.data: np.ndarray = data
+        self.data_effect: np.ndarray = data_effect
 
-        self.data = data
-        self.data_effect = data_effect
-        # self.axis_limits = axis_limits if axis_limits is not None else np.array([[xs_min, xs_max]])
+        # arguments passed to method find
+        self.method_args: typing.Dict[str, typing.Any] = {}
 
-        # set after execution of method `find`
+        # set in method find
+        self.method_outputs: typing.Dict[str, typing.Any] = {}
 
-        # min_points:
-        # None -> .find() not executed or we don't care about min_points,
-        # int -> min points per bin
-        self.min_points: typing.Union[None, int] = None
-
-        # limits:
-        #  - None -> .find() not executed yet,
-        #  - False -> .find() executed and didn't find acceptable solution
-        #  - np.ndarray -> the limits
+        # limits: None if not set, False if no binning is possible, np.ndarray (N, 2) if binning is possible
         self.limits: typing.Union[None, False, np.ndarray] = None
 
     def _bin_cost(self, start, stop, discount):
+        min_points = self.method_args["min_points"]
         nof_points = self.data.shape[0]
-        min_points = self.min_points
         data = self.data[:, self.feature]
         data_effect = self.data_effect[:, self.feature]
         data, data_effect = utils.filter_points_in_bin(
@@ -66,13 +64,14 @@ class BinBase:
         Returns:
             Boolean, True if the bin is valid, False otherwise
         """
-        if self.min_points is None:
+        min_points = self.method_args["min_points"]
+        if min_points is None:
             return True
 
         xs = self.data[:, self.feature]
         dy_dxs = self.data_effect[:, self.feature]
         _, effect_1 = utils.filter_points_in_bin(xs, dy_dxs, np.array([start, stop]))
-        valid = effect_1.size >= self.min_points
+        valid = effect_1.size >= min_points
         return valid
         
     def _none_valid_binning(self):
@@ -83,7 +82,7 @@ class BinBase:
         """
 
         dy_dxs = self.data_effect[:, self.feature]
-        return dy_dxs.size < self.min_points
+        return dy_dxs.size < self.method_args["min_points"]
 
     def _only_one_bin_possible(self):
         """Check if the only possible binning is all points in one bin
@@ -91,22 +90,24 @@ class BinBase:
         Returns:
             Boolean, True if the only possible binning is all points in one bin, False otherwise
         """
+        min_points = self.method_args["min_points"]
         # if xs is categorical, then only one bin is possible
         is_categorical = np.allclose(self.xs_min, self.xs_max)
 
         # if xs is not categorical, then one bin is possible if there are enough points only in one bin
         dy_dxs = self.data_effect[:, self.feature]
-        enough_for_one_bin = self.min_points <= dy_dxs.size < 2 * self.min_points
+        enough_for_one_bin = min_points <= dy_dxs.size < 2 * min_points
         return is_categorical or enough_for_one_bin
 
-    def _is_categorical(self):
+    def _is_categorical(self, cat_limit):
         """Check if the feature is categorical, i.e. has less than 10 unique values, and if so, set the limits
 
         Returns:
             Boolean, True if the feature is categorical, False otherwise
         """
+
         # if unique values are leq 10, then it is categorical
-        is_cat = len(np.unique(self.data[:, self.feature])) <= 10
+        is_cat = len(np.unique(self.data[:, self.feature])) <= cat_limit
         if is_cat:
             # set unique values as the center of the bins
             uniq = np.sort(np.unique(self.data[:, self.feature]))
@@ -164,15 +165,22 @@ class Greedy(BinBase):
         init_nof_bins: int = 100,
         discount: float = 0.3,
         min_points: typing.Union[None, int] = 10,
+        cat_limit: int = 10,
     ) -> typing.Union[np.ndarray, bool]:
 
+        self.method_args = {
+            "init_nof_bins": init_nof_bins,
+            "discount": discount,
+            "min_points": min_points,
+            "cat_limit": cat_limit,
+        }
+
         # if categorical, then return the limits
-        if self._is_categorical():
+        if self._is_categorical(cat_limit):
             return self.limits
 
         xs_min = self.xs_min
         xs_max = self.xs_max
-        self.min_points = min_points
 
         if self._none_valid_binning():
             self.limits = False
@@ -229,17 +237,13 @@ class Greedy(BinBase):
 
             # store result
             self.limits = np.array(merged_limits)
+            self.method_outputs = {"limits": self.limits}
         return self.limits
 
 
 class DP(BinBase):
 
     def __init__(self, data, data_effect, feature, axis_limits):
-
-        # self.dx_list = None
-        self.matrix = None
-        self.argmatrix = None
-
         super(DP, self).__init__(feature, data, data_effect, axis_limits)
 
     def _index_to_position(self, index_start, index_stop, K):
@@ -266,8 +270,8 @@ class DP(BinBase):
         return cost
 
     def _argmatrix_to_limits(self, K):
-        assert self.argmatrix is not None
-        argmatrix = self.argmatrix
+        assert "argmatrix" in self.method_outputs, "argmatrix not found in method_outputs"
+        argmatrix = self.method_outputs["argmatrix"]
         dx = (self.xs_max - self.xs_min) / K
 
         lim_indices = [int(argmatrix[-1, -1])]
@@ -292,34 +296,26 @@ class DP(BinBase):
         )
         return limits, dx_list
 
+    def find(self, max_nof_bins: int = 30, min_points: int = 10, discount: float = 0.3, cat_limit: int = 10):
+        """Find the optimal binning."""
 
-    def find(self, k_max: int = 30, min_points: int = 10, discount: float = 0.3):
-        """
+        self.method_args = {"max_nof_bins": max_nof_bins, "min_points": min_points, "discount": discount, "cat_limit": cat_limit}
 
-        Parameters
-        ----------
-        min_points: minimum points per bin
-        k_max: maximum number of bins
-
-        Returns
-        -------
-
-        """
         # if is categorical, then only one bin is possible
-        if self._is_categorical():
+        if self._is_categorical(cat_limit):
             return self.limits
 
         self.min_points = min_points
         big_M = self.big_M
-        nof_limits = k_max + 1
-        nof_bins = k_max
+        nof_limits = max_nof_bins + 1
+        nof_bins = max_nof_bins
 
         if self._none_valid_binning():
             self.limits = False
         elif self._only_one_bin_possible():
             self.limits = np.array([self.xs_min, self.xs_max])
             self.dx_list = np.array([self.xs_max - self.xs_min])
-        elif k_max == 1:
+        elif max_nof_bins == 1:
             self.limits = np.array([self.xs_min, self.xs_max])
             self.dx_list = np.array([self.xs_max - self.xs_min])
         else:
@@ -331,32 +327,29 @@ class DP(BinBase):
             bin_index = 0
             for lim_index in range(nof_limits):
                 matrix[lim_index, bin_index] = self._cost_of_move(
-                    bin_index, lim_index, k_max, discount
+                    bin_index, lim_index, max_nof_bins, discount
                 )
 
             # for all other bins
-            for bin_index in range(1, k_max):
-                for lim_index_next in range(k_max + 1):
+            for bin_index in range(1, max_nof_bins):
+                for lim_index_next in range(max_nof_bins + 1):
                     # find best solution
                     tmp = []
-                    for lim_index_before in range(k_max + 1):
+                    for lim_index_before in range(max_nof_bins + 1):
                         tmp.append(
                             matrix[lim_index_before, bin_index - 1]
                             + self._cost_of_move(
-                                lim_index_before, lim_index_next, k_max, discount
+                                lim_index_before, lim_index_next, max_nof_bins, discount
                             )
                         )
                     # store best solution
                     matrix[lim_index_next, bin_index] = np.min(tmp)
                     argmatrix[lim_index_next, bin_index] = np.argmin(tmp)
 
-            # store solution matrices
-            self.matrix = matrix
-            self.argmatrix = argmatrix
-
             # find indices
-            self.limits, _ = self._argmatrix_to_limits(k_max)
-
+            self.method_outputs = {"matrix": matrix, "argmatrix": argmatrix}
+            self.limits, _ = self._argmatrix_to_limits(max_nof_bins)
+            self.method_outputs["limits"] = self.limits
         return self.limits
 
 
@@ -364,10 +357,10 @@ class Fixed(BinBase):
     def __init__(self, data, data_effect, feature, axis_limits):
         super(Fixed, self).__init__(feature, data, data_effect, axis_limits)
 
-    def find(self, nof_bins: int, min_points: typing.Union[None, int] = 10):
-        if self._is_categorical():
+    def find(self, nof_bins: int, min_points: typing.Union[None, int] = 10, cat_limit: int = 10):
+        self.method_args = {"nof_bins": nof_bins, "min_points": min_points, "cat_limit": cat_limit}
+        if self._is_categorical(cat_limit):
             return self.limits
-        self.min_points = min_points
 
         limits, dx = np.linspace(self.xs_min, self.xs_max, num=nof_bins + 1, endpoint=True, retstep=True)
         if min_points is not None:
