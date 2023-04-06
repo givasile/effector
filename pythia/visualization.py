@@ -21,6 +21,7 @@ def ale_plot(
     ale_params: dict,
     accum_effect_func: callable,
     feature: int,
+    centering: bool = True,
     error: typing.Union[None, str] = None,
     scale_x: typing.Union[None, dict] = None,
     scale_y: typing.Union[None, dict] = None,
@@ -33,6 +34,7 @@ def ale_plot(
     ale_params: Dict with ale parameters
     accum_effect_func: the accumulated effect function
     feature: which feature to plot
+    centering: bool, if True, the feature is centered
     error: None or in ['std', 'stderr', 'both']
      - if 'std' the accumulated standard deviation is shown
      - if 'stderr' the accumulated standard error of the mean is shown
@@ -48,7 +50,7 @@ def ale_plot(
     )
 
     x = np.linspace(ale_params["limits"][0], ale_params["limits"][-1], 1000)
-    y, std, std_err = accum_effect_func(feature, x, True)
+    y, std, std_err = accum_effect_func(feature, x, True, centering)
 
     # transform
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
@@ -140,21 +142,22 @@ def ale_bins(ax2, bin_effects, bin_variance, limits, dx, error):
     ax2.legend()
 
 
-def plot_1d(x, feature, eval, confidence=None, title=None):
+def plot_1d(x, feature, eval, confidence, centering, title):
     plt.figure()
     plt.title(title)
 
-    assert confidence in [None, "std", "stderr"]
-    if confidence is None:
-        plt.plot(x, eval(feature, x, uncertainty=False), "b-")
+    assert confidence in [False, "std", "stderr"]
+    if confidence is False:
+        y = eval(feature, x, uncertainty=False, centering=centering)
+        plt.plot(x, y, "b-")
     elif confidence == "std":
-        y, std, var_est = eval(feature, x, uncertainty=True)
+        y, std, var_est = eval(feature, x, uncertainty=True, centering=centering)
         plt.plot(x, y, "b-", label="$\hat{f}_\mu$")
         plt.fill_between(
             x, y - std, y + std, color="red", alpha=0.4, label="$\hat{f}_{\sigma}$"
         )
     elif confidence == "stderr":
-        y, std, var_est = eval(feature, x, uncertainty=True)
+        y, std, var_est = eval(feature, x, uncertainty=True, centering=centering)
         stderr = 2*np.sqrt(var_est)
         plt.plot(x, y, "b-", label="mean PDP")
         plt.fill_between(x, y - stderr, y + stderr, color="red", alpha=0.4, label="std err")

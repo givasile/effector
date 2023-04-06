@@ -86,12 +86,17 @@ Y = model.predict(X)
 # )
 
 
-# plot global effect
-rhale = pythia.RHALE(data=X, model=model.predict, model_jac=model.jacobian)
-fixed = pythia.binning_methods.Fixed(nof_bins=10)
-dp = pythia.binning_methods.DynamicProgramming(max_nof_bins=10)
-greedy = pythia.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=100, discount=0.5)
-rhale.fit(features="all", binning_method=greedy)
-rhale.plot(feature=0, confidence_interval="std")
-rhale.plot(feature=1, confidence_interval="std")
-rhale.plot(feature=2, confidence_interval="std")
+feat = 0
+
+# # plot global effect
+# rhale = pythia.RHALE(data=X, model=model.predict, model_jac=model.jacobian)
+# greedy = pythia.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=100, discount=0.5)
+# rhale.fit(features=feat, binning_method=greedy)
+# rhale.plot(feature=feat, uncertainty="std", centering=True)
+
+# plot pdp
+pdp = pythia.PDP(data=X, model=model.predict)
+pdp.plot(feature=feat, uncertainty=False, centering=True)
+
+d_pdp = pythia.pdp.dPDP(data=X, model=model.predict, model_jac=model.jacobian)
+d_pdp.plot(feature=feat, uncertainty="std")

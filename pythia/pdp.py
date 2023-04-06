@@ -30,25 +30,29 @@ class PDP(FeatureEffectBase):
         self.model = model
         self.data = data
         self.D = data.shape[1]
-        axis_limits = (
-            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
-        )
+        axis_limits = (helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits)
         super(PDP, self).__init__(axis_limits)
 
     def _fit_feature(self, feature: int) -> typing.Dict:
         return {}
 
-    def fit(self, features: typing.Union[int, str, list] = "all", normalize: bool = True) -> None:
+    def fit(self,
+            features: typing.Union[int, str, list] = "all",
+            centering: typing.Union[bool, str] = "zero_integral"
+            ) -> None:
         features = helpers.prep_features(features, self.dim)
+        centering = helpers.prep_centering(centering)
         for s in features:
             self.feature_effect["feature_" + str(s)] = self._fit_feature(feature=s)
-            if normalize is not False:
-                self.norm_const[s] = self._compute_norm_const(s, helpers.prep_normalize(normalize))
+            if centering is not False:
+                self.norm_const[s] = self._compute_norm_const(s, centering)
             self.is_fitted[s] = True
 
-    def _eval_unnorm(
-        self, feature: int, x: np.ndarray, uncertainty: bool = False
-    ) -> np.ndarray:
+    def _eval_unnorm(self,
+                     feature: int,
+                     x: np.ndarray,
+                     uncertainty: bool = False
+                     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
 
         # compute main PDP effect
         mean_pdp = []
@@ -57,28 +61,89 @@ class PDP(FeatureEffectBase):
         for i in range(x.shape[0]):
             x_new = copy.deepcopy(self.data)
             x_new[:, feature] = x[i]
-            mean_pdp.append(np.mean(self.model(x_new)))
+            y = self.model(x_new)
+            mean_pdp.append(np.mean(y))
             if uncertainty:
-                std = np.std(self.model(x_new))
+                std = np.std(y)
                 sigma_pdp.append(std)
                 stderr.append(std / np.sqrt(self.data.shape[0]))
 
-        if not uncertainty:
-            return np.array(mean_pdp)
-        else:
-            return np.array(mean_pdp), np.array(sigma_pdp), np.array(stderr)
+        y = (np.array(mean_pdp), np.array(sigma_pdp), np.array(stderr)) if uncertainty else np.array(mean_pdp)
+        return y
 
     def plot(self,
              feature: int,
-             normalized: bool = True,
-             confidence_interval: typing.Union[None, str] = None,
+             uncertainty: typing.Union[bool, str] = False,
+             centering: typing.Union[bool, str] = False,
              nof_points: int = 30) -> None:
         title = "PDP: feature %d" % (feature + 1)
+        uncertainty = helpers.prep_uncertainty(uncertainty)
+        centering = helpers.prep_centering(centering)
         x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
-        if normalized:
-            vis.plot_1d(x, feature, self.eval, confidence=confidence_interval, title=title)
-        else:
-            vis.plot_1d(x, feature, self._eval_unnorm, confidence=confidence_interval, title=title)
+        func = self.eval
+        vis.plot_1d(x, feature, func, confidence=uncertainty, centering=centering, title=title)
+
+
+class dPDP(FeatureEffectBase):
+    def __init__(
+            self,
+            data: np.ndarray,
+            model: callable,
+            model_jac: callable,
+            axis_limits: typing.Union[None, np.ndarray] = None,
+    ):
+        # assertions
+        assert data.ndim == 2
+
+        # setters
+        self.data = data
+        self.model = model
+        self.model_jac = model_jac
+        self.D = self.data.shape[1]
+        axis_limits = (helpers.axis_limits_from_data(self.data) if axis_limits is None else axis_limits)
+        super(dPDP, self).__init__(axis_limits)
+
+    def _fit_feature(self, feature: int) -> typing.Dict:
+        return {}
+
+    def fit(self, features: typing.Union[int, str, list] = "all") -> None:
+        features = helpers.prep_features(features, self.dim)
+        for s in features:
+            self.feature_effect["feature_" + str(s)] = self._fit_feature(feature=s)
+            self.is_fitted[s] = True
+
+    def _eval_unnorm(self,
+                     feature: int,
+                     x: np.ndarray,
+                     uncertainty: bool = False
+                     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+
+        # compute main PDP effect
+        mean_pdp = []
+        sigma_pdp = []
+        stderr = []
+        for i in range(x.shape[0]):
+            x_new = copy.deepcopy(self.data)
+            x_new[:, feature] = x[i]
+            y = self.model_jac(x_new)[:, feature]
+            mean_pdp.append(np.mean(y))
+            if uncertainty:
+                std = np.std(y)
+                sigma_pdp.append(std)
+                stderr.append(std / np.sqrt(self.data.shape[0]))
+
+        y = (np.array(mean_pdp), np.array(sigma_pdp), np.array(stderr)) if uncertainty else np.array(mean_pdp)
+        return y
+
+    def plot(self,
+             feature: int,
+             uncertainty: typing.Union[bool, str] = False,
+             nof_points: int = 30) -> None:
+        title = "derivative PDP for feature %d" % (feature + 1)
+        uncertainty = helpers.prep_uncertainty(uncertainty)
+        x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
+        func = self.eval
+        vis.plot_1d(x, feature, func, confidence=uncertainty, centering=False, title=title)
 
 
 class ICE(FeatureEffectBase):
@@ -116,7 +181,7 @@ class ICE(FeatureEffectBase):
         for s in features:
             self.feature_effect["feature_" + str(s)] = self._fit_feature(s)
             if normalize is not False:
-                self.norm_const[s] = self._compute_norm_const(s, helpers.prep_normalize(normalize))
+                self.norm_const[s] = self._compute_norm_const(s, helpers.prep_centering(normalize))
             self.is_fitted[s] = True
 
     def _eval_unnorm(self, feature: int, x: np.ndarray, uncertainty: bool = False) -> np.ndarray:
@@ -206,93 +271,6 @@ class PDPwithICE:
                          scale_x=scale_x, scale_y=scale_y, savefig=savefig)
 
 
-class dPDP(FeatureEffectBase):
-    def __init__(
-        self,
-        data: np.ndarray,
-        model: callable,
-        model_jac: callable,
-        axis_limits: typing.Union[None, np.ndarray] = None,
-        nof_instances: typing.Union[int, str] = "all",
-    ):
-        """
-
-        Parameters
-        ----------
-        data: np.array (N, D), the design matrix
-        model: Callable (N, D) -> (N,)
-        axis_limits: Union[None, np.ndarray(2, D)]
-
-
-        """
-        # assertions
-        assert data.ndim == 2
-
-        # setters
-        self.model = model
-        self.model_jac = model_jac
-        self.nof_instances = nof_instances
-        
-        if self.nof_instances == "all" or self.nof_instances > data.shape[0]:
-            self.nof_instances = data.shape[0]
-            self.data = data
-        else:
-            # code by rg
-            # assert self.nof_instances <= data.shape[0], "Number of instances (" + str(self.nof_instances) + ") must be smaller than the number of data points (" + str(data.shape[0]) + ")."
-            self.indices = np.random.choice(data.shape[0], size=self.nof_instances, replace=False)
-            self.data = data[self.indices]
-            # code by rg
-
-        self.D = self.data.shape[1]
-        axis_limits = (
-            helpers.axis_limits_from_data(self.data) if axis_limits is None else axis_limits
-        )
-        super(dPDP, self).__init__(axis_limits)
-
-    def _fit_feature(self, feature: int) -> typing.Dict:
-        return {}
-
-    def fit(self, features: typing.Union[int, str, list] = "all", normalize: bool = True) -> None:
-        features = helpers.prep_features(features, self.dim)
-        for s in features:
-            self.feature_effect["feature_" + str(s)] = self._fit_feature(feature=s)
-            if normalize is not False:
-                self.norm_const[s] = self._compute_norm_const(s, helpers.prep_normalize(normalize))
-            self.is_fitted[s] = True
-
-    def _eval_unnorm(
-        self, feature: int, x: np.ndarray, uncertainty: bool = False
-    ) -> np.ndarray:
-
-        # compute main PDP effect
-        mean_pdp = []
-        sigma_pdp = []
-        stderr = []
-        for i in range(x.shape[0]):
-            x_new = copy.deepcopy(self.data)
-            x_new[:, feature] = x[i]
-            mean_pdp.append(np.mean(self.model_jac(x_new)[:, feature]))
-            if uncertainty:
-                std = np.std(self.model_jac(x_new)[:, feature])
-                sigma_pdp.append(std)
-                stderr.append(std / np.sqrt(self.data.shape[0]))
-
-        if not uncertainty:
-            return np.array(mean_pdp)
-        else:
-            return np.array(mean_pdp), np.array(sigma_pdp), np.array(stderr)
-
-    def plot(self,
-             feature: int,
-             normalized: bool = True,
-             confidence_interval: typing.Union[None, str] = None,
-             nof_points: int = 30) -> None:
-        title = "d-PDP: feature %d" % (feature + 1)
-        x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
-        if normalized:
-            vis.plot_1d(x, feature, self.eval, confidence=confidence_interval, title=title)
-        else:
-            vis.plot_1d(x, feature, self._eval_unnorm, confidence=confidence_interval, title=title)
 
 
 class dICE(FeatureEffectBase):
@@ -332,7 +310,7 @@ class dICE(FeatureEffectBase):
         for s in features:
             self.feature_effect["feature_" + str(s)] = self._fit_feature(s)
             if normalize is not False:
-                self.norm_const[s] = self._compute_norm_const(s, helpers.prep_normalize(normalize))
+                self.norm_const[s] = self._compute_norm_const(s, helpers.prep_centering(normalize))
             self.is_fitted[s] = True
 
     def _eval_unnorm(self, feature: int, x: np.ndarray, uncertainty: bool = False) -> np.ndarray:
@@ -416,41 +394,3 @@ class PDPwithdICE:
         title = "PDP-ICE: feature %d" % (feature + 1)
         vis.plot_pdp_ice(x, feature, self.y_pdp, self.y_dice, title=title, normalize=normalized,
                          scale_x=scale_x, scale_y=scale_y, savefig=savefig)
-
-
-class PDPGroundTruth(FeatureEffectBase):
-    def __init__(self, func: np.ndarray, axis_limits: np.ndarray):
-        self.func = func
-        super(PDPGroundTruth, self).__init__(axis_limits)
-
-    def _fit_feature(self, feat: int) -> typing.Dict:
-        return {}
-
-    def fit(self, features: typing.Union[int, str, list] = "all", normalize: bool = True) -> None:
-        features = helpers.prep_features(features, self.dim)
-        for s in features:
-            self.feature_effect["feature_" + str(s)] = {}
-            if normalize:
-                self.norm_const[s] = self._compute_norm_const(s, helpers.prep_normalize(normalize))
-            self.is_fitted[s] = True
-
-    def _eval_unnorm(
-        self, feature: int, x: np.ndarray, uncertainty: bool = False
-    ) -> np.ndarray:
-        """
-
-        :param x: np.ndarray (N, D)
-        :returns: np.ndarray (N,)
-
-        """
-        return self.func(x)
-
-    def plot(self, feature: int, normalized: bool = True, nof_points: int = 30) -> None:
-        """Plot the s-th feature"""
-        # getters
-        x = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
-        if normalized:
-            y = self.eval(x, feature)
-        else:
-            y = self._eval_unnorm(x, feature)
-        vis.plot_1d(x, y, title="Ground-truth PDP for feature %d" % (feature + 1))

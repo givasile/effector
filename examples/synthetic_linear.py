@@ -60,9 +60,9 @@ Y = model.predict(X)
 
 # PDP
 pdp = pythia.PDP(X, model.predict, dist.axis_limits)
-pdp.fit(features="all", normalize=True)
+pdp.fit(features="all", centering=True)
 for feat in [0, 1, 2]:
-    pdp.plot(feature=feat, normalized=True, confidence_interval="std", nof_points=50)
+    pdp.plot(feature=feat, centering=True, uncertainty="std", nof_points=50)
 
 # # dPDP
 # dpdp = pythia.pdp.dPDP(X, model.predict, model.jacobian, dist.axis_limits)
@@ -100,6 +100,6 @@ binning_method = pythia.binning_methods.Fixed(nof_bins=100)
 dale.fit(features="all", binning_method=binning_method)
 
 # plot
-dale.plot(feature=0, confidence_interval="std")
-dale.plot(feature=1, confidence_interval="std")
-dale.plot(feature=2, confidence_interval="std")
+dale.plot(feature=0, uncertainty="std")
+dale.plot(feature=1, uncertainty="std")
+dale.plot(feature=2, uncertainty="std")

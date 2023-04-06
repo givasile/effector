@@ -46,10 +46,10 @@ def plot_subregions_rhale(feat, feature, type, position, X_train, model, model_j
 
     def plot(rhale):
         binning_method = pythia.binning_methods.Fixed(nof_bins=100)
-        rhale.fit(features=feat, binning_method=binning_method, normalize="zero_integral")
+        rhale.fit(features=feat, binning_method=binning_method, centering="zero_integral")
         scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
         scale_y = {"mean": 0, "std": y_std}
-        rhale.plot(feature=feat, confidence_interval=None, scale_x=scale_x, scale_y=scale_y)
+        rhale.plot(feature=feat, uncertainty=None, scale_x=scale_x, scale_y=scale_y)
         plt.show()
 
     # plot global and regionals
@@ -70,7 +70,7 @@ def plot_subregions_pdp_ice(feat, features, types, positions, X_train, model):
         pdp_2 = pythia.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] > positions[0]].to_numpy(), model=model)
 
     def plot(pdp):
-        pdp.fit(features=feat, normalize=False)
+        pdp.fit(features=feat, centering=False)
         scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
         scale_y = {"mean": 0, "std": y_std}
         pdp.plot(feature=feat, scale_x=scale_x, scale_y=scale_y)

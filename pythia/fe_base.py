@@ -1,5 +1,6 @@
 import numpy as np
 import typing
+from pythia import helpers
 from pythia import utils_integrate
 from abc import ABC, abstractmethod
 
@@ -9,23 +10,34 @@ class FeatureEffectBase(ABC):
 
     def __init__(self, axis_limits: np.ndarray) -> None:
         """
-        :param axis_limits: np.ndarray (2, D), limits for computing the effects
+        Initializes FeatureEffectBase.
+
+        Parameters
+        ----------
+        axis_limits: [2, D] np.ndarray, axis limits for the FE plot
         """
         # setters
         self.axis_limits: np.ndarray = axis_limits
         self.dim = self.axis_limits.shape[1]
 
-        # init now -> will be filled later
+        # state variable
+        self.is_fitted: np.ndarray = np.ones([self.dim]) * False
+
+        # input variables, arguments of fit
+        self.method_args: typing.Dict = {}
+
+        # output variables, after fit
         # normalization constant per feature for centering the FE plot
         self.norm_const: np.ndarray = np.ones([self.dim]) * self.empty_symbol
         # dictionary with fe plot details. keys are "feature_s", where s is the index of the feature
         self.feature_effect: typing.Dict = {}
         # boolean variable for whether a FE plot has been computed
-        self.is_fitted: np.ndarray = np.ones([self.dim]) * False
 
-    def _eval_unnorm(
-        self, feature: int, x: np.ndarray, uncertainty: int = False
-    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    def _eval_unnorm(self,
+                     feature: int,
+                     x: np.ndarray,
+                     uncertainty: bool = False
+                     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """Compute the effect of the s-th feature at x.
         If uncertainty is False, returns a [N,] np.ndarray with the evaluation of the plot
         If uncertainty is True, returns a tuple (y, sigma, stderr) where:
@@ -42,7 +54,7 @@ class FeatureEffectBase(ABC):
         Returns
         -------
         - np.ndarray [N,], if uncertainty=False
-        - tuple, if uncertainty=True
+        - tuple (np.ndarray [N,], np.ndarray [N,], np.ndarray [N,]), if uncertainty=True
         """
         raise NotImplementedError
 
@@ -83,47 +95,58 @@ class FeatureEffectBase(ABC):
 
     def _compute_norm_const(self, feature: int, method: str = "zero_integral") -> float:
         """Compute the normalization constant.
-        Uses integration with linspace..
         """
         assert method in ["zero_integral", "zero_start"]
+
         def create_partial_eval(feature):
-            def partial_eval(x):
-                return self._eval_unnorm(feature, x, uncertainty=False)
-            return partial_eval
+            return lambda x: self._eval_unnorm(feature, x, uncertainty=False)
         partial_eval = create_partial_eval(feature)
         start = self.axis_limits[0, feature]
         stop = self.axis_limits[1, feature]
 
         if method == "zero_integral":
             z = utils_integrate.mean_1d_linspace(partial_eval, start, stop)
-        elif method == "zero_start":
+        else:
             z = partial_eval(np.array([start])).item()
         return z
 
-    def eval(
-        self, feature: int, x: np.ndarray, uncertainty: bool = False) -> typing.Union[np.ndarray, typing.Tuple]:
-        """Evaluate the feature effect method at x
+    def eval(self,
+             feature: int,
+             x: np.ndarray,
+             uncertainty: bool = False,
+             centering: typing.Union[bool, str] = False
+             ) -> typing.Union[np.ndarray, typing.Tuple]:
+        """Evaluate the feature effect method at x positions.
 
         Parameters
         ----------
-
         x: np.array (N,)
         feature: index of feature of interest
         uncertainty: whether to return the std and the estimator variance
+        centering: whether to centering the plot
 
+        Returns
+        -------
+        - np.array (N,), if uncertainty=False
+        - tuple (y, std, estimator_var), if uncertainty=True
         """
+        # Check if the lower bound is less than the upper bound
         assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
 
+        # Fit the feature if not already fitted
         if not self.is_fitted[feature]:
             self.fit(features=feature)
 
-        if self.norm_const[feature] == self.empty_symbol:
+        # Compute normalization constant if not already computed and centering is True
+        if centering is not False and self.norm_const[feature] == self.empty_symbol:
             self.norm_const[feature] = self._compute_norm_const(feature)
 
-        if not uncertainty:
-            y = self._eval_unnorm(feature, x, uncertainty=False) - self.norm_const[feature]
-            return y
-        else:
-            y, std, estimator_var = self._eval_unnorm(feature, x, uncertainty=True)
-            y = y - self.norm_const[feature]
-            return y, std, estimator_var
+        # Evaluate the feature with or without uncertainty
+        yy = self._eval_unnorm(feature, x, uncertainty=uncertainty)
+        y, std, estimator_var = yy if uncertainty else (yy, None, None)
+
+        # Center the plot if asked
+        centering = helpers.prep_centering(centering)
+        y = y - self.norm_const[feature] if centering is not False else y
+
+        return (y, std, estimator_var) if uncertainty is not False else y

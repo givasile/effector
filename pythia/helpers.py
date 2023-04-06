@@ -11,14 +11,24 @@ def prep_features(feat: typing.Union[str, list], D) -> list:
     return feat
 
 
-def prep_normalize(normalize):
-    assert type(normalize) in [bool, str]
-    if type(normalize) is str:
-        assert normalize in ["zero_start", "zero_integral"]
+def prep_centering(centering):
+    assert type(centering) in [bool, str]
+    if type(centering) is str:
+        assert centering in ["zero_start", "zero_integral"]
 
-    if normalize is True:
-        normalize = "zero_integral"
-    return normalize
+    if centering is True:
+        centering = "zero_integral"
+    return centering
+
+
+def prep_uncertainty(uncertainty):
+    assert type(uncertainty) in [bool, str]
+    if type(uncertainty) is str:
+        assert uncertainty in ["std", "std_err"]
+
+    if uncertainty is True:
+        uncertainty = "std"
+    return uncertainty
 
 
 def axis_limits_from_data(data: np.ndarray) -> np.ndarray:
