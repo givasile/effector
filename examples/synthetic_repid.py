@@ -1,4 +1,5 @@
 import sys, os
+import timeit
 sys.path.append(os.path.dirname(os.getcwd()))
 import numpy as np
 import pythia
@@ -95,8 +96,22 @@ feat = 0
 # rhale.plot(feature=feat, uncertainty="std", centering=True)
 
 # plot pdp
-pdp = pythia.PDP(data=X, model=model.predict)
-pdp.plot(feature=feat, uncertainty=False, centering=True)
+# pdp = pythia.PDP(data=X, model=model.predict)
+# timeit.timeit(lambda: pdp.plot(feature=feat, uncertainty=False, centering=True, nof_points=100), number=10)
+#
+# d_pdp = pythia.pdp.dPDP(data=X, model=model.predict, model_jac=model.jacobian)
+# timeit.timeit(lambda: d_pdp.plot(feature=feat, uncertainty=False, nof_points=100), number=10)
 
-d_pdp = pythia.pdp.dPDP(data=X, model=model.predict, model_jac=model.jacobian)
-d_pdp.plot(feature=feat, uncertainty="std")
+start = timeit.timeit()
+pdp_dice = pythia.pdp.PDPwithdICE(data=X, model=model.predict, model_jac=model.jacobian, nof_instances="all")
+pdp_dice.plot(feature=2)
+stop = timeit.timeit()
+print(stop - start)
+
+# pdp_ice = pythia.pdp.PDPwithICE(data=X, model=model.predict, nof_instances=100)
+# pdp_ice.fit(features="all", centering=True)
+# pdp_ice.plot(feature=0)
+#
+# pdp_dice = pythia.pdp.PDPwithdICE(data=X, model=model.predict, model_jac=model.jacobian, nof_instances=100)
+# pdp_dice.fit(features="all")
+# pdp_dice.plot(feature=0)

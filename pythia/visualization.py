@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import typing
-
+from pythia import helpers
 
 def trans_affine(x, mu, std):
     return x * std + mu
@@ -149,32 +149,27 @@ def plot_1d(x, feature, eval, confidence, centering, title):
     assert confidence in [False, "std", "stderr"]
     if confidence is False:
         y = eval(feature, x, uncertainty=False, centering=centering)
-        plt.plot(x, y, "b-")
+        plt.plot(x, y, "b-", label="avg effect")
     elif confidence == "std":
         y, std, var_est = eval(feature, x, uncertainty=True, centering=centering)
-        plt.plot(x, y, "b-", label="$\hat{f}_\mu$")
+        plt.plot(x, y, "b-", label="avg effect")
         plt.fill_between(
-            x, y - std, y + std, color="red", alpha=0.4, label="$\hat{f}_{\sigma}$"
+            x, y - std, y + std, color="red", alpha=0.4, label="std"
         )
     elif confidence == "stderr":
-        y, std, var_est = eval(feature, x, uncertainty=True, centering=centering)
-        stderr = 2*np.sqrt(var_est)
-        plt.plot(x, y, "b-", label="mean PDP")
-        plt.fill_between(x, y - stderr, y + stderr, color="red", alpha=0.4, label="std err")
+        y, std, std_err = eval(feature, x, uncertainty=True, centering=centering)
+        plt.plot(x, y, "b-", label="avg effect")
+        plt.fill_between(x, y - 2*std_err, y + 2*std_err, color="red", alpha=0.4, label="std err")
+    plt.legend()
     plt.show(block=False)
 
 
-def plot_pdp_ice(x, feature, y_pdp, y_ice, title, normalize, scale_x=None, scale_y=None, savefig=None):
+def plot_pdp_ice(x, feature, y_pdp, y_ice, title, centering, scale_x=None, scale_y=None, savefig=None):
+    centering = helpers.prep_centering(centering)
     plt.figure()
     plt.title(title)
-    if normalize:
-        y_ice_outputs = [y_ice[i].eval(feature, x) for i in range(len(y_ice))]
-        y_pdp_output = y_pdp.eval(feature, x)
-    else:
-        y_ice_outputs = [y_ice[i]._eval_unnorm(feature, x) for i in range(len(y_ice))]
-        y_pdp_output = y_pdp._eval_unnorm(feature, x)
-    y_ice_outputs = np.array(y_ice_outputs)
-    y_pdp_output = np.array(y_pdp_output)
+    y_ice_outputs = np.array([y_ice[i].eval(feature, x, False, centering) for i in range(len(y_ice))])
+    y_pdp_output = y_pdp.eval(feature, x, False, centering)
 
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
     y_pdp_output = (
@@ -188,11 +183,11 @@ def plot_pdp_ice(x, feature, y_pdp, y_ice, title, normalize, scale_x=None, scale
         else trans_affine(y_ice_outputs, scale_y["mean"], scale_y["std"])
     )
 
-    plt.plot(x, y_ice_outputs[0, :], color="red", alpha=0.1, label="$f_{\mathtt{ICE}}$")
+    plt.plot(x, y_ice_outputs[0, :], color="red", alpha=0.1, label="PDP")
     plt.plot(x, y_ice_outputs.T, color="red", alpha=0.1)
-    plt.plot(x, y_pdp_output, color="blue", label="$f_{\mu}$")
-    plt.xlabel("$x_{%d}$" % (feature + 1))
-    plt.ylabel("$y$")
+    plt.plot(x, y_pdp_output, color="blue", label="ICE")
+    plt.xlabel("feature %d" % (feature + 1))
+    plt.ylabel("y")
     plt.legend()
     if savefig is not None:
         plt.savefig(savefig, bbox_inches="tight")

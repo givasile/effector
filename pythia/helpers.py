@@ -32,12 +32,7 @@ def prep_uncertainty(uncertainty):
 
 
 def axis_limits_from_data(data: np.ndarray) -> np.ndarray:
-    """
-
-    :param data: np.ndarray (N, D)
-    :returns: np.ndarray (2, D)
-
-    """
+    """Compute axis limits from data."""
     D = data.shape[1]
     axis_limits = np.zeros([2, D])
     for d in range(D):

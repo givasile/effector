@@ -59,18 +59,6 @@ class FeatureEffectBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _fit_feature(self, *args):
-        """Fit a feature effect plot.
-
-        Returns a dictionary with all the information needed to plot the FE plot.
-
-        Parameters
-        ----------
-        *args: all fit-specific arguments
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def fit(self, features: typing.Union[int, str, list] = "all"):
         """Iterates over _fit_feature for all features,
         computes the normalization constant if asked
