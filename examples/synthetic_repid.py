@@ -103,8 +103,8 @@ feat = 0
 # timeit.timeit(lambda: d_pdp.plot(feature=feat, uncertainty=False, nof_points=100), number=10)
 
 start = timeit.timeit()
-pdp_dice = pythia.pdp.PDPwithdICE(data=X, model=model.predict, model_jac=model.jacobian, nof_instances="all")
-pdp_dice.plot(feature=2)
+pdp = pythia.pdp.dPDP(data=X, model=model.predict, model_jac=model.jacobian, nof_instances=1000)
+pdp.plot(feature=2, nof_points=100)
 stop = timeit.timeit()
 print(stop - start)
 

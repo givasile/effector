@@ -74,3 +74,10 @@ def prep_ale_fit_params(par: dict):
     else:
         par["nof_bins"] = 100
     return par
+
+
+def prep_nof_instances(nof_instances: typing.Union[int, str], N: int) -> int:
+    if nof_instances == "all":
+        nof_instances = N
+    indices = np.random.choice(N, nof_instances, replace=False) if nof_instances < N else np.arange(N)
+    return nof_instances, indices

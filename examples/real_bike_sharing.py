@@ -1,4 +1,6 @@
 import sys, os
+import timeit
+
 sys.path.append(os.path.dirname(os.getcwd()))
 import pythia
 import pandas as pd
@@ -153,16 +155,27 @@ def model_forward(x):
     return model(x).numpy().squeeze()
 
 # # Explain
+dpdp = pythia.pdp.dPDP(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, nof_instances=200)
+print(timeit.timeit(lambda: dpdp.plot(feature=8, nof_points=100), number=10))
 
+pdp = pythia.PDP(data=X_train.to_numpy(), model=model_forward, nof_instances=1000)
+print(timeit.timeit(lambda: pdp.plot(feature=8, nof_points=100), number=10))
+
+pdp_ice = pythia.pdp.PDPwithICE(data=X_train.to_numpy(), model=model_forward, nof_instances=200)
+pdp_ice.fit(features=[8], centering="zero_integral")
+pdp_ice.plot(feature=8, nof_points=100)
+
+d_ice = pythia.pdp.PDPwithdICE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, nof_instances=200)
+d_ice.plot(feature=8, nof_points=100)
 # find subregions
-import pythia.regions as regions
-axis_limits = pythia.helpers.axis_limits_from_data(X_train.to_numpy())
-nof_levels = 6
-nof_splits = 10
-foi = 10
-foc = "all"
-cat_limit = 25
-splits = regions.find_splits(nof_levels, nof_splits, foi, foc, cat_limit, X_train.to_numpy(), model_forward, model_jac)
+# import pythia.regions as regions
+# axis_limits = pythia.helpers.axis_limits_from_data(X_train.to_numpy())
+# nof_levels = 6
+# nof_splits = 10
+# foi = 10
+# foc = "all"
+# cat_limit = 25
+# splits = regions.find_splits(nof_levels, nof_splits, foi, foc, cat_limit, X_train.to_numpy(), model_forward, model_jac)
 # print([split["weighted_heter"] for split in splits])
 #
 # for split in splits:
