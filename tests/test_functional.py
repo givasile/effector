@@ -70,26 +70,26 @@ class TestExample2:
         # prediction
         dale = pythia.RHALE(data=samples, model=self.f, model_jac=self.f_der)
         fixed = pythia.binning_methods.Fixed(nof_bins=self.k)
-        dale.fit(binning_method=fixed)
+        dale.fit(features="all", binning_method=fixed, centering=True)
 
         x = np.linspace(0, 1, 1000)
-        pred = dale.eval(feature=0, x=x)
+        pred = dale.eval(feature=0, x=x, centering=True)
         gt = self.ale_1(x)
         assert np.allclose(pred, gt, atol=self.atol)
 
-        pred = dale.eval(feature=1, x=x)
+        pred = dale.eval(feature=1, x=x, centering=True)
         gt = self.ale_2(x)
         assert np.allclose(pred, gt, atol=self.atol)
 
         # DALE variable-size
         dp = pythia.binning_methods.DynamicProgramming(max_nof_bins=20, min_points_per_bin=10, cat_limit=1)
-        dale.fit(binning_method=dp)
+        dale.fit(binning_method=dp, centering=True)
 
-        pred = dale.eval(feature=0, x=x)
+        pred = dale.eval(feature=0, x=x, centering=True)
         gt = self.ale_1(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
-        pred = dale.eval(feature=1, x=x)
+        pred = dale.eval(feature=1, x=x, centering=True)
         gt = self.ale_2(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
