@@ -4,7 +4,11 @@ sys.path.append(os.path.dirname(os.getcwd()))
 import numpy as np
 import pythia
 import pythia.regions as regions
+import pythia.interaction as interaction
 import matplotlib.pyplot as plt
+# from nodegam.sklearn import NodeGAMClassifier, NodeGAMRegressor
+from sklearn.model_selection import train_test_split
+from interpret.glassbox import ExplainableBoostingRegressor
 
 class RepidSimpleDist:
     """
@@ -31,7 +35,7 @@ class RepidSimpleDist:
 
 
 class RepidSimpleModel:
-    def __init__(self, a1=0.2, a2=-8, a3=8, a4=16):
+    def __init__(self, a1=0.2, a2=-8, a3=8, a4=8):
         self.a1 = a1
         self.a2 = a2
         self.a3 = a3
@@ -69,49 +73,49 @@ model = RepidSimpleModel()
 X = dist.generate(N=1000)
 Y = model.predict(X)
 
+
+# check interactions
+h_index = interaction.HIndex(data=X, model=model.predict, nof_instances=950)
+# print(h_index.pairwise(0, 1))
+# print(h_index.one_vs_all(0))
+
+h_index.plot(interaction_matrix=True, one_vs_all=True)
+
+
+
+
+
 # # find regions
-# nof_levels = 2
-# nof_splits = 10
-# foi = 1
-# foc = "all"
-# splits = regions.find_splits(
-#     nof_levels=nof_levels,
-#     nof_splits=nof_splits,
-#     foi=foi,
-#     foc=foc,
-#     cat_limit=10,
-#     data=X,
-#     model=model.predict,
-#     model_jac=model.jacobian,
-#     criterion="ale"
-# )
+# reg = pythia.regions.Regions(data=X, model=model.predict, model_jac=model.jacobian, cat_limit=25)
+# reg.search_splits(nof_levels=2, nof_candidate_splits=20, criterion="rhale")
+# opt_splits = reg.choose_important_splits(0.2)
+#
+# transf = pythia.regions.DataTransformer(splits=opt_splits)
+# new_X = transf.transform(X)
+#
+# #
+# seed = 21
+# X_train, X_test, y_train, y_test = train_test_split(new_X, Y, test_size=0.20, random_state=seed)
+# ebr = ExplainableBoostingRegressor()
+# ebr.fit(X_train, y_train)
+# print(ebr.score(X_test, y_test))
+
+# for i in range(len(ebr.term_scores_)):
+#     plt.plot(ebr.term_scores_[i])
+#     plt.show()
 
 
-feat = 0
+# from interpret import show
+# show(ebr.explain_global())
 
 # # plot global effect
-# rhale = pythia.RHALE(data=X, model=model.predict, model_jac=model.jacobian)
-# greedy = pythia.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=100, discount=0.5)
-# rhale.fit(features=feat, binning_method=greedy)
-# rhale.plot(feature=feat, uncertainty="std", centering=True)
-
-# plot pdp
-# pdp = pythia.PDP(data=X, model=model.predict)
-# timeit.timeit(lambda: pdp.plot(feature=feat, uncertainty=False, centering=True, nof_points=100), number=10)
+# feat = 1
+# fe = pythia.PDP(data=X, model=model.predict, max_nof_instances=10000)
+# fe.plot(feature=feat, uncertainty=True, centering=False, nof_points=100)
 #
-# d_pdp = pythia.pdp.dPDP(data=X, model=model.predict, model_jac=model.jacobian)
-# timeit.timeit(lambda: d_pdp.plot(feature=feat, uncertainty=False, nof_points=100), number=10)
-
-start = timeit.timeit()
-pdp = pythia.pdp.dPDP(data=X, model=model.predict, model_jac=model.jacobian, nof_instances=1000)
-pdp.plot(feature=2, nof_points=100)
-stop = timeit.timeit()
-print(stop - start)
-
-# pdp_ice = pythia.pdp.PDPwithICE(data=X, model=model.predict, nof_instances=100)
-# pdp_ice.fit(features="all", centering=True)
-# pdp_ice.plot(feature=0)
+# fe = pythia.dPDP(data=X, model=model.predict, model_jac=model.jacobian, max_nof_instances=10000)
+# fe.plot(feature=feat, uncertainty=True, nof_points=100)
 #
-# pdp_dice = pythia.pdp.PDPwithdICE(data=X, model=model.predict, model_jac=model.jacobian, nof_instances=100)
-# pdp_dice.fit(features="all")
-# pdp_dice.plot(feature=0)
+# fe = pythia.RHALE(data=X, model=model.predict, model_jac=model.jacobian)
+# fe.fit(features="all", binning_method="greedy", centering=True)
+# fe.plot(feature=feat, uncertainty=True)

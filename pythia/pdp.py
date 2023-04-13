@@ -12,14 +12,14 @@ class PDP(FeatureEffectBase):
         data: np.ndarray,
         model: callable,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        nof_instances: typing.Union[int, str] = 1000,
+        max_nof_instances: typing.Union[int, str] = 1000,
     ):
         # assertions
         assert data.ndim == 2
 
         # setters
         self.model = model
-        self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
+        self.nof_instances, self.indices = helpers.prep_nof_instances(max_nof_instances, data.shape[0])
         self.data = data[self.indices, :]
         self.D = data.shape[1]
 
@@ -43,7 +43,7 @@ class PDP(FeatureEffectBase):
                      ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
 
         # yy = predict_non_vectorized(self.model, self.data, x, feature, uncertainty, is_jac=False)
-        yy = predict_vectorized(self.model, self.data, x, feature, uncertainty, is_jac=False)
+        yy = pdp_1d_vectorized(self.model, self.data, x, feature, uncertainty, is_jac=False)
         return yy
 
     def plot(self,
@@ -66,11 +66,11 @@ class dPDP(FeatureEffectBase):
             model: callable,
             model_jac: callable,
             axis_limits: typing.Union[None, np.ndarray] = None,
-            nof_instances: typing.Union[int, str] = "all",
+            max_nof_instances: typing.Union[int, str] = "all",
     ):
         assert data.ndim == 2
 
-        self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
+        self.nof_instances, self.indices = helpers.prep_nof_instances(max_nof_instances, data.shape[0])
         self.data = data[self.indices, :]
         self.model = model
         self.model_jac = model_jac
@@ -90,7 +90,7 @@ class dPDP(FeatureEffectBase):
                      ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
 
         # yy = predict_non_vectorized(self.model_jac, self.data, x, feature, uncertainty, is_jac=True)
-        yy = predict_vectorized(self.model_jac, self.data, x, feature, uncertainty, is_jac=True)
+        yy = pdp_1d_vectorized(self.model_jac, self.data, x, feature, uncertainty, is_jac=True)
         return yy
 
     def plot(self,
@@ -214,7 +214,7 @@ class PDPwithICE:
         self.data = data[self.indices, :]
         self.axis_limits = (helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits)
 
-        self.y_pdp = PDP(data=self.data, model=model, axis_limits=axis_limits, nof_instances="all")
+        self.y_pdp = PDP(data=self.data, model=model, axis_limits=axis_limits, max_nof_instances="all")
         self.y_ice = [ICE(data=self.data, model=model, axis_limits=axis_limits, instance=i) for i in range(nof_instances)]
 
         # boolean variable for whether a FE plot has been computed
@@ -257,7 +257,7 @@ class PDPwithdICE:
         self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
         self.data = data[self.indices, :]
         self.axis_limits = (helpers.axis_limits_from_data(self.data) if axis_limits is None else axis_limits)
-        self.y_pdp = dPDP(data=data, model=model, model_jac=model_jac, axis_limits=axis_limits, nof_instances="all")
+        self.y_pdp = dPDP(data=data, model=model, model_jac=model_jac, axis_limits=axis_limits, max_nof_instances="all")
         self.y_dice = [dICE(data=data, model=model, model_jac=model_jac, axis_limits=axis_limits, instance=i) for i in range(nof_instances)]
         self.dim = data.shape[1]
 
@@ -283,7 +283,7 @@ class PDPwithdICE:
                          scale_x=scale_x, scale_y=scale_y, savefig=savefig)
 
 
-def predict_non_vectorized(model, data, x, feature, uncertainty, is_jac):
+def pdp_1d_non_vectorized(model, data, x, feature, uncertainty, is_jac):
     mean_pdp = []
     sigma_pdp = []
     stderr = []
@@ -299,7 +299,7 @@ def predict_non_vectorized(model, data, x, feature, uncertainty, is_jac):
     return (np.array(mean_pdp), np.array(sigma_pdp), np.array(stderr)) if uncertainty else np.array(mean_pdp)
 
 
-def predict_vectorized(model, data, x, feature, uncertainty, is_jac):
+def pdp_1d_vectorized(model, data, x, feature, uncertainty, is_jac):
     nof_instances = data.shape[0]
     x_new = copy.deepcopy(data)
     x_new = np.expand_dims(x_new, axis=0)
@@ -307,6 +307,46 @@ def predict_vectorized(model, data, x, feature, uncertainty, is_jac):
     x_new[:, :, feature] = np.expand_dims(x, axis=-1)
     x_new = np.reshape(x_new, (x_new.shape[0] * x_new.shape[1], x_new.shape[2]))
     y = model(x_new)[:, feature] if is_jac else model(x_new)
+    y = np.reshape(y, (x.shape[0], nof_instances))
+    mean_pdp = np.mean(y, axis=1)
+    if uncertainty:
+        std = np.std(y, axis=1)
+        sigma_pdp = std
+        stderr = std / np.sqrt(data.shape[0])
+        return (mean_pdp, sigma_pdp, stderr)
+    else:
+        return mean_pdp
+
+
+def pdp_nd_non_vectorized(model, data, x, features, uncertainty, is_jac):
+    assert len(features) == x.shape[1]
+
+    mean_pdp = []
+    sigma_pdp = []
+    stderr = []
+    for i in range(x.shape[0]):
+        x_new = copy.deepcopy(data)
+        for j in range(len(features)):
+            x_new[:, features[j]] = x[i, j]
+        y = model(x_new)[:, features] if is_jac else model(x_new)
+        mean_pdp.append(np.mean(y))
+        if uncertainty:
+            std = np.std(y)
+            sigma_pdp.append(std)
+            stderr.append(std / np.sqrt(data.shape[0]))
+    return (np.array(mean_pdp), np.array(sigma_pdp), np.array(stderr)) if uncertainty else np.array(mean_pdp)
+
+
+def pdp_nd_vectorized(model, data, x, features, uncertainty, is_jac):
+    assert len(features) == x.shape[1]
+    nof_instances = data.shape[0]
+    x_new = copy.deepcopy(data)
+    x_new = np.expand_dims(x_new, axis=0)
+    x_new = np.repeat(x_new, x.shape[0], axis=0)
+    for j in range(len(features)):
+        x_new[:, :, features[j]] = np.expand_dims(x[:, j], axis=-1)
+    x_new = np.reshape(x_new, (x_new.shape[0] * x_new.shape[1], x_new.shape[2]))
+    y = model(x_new)[:, features] if is_jac else model(x_new)
     y = np.reshape(y, (x.shape[0], nof_instances))
     mean_pdp = np.mean(y, axis=1)
     if uncertainty:

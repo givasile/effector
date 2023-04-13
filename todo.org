@@ -13,6 +13,7 @@
   * PFI
 
 Backlog:
+* pass feature name to plots
 * check why in linear case RHALE is not merging all bins
 * check scaling of RHALE y axis
 * check if changing the API; pass the data to .fit() instead of the constructor*

@@ -88,9 +88,9 @@ def ale_plot(
     # second subplot
     ale_bins(ax2, bin_effect, bin_variance, limits, dx, error)
 
-    ax1.set_ylabel("$y$")
-    ax2.set_xlabel("$x_{%d}$" % (feature + 1))
-    ax2.set_ylabel("$\partial y / \partial x_{%d}$" % (feature + 1))
+    ax1.set_ylabel("y")
+    ax2.set_xlabel("x_%d" % (feature + 1))
+    ax2.set_ylabel("dy/dx_%d" % (feature + 1))
 
     if savefig:
         plt.savefig(savefig, bbox_inches="tight")
@@ -161,6 +161,8 @@ def plot_1d(x, feature, eval, confidence, centering, title):
         plt.plot(x, y, "b-", label="avg effect")
         plt.fill_between(x, y - 2*std_err, y + 2*std_err, color="red", alpha=0.4, label="std err")
     plt.legend()
+    plt.xlabel("x_%d" % (feature + 1))
+    plt.ylabel("y")
     plt.show(block=False)
 
 

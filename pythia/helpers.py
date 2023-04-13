@@ -16,6 +16,7 @@ def prep_centering(centering):
     if type(centering) is str:
         assert centering in ["zero_start", "zero_integral"]
 
+    # set the default
     if centering is True:
         centering = "zero_integral"
     return centering

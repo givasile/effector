@@ -3,6 +3,8 @@ import timeit
 
 sys.path.append(os.path.dirname(os.getcwd()))
 import pythia
+import pythia.interaction as interaction
+import pythia.regions as regions
 import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
@@ -154,38 +156,9 @@ def model_jac(x):
 def model_forward(x):
     return model(x).numpy().squeeze()
 
-# # Explain
-dpdp = pythia.pdp.dPDP(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, nof_instances=200)
-print(timeit.timeit(lambda: dpdp.plot(feature=8, nof_points=100), number=10))
-
-pdp = pythia.PDP(data=X_train.to_numpy(), model=model_forward, nof_instances=1000)
-print(timeit.timeit(lambda: pdp.plot(feature=8, nof_points=100), number=10))
-
-pdp_ice = pythia.pdp.PDPwithICE(data=X_train.to_numpy(), model=model_forward, nof_instances=200)
-pdp_ice.fit(features=[8], centering="zero_integral")
-pdp_ice.plot(feature=8, nof_points=100)
-
-d_ice = pythia.pdp.PDPwithdICE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, nof_instances=200)
-d_ice.plot(feature=8, nof_points=100)
-# find subregions
-# import pythia.regions as regions
-# axis_limits = pythia.helpers.axis_limits_from_data(X_train.to_numpy())
-# nof_levels = 6
-# nof_splits = 10
-# foi = 10
-# foc = "all"
-# cat_limit = 25
-# splits = regions.find_splits(nof_levels, nof_splits, foi, foc, cat_limit, X_train.to_numpy(), model_forward, model_jac)
-# print([split["weighted_heter"] for split in splits])
-#
-# for split in splits:
-#     print(split)
-# print(splits[1]["feature"])
-# rhale = pythia.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
-# rhale.fit(features=[8], binning_method=pythia.binning_methods.Fixed(nof_bins=30))
-# rhale.plot(feature=8, confidence_interval=False)
-#
-# features, types, positions, heterogeneity = splits[1]["feature"], splits[1]["type"], splits[1]["position"], splits[1]["heterogeneity"]
-# plot_subregions_rhale(foi, features, types, positions, X_train, model_forward, model_jac)
-
-#
+# Explain
+h_index = interaction.HIndex(data=X_train.to_numpy(), model=model_forward, nof_instances=100)
+h_index.plot()
+# reg = pythia.regions.Regions(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, cat_limit=25)
+# reg.search_splits(nof_levels=2, nof_candidate_splits=20, criterion="rhale")
+# opt_splits = reg.choose_important_splits(0.2)

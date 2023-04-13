@@ -344,3 +344,31 @@ def compute_ale_params_from_gt(mean, limits):
         "bin_variance": bin_var,
     }
     return parameters
+
+
+def get_feature_types(data: np.ndarray, cat_limit: int = 10):
+    """Determine the type of each feature.
+
+    Args:
+        data: array-like, shape (n_samples, n_features)
+            The data to determine the types of features.
+        cat_limit: int, default=10
+            The maximum number of unique values for a feature to be considered categorical.
+
+    Returns:
+        types: list
+            A list of strings, where each string is either "cat" or "cont".
+
+    Examples:
+        >>> import numpy as np
+        >>> data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        >>> types_of_features(data)
+        ['cont', 'cont', 'cont']
+        >>> data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [1, 2, 3]])
+        >>> types_of_features(data)
+        ['cat', 'cat', 'cat']
+
+    """
+
+    types = ["cat" if len(np.unique(data[:, f])) < cat_limit else "cont" for f in range(data.shape[1])]
+    return types

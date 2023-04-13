@@ -118,23 +118,21 @@ class FeatureEffectBase(ABC):
         - np.array (N,), if uncertainty=False
         - tuple (y, std, estimator_var), if uncertainty=True
         """
+        centering = helpers.prep_centering(centering)
+
         # Check if the lower bound is less than the upper bound
         assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
 
         # Fit the feature if not already fitted
         if not self.is_fitted[feature]:
-            self.fit(features=feature)
-
-        # Compute normalization constant if not already computed and centering is True
-        if centering is not False and self.norm_const[feature] == self.empty_symbol:
-            self.norm_const[feature] = self._compute_norm_const(feature)
+            arg_list = self.fit.__code__.co_varnames
+            self.fit(features=feature, centering=centering) if "centering" in arg_list else self.fit(features=feature)
 
         # Evaluate the feature with or without uncertainty
         yy = self._eval_unnorm(feature, x, uncertainty=uncertainty)
         y, std, estimator_var = yy if uncertainty else (yy, None, None)
 
         # Center the plot if asked
-        centering = helpers.prep_centering(centering)
-        y = y - self.norm_const[feature] if centering is not False else y
+        y = y - self.norm_const[feature] if self.norm_const[feature] != self.empty_symbol and centering else y
 
         return (y, std, estimator_var) if uncertainty is not False else y

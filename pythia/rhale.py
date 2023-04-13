@@ -18,15 +18,20 @@ class RHALE(FeatureEffectBase):
         data_effect: typing.Union[None, np.ndarray] = None,
     ):
         """
-        Initializes DALE.
+        RHALE constructor
 
-        Parameters
-        ----------
-        data: [N, D] np.array, X matrix
-        model: Callable [N, D] -> [N,], prediction function
-        model_jac: Callable [N, D] -> [N,D], jacobian function
-        axis_limits: [2, D] np.ndarray or None, if None they will be auto computed from the data
-        data_effect: [N, D] np.ndarray or None, if None they will be computed from the model_jac
+        Args
+        ---
+            data (numpy.ndarray (N,D)): X matrix.
+            model (Callable (N,D) -> (N,)): the black-box model.
+            model_jac (Callable (N,D) -> (N,) or None): the jacobian of the model. If set to None, the Jacobian will be computed numerically.
+            axis_limits (numpy.ndarray or None): axis limits of the data. If set to None, the axis limits will be auto-computed from the input data.
+            data_effect (numpy.ndarray or None): data jacobian. If set to None, the effect will be computed from the Jacobian matrix.
+
+        Returns
+        -------
+        The function returns an instance of the RHALE class, which can be used to estimate the loss of a given input.
+
         """
         # assertions
         assert data.ndim == 2
@@ -54,13 +59,6 @@ class RHALE(FeatureEffectBase):
             pass
 
     def _fit_feature(self, feature: int, binning_method) -> typing.Dict:
-        """Fit a specific feature, using DALE.
-
-        Parameters
-        ----------
-        feature: index of the feature
-        binning_method: str or instance of appropriate binning class
-        """
         if self.data_effect is None:
             self.compile()
 
@@ -96,7 +94,22 @@ class RHALE(FeatureEffectBase):
             binning_method="greedy",
             centering: typing.Union[bool, str] = "zero_integral",
             ) -> None:
-        """Fit the model."""
+        """Fit the model.
+
+        Args
+        ---
+            features (int, str, list): the features to fit.
+                - If set to "all", all the features will be fitted.
+            binning_method (str):
+                - If set to "greedy", the greedy binning method will be used.
+                - If set to "dynamic", the dynamic programming binning method will be used.
+                - If set to "fixed", the fixed binning method will be used.
+            centering (bool, str):
+                - If set to False, no centering will be applied.
+                - If set to "zero_integral" or True, the integral of the feature effect will be set to zero.
+                - If set to "zero_mean", the mean of the feature effect will be set to zero.
+
+        """
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
         for s in features:
