@@ -1,5 +1,7 @@
 import numpy as np
 from pythia import helpers
+import pythia
+from pythia import dPDP
 from pythia.pdp import pdp_1d_vectorized, pdp_1d_non_vectorized, pdp_nd_non_vectorized, pdp_nd_vectorized
 import tqdm
 
@@ -133,3 +135,61 @@ class HIndex:
         plt.yticks(np.arange(self.nof_features), labels=["feature {}".format(i+1) for i in range(self.nof_features)])
         plt.xlabel("H-index")
         plt.show()
+
+
+class REPID:
+
+    empty_symbol = 1e10
+    def __init__(self, data, model, model_jac, nof_instances):
+        self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
+        self.data = data[self.indices]
+
+        self.model = model
+        self.model_jac = model_jac
+        self.nof_instances = nof_instances
+        self.nof_features = data.shape[1]
+
+        self.interaction_matrix = np.ones((self.nof_features, self.nof_features)) * self.empty_symbol
+        self.one_vs_all_matrix = np.ones(self.nof_features) * self.empty_symbol
+
+        self.fitted_interaction_matrix = False
+        self.fitted_one_vs_all_matrix = False
+
+    def fit(self):
+        for i in range(self.nof_features):
+            print("Feature: ", i)
+            self.one_vs_all(i)
+        self.fitted_one_vs_all_matrix = True
+
+    def one_vs_all(self, feat):
+        if self.one_vs_all_matrix[feat] != self.empty_symbol:
+            return self.one_vs_all_matrix[feat]
+
+        axis_limits = pythia.helpers.axis_limits_from_data(self.data)
+        dpdp = dPDP(self.data, self.model, self.model_jac, axis_limits)
+        dpdp.fit(feat)
+        start = axis_limits[:, feat][0]
+        stop = axis_limits[:, feat][1]
+
+        x = np.linspace(start, stop, 21)
+        x = 0.5 * (x[:-1] + x[1:])
+
+        pdp_m, pdp_std, pdp_stderr = dpdp._eval_unnorm(feature=feat, x=x, uncertainty=True)
+        interaction = np.mean(pdp_std)
+        self.one_vs_all_matrix[feat] = interaction
+        return interaction
+
+    def plot(self):
+        if self.fitted_one_vs_all_matrix is False:
+            self.fit()
+
+        import matplotlib.pyplot as plt
+        # plot as horizontal bar chart
+        plt.figure(figsize=(10, 10))
+        plt.title("REPID for all features")
+        plt.barh(np.arange(self.nof_features), self.one_vs_all_matrix)
+        plt.yticks(np.arange(self.nof_features), labels=["feature {}".format(i+1) for i in range(self.nof_features)])
+        plt.xlabel("REPID index")
+        plt.show()
+
+

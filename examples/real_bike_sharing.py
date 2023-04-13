@@ -157,8 +157,11 @@ def model_forward(x):
     return model(x).numpy().squeeze()
 
 # Explain
-h_index = interaction.HIndex(data=X_train.to_numpy(), model=model_forward, nof_instances=100)
-h_index.plot()
+# h_index = interaction.HIndex(data=X_train.to_numpy(), model=model_forward, nof_instances=100)
+# h_index.plot()
+
+repid = interaction.REPID(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, nof_instances=100)
+repid.plot()
 # reg = pythia.regions.Regions(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, cat_limit=25)
 # reg.search_splits(nof_levels=2, nof_candidate_splits=20, criterion="rhale")
 # opt_splits = reg.choose_important_splits(0.2)
