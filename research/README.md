@@ -1,0 +1,1 @@
+Directory for describing research ideas and/or testing them with code. 

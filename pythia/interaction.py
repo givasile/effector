@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 from pythia import helpers
 import pythia
 from pythia import dPDP
@@ -23,43 +24,46 @@ class HIndex:
         self.fitted_one_vs_all_matrix = False
 
     def fit(self, interaction_matrix=True, one_vs_all=True):
-        print("Fit HIndex - interacation_matrix")
         if interaction_matrix:
+            logging.info("\nH-Index interaction matrix: Start fitting")
             for i in range(self.nof_features):
                 print("Feature: ", i)
                 self.interaction_matrix[i, i] = 0
                 for j in range(i + 1, self.nof_features):
-                    self.pairwise(i, j)
+                    self.eval_pairwise(i, j)
             self.fitted_interaction_matrix = True
+            logging.info("H-Index interaction matrix: Fitting done")
 
-        print("Fit HIndex - one_vs_all matrix")
         if one_vs_all:
+            logging.info("\nH-Index one-vs-all matrix: Start fitting")
             for i in range(self.nof_features):
                 print("Feature: ", i)
-                self.one_vs_all(i)
+                self.eval_one_vs_all(i)
             self.fitted_one_vs_all_matrix = True
+            logging.info("H-Index one-vs-all matrix: Fitting done")
 
     def plot(self, interaction_matrix=True, one_vs_all=True):
+        # if not fitted, fit
         if not self.fitted_interaction_matrix and interaction_matrix:
             self.fit(interaction_matrix=True, one_vs_all=False)
         if not self.fitted_one_vs_all_matrix and one_vs_all:
             self.fit(interaction_matrix=False, one_vs_all=True)
 
+        # plot
         if interaction_matrix:
             self._plot_interaction_matrix()
         if one_vs_all:
             self._plot_one_vs_all_matrix()
 
-
-    def pairwise(self, feat_1, feat_2):
+    def eval_pairwise(self, feat_1, feat_2):
         if self.interaction_matrix[feat_1, feat_2] != self.empty_symbol:
             return self.interaction_matrix[feat_1, feat_2]
 
         x1 = self.data[:, feat_1]
         x2 = self.data[:, feat_2]
-        pdp_1 = self.pdp_1d(feat_1, x1)
-        pdp_2 = self.pdp_1d(feat_2, x2)
-        pdp_12 = self.pdp_2d(feat_1, feat_2, x1, x2)
+        pdp_1 = self._pdp_1d(feat_1, x1)
+        pdp_2 = self._pdp_1d(feat_2, x2)
+        pdp_12 = self._pdp_2d(feat_1, feat_2, x1, x2)
 
         nom = np.mean(np.square(pdp_12 - pdp_1 - pdp_2))
         denom = np.mean(np.square(pdp_12))
@@ -69,12 +73,12 @@ class HIndex:
         self.interaction_matrix[feat_2, feat_1] = interaction
         return interaction
 
-    def one_vs_all(self, feat):
+    def eval_one_vs_all(self, feat):
         if self.one_vs_all_matrix[feat] != self.empty_symbol:
             return self.one_vs_all_matrix[feat]
 
-        pdp_1 = self.pdp_1d(feat, self.data[:, feat])
-        pdp_minus_1 = self.pdp_minus_1d(feat, self.data[:, [i for i in range(self.nof_features) if i != feat]])
+        pdp_1 = self._pdp_1d(feat, self.data[:, feat])
+        pdp_minus_1 = self._pdp_minus_1d(feat, self.data[:, [i for i in range(self.nof_features) if i != feat]])
 
         yy = self.model(self.data)
         nom = np.mean(np.square(yy - pdp_minus_1 - pdp_1))
@@ -84,19 +88,19 @@ class HIndex:
         self.one_vs_all_matrix[feat] = interaction
         return interaction
 
-    def pdp_1d(self, feature, x):
+    def _pdp_1d(self, feature, x):
         yy = pdp_1d_vectorized(self.model, self.data, x, feature, uncertainty=False, is_jac=False)
         c = np.mean(yy)
         return yy - c
 
-    def pdp_2d(self, feature1, feature2, x1, x2):
+    def _pdp_2d(self, feature1, feature2, x1, x2):
         features = [feature1, feature2]
         x = np.stack([x1, x2], axis=-1)
         yy = pdp_nd_vectorized(self.model, self.data, x, features, uncertainty=False, is_jac=False)
         c = np.mean(yy)
         return yy - c
 
-    def pdp_minus_1d(self, feature, x):
+    def _pdp_minus_1d(self, feature, x):
         # features are all other features
         features = [i for i in range(self.nof_features) if i != feature]
         assert len(features) == x.shape[1]
@@ -138,8 +142,8 @@ class HIndex:
 
 
 class REPID:
-
     empty_symbol = 1e10
+
     def __init__(self, data, model, model_jac, nof_instances):
         self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
         self.data = data[self.indices]
@@ -158,24 +162,26 @@ class REPID:
     def fit(self):
         for i in range(self.nof_features):
             print("Feature: ", i)
-            self.one_vs_all(i)
+            self._fit_one_vs_all(i)
         self.fitted_one_vs_all_matrix = True
 
-    def one_vs_all(self, feat):
+    def _fit_one_vs_all(self, feat):
         if self.one_vs_all_matrix[feat] != self.empty_symbol:
             return self.one_vs_all_matrix[feat]
 
         axis_limits = pythia.helpers.axis_limits_from_data(self.data)
         dpdp = dPDP(self.data, self.model, self.model_jac, axis_limits)
         dpdp.fit(feat)
+
+        # find the interaction index
         start = axis_limits[:, feat][0]
         stop = axis_limits[:, feat][1]
-
         x = np.linspace(start, stop, 21)
         x = 0.5 * (x[:-1] + x[1:])
-
         pdp_m, pdp_std, pdp_stderr = dpdp._eval_unnorm(feature=feat, x=x, uncertainty=True)
         interaction = np.mean(pdp_std)
+
+        # store the interaction index
         self.one_vs_all_matrix[feat] = interaction
         return interaction
 
@@ -193,3 +199,4 @@ class REPID:
         plt.show()
 
 
+class ALE

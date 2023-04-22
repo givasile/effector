@@ -1,0 +1,28 @@
+\documentclass[12pt]{article}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{bm}
+
+\title{Research Ideas}
+
+\newcommand{\xb}{\mathbf{x}}
+\newcommand{\xc}{\mathbf{x_c}}
+\newcommand{\fxc}{f^{(\xc)}}
+\newcommand{\fxs}{f^{(x_s)}}
+
+\author{Vasilis Gkolemis}
+\begin{document}
+    \maketitle
+    \section{Evaluation framework for interaction methods}
+
+    \subsection{Idea 1}
+
+    We may split every $f: \mathbb{R}^D \rightarrow \mathbb{R}$ into
+    a model without interaction between $\xc$ and $x_s$,
+    i.e., $f_{ni}(\xb) = \fxs(x_s) +  \fxc(\xc)$,
+    and the interaction term $\kappa(\xc, x_s)$:
+
+    $$f(\xb) = \underbrace{\fxs(x_s) +  \fxc(\xc)}_{f_{ni}(\xb)} + \kappa(\xc, x_s)$$
+
+    \subsection{Idea 2}
+\end{document}
