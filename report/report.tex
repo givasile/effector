@@ -1,0 +1,74 @@
+\documentclass[12pt]{article}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{bm}
+
+\title{From global to regional effects: a comparison of the different approaches}
+
+\newcommand{\Rd}{\mathbb{R}^d}
+\newcommand{\xb}{\mathbf{x}}
+\newcommand{\xc}{\mathbf{x_c}}
+\newcommand{\fxc}{f^{(\xc)}}
+\newcommand{\fxs}{f^{(x_s)}}
+\newcommand{\Xcal}{\mathcal{X}}
+\newcommand{\Ycal}{\mathcal{Y}}
+
+\author{Vasilis Gkolemis}
+\begin{document}
+\maketitle
+\section{Introduction}
+
+\section{Background}
+
+Let \(\Xcal \in \Rd\) be the \(d\)-dimensional feature space, \(\Ycal\) the target space and \(f(\cdot) : \Xcal \rightarrow \Ycal\) the black-box function.  We use index \(s \in \{1, \ldots, d\}\) for the feature of interest and \(c = \{1, \ldots, d\} - s\) for the rest.  For convenience, to denote the input vector, we use \((x_s, \xc)\) instead
+of \((x_1, \cdots , x_s, \cdots, x_D)\) and, for random variables,
+\((X_s, X_c)\) instead of \((X_1, \cdots , X_s, \cdots, X_D)\).  The
+training set \(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\) is sampled
+i.i.d.\ from the distribution \(\mathbb{P}_{X,Y}\).  Finally,
+\(f^{\mathtt{<method>}}(x_s)\) denotes how \(\mathtt{<method>}\)
+defines the feature effect and \(\hat{f}^{\mathtt{<method>}}(x_s)\)
+how it estimates it from the training set.
+
+\section{Feature Effect}
+
+The purpose of any feature effect (FE) method is to explain the
+`black-box` function $f: \mathbb{R}^D \rightarrow \mathbb{R}$
+using a Generalized Additive Model $f_{\mathtt{<method>}}(x) = c + f_1(x_1) + \cdots + f_D(x_D)$, as a global surrogate.
+
+\subsection{Approaches}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Table Caption}
+    \begin{tabular}{c|c|c}
+      \hline
+      \textbf{Name} & \textbf{Definition} \((f)\) & \textbf{Approximation} \((\hat{f})\)\\
+      \hline
+      \textbf{PDP} & $\mathbb{E}_{X_c}[f(x_s,X_c)]$ & $\frac{1}{N} \sum f(x_s,x_c^{(i)})$ \\
+      \textbf{dPDP} & $\mathbb{E}_{X_c}[ \frac{\partial f(x_s,X_c)}{\partial x_s}]$ & $\frac{1}{N} \sum \frac{\partial f(x_s,x_c^{(i)})}{\partial x_s}$ \\
+    \end{tabular}
+\end{table}
+
+    \section{Interaction Index}
+    \subsection{Approaches}
+    \section{Regional Effects}
+    \subsection{Approaches}
+
+    \section{Can we evaluate the approaches?}
+
+    \subsection{Idea 1}
+
+    We may split every $f: \mathbb{R}^D \rightarrow \mathbb{R}$ into
+    a model without interaction between $\xc$ and $x_s$,
+    i.e., $f_{ni}(\xb) = \fxs(x_s) +  \fxc(\xc)$,
+    and the interaction term $\kappa(\xc, x_s)$:
+
+    \[
+      f(\xb) = \underbrace{\fxs(x_s) +  \fxc(\xc)}_{f_{ni}(\xb)} + \kappa(\xc, x_s)
+    \]
+
+    A simple approach is defining \(f\) to be a Neural Network and \(f_{ni}\) a Neural Additive Model without interaction
+    between \(x_s\) and \(\xc\). Then \(\kappa(\xc, x_s) = f(\xb) - f_{ni}(\xb)\) and we quantify the importance of \(\kappa\) as \(\mathbb{E}_{X_c, X_s} \left [ |\kappa(X_c, X_s)| \right ] \approx \sqrt{\frac{1}{N} \sum_i \kappa^2(\xc, x_s)} \).
+
+    \subsection{Idea 2}
+\end{document}

@@ -1,6 +1,5 @@
 import sys, os
 import timeit
-
 sys.path.append(os.path.dirname(os.getcwd()))
 import pythia
 import pythia.interaction as interaction
@@ -141,7 +140,7 @@ model = keras.Sequential([
 ])
 
 model.compile(optimizer="adam", loss="mse", metrics=["mae", keras.metrics.RootMeanSquaredError()])
-model.fit(X_train, Y_train, epochs=1, verbose=1)
+model.fit(X_train, Y_train, epochs=3, verbose=1)
 model.evaluate(X_test, Y_test, verbose=1)
 
 
@@ -157,8 +156,8 @@ def model_forward(x):
     return model(x).numpy().squeeze()
 
 # Explain
-# h_index = interaction.HIndex(data=X_train.to_numpy(), model=model_forward, nof_instances=100)
-# h_index.plot()
+h_index = interaction.HIndex(data=X_train.to_numpy(), model=model_forward, nof_instances=100)
+h_index.plot()
 
 repid = interaction.REPID(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, nof_instances=100)
 repid.plot()
