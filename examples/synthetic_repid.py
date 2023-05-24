@@ -10,6 +10,11 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from interpret.glassbox import ExplainableBoostingRegressor
 
+# hack to reload modules
+import importlib
+pythia = importlib.reload(pythia)
+
+
 class RepidSimpleDist:
     """
     x1 ~ U(-1, 1)
@@ -76,12 +81,14 @@ Y = model.predict(X)
 
 # check interactions
 h_index = interaction.HIndex(data=X, model=model.predict, nof_instances=950)
-# print(h_index.pairwise(0, 1))
-# print(h_index.one_vs_all(0))
+# print(h_index.eval_pairwise(0, 1))
+print(h_index.eval_one_vs_all(0))
+h_index.plot(interaction_matrix=False, one_vs_all=True)
 
-h_index.plot(interaction_matrix=True, one_vs_all=True)
-
-
+# check interactions with REPID (dPDP based method)
+repid_index = interaction.REPID(data=X, model=model.predict, model_jac=model.jacobian, nof_instances=950)
+print(repid_index.eval_one_vs_all(0))
+repid_index.plot()
 
 
 

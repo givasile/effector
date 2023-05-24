@@ -1,8 +1,9 @@
 import numpy as np
 import logging
+import typing
 from pythia import helpers
 import pythia
-from pythia import dPDP
+from pythia import dPDP, PDP
 from pythia.pdp import pdp_1d_vectorized, pdp_1d_non_vectorized, pdp_nd_non_vectorized, pdp_nd_vectorized
 import tqdm
 
@@ -69,6 +70,17 @@ class HIndex:
             self._plot_one_vs_all_matrix()
 
     def eval_pairwise(self, feat_1, feat_2):
+        """Evaluate the interaction between feature 1 and feature 2
+
+        Args
+        ---
+            feat_1 (int): The index of feature 1
+            feat_2 (int): The index of feature 2
+
+        Returns
+        ---
+            float: The interaction between feature 1 and feature 2
+        """
         if self.interaction_matrix[feat_1, feat_2] != self.empty_symbol:
             return self.interaction_matrix[feat_1, feat_2]
 
@@ -156,11 +168,14 @@ class HIndex:
 
 
 class REPID:
+    """REPID definition of interaction between feature x_j and all the others, i.e. the variance of the dPDP plot
+    """
     empty_symbol = 1e10
 
     def __init__(self, data, model, model_jac, nof_instances):
         self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
         self.data = data[self.indices]
+        self.dim = self.data.shape[1]
 
         self.model = model
         self.model_jac = model_jac
@@ -173,27 +188,28 @@ class REPID:
         self.fitted_interaction_matrix = False
         self.fitted_one_vs_all_matrix = False
 
-    def fit(self):
-        for i in range(self.nof_features):
-            print("Feature: ", i)
-            self._fit_one_vs_all(i)
+    def fit(self, features: typing.Union[int, str, list] = "all",):
+        features = helpers.prep_features(features, self.dim)
+        for i, feat in enumerate(features):
+            print("Feature: ", feat)
+            self.eval_one_vs_all(feat)
         self.fitted_one_vs_all_matrix = True
 
-    def _fit_one_vs_all(self, feat):
+    def eval_one_vs_all(self, feat):
         if self.one_vs_all_matrix[feat] != self.empty_symbol:
             return self.one_vs_all_matrix[feat]
 
         axis_limits = pythia.helpers.axis_limits_from_data(self.data)
-        dpdp = dPDP(self.data, self.model, self.model_jac, axis_limits)
-        dpdp.fit(feat)
+        pdp = PDP(self.data, self.model, axis_limits)
+        pdp.fit(feat)
 
         # find the interaction index
         start = axis_limits[:, feat][0]
         stop = axis_limits[:, feat][1]
         x = np.linspace(start, stop, 21)
         x = 0.5 * (x[:-1] + x[1:])
-        pdp_m, pdp_std, pdp_stderr = dpdp._eval_unnorm(feature=feat, x=x, uncertainty=True)
-        interaction = np.mean(pdp_std)
+        mu, std, stderr = pdp.eval(feature=feat, x=x, uncertainty=True, centering="zero_start") # "zero_integral")
+        interaction = np.mean(std)
 
         # store the interaction index
         self.one_vs_all_matrix[feat] = interaction

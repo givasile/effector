@@ -322,7 +322,13 @@ def pdp_1d_non_vectorized(model: callable,
     return (np.array(mean_pdp), np.array(sigma_pdp), np.array(stderr)) if uncertainty else np.array(mean_pdp)
 
 
-def pdp_1d_vectorized(model, data, x, feature, uncertainty, is_jac):
+def pdp_1d_vectorized(model: callable,
+                          data: np.ndarray,
+                          x: np.ndarray,
+                          feature: int,
+                          uncertainty: bool,
+                          is_jac: bool
+                          ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Computes the unnormalized 1-dimensional PDP, in a vectorized way.
 
     Args:
@@ -358,18 +364,52 @@ def pdp_1d_vectorized(model, data, x, feature, uncertainty, is_jac):
         return mean_pdp
 
 
-def pdp_nd_non_vectorized(model, data, x, features, uncertainty, is_jac):
+def pdp_nd_non_vectorized(model: callable,
+                          data: np.ndarray,
+                          x: np.ndarray,
+                          features: list,
+                          uncertainty: bool,
+                          is_jac: bool
+                          ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    """Computes the unnormalized n-dimensional PDP, in a non-vectorized way.
+
+    Args:
+        model (callable): model to be explained
+        data (np.ndarray): dataset, shape (N, D)
+        x (np.ndarray): values of the features to be explained, shape (K, D)
+        features (list): indices of the features to be explained
+        uncertainty (bool): whether to compute the uncertainty of the PDP
+        is_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
+
+    Returns:
+        if uncertainty is False:
+            np.ndarray: unnormalized n-dimensional PDP
+        if uncertainty is True:
+            a tuple of three np.ndarray: (unnormalized n-dimensional PDP, standard deviation, standard error)
+    """
     assert len(features) == x.shape[1]
+
+    # nof positions to evaluate the PDP
+    K = data.shape[0]
 
     mean_pdp = []
     sigma_pdp = []
     stderr = []
-    for i in range(x.shape[0]):
+    for k in range(K):
+        # take all dataset
         x_new = copy.deepcopy(data)
-        for j in range(len(features)):
-            x_new[:, features[j]] = x[i, j]
+
+        # set the features of all datapoints to the values of the k-th position
+        for j, feat in features:
+            x_new[:, feat] = x[k, j]
+
+        # compute the prediction or the Jacobian wrt the input
         y = model(x_new)[:, features] if is_jac else model(x_new)
+
+        # compute the mean of the prediction or the Jacobian wrt the input
         mean_pdp.append(np.mean(y))
+
+        # if uncertaitny, compute also the std and the stderr
         if uncertainty:
             std = np.std(y)
             sigma_pdp.append(std)
@@ -377,7 +417,30 @@ def pdp_nd_non_vectorized(model, data, x, features, uncertainty, is_jac):
     return (np.array(mean_pdp), np.array(sigma_pdp), np.array(stderr)) if uncertainty else np.array(mean_pdp)
 
 
-def pdp_nd_vectorized(model, data, x, features, uncertainty, is_jac):
+def pdp_nd_vectorized(model: callable,
+                      data: np.ndarray,
+                      x: np.ndarray,
+                      features: list,
+                      uncertainty: bool,
+                      is_jac: bool
+                      ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    """Computes the unnormalized n-dimensional PDP, in a vectorized way.
+
+    Args:
+        model (callable): model to be explained
+        data (np.ndarray): dataset, shape (N, D)
+        x (np.ndarray): values of the features to be explained, shape (K, D)
+        features (list): indices of the features to be explained
+        uncertainty (bool): whether to compute the uncertainty of the PDP
+        is_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
+
+    Returns:
+        if uncertainty is False:
+            np.ndarray: unnormalized n-dimensional PDP
+        if uncertainty is True:
+            a tuple of three np.ndarray: (unnormalized n-dimensional PDP, standard deviation, standard error)
+    """
+
     assert len(features) == x.shape[1]
     nof_instances = data.shape[0]
     x_new = copy.deepcopy(data)
