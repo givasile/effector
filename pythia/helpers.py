@@ -78,6 +78,24 @@ def prep_ale_fit_params(par: dict):
 
 
 def prep_nof_instances(nof_instances: typing.Union[int, str], N: int) -> int:
+    """Prepares the argument nof_instances
+
+    Args
+    ---
+        nof_instances (int or str): The number of instances to use for the explanation
+        N (int): The number of instances in the dataset
+
+    Returns
+    ---
+        nof_instances (int): The number of instances to use for the explanation
+        indices (np.ndarray): The indices of the instances to use for the explanation
+    """
+    # assertions
+    assert type(nof_instances) in [int, str]
+    if type(nof_instances) is not int:
+        assert nof_instances == "all"
+
+    # prepare nof_instances
     if nof_instances == "all":
         nof_instances = N
     indices = np.random.choice(N, nof_instances, replace=False) if nof_instances < N else np.arange(N)

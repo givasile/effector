@@ -283,11 +283,34 @@ class PDPwithdICE:
                          scale_x=scale_x, scale_y=scale_y, savefig=savefig)
 
 
-def pdp_1d_non_vectorized(model, data, x, feature, uncertainty, is_jac):
+def pdp_1d_non_vectorized(model: callable,
+                          data: np.ndarray,
+                          x: np.ndarray,
+                          feature: int,
+                          uncertainty: bool,
+                          is_jac: bool
+                          ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    """Computes the unnormalized 1-dimensional PDP, in a non-vectorized way.
+
+    Args:
+        model (callable): model to be explained
+        data (np.ndarray): dataset, shape (N, D)
+        x (np.ndarray): values of the feature to be explained, shape (K,)
+        feature (int): index of the feature to be explained
+        uncertainty (bool): whether to compute the uncertainty of the PDP
+        is_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
+
+    Returns:
+        if uncertainty is False:
+            np.ndarray: unnormalized 1-dimensional PDP
+        if uncertainty is True:
+            a tuple of three np.ndarray: (unnormalized 1-dimensional PDP, standard deviation, standard error)
+    """
+    K = data.shape[0]
     mean_pdp = []
     sigma_pdp = []
     stderr = []
-    for i in range(x.shape[0]):
+    for i in range(K):
         x_new = copy.deepcopy(data)
         x_new[:, feature] = x[i]
         y = model(x_new)[:, feature] if is_jac else model(x_new)
@@ -300,6 +323,23 @@ def pdp_1d_non_vectorized(model, data, x, feature, uncertainty, is_jac):
 
 
 def pdp_1d_vectorized(model, data, x, feature, uncertainty, is_jac):
+    """Computes the unnormalized 1-dimensional PDP, in a vectorized way.
+
+    Args:
+        model (callable): model to be explained
+        data (np.ndarray): dataset, shape (N, D)
+        x (np.ndarray): values of the feature to be explained, shape (K,)
+        feature (int): index of the feature to be explained
+        uncertainty (bool): whether to compute the uncertainty of the PDP
+        is_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
+
+    Returns:
+        if uncertainty is False:
+            np.ndarray: unnormalized 1-dimensional PDP
+        if uncertainty is True:
+            a tuple of three np.ndarray: (unnormalized 1-dimensional PDP, standard deviation, standard error)
+    """
+
     nof_instances = data.shape[0]
     x_new = copy.deepcopy(data)
     x_new = np.expand_dims(x_new, axis=0)

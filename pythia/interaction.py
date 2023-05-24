@@ -7,24 +7,37 @@ from pythia.pdp import pdp_1d_vectorized, pdp_1d_non_vectorized, pdp_nd_non_vect
 import tqdm
 
 class HIndex:
+    """
+    H-Index interaction measure, as described in Friedman and Popescu (2008), https://arxiv.org/abs/0811.1679
+    """
+
     empty_symbol = 1e10
 
     def __init__(self, data, model, nof_instances=1000):
+        """
 
+        Args
+        ---
+            data (np.ndarray): The dataset, shape (nof_instances, nof_features)
+            model (function): The model to explain, takes as input data and returns predictions
+            nof_instances (int): The number of instances to use for the explanation
+        """
+        # setters
         self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
         self.data = data[self.indices]
-
         self.model = model
         self.nof_features = self.data.shape[1]
 
+        # init
         self.interaction_matrix = np.ones((self.nof_features, self.nof_features)) * self.empty_symbol
         self.one_vs_all_matrix = np.ones((self.nof_features)) * self.empty_symbol
 
+        # flags
         self.fitted_interaction_matrix = False
         self.fitted_one_vs_all_matrix = False
 
-    def fit(self, interaction_matrix=True, one_vs_all=True):
-        if interaction_matrix:
+    def fit(self, pairwise_matrix=True, one_vs_all=True):
+        if pairwise_matrix:
             logging.info("\nH-Index interaction matrix: Start fitting")
             for i in range(self.nof_features):
                 print("Feature: ", i)
@@ -45,9 +58,9 @@ class HIndex:
     def plot(self, interaction_matrix=True, one_vs_all=True):
         # if not fitted, fit
         if not self.fitted_interaction_matrix and interaction_matrix:
-            self.fit(interaction_matrix=True, one_vs_all=False)
+            self.fit(pairwise_matrix=True, one_vs_all=False)
         if not self.fitted_one_vs_all_matrix and one_vs_all:
-            self.fit(interaction_matrix=False, one_vs_all=True)
+            self.fit(pairwise_matrix=False, one_vs_all=True)
 
         # plot
         if interaction_matrix:
@@ -89,6 +102,7 @@ class HIndex:
         return interaction
 
     def _pdp_1d(self, feature, x):
+        # eval normalized pdp for feature at x
         yy = pdp_1d_vectorized(self.model, self.data, x, feature, uncertainty=False, is_jac=False)
         c = np.mean(yy)
         return yy - c
@@ -197,6 +211,3 @@ class REPID:
         plt.yticks(np.arange(self.nof_features), labels=["feature {}".format(i+1) for i in range(self.nof_features)])
         plt.xlabel("REPID index")
         plt.show()
-
-
-class ALE
