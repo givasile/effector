@@ -22,7 +22,12 @@
     i.e., $f_{ni}(\xb) = \fxs(x_s) +  \fxc(\xc)$,
     and the interaction term $\kappa(\xc, x_s)$:
 
-    $$f(\xb) = \underbrace{\fxs(x_s) +  \fxc(\xc)}_{f_{ni}(\xb)} + \kappa(\xc, x_s)$$
+    \[
+      f(\xb) = \underbrace{\fxs(x_s) +  \fxc(\xc)}_{f_{ni}(\xb)} + \kappa(\xc, x_s)
+    \]
+
+    A simple approach is defining \(f\) to be a Neural Network and \(f_{ni}\) a Neural Additive Model without interaction
+    between \(x_s\) and \(\xc\). Then \(\kappa(\xc, x_s) = f(\xb) - f_{ni}(\xb)\) and we quantify the importance of \(\kappa\) as \(\mathbb{E}_{X_c, X_s} \left [ |\kappa(X_c, X_s)| \right ] \approx \sqrt{\frac{1}{N} \sum_i \kappa^2(\xc, x_s)} \).
 
     \subsection{Idea 2}
 \end{document}
