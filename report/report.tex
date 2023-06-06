@@ -14,16 +14,31 @@
 \newcommand{\Ycal}{\mathcal{Y}}
 
 \author{Vasilis Gkolemis}
+
+
+
 \begin{document}
 \maketitle
+
+\begin{abstract}
+Partial dependence (PD) plots are an established tool for visualizing main effects from general black box
+models. In recent years they have been supplemented with individual conditional expectation plots (ICE
+plots). Furthermore, they have been fundamentally criticized as being invalid for correlated features,
+and average local effects plots (ALE plots) have been proposed as a remedy. This paper discusses the
+properties of PD plots, ICE plots and ALE plots both in terms of their estimands for linear models with
+interactions and in terms of their performance for nonparametric models that do not extrapolate well. A
+stratified PD plot is introduced, which is particularly useful for the visualization of interactions between
+correlated features. Recommendations for the use of model-agnostic effects plots are given, with special
+emphasis to nonparametric machine learning models.
+\end{abstract}
+
 \section{Introduction}
 
 \section{Background}
 
-Let \(\Xcal \in \Rd\) be the \(d\)-dimensional feature space, \(\Ycal\) the target space and \(f(\cdot) : \Xcal \rightarrow \Ycal\) the black-box function.  We use index \(s \in \{1, \ldots, d\}\) for the feature of interest and \(c = \{1, \ldots, d\} - s\) for the rest.  For convenience, to denote the input vector, we use \((x_s, \xc)\) instead
-of \((x_1, \cdots , x_s, \cdots, x_D)\) and, for random variables,
-\((X_s, X_c)\) instead of \((X_1, \cdots , X_s, \cdots, X_D)\).  The
-training set \(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\) is sampled
+Let \(\Xcal \in \Rd\) be the \(d\)-dimensional feature space, \(\Ycal\) the target space and \(f(\cdot) : \Xcal \rightarrow \Ycal\) the black-box function.  We use index \(s \in \{1, \ldots, d\}\) for the feature of interest and \(c = \{1, \ldots, d\} - s\) for the rest.
+For convenience, we use \((x_s, \xc)\) to refer to \((x_1, \cdots , x_s, \cdots, x_D)\) and, equivalently, \((X_s, X_c)\) instead of \((X_1, \cdots , X_s, \cdots, X_D)\) when we refer to random variables.
+The training set \(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\) is sampled
 i.i.d.\ from the distribution \(\mathbb{P}_{X,Y}\).  Finally,
 \(f^{\mathtt{<method>}}(x_s)\) denotes how \(\mathtt{<method>}\)
 defines the feature effect and \(\hat{f}^{\mathtt{<method>}}(x_s)\)
@@ -31,30 +46,54 @@ how it estimates it from the training set.
 
 \section{Feature Effect}
 
-The purpose of any feature effect (FE) method is to explain the
-`black-box` function $f: \mathbb{R}^D \rightarrow \mathbb{R}$
-using a Generalized Additive Model $f_{\mathtt{<method>}}(x) = c + f_1(x_1) + \cdots + f_D(x_D)$, as a global surrogate.
+Feature Effect (FE) methods explain the `black-box` function $f: \mathbb{R}^D \rightarrow \mathbb{R}$
+with a set of $1D$ mappings $f_s(x_s): \mathbb{R} \rightarrow \mathbb{R}$,
+each one being the effect of the $s$-th feature on the output.
+For example, [running example]..
+
+In this study, we propose interpreting FE as global surrogate models,
+i.e., as algorithms that take as input (a) the black-box function $f$ and (b) the training set $\mathcal{D}$ and
+they output a generalized additive model $f_{\mathtt{FE}}(\xb) = c + \sum_{s=1}^D f_s(x_s)$.
+Using this perspective, we will discuss the different approaches for defining the feature effect and we will
+propose a quantitative framework for evaluating them.
 
 \subsection{Approaches}
+
+At Table~\ref{tab:fe-methods}, we present the most used feature effect methods, namely,
+(a) the Partial Dependence Plot (PDP),
+(b) the derivative of the PDP (d-PDP)
+(c) the M-Plots and
+(d) the Accumulated Local Effects (ALE) plots.
 
 \begin{table}[htbp]
     \centering
     \caption{Table Caption}
+    \label{tab:fe-methods}
     \begin{tabular}{c|c|c}
       \hline
-      \textbf{Name} & \textbf{Definition} \((f)\) & \textbf{Approximation} \((\hat{f})\)\\
+      \textbf{Name} & \textbf{Definition} \(f(x_s)\) & \textbf{Approximation} \(\hat{f}(x_s)\)\\
       \hline
       \textbf{PDP} & $\mathbb{E}_{X_c}[f(x_s,X_c)]$ & $\frac{1}{N} \sum f(x_s,x_c^{(i)})$ \\
-      \textbf{dPDP} & $\mathbb{E}_{X_c}[ \frac{\partial f(x_s,X_c)}{\partial x_s}]$ & $\frac{1}{N} \sum \frac{\partial f(x_s,x_c^{(i)})}{\partial x_s}$ \\
+      \hline
+      \textbf{d-PDP} & $\mathbb{E}_{X_c}[ \frac{\partial f(x_s,X_c)}{\partial x_s}]$ & $\frac{1}{N} \sum \frac{\partial f(x_s,x_c^{(i)})}{\partial x_s}$ \\
+      \hline
+      \textbf{M-Plot} & $\mathbb{E}_{X_c|x_s}[f(x_s,X_c)]$ & $\frac{1}{N} \sum_{i: x_s^{i} \in B(x_s)} f(x_s,x_c^{(i)})$ \\
+      \hline
+      \textbf{ALE} & \(\int_{x_{s,\min}}^{x_s} \mathbb{E}_{X_c|X_s=z}\left [f^s (z, X_c)\right ] \partial z\) & $\Delta x \sum_{k=1}^{k_x} \frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^{(i)} \in
+                                                                                                                \mathcal{S}_k} f^s(\mathbf{x}^i)$ \\
+      \hline
     \end{tabular}
 \end{table}
+
+Global surrogate methods are evaluated based on their fidelity, i.e.,
+how well they can replicate the underlying black-box function.
 
     \section{Interaction Index}
     \subsection{Approaches}
     \section{Regional Effects}
     \subsection{Approaches}
 
-    \section{Can we evaluate the approaches?}
+    \section{A unified evaluation framework}
 
     \subsection{Idea 1}
 
