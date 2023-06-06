@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from interpret.glassbox import ExplainableBoostingRegressor
 
+
 # hack to reload modules
 import importlib
 pythia = importlib.reload(pythia)
@@ -34,24 +35,21 @@ class RepidSimpleDist:
                              np.random.uniform(-1, 1., size=int(N-2)),
                              np.array([1])))
         x3 = np.random.choice([0, 1], int(N), p=[0.5, 0.5])
+        x4 = np.random.choice([0, 1], int(N), p=[0.5, 0.5])
 
-        x = np.stack((x1, x2, x3), axis=-1)
+        x = np.stack((x1, x2, x3, x4), axis=-1)
         return x
 
 
 class RepidSimpleModel:
-    def __init__(self, a1=8, a2=-16):
+    def __init__(self, a1=100):
         self.a1 = a1
-        self.a2 = a2
 
     def predict(self, x):
         y = np.zeros_like(x[:,0])
 
-        cond = x[:, 0] > 0
+        cond = np.logical_and(x[:, 0] > 0, x[:, 2] == 0)
         y[cond] += self.a1*x[cond, 1]
-
-        cond = x[:, 2] == 0
-        y[cond] += self.a2*x[cond, 1]
 
         eps = np.random.normal(loc=0, scale=0.1, size=y.shape[0])
         y += eps
@@ -60,11 +58,8 @@ class RepidSimpleModel:
     def jacobian(self, x):
         y = np.zeros_like(x)
 
-        cond = x[:, 0] > 0
+        cond = np.logical_and(x[:, 0] > 0, x[:, 2] == 0)
         y[cond, 1] += self.a1
-
-        cond = x[:, 2] == 0
-        y[cond, 1] += self.a2
         return y
 
 
@@ -89,18 +84,8 @@ X = dist.generate(N=1000)
 Y = model.predict(X)
 
 
-# # check interactions
-# h_index = interaction.HIndex(data=X, model=model.predict, nof_instances=950)
-# # print(h_index.eval_pairwise(0, 1))
-# print(h_index.eval_one_vs_all(0))
-# h_index.plot(interaction_matrix=False, one_vs_all=True)
-#
-# # check interactions with REPID (dPDP based method)
-# repid_index = interaction.REPID(data=X, model=model.predict, model_jac=model.jacobian, nof_instances=950)
-# print(repid_index.eval_one_vs_all(0))
-# repid_index.plot()
 
-# find regions
+# Our method
 reg = pythia.regions.Regions(data=X, model=model.predict, model_jac=model.jacobian, cat_limit=25)
 reg.search_splits(nof_levels=2, nof_candidate_splits=20, criterion="rhale")
 opt_splits = reg.choose_important_splits(0.2)
@@ -119,12 +104,8 @@ gam_subspaces = ExplainableBoostingRegressor(interactions=0)
 gam_subspaces.fit(X_train_new, y_train_new)
 print(gam_subspaces.score(X_test_new, y_test_new))
 
-# # fit a GAM to the initial data
-# gam = ExplainableBoostingRegressor(feature_names, interactions=0)
-# gam.fit(X_train, y_train)
-# print(gam.score(X_test, y_test))
 
-# fit a GAM with interactions to the initial data
-gam_interactions = ExplainableBoostingRegressor(feature_names)
+# GAM with interactions
+gam_interactions = ExplainableBoostingRegressor()
 gam_interactions.fit(X_train, y_train)
-print(gam_interactions.score(X_test, y_test))
+print(gam_interactions.score(X_train, y_train))
