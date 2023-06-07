@@ -80,9 +80,15 @@ class BinBase:
         Returns:
             Boolean, True if it is impossible to create any binning, False otherwise
         """
+        # if there is only one unique value, then it is impossible to create any binning
+        cond_1 = len(np.unique(self.data[:, self.feature])) == 1
 
+        # if there are less than min_points, then it is impossible to create any binning
         dy_dxs = self.data_effect[:, self.feature]
-        return dy_dxs.size < self.method_args["min_points"]
+        cond_2 = dy_dxs.size < self.method_args["min_points"]
+
+        # if either is true, then it is impossible to create any binning
+        return cond_1 or cond_2
 
     def _only_one_bin_possible(self):
         """Check if the only possible binning is all points in one bin
@@ -178,15 +184,14 @@ class Greedy(BinBase):
             "cat_limit": cat_limit,
         }
 
-        # if categorical, then return the limits
-        if self._is_categorical(cat_limit):
-            return self.limits
 
         xs_min = self.xs_min
         xs_max = self.xs_max
 
         if self._none_valid_binning():
             self.limits = False
+        elif self._is_categorical(cat_limit):
+            return self.limits
         elif self._only_one_bin_possible():
             self.limits = np.array([self.xs_min, self.xs_max])
         else:
@@ -304,17 +309,17 @@ class DP(BinBase):
 
         self.method_args = {"max_nof_bins": max_nof_bins, "min_points": min_points, "discount": discount, "cat_limit": cat_limit}
 
-        # if is categorical, then only one bin is possible
-        if self._is_categorical(cat_limit):
-            return self.limits
-
         self.min_points = min_points
         big_M = self.big_M
         nof_limits = max_nof_bins + 1
         nof_bins = max_nof_bins
 
+
+        # if is categorical, then only one bin is possible
         if self._none_valid_binning():
             self.limits = False
+        if self._is_categorical(cat_limit):
+            return self.limits
         elif self._only_one_bin_possible():
             self.limits = np.array([self.xs_min, self.xs_max])
             self.dx_list = np.array([self.xs_max - self.xs_min])
@@ -362,6 +367,10 @@ class Fixed(BinBase):
 
     def find(self, nof_bins: int, min_points: typing.Union[None, int] = 10, cat_limit: int = 10):
         self.method_args = {"nof_bins": nof_bins, "min_points": min_points, "cat_limit": cat_limit}
+
+        if self._none_valid_binning():
+            self.limits = False
+
         if self._is_categorical(cat_limit):
             return self.limits
 
