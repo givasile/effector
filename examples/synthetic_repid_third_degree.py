@@ -1,12 +1,16 @@
 import sys, os
 import timeit
+
+import pandas as pd
+
 sys.path.append(os.path.dirname(os.getcwd()))
 import numpy as np
 import pythia
 import pythia.regions as regions
 import pythia.interaction as interaction
 import matplotlib.pyplot as plt
-# from nodegam.sklearn import NodeGAMClassifier, NodeGAMRegressor
+from nodegam.sklearn import NodeGAMClassifier, NodeGAMRegressor
+import pandas as pd
 from sklearn.model_selection import train_test_split
 from interpret.glassbox import ExplainableBoostingRegressor
 
@@ -46,7 +50,8 @@ class RepidSimpleModel:
         self.a1 = a1
 
     def predict(self, x):
-        y = np.zeros_like(x[:,0])
+        """f(x) = a1*x2 if x1 > 0 and x3 == 0 else 0"""
+        y = np.zeros_like(x[:, 0])
 
         cond = np.logical_and(x[:, 0] > 0, x[:, 2] == 0)
         y[cond] += self.a1*x[cond, 1]
@@ -56,6 +61,7 @@ class RepidSimpleModel:
         return y
 
     def jacobian(self, x):
+        """dfdx = [0, a1, 0] if x1 > 0 and x3 == 0 else [0, 0, 0]"""
         y = np.zeros_like(x)
 
         cond = np.logical_and(x[:, 0] > 0, x[:, 2] == 0)
@@ -84,7 +90,6 @@ X = dist.generate(N=1000)
 Y = model.predict(X)
 
 
-
 # Our method
 reg = pythia.regions.Regions(data=X, model=model.predict, model_jac=model.jacobian, cat_limit=25)
 reg.search_splits(nof_levels=2, nof_candidate_splits=20, criterion="rhale")
@@ -98,14 +103,35 @@ seed = 21
 X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.20, random_state=seed)
 X_train_new, X_test_new, y_train_new, y_test_new = train_test_split(new_X, Y, test_size=0.20, random_state=seed)
 
+# GAM to the original data
+gam = ExplainableBoostingRegressor(interactions=0)
+gam.fit(X_train, y_train)
+print("GAM:", gam.score(X_test, y_test))
 
 # fit a GAM to the transformed data
 gam_subspaces = ExplainableBoostingRegressor(interactions=0)
 gam_subspaces.fit(X_train_new, y_train_new)
-print(gam_subspaces.score(X_test_new, y_test_new))
-
+print("GAM with subspaces:", gam_subspaces.score(X_test_new, y_test_new))
 
 # GAM with interactions
 gam_interactions = ExplainableBoostingRegressor()
 gam_interactions.fit(X_train, y_train)
-print(gam_interactions.score(X_train, y_train))
+print("GAM with interactions:", gam_interactions.score(X_test, y_test))
+
+# # with NodeGAM
+# X_train_df = pd.DataFrame(X_train, columns=["x_1", "x_2", "x_3", "x_4"])
+# model = NodeGAMRegressor(in_features=X_train.shape[1])
+# model.fit(X_train_df, y_train)
+# model.visualize(X_train_df)
+# plt.show()
+#
+# # NodeGAME with subspaces
+# X_train_new_df = pd.DataFrame(X_train_new, columns=["x_1", "x_2", "x_3", "x_4", "x_5", "x_6", "x_7"])
+# model.fit(X_train_new_df, y_train)
+# from nodegam.vis_utils import vis_GAM_effects
+#
+# vis_GAM_effects({
+#     'nodegam': model.get_GAM_df(X_train_new_df),
+# })
+#
+# plt.show()

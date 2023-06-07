@@ -45,8 +45,8 @@ class RHALE(FeatureEffectBase):
 
         super(RHALE, self).__init__(axis_limits)
 
-        # init as None, it will get gradients after compile
-        self.data_effect = None if data_effect is None else data_effect
+        # if data_effect is None, it will be computed after compile
+        self.data_effect = data_effect
 
     def compile(self):
         """Prepare everything for fitting, i.e., compute the gradients on data points.

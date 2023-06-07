@@ -49,14 +49,14 @@ def find_limits(
 
     Parameters
     ----------
-    data: numpy array
+    data: numpy array, shape (n_samples, n_features)
         Data matrix
-    data_effect: numpy array
-        Data effect matrix
+    data_effect: numpy array, shape (n_samples, n_features)
+        Jacobian matrix
     feature: int
-        Index of the feature
+        Index of the feature of interest
     axis_limits: numpy array
-        Axis limits
+        Axis limits, shape (n_features, 2)
     binning_method: str or instance of appropriate binning class
         Binning method to use
 
@@ -67,6 +67,7 @@ def find_limits(
     """
     if isinstance(binning_method, str):
         assert binning_method in ["dp", "greedy", "fixed"]
+    assert isinstance(axis_limits, np.ndarray)
 
     if isinstance(binning_method, Fixed):
         bin_est = be.Fixed(data, data_effect, feature=feature, axis_limits=axis_limits)
