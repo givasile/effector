@@ -108,6 +108,10 @@ class BinBase:
 
         # if unique values are leq 10, then it is categorical
         is_cat = len(np.unique(self.data[:, self.feature])) <= cat_limit
+        # if only one unique value, then it is categorical and set the limits
+        if len(np.unique(self.data[:, self.feature])) == 1:
+            self.limits = False
+
         if is_cat:
             # set unique values as the center of the bins
             uniq = np.sort(np.unique(self.data[:, self.feature]))
@@ -116,7 +120,6 @@ class BinBase:
 
             # if all limits are valid, then set them
             if np.all([self._bin_valid(lims[i], lims[i + 1]) for i in range(len(lims) - 1)]):
-
                 self.limits = lims
             else:
                 self.limits = False

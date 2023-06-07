@@ -189,7 +189,11 @@ def ale_heter(x: np.ndarray, x_jac: np.ndarray, model, foi):
     rhale = pythia.RHALE(x, model, None, None, x_jac)
     # binning_method = pythia.binning_methods.Fixed(nof_bins=40)
     binning_method = pythia.binning_methods.Greedy(init_nof_bins=50, min_points_per_bin=10, discount=0.5)
-    rhale.fit(features=foi, binning_method=binning_method)
+    # rhale fit throws an error if there are not enough points. In this case, return a big z value
+    try:
+        rhale.fit(features=foi, binning_method=binning_method)
+    except:
+        return 1000000
 
     # heterogeneity is the accumulated std at the end of the curve
     axis_limits = pythia.helpers.axis_limits_from_data(x)
