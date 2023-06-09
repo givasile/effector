@@ -7,13 +7,20 @@ from pythia import pdp, helpers
 from tqdm import tqdm
 
 
+BIG_M = 1000000
+
 foc = [0, 2]
 foi = 1
 nof_splits = 10
 
 
 class Regions:
-    def __init__(self, data: np.ndarray, model: callable, model_jac: callable, cat_limit: int = 10):
+    def __init__(self,
+                 data: np.ndarray,
+                 model: callable,
+                 model_jac: typing.Union[callable, None],
+                 feature_types: typing.Union[list, None] = None,
+                 cat_limit: typing.Union[int, None] = None):
         # setters
         self.data = data
         self.dim = self.data.shape[1]
@@ -22,29 +29,38 @@ class Regions:
         self.cat_limit = cat_limit
 
         # on-init
-        self.feature_types = pythia.utils.get_feature_types(data, cat_limit)
+        if feature_types is None:
+            self.feature_types = pythia.utils.get_feature_types(data, cat_limit)
+        else:
+            self.feature_types = feature_types
 
-        #
+        # init method args
         self.method_args = {}
 
         # init splits
         self.splits = {}
-        self.optimal_splits = {}
+        self.important_splits = {}
 
         # state variables
         self.regions_found = False
 
-    def search_splits(self, nof_levels: int, nof_candidate_splits: int = 10, criterion: str = "rhale"):
-        assert criterion in ["pdp", "rhale"]
+    def find_splits(self,
+                    nof_levels: int,
+                    nof_candidate_splits: int = 10,
+                    method: str = "rhale"):
+        assert method in ["pdp", "rhale"]
 
         # set method args
         self.method_args["nof_levels"] = nof_levels
         self.method_args["nof_candidate_splits"] = nof_candidate_splits
-        self.method_args["criterion"] = criterion
+        self.method_args["method"] = method
 
         # method
         for feat in tqdm(range(self.dim)):
             foi, foc = feat, [i for i in range(self.dim) if i != feat]
+
+            # get feature types
+            foc_types = [self.feature_types[i] for i in foc]
 
             # get splits
             splits = find_splits(
@@ -52,11 +68,12 @@ class Regions:
                 nof_splits=nof_candidate_splits,
                 foi=foi,
                 foc=foc,
+                foc_types=foc_types,
                 cat_limit=self.cat_limit,
                 data=self.data,
                 model=self.model,
                 model_jac=self.model_jac,
-                criterion=criterion
+                criterion=method
             )
 
             self.splits["feat_{}".format(feat)] = splits
@@ -102,7 +119,7 @@ class Regions:
                 optimal_splits["feat_{}".format(feat)] = feat_splits[1:first_negative+1]
 
 
-        self.optimal_splits = optimal_splits
+        self.important_splits = optimal_splits
         return optimal_splits
 
 
@@ -154,11 +171,10 @@ class DataTransformer:
         return self.new_data
 
 
-
-def pdp_heter(data, model, model_jac, foi):
+def pdp_heter(data, model, model_jac, foi, min_points=15):
     # if data is empty, return zero
-    if data.shape[0] < 50:
-        return 1000000
+    if data.shape[0] < min_points:
+        return BIG_M
     feat = foi
    
     # Initialize dpdp
@@ -180,29 +196,31 @@ def pdp_heter(data, model, model_jac, foi):
     return z
 
 
-def ale_heter(x: np.ndarray, x_jac: np.ndarray, model, foi):
+def rhale_heter(data: np.ndarray,
+                data_effect: np.ndarray,
+                model: callable,
+                foi: int,
+                min_points: int = 15):
+    """Computes the accumulated heterogeneity of the RHALE curve at the end of the curve."""
+    if data.shape[0] < min_points:
+        return BIG_M
 
-    if x.shape[0] < 50:
-        return 1000000
-
-    # Initialize rhale
-    rhale = pythia.RHALE(x, model, None, None, x_jac)
-    # binning_method = pythia.binning_methods.Fixed(nof_bins=40)
-    binning_method = pythia.binning_methods.Greedy(init_nof_bins=50, min_points_per_bin=10, discount=0.5)
+    rhale = pythia.RHALE(data, model, None, None, data_effect)
+    binning_method = pythia.binning_methods.Greedy(init_nof_bins=50, min_points_per_bin=10, discount=0.1)
     # rhale fit throws an error if there are not enough points. In this case, return a big z value
     try:
         rhale.fit(features=foi, binning_method=binning_method)
     except:
-        return 1000000
+        return BIG_M
 
     # heterogeneity is the accumulated std at the end of the curve
-    axis_limits = pythia.helpers.axis_limits_from_data(x)
+    axis_limits = pythia.helpers.axis_limits_from_data(data)
     stop = np.array([axis_limits[:, foi][1]])
     _, z, _ = rhale.eval(feature=foi, x=stop, uncertainty=True)
     return z.item()
 
 
-def split_pdp(model, model_jac, data, D1: list, foi: int, feature_types: list, foc: list, nof_splits: int, cat_limit):
+def split_pdp(model, model_jac, data, D1: list, foi: int, feature_types: list, foc: list, nof_splits: int, cat_limit, min_points=15):
     heterogen = pdp_heter
 
     # initialize I[i,j] where i is the feature of conditioning and j is the split position
@@ -214,7 +232,7 @@ def split_pdp(model, model_jac, data, D1: list, foi: int, feature_types: list, f
 
     # evaluate heterogeneity before split
     print('evaluate heterogeneity before split')
-    I_start = np.mean([heterogen(D, model, model_jac, foi) for D in D1])
+    I_start = np.mean([heterogen(D, model, model_jac, foi, min_points) for D in D1])
 
     # for each feature of conditioning
     for i, foc_i in enumerate(tqdm(foc)):
@@ -226,7 +244,7 @@ def split_pdp(model, model_jac, data, D1: list, foi: int, feature_types: list, f
                 for d in D1:
                     D2.append(d[d[:, foc_i] == position])
                     D2.append(d[d[:, foc_i] != position])
-                I[i, j] = np.mean([heterogen(d, model, model_jac, foi) for d in D2])
+                I[i, j] = np.mean([heterogen(d, model, model_jac, foi, min_points) for d in D2])
         # else split at nof_splits positions
         else:
             step = (axis_limits[1, foc_i] - axis_limits[0, foc_i]) / nof_splits
@@ -239,7 +257,7 @@ def split_pdp(model, model_jac, data, D1: list, foi: int, feature_types: list, f
                 for d in D1:
                     D2.append(d[d[:, foc_i] < position])
                     D2.append(d[d[:, foc_i] >= position])
-                I[i, j] = np.mean([heterogen(d, model, model_jac, foi) for d in D2])
+                I[i, j] = np.mean([heterogen(d, model, model_jac, foi, min_points) for d in D2])
 
     # find minimum heterogeneity split
     i, j = np.unravel_index(np.argmin(I, axis=None), I.shape)
@@ -251,16 +269,40 @@ def split_pdp(model, model_jac, data, D1: list, foi: int, feature_types: list, f
     return I_start, I, i, j, feature, position, feature_types[i]
 
 
-def split_rhale(model, model_jac, data, x_list: list, x_jac_list: list, foi: int, foc_types: list, foc: list, nof_splits: int, cat_limit, heter_before):
-    # init heter_drop[i,j] (i index of foc and j index of split position)
-    big_M = -10000000000
+def split_rhale(model: callable,
+                model_jac: callable,
+                data: np.ndarray,
+                x_list: list,
+                x_jac_list: list,
+                foi: int,
+                foc_types: list,
+                foc: list,
+                nof_splits: int,
+                cat_limit,
+                heter_before: float,
+                min_points: int = 15):
+    """Find the best split from all features in the list of foc according to the RHALE criterion.
+
+    Return
+    ------
+    split: dict, All information about the best split.
+        Dictionary with keys: feature, position, candidate_split_positions, nof_instances, type, heterogeneity, split_i, split_j, foc, weighted_heter_drop, weighted_heter
+    """
+    big_M = -BIG_M
+
+    # weighted_heter_drop[i,j] (i index of foc and j index of split position) is
+    # the accumulated heterogeneity drop if I split foc[i] at index j
     weighted_heter_drop = np.ones([len(foc), max(nof_splits, cat_limit)]) * big_M
+
+    # weighted_heter[i,j] (i index of foc and j index of split position) is
+    # the accumulated heterogeneity if I split foc[i] at index j
     weighted_heter = np.ones([len(foc), max(nof_splits, cat_limit)]) * big_M
 
-    # interval of the feature of interest
+    # limits of the feature of interest for each dataset in x_list
     lims = np.array([pythia.helpers.axis_limits_from_data(xx)[:,foi] for xx in x_list])
 
-    # find all split positions
+    # list with len(foc) elements
+    # each element is a list with the split positions for the corresponding feature of conditioning
     positions = [find_positions_cat(data, foc_i) if foc_types[i] == "cat" else find_positions_cont(data, foc_i, nof_splits) for i, foc_i in enumerate(foc)]
 
     # exhaustive search on all split positions
@@ -270,20 +312,21 @@ def split_rhale(model, model_jac, data, x_list: list, x_jac_list: list, foi: int
             x_list_2 = flatten_list([split_dataset(x, None, foc_i, position, foc_types[i]) for x in x_list])
             x_jac_list_2 = flatten_list([split_dataset(x, x_jac, foc_i, position, foc_types[i]) for x, x_jac in zip(x_list, x_jac_list)])
 
-            # assert foi interval is wide enough for all split datasets
-            # lims = [pythia.helpers.axis_limits_from_data(xx)[:,foi] for xx in x_list_2]
-
-
-            # evaluate heterogeneity after split
-            sub_heter = [ale_heter(x, x_jac, model, foi) for x, x_jac in zip(x_list_2, x_jac_list_2)]
+            # sub_heter: list with the heterogeneity after split of foc_i at position j
+            sub_heter = [rhale_heter(x, x_jac, model, foi, min_points) for x, x_jac in zip(x_list_2, x_jac_list_2)]
+            # heter_drop: list with the heterogeneity drop after split of foc_i at position j
             heter_drop = np.array(flatten_list([[heter_bef - sub_heter[int(2*i)], heter_bef - sub_heter[int(2*i + 1)]] for i, heter_bef in enumerate(heter_before)]))
+            # populations: list with the number of instances in each dataset after split of foc_i at position j
             populations = np.array([len(xx) for xx in x_list_2])
+            # weights analogous to the populations in each split
             weights = (populations+1) / (np.sum(populations + 1))
+            # weighted_heter_drop[i,j] is the weighted accumulated heterogeneity drop if I split foc[i] at index j
             weighted_heter_drop[i, j] = np.sum(heter_drop * weights)
+            # weighted_heter[i,j] is the weighted accumulated heterogeneity if I split foc[i] at index j
             weighted_heter[i,j] = np.sum(weights * np.array(sub_heter))
 
 
-    # find min heterogeneity split
+    # find the split with the largest weighted heterogeneity drop
     i, j = np.unravel_index(np.argmax(weighted_heter_drop, axis=None), weighted_heter_drop.shape)
     feature = foc[i]
     position = positions[i][j]
@@ -292,22 +335,28 @@ def split_rhale(model, model_jac, data, x_list: list, x_jac_list: list, foi: int
     x_list_2 = flatten_list([split_dataset(x, None, foc[i], position, foc_types[i]) for x in x_list])
     x_jac_list_2 = flatten_list([split_dataset(x, x_jac, foc[i], position, foc_types[i]) for x, x_jac in zip(x_list, x_jac_list)])
     nof_instances = [len(x) for x in x_list_2]
-    sub_heter = [ale_heter(x, x_jac, model, foi) for x, x_jac in zip(x_list_2, x_jac_list_2)]
+    sub_heter = [rhale_heter(x, x_jac, model, foi) for x, x_jac in zip(x_list_2, x_jac_list_2)]
     split = {"feature": feature, "position": position, "candidate_split_positions": split_positions, "nof_instances": nof_instances, "type": foc_types[i], "heterogeneity": sub_heter, "split_i": i, "split_j": j, "foc": foc, "weighted_heter_drop": weighted_heter_drop[i, j], "weighted_heter": weighted_heter[i, j]}
     return split
 
 
-def find_splits(nof_levels: int, nof_splits: int, foi: int, foc: typing.Union[list, str], cat_limit: int, data: np.ndarray, model: typing.Callable, model_jac: typing.Callable, criterion="ale"):
-    # prepare foc
-    foc = [f for f in range(data.shape[1]) if f != foi] if foc == "all" else foc
+def find_splits(nof_levels: int,
+                nof_splits: int,
+                foi: int,
+                foc: list,
+                foc_types: list,
+                cat_limit: int,
+                data: np.ndarray,
+                model: typing.Callable,
+                model_jac: typing.Callable,
+                min_points: int = 10,
+                criterion="ale"):
+    """Find nof_level best splits for a given feature of interest and a list of features of conditioning"""
 
     assert nof_levels <= len(foc), "nof_levels must be smaller than the number of features of conditioning"
 
-    # find foc types
-    foc_types = ["cat" if len(np.unique(data[:, f])) < cat_limit else "cont" for f in foc]
-
     # initial heterogeneity
-    heter_init = ale_heter(data, model_jac(data), model, foi) if criterion == "rhale" else pdp_heter(data, model, model_jac, foi)
+    heter_init = rhale_heter(data, model_jac(data), model, foi, min_points) if criterion == "rhale" else pdp_heter(data, model, model_jac, foi, min_points)
 
     # find optimal split for each level
     x_list = [data]
@@ -316,18 +365,13 @@ def find_splits(nof_levels: int, nof_splits: int, foi: int, foc: typing.Union[li
     for lev in range(nof_levels):
         # find split
         split_fn = split_pdp if criterion == "pdp" else split_rhale
-        split = split_fn(model, model_jac, data, x_list, x_jac_list, foi, foc_types, foc, nof_splits, cat_limit, splits[-1]["heterogeneity"])
+        split = split_fn(model, model_jac, data, x_list, x_jac_list, foi, foc_types, foc, nof_splits, cat_limit, splits[-1]["heterogeneity"], min_points)
         splits.append(split)
 
-        # split X
+        # split data and data_effect based on the optimal split found above
         feat, pos, typ = split["feature"], split["position"], split["type"]
         x_jac_list = flatten_list([split_dataset(x, x_jac, feat, pos, typ) for x, x_jac in zip(x_list, x_jac_list)])
         x_list = flatten_list([split_dataset(x, None, feat, pos, typ) for x in x_list])
-
-        # if splits[-1]["weighted_heter"] > splits[-2]["weighted_heter"]:
-        #     splits.remove(splits[-1])
-        #     break
-
     return splits
 
 

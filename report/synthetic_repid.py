@@ -106,7 +106,7 @@ Y = model.predict(X)
 
 # find regions
 reg = pythia.regions.Regions(data=X, model=model.predict, model_jac=model.jacobian, cat_limit=25)
-reg.search_splits(nof_levels=2, nof_candidate_splits=20, criterion="rhale")
+reg.find_splits(nof_levels=2, nof_candidate_splits=20, method="rhale")
 opt_splits = reg.choose_important_splits(0.2)
 
 transf = pythia.regions.DataTransformer(splits=opt_splits)
@@ -179,11 +179,11 @@ plt.savefig("figures/global_GAM.pdf", bbox_inches="tight")
 plt.show()
 
 
-# # fit a GAM with interactions to the initial data
-# ebm_interactions = ExplainableBoostingRegressor(feature_names)
-# ebm_interactions.fit(X_train, y_train)
-# print(ebm_interactions.score(X_test, y_test))
-# xx, yy = get_effect_from_ebm(ebm_interactions, 1)
+# fit a GAM with interactions to the initial data
+ebm_interactions = ExplainableBoostingRegressor(feature_names)
+ebm_interactions.fit(X_train, y_train)
+print(ebm_interactions.score(X_test, y_test))
+xx, yy = get_effect_from_ebm(ebm_interactions, 1)
 
 
 # fit a NodeGAM to the transformed data

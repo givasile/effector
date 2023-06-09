@@ -167,7 +167,7 @@ def model_forward(x):
 
 # find regions
 reg = pythia.regions.Regions(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, cat_limit=25)
-reg.search_splits(nof_levels=2, nof_candidate_splits=10, criterion="rhale")
+reg.find_splits(nof_levels=2, nof_candidate_splits=10, method="rhale")
 opt_splits = reg.choose_important_splits(0.2)
 
 transf = pythia.regions.DataTransformer(splits=opt_splits)
