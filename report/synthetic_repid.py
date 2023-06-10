@@ -40,12 +40,11 @@ class RepidSimpleDist:
 
 
 class RepidSimpleModel:
-    def __init__(self, a1=8, a2=-16):
+    def __init__(self, a1=8):
         self.a1 = a1
-        self.a2 = a2
 
     def predict(self, x):
-        y = np.zeros_like(x[:,0])
+        y = np.zeros_like(x[:, 0])
 
         cond = np.logical_and(x[:, 0] > 0, x[:, 2] == 1)
         y[cond] += self.a1*x[cond, 1]
