@@ -92,98 +92,105 @@ model = RepidSimpleModel()
 X = dist.generate(N=1000)
 Y = model.predict(X)
 
-# # check interactions
-# h_index = interaction.HIndex(data=X, model=model.predict, nof_instances=950)
-# # print(h_index.eval_pairwise(0, 1))
-# print(h_index.eval_one_vs_all(0))
-# h_index.plot(interaction_matrix=False, one_vs_all=True)
+# fit a neural network
+from tensorflow import keras
+
+nn_model = keras.Sequential([
+    keras.layers.Dense(100, input_shape=(3,), activation="relu"),
+    keras.layers.Dense(100, activation="relu"),
+    keras.layers.Dense(100, activation="relu"),
+    keras.layers.Dense(1)
+])
+
+optimizer = keras.optimizers.Adam(learning_rate=0.0001)
+nn_model.compile(optimizer=optimizer, loss="mse")
+nn_model.fit(X, Y, epochs=10000, batch_size=1000)
+
+xx = np.array([-.5, 2., 1])
+print("NN prediction: ", nn_model.predict(xx.reshape(1, -1)))
+print("Ground truth: ", model.predict(xx.reshape(1, -1)))
+
+# # find regions
+# reg = pythia.regions.Regions(data=X, model=model.predict, model_jac=model.jacobian, cat_limit=25)
+# reg.find_splits(nof_levels=2, nof_candidate_splits=20, method="rhale")
+# opt_splits = reg.choose_important_splits(0.2)
 #
-# # check interactions with REPID (dPDP based method)
-# repid_index = interaction.REPID(data=X, model=model.predict, model_jac=model.jacobian, nof_instances=950)
-# print(repid_index.eval_one_vs_all(0))
-# repid_index.plot()
-
-# find regions
-reg = pythia.regions.Regions(data=X, model=model.predict, model_jac=model.jacobian, cat_limit=25)
-reg.find_splits(nof_levels=2, nof_candidate_splits=20, method="rhale")
-opt_splits = reg.choose_important_splits(0.2)
-
-transf = pythia.regions.DataTransformer(splits=opt_splits)
-new_X = transf.transform(X)
-
-# split data
-seed = 21
-X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.20, random_state=seed)
-X_train_new, X_test_new, y_train_new, y_test_new = train_test_split(new_X, Y, test_size=0.20, random_state=seed)
-
-
-# fit a GAM to the transformed data
-gam_subspaces = ExplainableBoostingRegressor(interactions=0)
-gam_subspaces.fit(X_train_new, y_train_new)
-print(gam_subspaces.score(X_test_new, y_test_new))
-
-# plot for subspace whe x1 > 0 and x3 == 0
-plt.figure()
-plt.title("RAM fitted to region x1 > 0 and x3 == 1")
-xx, yy = get_effect_from_ebm(gam_subspaces, 4)
-# randomly select 100 points from the region from X_train
-cond = np.logical_and(X_train[:, 0] > 0, X_train[:, 2] == 1)
-rmse_ebm_subreg_1 = np.sqrt(np.mean((yy - ground_truth_x2_reg_1(np.array(xx)))**2))
-idx = np.random.choice(np.where(cond)[0], size=50, replace=False)
-plt.plot(X_train[idx, 1], y_train[idx], "x", color="black", alpha=0.5, label="data")
-plt.plot(xx, yy, label="RAM - EBM (RMSE = {:.2f})".format(rmse_ebm_subreg_1), color="blue", linewidth=2, alpha=0.5, linestyle="--")
-plt.plot(xx, ground_truth_x2_reg_1(np.array(xx)), label="ground truth", color="red", linewidth=2, alpha=0.5, linestyle="--")
-plt.xlim(-1.1, 1.1)
-plt.ylim(-8.5, 8.5)
-plt.legend()
-plt.savefig("figures/regional_gam_subreg_1.pdf", bbox_inches="tight")
-plt.show()
-
-# plot for the rest of the input space
-plt.figure()
-plt.title("RAM fitted to the rest of the input space")
-xx, yy = get_effect_from_ebm(gam_subspaces, 1)
-# randomly select 100 points from the region from X_train
-cond = np.logical_or(X_train[:, 0] <= 0, X_train[:, 2] != 1)
-# rmse for these points
-rmse_ebm_subreg_2 = np.sqrt(np.mean((y_train_new[cond] - gam_subspaces.predict(X_train_new[cond]))**2))
-idx = np.random.choice(np.where(cond)[0], size=50, replace=False)
-plt.plot(X_train[idx, 1], y_train[idx], "x", color="black", alpha=0.5, label="data")
-plt.plot(xx, yy, label="RAM - EBM (RMSE = {:.2f})".format(rmse_ebm_subreg_2), color="blue", linewidth=2, alpha=0.5, linestyle="--")
-plt.plot(xx, ground_truth_x2_reg_2(np.array(xx)), label="ground truth (RMSE = 0.00)", color="red", linewidth=2, alpha=0.5, linestyle="--")
-plt.xlim(-1.1, 1.1)
-plt.ylim(-8.5, 8.5)
-plt.legend()
-plt.savefig("figures/regional_gam_subreg_2.pdf", bbox_inches="tight")
-plt.show()
-
-# fit a GAM to the initial data
-ebm_no_interaction = ExplainableBoostingRegressor(feature_names, interactions=0)
-ebm_no_interaction.fit(X_train, y_train)
-print(ebm_no_interaction.score(X_train, y_train))
-rmse_ebm_no_interaction = np.mean(np.square(y_train - ebm_no_interaction.predict(X_train)))
-xx, yy = get_effect_from_ebm(ebm_no_interaction, 1)
-plt.figure()
-plt.title("Globally-fitted GAM")
-idx = np.random.choice(X_train.shape[0], 100, replace=False)
-plt.plot(X_train[idx, 1], y_train[idx], "x", color="black", alpha=0.5, label="data")
-plt.plot(xx, yy, label="GAM - EBM (RMSE={:.2f})".format(rmse_ebm_no_interaction), color="blue", linewidth=2, alpha=0.5, linestyle="--")
-plt.plot(xx, ground_truth_x2(np.array(xx)), label="ground truth (RMSE: 3.00) ", linestyle="--", color="red")
-plt.legend()
-plt.xlim(-1.1, 1.1)
-plt.ylim(-8.5, 8.5)
-plt.xlabel("$x_2$")
-plt.ylabel("y")
-plt.savefig("figures/global_GAM.pdf", bbox_inches="tight")
-plt.show()
-
-
-# fit a GAM with interactions to the initial data
-ebm_interactions = ExplainableBoostingRegressor(feature_names)
-ebm_interactions.fit(X_train, y_train)
-print(ebm_interactions.score(X_test, y_test))
-xx, yy = get_effect_from_ebm(ebm_interactions, 1)
-
-
-# fit a NodeGAM to the transformed data
-# gam_subspaces = NodeGAMRegressor(interactions=0)
+# transf = pythia.regions.DataTransformer(splits=opt_splits)
+# new_X = transf.transform(X)
+#
+# # split data
+# seed = 21
+# X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.20, random_state=seed)
+# X_train_new, X_test_new, y_train_new, y_test_new = train_test_split(new_X, Y, test_size=0.20, random_state=seed)
+#
+#
+# # fit a GAM to the transformed data
+# gam_subspaces = ExplainableBoostingRegressor(interactions=0)
+# gam_subspaces.fit(X_train_new, y_train_new)
+# print(gam_subspaces.score(X_test_new, y_test_new))
+#
+# # plot for subspace whe x1 > 0 and x3 == 0
+# plt.figure()
+# plt.title("RAM fitted to region x1 > 0 and x3 == 1")
+# xx, yy = get_effect_from_ebm(gam_subspaces, 4)
+# # randomly select 100 points from the region from X_train
+# cond = np.logical_and(X_train[:, 0] > 0, X_train[:, 2] == 1)
+# rmse_ebm_subreg_1 = np.sqrt(np.mean((yy - ground_truth_x2_reg_1(np.array(xx)))**2))
+# idx = np.random.choice(np.where(cond)[0], size=50, replace=False)
+# plt.plot(X_train[idx, 1], y_train[idx], "x", color="black", alpha=0.5, label="data")
+# plt.plot(xx, yy, label="RAM - EBM (RMSE = {:.2f})".format(rmse_ebm_subreg_1), color="blue", linewidth=2, alpha=0.5, linestyle="--")
+# plt.plot(xx, ground_truth_x2_reg_1(np.array(xx)), label="ground truth", color="red", linewidth=2, alpha=0.5, linestyle="--")
+# plt.xlim(-1.1, 1.1)
+# plt.ylim(-8.5, 8.5)
+# plt.legend()
+# plt.savefig("figures/regional_gam_subreg_1.pdf", bbox_inches="tight")
+# plt.show()
+#
+# # plot for the rest of the input space
+# plt.figure()
+# plt.title("RAM fitted to the rest of the input space")
+# xx, yy = get_effect_from_ebm(gam_subspaces, 1)
+# # randomly select 100 points from the region from X_train
+# cond = np.logical_or(X_train[:, 0] <= 0, X_train[:, 2] != 1)
+# # rmse for these points
+# rmse_ebm_subreg_2 = np.sqrt(np.mean((y_train_new[cond] - gam_subspaces.predict(X_train_new[cond]))**2))
+# idx = np.random.choice(np.where(cond)[0], size=50, replace=False)
+# plt.plot(X_train[idx, 1], y_train[idx], "x", color="black", alpha=0.5, label="data")
+# plt.plot(xx, yy, label="RAM - EBM (RMSE = {:.2f})".format(rmse_ebm_subreg_2), color="blue", linewidth=2, alpha=0.5, linestyle="--")
+# plt.plot(xx, ground_truth_x2_reg_2(np.array(xx)), label="ground truth (RMSE = 0.00)", color="red", linewidth=2, alpha=0.5, linestyle="--")
+# plt.xlim(-1.1, 1.1)
+# plt.ylim(-8.5, 8.5)
+# plt.legend()
+# plt.savefig("figures/regional_gam_subreg_2.pdf", bbox_inches="tight")
+# plt.show()
+#
+# # fit a GAM to the initial data
+# ebm_no_interaction = ExplainableBoostingRegressor(feature_names, interactions=0)
+# ebm_no_interaction.fit(X_train, y_train)
+# print(ebm_no_interaction.score(X_train, y_train))
+# rmse_ebm_no_interaction = np.mean(np.square(y_train - ebm_no_interaction.predict(X_train)))
+# xx, yy = get_effect_from_ebm(ebm_no_interaction, 1)
+# plt.figure()
+# plt.title("Globally-fitted GAM")
+# idx = np.random.choice(X_train.shape[0], 100, replace=False)
+# plt.plot(X_train[idx, 1], y_train[idx], "x", color="black", alpha=0.5, label="data")
+# plt.plot(xx, yy, label="GAM - EBM (RMSE={:.2f})".format(rmse_ebm_no_interaction), color="blue", linewidth=2, alpha=0.5, linestyle="--")
+# plt.plot(xx, ground_truth_x2(np.array(xx)), label="ground truth (RMSE: 3.00) ", linestyle="--", color="red")
+# plt.legend()
+# plt.xlim(-1.1, 1.1)
+# plt.ylim(-8.5, 8.5)
+# plt.xlabel("$x_2$")
+# plt.ylabel("y")
+# plt.savefig("figures/global_GAM.pdf", bbox_inches="tight")
+# plt.show()
+#
+#
+# # fit a GAM with interactions to the initial data
+# ebm_interactions = ExplainableBoostingRegressor(feature_names)
+# ebm_interactions.fit(X_train, y_train)
+# print(ebm_interactions.score(X_test, y_test))
+# xx, yy = get_effect_from_ebm(ebm_interactions, 1)
+#
+#
+# # fit a NodeGAM to the transformed data
+# # gam_subspaces = NodeGAMRegressor(interactions=0)
