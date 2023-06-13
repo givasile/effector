@@ -131,31 +131,6 @@ regional effect plots.
 
 \section{The RAM framework}
 
-
-%\begin{algorithm}
-%\caption{Regionally Additive Models (RAMs)}
-%\label{alg:ram}
-%\begin{algorithmic}[1]
-%\Require Dataset \(\mathcal{D} = \{(\mathbf{x}_i, y_i)\}_{i=1}^n\), black-box model \(f(\mathbf{x})\), regional effect method \(\mathcal{R}\), RAM \(f^{\mathtt{RAM}}(\mathbf{x})\)
-%\State Fit a black-box model \(f(\mathbf{x})\) to \(\mathcal{D} = \{(\mathbf{x}_i, y_i)\}_{i=1}^n\)
-%\State Identify the subregions \(\mathcal{R}_{sk}\) using a regional effect method
-%\State Define the RAM \(f^{\mathtt{RAM}}(\mathbf{x}) = c + \sum_{s=1}^D f^{\mathtt{RAM}}_s(x_s) = c + \sum_{s=1}^D \sum_k f_{sk}(x_s) \when{\xcc \in \mathcal{R}_{sk}}\)
-%\State Fit the univariate functions \(f_{sk}(x_s)\) for each \(s\) and \(k\).
-%\end{algorithmic}
-%\end{algorithm}
-
-RAM is a framework for fitting explainable-by-design models that are expressive enough to capture any interaction.
-This is achieved using a pipeline that consists of a sequence of steps (Algorithm~\ref{alg:ram}).
-In the first step, we fit a black-box model \(f\) to the data.
-The black-box model can be any model that is expressive enough to accurately fit the data.
-For example, we can use a random forest or a neural network.
-In the second step, we identify the subregions where the black-box model is nearly locally additive.
-This is achieved using a regional effect method \(\mathcal{R}\).
-For example, we can use REPID (add citation) or any method presented by % \citet{ribeiro2016should}.
-At section \ref{sec:regional_effect_methods} we present a regional effect method based on the ALE plot.
-This step defines the form of the final model as defined in equation \ref{eq:ram}.
-Finally, we fit a GAM to the identified subregions, using any GAM model.
-
 \subsection{Background}
 
 Let \(\Xcal \in \Rd\) be the \(d\)-dimensional feature space, \(\Ycal\) the target space and \(f(\cdot) : \Xcal \rightarrow \Ycal\) the black-box function.  We use index \(s \in \{1, \ldots, d\}\) for the feature of interest and \(c = \{1, \ldots, d\} - s\) for the rest.
@@ -277,31 +252,41 @@ We can measure such deviation using the standard deviation of the instance-level
   \hat{\mu}(z_{k-1}, z_k) \right )^2
 \end{equation}
 %
-and afterwards, the level of interaction between the feature \(x_s\) and the rest of the features can be quantified
-as the aggregated bin-deviation \(\sqrt{\sum_{k=1}^{k_x} (z_k - z_{k-1})^2 \hat{\sigma}^2(z_{k-1}, z_k)}\).
+and the global interaction between the feature \(x_s\) and the rest of the features with the
+aggregated bin-deviation \({\left ( \sum_{k=1}^{k_x} (z_k - z_{k-1})^2 \hat{\sigma}^2(z_{k-1}, z_k) \right)}^{\frac{1}{2}} \).
 Therefore, in order to minimize the interaction we search for a set of regions \(\{\mathcal{R}_{st}\}_{t=1}^{T_s}\),
 that minimize the aggregated bin-deviation defined on the subregions.
-For this reason we define the bin-effect and bin-deviation on a subregion \(\mathcal{R}_{st}\) as:
+For this reason we define the bin-effect, the bin-deviation and the aggregated deviation on a subregion \(\mathcal{R}_{st}\) as:
 
 \begin{equation}
     \label{eq:bin_effect_subregion}
     \hat{\mu}_{\mathcal{R}_{st}}(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k \cap \mathcal{R}_{st}|} \sum_{i:\mathbf{x}^i \in \mathcal{S}_k \cap \mathcal{R}_{st} } \dfdx(\mathbf{x}^i)
 \end{equation}
 
-
 \begin{equation}
   \label{eq:bin_deviation_subregion}
   \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k \cap \mathcal{R}_{st}| - 1}
 \sum_{i:\mathbf{x}^i \in \mathcal{S}_k \cap \mathcal{R}_{st} } \left ( \dfdx(\mathbf{x}^i) -
-    \hat{\mu}(\mathcal{R}_{st}) \right )^2
+    \hat{\mu}(z_{k-1}, z_k) \right )^2
 \end{equation}
-
-Therefore, the interaction of the feature \(x_s\) with the rest of the features within a subregion \(\mathcal{R}_{st}\)
-can be quantified as:
 
 \begin{equation}
   \label{eq:SE}
-  \mathcal{L}(\mathcal{R}_{sk}) = \sum_{k=1}^K (z_k - z_{k-1})^2 \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k)
+  \mathcal{L}_{\mathcal{R}_{sk}} = \sum_{k=1}^K (z_k - z_{k-1})^2 \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k)
+\end{equation}
+
+The goal is to find the optimal set of subregions \(\{\mathcal{R}_{st}\}_{t=1}^{T_s}\) that minimize
+the aggregated deviation. For this reason, we define the following optimization problem:
+
+\begin{equation}
+  \label{eq:optimal_subregions}
+  \begin{aligned}
+    & \underset{\{\mathcal{R}_{st}\}_{t=1}^{T_s}}{\text{minimize}}
+    & & \sum_{t=1}^{T_s} \mathcal{L}_{\mathcal{R}_{st}} \\
+    & \text{subject to}
+    & & \bigcup_{t=1}^{T_s} \mathcal{R}_{st} = \mathcal{X} \\
+    & & & \mathcal{R}_{st} \cap \mathcal{R}_{s\tau} = \emptyset, \quad \forall t \neq \tau
+  \end{aligned}
 \end{equation}
 
 For minimizing Eq.~\eqref{eq:SE}, we set up a CART-like algorithm, as proposed by \citet{herbinger2023decomposing}.
@@ -319,16 +304,17 @@ The algorithm is described in Algorithm~\ref{alg:subregion_identification}.
 \BlankLine
 \Output{optimal\_splits}
 \BlankLine
-optimal\_splits[s, c, t] $\gets$ None\;
+splits[s, c, t] $\gets$ None\;
+positions[s, c, t] $\gets$ None\;
 \For{$s = 1$ to $D$}{
     \For{$c \in \{1, \dots, D\} \setminus \{s\}$}{
+        is\_cat = True/False \;
         X\_list $\gets [X]$\;
         J\_list $\gets [J]$\;
         \For{$t = 1$ to $T$}{
-            best\_split $\gets$ BestSplit(X\_list, J\_list, s)\;
-            optimal\_splits[s, c, t] $\gets$ best\_split\;
-            X\_list $\gets$ best\_split["X\_list"]\;
-            J\_list $\gets$ best\_split["J\_list"]\;
+            L, position, X\_split, J\_split $\gets$ BestSplit(X\_list, J\_list, s, is\_cat)\;
+            splits[s, c, t] $\gets$ L\;
+            positions[s, c, t] $\gets$ position\;
         }
     }
 }
@@ -342,110 +328,51 @@ optimal\_splits[s, c, t] $\gets$ None\;
 \SetKwInOut{Input}{Input}
 \SetKwInOut{Output}{Output}
 
-\Input{X\_list, J\_list, s, c}
+\Input{X\_list, J\_list, s, c, is\_cat}
 \Output{BestSplits}
 
 % Initialize variables
 \BlankLine
-\uIf{c is categorical}{
-    positions $\gets$ GetUniqueValues(X\_list, c)\;
-    L $\gets$ []\; % \Comment{List to store interaction values}
-    \For{p \textnormal{in} positions}{
-        X\_split, J\_split $\gets$ SplitDatasetCategorical(X\_list, J\_list, c, p)\;
-        L $\gets$ GetInteraction(X\_split, J\_split)\;
-    }
-    split\_position = argmin(L)
+positions $\gets$ GetPositions(X\_list, c, is\_cat)\;
+L $\gets$ []\; % \Comment{List to store interaction values}
+\For{p \textnormal{in} positions}{
+    X\_split, J\_split $\gets$ SplitDataset(X\_list, J\_list, c, p, is\_cat)\;
+    L $\gets$ GetInteraction(X\_split, J\_split)\;
 }
-\Else{
-    positions $\gets$ GetPosition(X\_list)\;
-    L $\gets$ []\; % \Comment{List to store interaction values}
-    \For{p \textnormal{in} positions}{
-        X\_split, J\_split $\gets$ SplitDatasetNumerical(X\_list, J\_list, c, p)\;
-        L $\gets$ GetInteraction(X\_split, J\_split)\;
-    }
-    split\_position = argmin(L) % \Comment{Store the minimum interaction value for the categorical feature}
-}
-
-\Return{BestSplits}
+split\_position = argmin(L)\;
+position $\gets$ positions[split\_position]\;
+X\_split, J\_split $\gets$ SplitDataset(X\_list, J\_list, c, position, is\_cat)\;
+\Return{L, position, X\_split, J\_split}
 \BlankLine
 \end{algorithm}
-%
-%
-%
-%\begin{algorithm}
-%\caption{BestSplit}
-%\label{alg:single_feature_subregion}
-%\SetAlgoLined
-%\SetKwInOut{Input}{Input}
-%\SetKwInOut{Output}{Output}
-%
-%\Input{X\_list, J\_list, s, t}
-%\Output{Splits\_list}
-%
-%% Initialize variables
-%\BlankLine
-%\For{c \in \{1, \dots, D\}}{
-%    \If{c is categorical}{
-%        unique\_values $\gets$ GetUniqueValues(X\_list, c)\;
-%        L $\gets$ []\;
-%        \For{p in unique\_values}{
-%            X\_split, J\_split $\gets$ SplitDatasetCategorical(X\_list, J\_list, c, p)\;
-%            L $\gets$ GetInteraction(X\_split, J\_split)\;
-%        }
-%        L[c] = min(L)\;
-%    }
-%    \Else{
-%        positions $\gets$ GetPosition(X\_list)\;
-%        L $\gets$ []\;
-%        \For{p in postions}{
-%            X\_split, J\_split $\gets$ SplitDatasetNumerical(X\_list, J\_list, c, p)\;
-%            L $\gets$ GetInteraction(X\_split, J\_split)\;
-%        }
-%    }
-%}
-%\BlankLine
-%\end{algorithm}
 
 
 \begin{algorithm}
-\caption{SplitDatasetCategorical}
-\label{alg:split_dataset_categorical}
+\caption{SplitDataset}
+\label{alg:split_dataset}
 \SetAlgoLined
 \SetKwInOut{Input}{Input}
 \SetKwInOut{Output}{Output}
-\Input{X\_list, J\_list, c, val}
-\Output{Split datasets}
+\Input{X\_list, J\_list, c, val, is\_cat}
+\Output{X\_split, J\_split}
 X\_split $\gets$ []\;
 J\_split $\gets$ []\;
 \For{i = 1 to len(X\_list)}{
-    ind\_equal $\gets$ X[:, c] $=$ val\;
-    ind\_diff $\gets$ X[:, c] $\neq$ val\;
-    Append X[ind\_equal], X[ind\_diff] to X\_split\;
-    Append J[ind\_equal], J[ind\_diff] to J\_split\;
+    X= X\_list[i]\;
+    J= J\_list[i]\;
+    \uIf{is\_cat}{
+        ind\_1 $\gets$ X[:, c] $=$ val\;
+        ind\_2 $\gets$ X[:, c] $\neq$ val\;
+    }
+    \Else{
+        ind\_1 $\gets$ X[:, c] $\leq$ val\;
+        ind\_2 $\gets$ X[:, c] $>$ val\;
+    }
+    Append X[ind\_1], X[ind\_2] to X\_split\;
+    Append J[ind\_1], J[ind\_2] to J\_split\;
 }
 \Return X\_split, J\_split
 \end{algorithm}
-
-\begin{algorithm}
-\caption{SplitDatasetNumerical}
-\label{alg:split_dataset_numerical}
-\SetAlgoLined
-\SetKwInOut{Input}{Input}
-\SetKwInOut{Output}{Output}
-\Input{X\_list, J\_list, c, val}
-\Output{Split datasets}
-X\_split $\gets$ []\;
-J\_split $\gets$ []\;
-\For{i = 1 to len(X\_list)}{
-    ind\_left $\gets$ X[:, c] $\leq$ val\;
-    ind\_right $\gets$ X[:, c] $>$ val\;
-    Append X[ind\_left], X[ind\_right] to X\_split\;
-    Append J[ind\_left], J[ind\_right] to J\_split\;
-}
-\Return X\_split, J\_split
-\end{algorithm}
-
-
 
 \begin{algorithm}
 \caption{GetInteraction}
@@ -455,14 +382,14 @@ J\_split $\gets$ []\;
 \SetKwInOut{Output}{Output}
 \Input{$X\_list$, $J\_list$, $min\_points$}
 \Output{weighted average of interaction levels}
-$N \gets$ total number of items in $X\_list$\;
-$W \gets []$\;
-$L \gets []$\;
+N $\gets$ total number of items in $X\_list$\;
+W $\gets$ []\;
+L $\gets$ []\;
 \For{$i$ in len($X\_list$)}{
-    $X \gets X\_list[i]$\;
-    $J \gets J\_list[i]$\;
-    \uIf{$|X| < min\_points$}{
-      Append $\infty$ to $L$\;
+    X $\gets$ X\_list[i]\;
+    J $\gets$ J\_list[i]\;
+    \uIf{$|X|$ < min\_points}{
+      Append $\infty$ to L\;
     }
     \Else{
         Append $\mathcal{L}(X, J)$ to $L$\;
@@ -500,6 +427,10 @@ aforementioned methods to improve the accuracy of the resulting model, while mai
 
 
 \bibliography{report}
+
+\section{Appendix}
+
+    \subsubsection{Algorithmic Details of Subregion Detection}
 
 
 \end{document}
