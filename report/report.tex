@@ -7,11 +7,10 @@
 \usepackage{geometry}[margin=1in]
 \usepackage{subcaption}
 
-\usepackage{algorithm}
-\usepackage{algpseudocode}
+% for algorithms
+\usepackage[linesnumbered,ruled]{algorithm2e}
 
 \usepackage{natbib}
-\usepackage{algorithmic}
 \bibliographystyle{plainnat}
 % set path for bibliography
 
@@ -133,17 +132,17 @@ regional effect plots.
 \section{The RAM framework}
 
 
-\begin{algorithm}
-\caption{Regionally Additive Models (RAMs)}
-\label{alg:ram}
-\begin{algorithmic}[1]
-\Require Dataset \(\mathcal{D} = \{(\mathbf{x}_i, y_i)\}_{i=1}^n\), black-box model \(f(\mathbf{x})\), regional effect method \(\mathcal{R}\), RAM \(f^{\mathtt{RAM}}(\mathbf{x})\)
-\State Fit a black-box model \(f(\mathbf{x})\) to \(\mathcal{D} = \{(\mathbf{x}_i, y_i)\}_{i=1}^n\)
-\State Identify the subregions \(\mathcal{R}_{sk}\) using a regional effect method
-\State Define the RAM \(f^{\mathtt{RAM}}(\mathbf{x}) = c + \sum_{s=1}^D f^{\mathtt{RAM}}_s(x_s) = c + \sum_{s=1}^D \sum_k f_{sk}(x_s) \when{\xcc \in \mathcal{R}_{sk}}\)
-\State Fit the univariate functions \(f_{sk}(x_s)\) for each \(s\) and \(k\).
-\end{algorithmic}
-\end{algorithm}
+%\begin{algorithm}
+%\caption{Regionally Additive Models (RAMs)}
+%\label{alg:ram}
+%\begin{algorithmic}[1]
+%\Require Dataset \(\mathcal{D} = \{(\mathbf{x}_i, y_i)\}_{i=1}^n\), black-box model \(f(\mathbf{x})\), regional effect method \(\mathcal{R}\), RAM \(f^{\mathtt{RAM}}(\mathbf{x})\)
+%\State Fit a black-box model \(f(\mathbf{x})\) to \(\mathcal{D} = \{(\mathbf{x}_i, y_i)\}_{i=1}^n\)
+%\State Identify the subregions \(\mathcal{R}_{sk}\) using a regional effect method
+%\State Define the RAM \(f^{\mathtt{RAM}}(\mathbf{x}) = c + \sum_{s=1}^D f^{\mathtt{RAM}}_s(x_s) = c + \sum_{s=1}^D \sum_k f_{sk}(x_s) \when{\xcc \in \mathcal{R}_{sk}}\)
+%\State Fit the univariate functions \(f_{sk}(x_s)\) for each \(s\) and \(k\).
+%\end{algorithmic}
+%\end{algorithm}
 
 RAM is a framework for fitting explainable-by-design models that are expressive enough to capture any interaction.
 This is achieved using a pipeline that consists of a sequence of steps (Algorithm~\ref{alg:ram}).
@@ -312,29 +311,167 @@ The algorithm is described in Algorithm~\ref{alg:subregion_identification}.
 \begin{algorithm}
 \caption{DALE-based Region Detection}
 \label{alg:subregion_identification}
-\begin{algorithmic}
-\Procedure{DALE\_Region\_Detection}{$\mathcal{D}$, $J$, $T$}
-    \For {\(s=1, \cdots, D\)}
-        \State $\mathtt{D\_before\_split = [D]}$
-        \For {\(t=1, \cdots, T\)}
-        \EndFor
-    \EndFor
-\EndProcedure
-\end{algorithmic}
+\SetAlgoLined
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Output}{Output}
+\BlankLine
+\Input{X, J, T}
+\BlankLine
+\Output{optimal\_splits}
+\BlankLine
+optimal\_splits[s, c, t] $\gets$ None\;
+\For{$s = 1$ to $D$}{
+    \For{$c \in \{1, \dots, D\} \setminus \{s\}$}{
+        X\_list $\gets [X]$\;
+        J\_list $\gets [J]$\;
+        \For{$t = 1$ to $T$}{
+            best\_split $\gets$ BestSplit(X\_list, J\_list, s)\;
+            optimal\_splits[s, c, t] $\gets$ best\_split\;
+            X\_list $\gets$ best\_split["X\_list"]\;
+            J\_list $\gets$ best\_split["J\_list"]\;
+        }
+    }
+}
+\end{algorithm}
+
+
+\begin{algorithm}
+\caption{BestSplit}
+\label{alg:single_feature_subregion}
+\SetAlgoLined
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Output}{Output}
+
+\Input{X\_list, J\_list, s, c}
+\Output{BestSplits}
+
+% Initialize variables
+\BlankLine
+\uIf{c is categorical}{
+    positions $\gets$ GetUniqueValues(X\_list, c)\;
+    L $\gets$ []\; % \Comment{List to store interaction values}
+    \For{p \textnormal{in} positions}{
+        X\_split, J\_split $\gets$ SplitDatasetCategorical(X\_list, J\_list, c, p)\;
+        L $\gets$ GetInteraction(X\_split, J\_split)\;
+    }
+    split\_position = argmin(L)
+}
+\Else{
+    positions $\gets$ GetPosition(X\_list)\;
+    L $\gets$ []\; % \Comment{List to store interaction values}
+    \For{p \textnormal{in} positions}{
+        X\_split, J\_split $\gets$ SplitDatasetNumerical(X\_list, J\_list, c, p)\;
+        L $\gets$ GetInteraction(X\_split, J\_split)\;
+    }
+    split\_position = argmin(L) % \Comment{Store the minimum interaction value for the categorical feature}
+}
+
+\Return{BestSplits}
+\BlankLine
+\end{algorithm}
+%
+%
+%
+%\begin{algorithm}
+%\caption{BestSplit}
+%\label{alg:single_feature_subregion}
+%\SetAlgoLined
+%\SetKwInOut{Input}{Input}
+%\SetKwInOut{Output}{Output}
+%
+%\Input{X\_list, J\_list, s, t}
+%\Output{Splits\_list}
+%
+%% Initialize variables
+%\BlankLine
+%\For{c \in \{1, \dots, D\}}{
+%    \If{c is categorical}{
+%        unique\_values $\gets$ GetUniqueValues(X\_list, c)\;
+%        L $\gets$ []\;
+%        \For{p in unique\_values}{
+%            X\_split, J\_split $\gets$ SplitDatasetCategorical(X\_list, J\_list, c, p)\;
+%            L $\gets$ GetInteraction(X\_split, J\_split)\;
+%        }
+%        L[c] = min(L)\;
+%    }
+%    \Else{
+%        positions $\gets$ GetPosition(X\_list)\;
+%        L $\gets$ []\;
+%        \For{p in postions}{
+%            X\_split, J\_split $\gets$ SplitDatasetNumerical(X\_list, J\_list, c, p)\;
+%            L $\gets$ GetInteraction(X\_split, J\_split)\;
+%        }
+%    }
+%}
+%\BlankLine
+%\end{algorithm}
+
+
+\begin{algorithm}
+\caption{SplitDatasetCategorical}
+\label{alg:split_dataset_categorical}
+\SetAlgoLined
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Output}{Output}
+\Input{X\_list, J\_list, c, val}
+\Output{Split datasets}
+X\_split $\gets$ []\;
+J\_split $\gets$ []\;
+\For{i = 1 to len(X\_list)}{
+    ind\_equal $\gets$ X[:, c] $=$ val\;
+    ind\_diff $\gets$ X[:, c] $\neq$ val\;
+    Append X[ind\_equal], X[ind\_diff] to X\_split\;
+    Append J[ind\_equal], J[ind\_diff] to J\_split\;
+}
+\Return X\_split, J\_split
 \end{algorithm}
 
 \begin{algorithm}
-\caption{DALE-based Region Detection}
-\label{alg:single_feature_subregion}
-\begin{algorithmic}
-\For{\( c = 1, \cdots, s-1, s+1, \cdots, D\)}
-    \State Lalala
-    \State $\mathtt{D\_before\_split = [D]}$
-    \State $\mathtt{L\_before\_split = [}\mathcal{L}(\mathcal{D}_{s1}) \mathtt{]}$
-    \State $\mathtt{L\_after\_split = []}$
-\EndFor
-\end{algorithmic}
+\caption{SplitDatasetNumerical}
+\label{alg:split_dataset_numerical}
+\SetAlgoLined
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Output}{Output}
+\Input{X\_list, J\_list, c, val}
+\Output{Split datasets}
+X\_split $\gets$ []\;
+J\_split $\gets$ []\;
+\For{i = 1 to len(X\_list)}{
+    ind\_left $\gets$ X[:, c] $\leq$ val\;
+    ind\_right $\gets$ X[:, c] $>$ val\;
+    Append X[ind\_left], X[ind\_right] to X\_split\;
+    Append J[ind\_left], J[ind\_right] to J\_split\;
+}
+\Return X\_split, J\_split
 \end{algorithm}
+
+
+
+\begin{algorithm}
+\caption{GetInteraction}
+\label{alg:get_interaction}
+\SetAlgoLined
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Output}{Output}
+\Input{$X\_list$, $J\_list$, $min\_points$}
+\Output{weighted average of interaction levels}
+$N \gets$ total number of items in $X\_list$\;
+$W \gets []$\;
+$L \gets []$\;
+\For{$i$ in len($X\_list$)}{
+    $X \gets X\_list[i]$\;
+    $J \gets J\_list[i]$\;
+    \uIf{$|X| < min\_points$}{
+      Append $\infty$ to $L$\;
+    }
+    \Else{
+        Append $\mathcal{L}(X, J)$ to $L$\;
+    }
+    Append $\frac{|X|}{N}$ to $W$\;
+}
+\Return $\text{sum}(L \cdot W)$\;
+\end{algorithm}
+
 
 \subsection{Fitting the GAMs}
 

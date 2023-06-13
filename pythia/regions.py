@@ -81,7 +81,6 @@ class Regions:
         # update state
         self.regions_found = True
 
-
     def choose_important_splits(self, heter_thres=0.1, pcg=0.2):
         assert self.regions_found is True
         optimal_splits = {}
