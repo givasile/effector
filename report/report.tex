@@ -292,39 +292,45 @@ that minimize:
 \end{equation}
 
 For minimizing Eq.~\eqref{eq:SE}, we set up a CART-like algorithm, as proposed by \citep{herbinger2023decomposing}.
-The backbone of the algorithm is described in Algorithm~\ref{alg:subregion_identification}.
-The basic idea is for each feature $s \in \{1, \ldots, D\}$, to exhaustively search level-by-level, for
-all possible splits before choosing the one that minimizes the interaction.
-For the first level, we search
+The backbone of the algorithm is described in Algorithm~\ref{alg:subregion_detection};
+for each feature $s \in \{1, \ldots, D\}$, we exhaustively search level-by-level, for the optimal split.
+For example, suppose that the optimal first-level split for some feature $s$ is
+$x_c \pm p_1$ where $x_c$ is a numerical feature.
+The first-level split adds to the RAM to terms for feature $x_s$, $f_{s1}(x_s) \when{x_c < p_1}$ and $f_{s2}(x_s) \when{x_c \geq p_1}$,
+and splits the dataset into two subsets, $X_1 = \{ \xb^i : x_s^i \leq x_c + p_1 \}$ and $X_2 = \{ \xb^i : x_s^i > x_c + p_1 \}$.
+Afterwards, suppose that the optimal second-level split for feature $s$ is $x_c' = (\neq) p_2$ for some categorical feature $x_c'$.
+The second-level split adds to the RAM four terms for feature $x_s$, $f_{s1}(x_s) \when{x_c < p_1 \land x_c' = p_2}$,
+$f_{s2}(x_s) \when{x_c < p_1 \land x_c' \neq p_2}$, $f_{s3}(x_s) \when{x_c \geq p_1 \land x_c' = p_2}$ and $f_{s4}(x_s) \when{x_c \geq p_1 \land x_c' \neq p_2}$.
+
+The output of algorithm~\ref{alg:subregion_detection} is a set of $T$ splits per feature $s$.
+Since splitting does guarantee an important decrease in the loss function, we refine the splits by
+pruning all splits that do not decrease the loss function by more than a threshold $\epsilon$.
 
 
 \begin{algorithm}
-\caption{DALE-based Region Detection}
-\label{alg:subregion_identification}
+\caption{Detection of Subregions using DALE}
+\label{alg:subregion_detection}
 \SetAlgoLined
 \SetKwInOut{Input}{Input}
 \SetKwInOut{Output}{Output}
 \BlankLine
-\Input{X, J, T}
+\Input{Data matrix $X$, Jacobian matrix $J$, Maximum Depth $T$}
 \BlankLine
-\Output{optimal\_splits}
+\Output{Optimal splits}
 \BlankLine
-splits[s, t] $\gets$ None\;
-positions[s, t] $\gets$ None\;
-feat\_c[s, t] $\gets$ None\;
+Initialize empty arrays for \texttt{loss}, \texttt{position}, and \texttt{feature\_c}
+\BlankLine
 \For{$s = 1$ to $D$}{
-    X\_list $\gets [X]$\;
-    J\_list $\gets [J]$\;
-    \For{$t = 1$ to $T$}{
-            L, p, c, X\_list, J\_list $\gets$ BestSplit(X\_list, J\_list, s, is\_cat)\;
-            splits[s, t] $\gets$ L\;
-            position[s, t] $\gets$ p\;
-            feat\_c[s, t] $\gets$ c\;
-        }
-    }
+X\_list, J\_list = [X], [J] \tcp*{Init lists}
+\For{$t = 1$ to $T$}{
+    \tcc{Find best split}
+    L, p, c, X\_list, J\_list $\gets$ BestSplit(X\_list, J\_list, s, is\_cat)\;
+    \tcc{Store best split}
+    loss[s, t], position[s, t], feature\_c[s, t] $\gets$ L, p, c
 }
+}
+\Return{loss, position, feature\_c}
 \end{algorithm}
-
 
 \begin{algorithm}
 \caption{BestSplit}
@@ -338,72 +344,33 @@ feat\_c[s, t] $\gets$ None\;
 
 % Initialize variables
 \BlankLine
-positions $\gets$ GetPositions(X\_list, c, is\_cat)\;
-L $\gets$ []\; % \Comment{List to store interaction values}
-\For{p \textnormal{in} positions}{
-    X\_split, J\_split $\gets$ SplitDataset(X\_list, J\_list, c, p, is\_cat)\;
-    L $\gets$ GetInteraction(X\_split, J\_split)\;
+L[c, p] $\gets$ None\; % \Comment{List to store interaction values}
+\For{c $s = 1$ to $D$ \textnormal{if} c $\neq$ s}{
+    is\_cat $\gets$ IsCategorical(X\_list, c)\;
+    positions $\gets$ GetPositions(X\_list, c, is\_cat)\;
+    L\_pos $\gets$ []\; % \Comment{List to store interaction values}
+    \For{p \textnormal{in} positions}{
+        X\_split, J\_split $\gets$ SplitDataset(X\_list, J\_list, c, p, is\_cat)\;
+        L $\gets$ GetInteraction(X\_split, J\_split)\;
+    }
 }
-split\_position = argmin(L)\;
-position $\gets$ positions[split\_position]\;
-X\_split, J\_split $\gets$ SplitDataset(X\_list, J\_list, c, position, is\_cat)\;
-\Return{L, position, X\_split, J\_split}
+L\_min $\gets$ min(L)\;
+c\_min, p\_min = argmin(L)\;
+is\_cat $\gets$ IsCategorical(X\_list, c\_min)\;
+X\_split, J\_split $\gets$ SplitDataset(X\_list, J\_list, c\_min, p\_min, is\_cat)\;
+
+\Return{L\_min, p\_min c\_min, X\_split, J\_split}
 \BlankLine
 \end{algorithm}
 
+\paragraph{Computational Complexity}
 
-\begin{algorithm}
-\caption{SplitDataset}
-\label{alg:split_dataset}
-\SetAlgoLined
-\SetKwInOut{Input}{Input}
-\SetKwInOut{Output}{Output}
-\Input{X\_list, J\_list, c, val, is\_cat}
-\Output{X\_split, J\_split}
-X\_split $\gets$ []\;
-J\_split $\gets$ []\;
-\For{i = 1 to len(X\_list)}{
-    X= X\_list[i]\;
-    J= J\_list[i]\;
-    \uIf{is\_cat}{
-        ind\_1 $\gets$ X[:, c] $=$ val\;
-        ind\_2 $\gets$ X[:, c] $\neq$ val\;
-    }
-    \Else{
-        ind\_1 $\gets$ X[:, c] $\leq$ val\;
-        ind\_2 $\gets$ X[:, c] $>$ val\;
-    }
-    Append X[ind\_1], X[ind\_2] to X\_split\;
-    Append J[ind\_1], J[ind\_2] to J\_split\;
-}
-\Return X\_split, J\_split
-\end{algorithm}
-
-\begin{algorithm}
-\caption{GetInteraction}
-\label{alg:get_interaction}
-\SetAlgoLined
-\SetKwInOut{Input}{Input}
-\SetKwInOut{Output}{Output}
-\Input{$X\_list$, $J\_list$, $min\_points$}
-\Output{weighted average of interaction levels}
-N $\gets$ total number of items in $X\_list$\;
-W $\gets$ []\;
-L $\gets$ []\;
-\For{$i$ in len($X\_list$)}{
-    X $\gets$ X\_list[i]\;
-    J $\gets$ J\_list[i]\;
-    \uIf{$|X|$ < min\_points}{
-      Append $\infty$ to L\;
-    }
-    \Else{
-        Append $\mathcal{L}(X, J)$ to $L$\;
-    }
-    Append $\frac{|X|}{N}$ to $W$\;
-}
-\Return $\text{sum}(L \cdot W)$\;
-\end{algorithm}
-
+Algorithm~\ref{alg:subregion_detection} has a computational complexity of $\mathcal{O}(D \cdot T)$.
+and Algorithm~\ref{alg:single_feature_subregion} has a computational complexity of $\mathcal{O}(D-1 \cdot P \cdot N)$
+where $D$ is the number of feature, $N$ is the number of samples, $T$ is the maximum depth of the tree and $P$ is the number of query postitions.
+The computational complexity of the proposed method is therefore $\mathcal{O}(D \cdot (D-1) \cdot T \cdot P \cdot N)$.
+However, in practice, the number of query positions $P$ and the maximum depth $T$ are small numbers.
+Therefore, the computational complexity of the proposed method is $\mathcal{O}(D^2 \cdot N)$.
 
 \subsection{Fitting the GAMs}
 
@@ -458,7 +425,59 @@ For this reason we define the bin-effect, the bin-deviation and the aggregated d
 \end{equation}
 
 
-    \subsubsection{Algorithmic Details of Subregion Detection}
+\subsection{Algorithmic Details of Subregion Detection}
+
+    \begin{algorithm}
+\caption{SplitDataset}
+\label{alg:split_dataset}
+\SetAlgoLined
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Output}{Output}
+\Input{X\_list, J\_list, c, val, is\_cat}
+\Output{X\_split, J\_split}
+X\_split $\gets$ []\;
+J\_split $\gets$ []\;
+\For{i = 1 to len(X\_list)}{
+    X= X\_list[i]\;
+    J= J\_list[i]\;
+    \uIf{is\_cat}{
+        ind\_1 $\gets$ X[:, c] $=$ val\;
+        ind\_2 $\gets$ X[:, c] $\neq$ val\;
+    }
+    \Else{
+        ind\_1 $\gets$ X[:, c] $\leq$ val\;
+        ind\_2 $\gets$ X[:, c] $>$ val\;
+    }
+    Append X[ind\_1], X[ind\_2] to X\_split\;
+    Append J[ind\_1], J[ind\_2] to J\_split\;
+}
+\Return X\_split, J\_split
+\end{algorithm}
+
+\begin{algorithm}
+\caption{GetInteraction}
+\label{alg:get_interaction}
+\SetAlgoLined
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Output}{Output}
+\Input{$X\_list$, $J\_list$, $min\_points$}
+\Output{weighted average of interaction levels}
+N $\gets$ total number of items in $X\_list$\;
+W $\gets$ []\;
+L $\gets$ []\;
+\For{$i$ in len($X\_list$)}{
+    X $\gets$ X\_list[i]\;
+    J $\gets$ J\_list[i]\;
+    \uIf{$|X|$ < min\_points}{
+      Append $\infty$ to L\;
+    }
+    \Else{
+        Append $\mathcal{L}(X, J)$ to $L$\;
+    }
+    Append $\frac{|X|}{N}$ to $W$\;
+}
+\Return $\text{sum}(L \cdot W)$\;
+\end{algorithm}
 
 
 \end{document}
