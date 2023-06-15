@@ -47,35 +47,35 @@ We show that RAMs are more expressive than GAMs while they are still interpretab
 
 \end{abstract}
 
-\section{Introduction and Related Work}
+\section{Introduction}
 
 
 % Paragraph for Motivating about Regionally Additive Models
-Generalized Additive Models (GAMs) are a widely recognized class of explainable-by-design models.
+Generalized Additive Models (GAMs)~\citep{hastie1987generalized} are a popular class of explainable by design (x-by-design) models.
 Their popularity stems from their seamless interpretability; since they are a linear (additive) combination of univariate functions,
-\(f(\xb) = c + \sum_{s=1}^D f_s(x_s)\), each individual univariate function can be readily visualized and comprehended in isolation.
-However, the expressiveness of GAMs is limited when it comes to learn interactions between features.
-To overcome this limitation, a family of models extends GAMs enabling pairwise interactions,
+\(f(\xb) = c + \sum_{s=1}^D f_s(x_s)\), each individual univariate function (component) can be readily visualized and comprehended in isolation.
+However, GAM's main limitation is that they cannot express interactions between features.
+To mitigation this limitation, some approaches~\citep{lou2013accurate} extend them enabling pairwise interactions,
 i.e., \(f(\xb) = c + \sum_{s=1}^D f_s(x_s) + \sum_{s=1}^D \sum_{c \neq s} f_{sc}(x_s, x_c)\).
-Pairwise interactions can also be visualized and understood in isolation, so these models also maintain their explainable-by-design nature.
+Pairwise interactions can also be visualized and understood in isolation, so these models also maintain their x-by-design nature.
 Unfortunately, this does not hold for any interaction that involves more than two features, thus, the expressiveness of GAMs is limited to capturing up to two-feature interactions.
 
 % Paragraph for Motivating about Regionally Additive Models
-To overcome this limitation, we propose Regionally Additive Models (RAMs), a novel class of explainable-by-design models,
+To overcome this limitation, we propose Regionally Additive Models (RAMs), a novel class of x-by-design models,
 that fits multiple GAMs to subregions of the feature space where interactions are minimized.
 Our approach consists of a three-step pipeline.
 First, we fit a black-box model to capture all high-order interactions.
 Second, we identify the subregions where the black-box model is nearly locally additive.
 Finally, we train a GAM specifically for each identified subregion.
 
-\section{Motivation}
+\section{Background and motivation}
 \label{sec:motivation}
 
 Consider the black-box function \(f(\xb) = 8x_2\when{x_1 > 0}\when{x_3=0}\)
 with \(x_1, x_2 \sim \mathcal{U}(-1,1)\) and \(x_3 \sim Bernoulli(0,1)\).
-Although very simple, the existence of the interaction term $8x_2\when{x_1 > 0}\when{x_3=0}$ that involves
-three features $x_1, x_2, x_3$ makes it impossible to be learned by a GAM.
-As we see in Figure~\ref{subfig:global_gam}, a GAM misleadingly learns that $f(x_2) = 2x_2$,
+Although very simple, a GAM would fail to learn this mapping due to
+the existence of the three-features interaction term $8x_2\when{x_1 > 0}\when{x_3=0}$.
+As we see in Figure~\ref{subfig:global_gam}, a GAM misleadingly learns that $\hat{f}(\xb) \approx 2x_2$,
 because in $\frac{1}{4}$ of the cases ($x_1 > 0 \text{ and } x_3 = 0$) the impact of $x_2$ to the output is $8x_2$,
 and in the rest $\frac{3}{4}$ of the cases the impact of $x_2$ to the output is $0$.
 However, if splitting the input space in two subregions we observe that \(f\) is additive in each one (regionally additive):
@@ -85,21 +85,20 @@ However, if splitting the input space in two subregions we observe that \(f\) is
     f(\xb) = \begin{cases} 8x_2 & \text{if } x_1 > 0 \text{ and } x_3 = 1 \\ 0 & \text{otherwise} \end{cases}
 \end{equation}
 %
-Therefore, if we knew the appropriate subregions for $x_2$,
+Therefore, if we knew the appropriate subregions,
 namely, \(\mathcal{R}_{21} = \{x_1 > 0 \text{ and } x_3 = 0\}\)
 and  \(\mathcal{R}_{22} = \{x_1 \leq 0 \text{ or } x_3 = 1\}\),
-we could fit the following model to the data
+we could split the impact of $x_2$ appropriately and fit the following model to the data:
 
 \begin{equation}
     \label{eq:regional_gam}
     f^{\mathtt{RAM}}(\xb) = f_1(x_1) + f_{21}(x_2) \when{(x_1, x_3) \in \mathcal{R}_{21}} + f_{22}(x_2) \when{(x_1, x_3) \in \mathcal{R}_{22}} + f_3(x_3)
 \end{equation}
 %
-Equation~\eqref{eq:regional_gam} represents a Regionally Additive Model (RAM). A RAM is nothing more than a GAM fitted on each subregion of the feature space.
+Equation~\eqref{eq:regional_gam} represents a Regionally Additive Model (RAM), which is simply a GAM fitted on each subregion of the feature space.
 Importantly, RAM's enhanced expressiveness does not come at the expense of interpretability.
-We can still visualize and comprehend each univariate function in isolation, exactly as we would do with a GAM,
-with the only difference being that we have to consider the subregions where each univariate function is active, as we observe in
-Figures~\ref{subfig:regional_gam_1} and~\ref{subfig:regional_gam_2}.
+As we observe in Figures~\ref{subfig:regional_gam_1} and~\ref{subfig:regional_gam_2}, we can still visualize and comprehend each univariate function in isolation, exactly as we would do with a GAM,
+with the only difference being that we have to consider the subregions where each univariate function is active,
 The key challenge of RAMs is to appropriately identify the subregions where the black-box function is (close to) regionally additive.
 For this purpose, as we will see in Section~\ref{subsec:regional_effect_methods}, we propose a novel algorithm that is based on the idea of
 regional effect plots.
@@ -145,7 +144,7 @@ how it estimates it from the training set.
 
 \subsubsection{Objective}
 
-In the first step of the pipelin, a black-box function \(f(\cdot)\) is fitted to the training set \(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\).
+In the first step of the pipeline, a black-box function \(f(\cdot)\) is fitted to the training set \(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\).
 In principle, the black-box function can be any model that is expressive enough to accurately fit the data,
 meaning that it is able to learn the underlying mapping \(\mathbb{P}_{Y|X}\).
 
@@ -171,16 +170,15 @@ In this step, we use regional effect methods to identify the regions where the b
 % Describe the goal of the regional effect methods
 Regional effect methods yield for each individual feature \(s\), a set of \(T_s\) non-overlapping regions,
 denoted as \(\{\mathcal{R}_{st}\}_{t=1}^{T_s}\) where \(\mathcal{R}_{st} \subseteq \Xcal_{/s}\).
-We denote the number of non-overlapping regions for feature \(s\) as \(T_s\), because for each feature \(s\),
-the number of regions \(T_s\) can be different.
+Note that, first, we use a subscript, i.e. $T_s$, to denote that the number of non-overlapping regions can be different for each feature and, second,
+the regions \(\{\mathcal{R}_{st}\}_{t=1}^{T_s}\) are disjoint and their union covers the entire feature space \(\Xcal_{/s}\).
 The primary objective is to identify regions in which the impact of the \(s\)-th feature on the output is
 \textit{relatively independent} of the values of the other features \(\xcc\).
 To better grasp this objective, if we decompose the impact of the \(s\)-th feature on the output $y$ into two terms:
-\(f_s(x_s, \xcc) = f_{s,eff}(x_s) + f_{s, int}(x_s, \xcc)\),
-where \(f_{s,eff}(\cdot)\) represents the independent effect
+\(f_s(x_s, \xcc) = f_{s,ind}(x_s) + f_{s, int}(x_s, \xcc)\),
+where \(f_{s,ind}(\cdot)\) represents the independent effect
 and \(f_{s, int}(\cdot)\) represents the interaction effect,
-the objective is to identify regions \(\{\mathcal{R}_{st}\}_{t=1}^{T_s}\) where the interaction effect is minimized.
-It is important to note that the union of all regions \(\{\mathcal{R}_{st}\}_{t=1}^{T_s}\) covers the entire feature space \(\Xcal_{/s}\).
+the objective is to identify regions \(\{\mathcal{R}_{st}\}_{t=1}^{T_s}\) such that the interaction effect is minimized.
 Regionally Additive Models (RAM) formulation is:
 
 \begin{equation}
@@ -190,7 +188,7 @@ f^{\mathtt{RAM}}(\xb) = c + \sum_{s=1}^D \sum_{t=1}^{T_s} f_{st}(x_s) \when{\xcc
 %
 In the above formulation, \(f_{st}(\cdot)\) is the component of the \(s\)-th feature which is active on the \(t\)-th region.
 RAM can be viewed as a GAM with \(T_s\) components per feature where each component is applied to a specific region \(\mathcal{R}_{st}\).
-To facilitate this formulation, we introduce a new feature space \(\Xcal^\mathtt{RAM}\) defined as:
+To facilitate this interpretation, we can define an enhanced feature space \(\Xcal^\mathtt{RAM}\) defined as:
 
 \begin{equation}
 \label{eq:ram_feature_space}
@@ -203,7 +201,7 @@ x_s, & \text{if } \xcc \in \mathcal{R}_{sk} \\
 \end{aligned}
 \end{equation}
 %
-Finally, we can simply formulate RAM as a typical GAM on the extended feature space \(\Xcal^{\mathtt{RAM}}\):
+and then define RAM as a typical GAM on the extended feature space \(\Xcal^{\mathtt{RAM}}\):
 
 \begin{equation}
 \label{eq:ram_formulation2}
@@ -227,8 +225,11 @@ First, instead of using the ALE plot, we employ the Differential ALE (DALE) meth
 which provides considerable computational advantages when the underlying black-box function is differentiable.
 Second, we utilize variable-size bins, instead of the fixed-size ones in DALE, because the result in a more accurate approximation.
 
-Given a black-box function \(f(\cdot)\) and a dataset \(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\),
-the DALE plot is defined as:
+\paragraph{DALE and Feature Interaction}
+
+DALE plot gets as input a black-box function \(f(\cdot)\) and a dataset \(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\),
+and decomposes the \texttt{effect} (impact) of a specific feature $s$ on the output $y$.
+DALE's formulation is:
 
 \begin{equation}  \label{eq:DALE_accumulated_mean_est}
   \hat{f}^{\mathtt{DALE}}(x_s) = \Delta x \sum_{k=1}^{k_x} \underbrace{\frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^{(i)} \in
@@ -239,12 +240,13 @@ where \(k_x\) the index of the bin such that
 \(z_{k_x-1} \leq x_s < z_{k_x} \) and \(\mathcal{S}_k\)
 is the set of the instances of the \(k\)-th bin, i.e.
 \( \mathcal{S}_k = \{ \xb^i : z_{k-1} \leq x^{(i)}_s < z_{k} \} \).
-DALE computes the average effect (impact) of the feature \(x_s\) on the output of the black-box function \(f(\cdot)\).
-The average effect is computed by dividing the feature space into bins and computing the average effect of
-the feature \(x_s\) in each bin.
-In cases where there are interactions between the features, the instance-level effects inside each bin
-start to deviate from the average effect.
-We can measure such deviation using the standard deviation of the instance-level effects inside each bin:
+DALE computes the average effect (impact) of the feature \(x_s\) on the output of the black-box function \(f(\cdot)\),
+first by dividing the feature space into bins and computing the average effect of the feature \(x_s\) in each bin
+(bin-effect) and then by aggregating the bin-level effects.
+In cases where there are strong interactions between the features, the instance-level effects inside each bin
+start to deviate from the average bin-effect.
+We can measure such deviation using the standard deviation of the instance-level effects inside each bin (bin-deviation):
+
 \begin{equation}
   \label{eq:var_bin_approx}
   \hat{\sigma}^2(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k| - 1}
@@ -253,44 +255,47 @@ We can measure such deviation using the standard deviation of the instance-level
 \end{equation}
 %
 and the global interaction between the feature \(x_s\) and the rest of the features with the
-aggregated bin-deviation \({\left ( \sum_{k=1}^{k_x} (z_k - z_{k-1})^2 \hat{\sigma}^2(z_{k-1}, z_k) \right)}^{\frac{1}{2}} \).
+aggregated bin-deviation
+\begin{equation}
+  \label{eq:DALE_interaction}
+  \mathcal{H}_s = \sqrt{ \sum_{k=1}^{k_x} (z_k - z_{k-1})^2 \hat{\sigma}^2(z_{k-1}, z_k) }
+\end{equation}
+%
+Eq.~\eqref{eq:DALE_interaction} measures the interaction between the feature \(x_s\) and the rest of the features.
+It takes values in the range \([0, \infty)\) and it is zero when \(x_s\) does not interact with the rest of the features,
+i.e., when $f(\xb) = f_s(x_s) + f_{s}(x_s)$ and it is higher when the interaction is stronger.
+
+\paragraph{DALE for Regional Effect}
+
+If instead of applying DALE globally, we restrict it on a subregion of the feature space
+\(\mathcal{R}_{st} \subset \mathcal{X}\), we can measure the interaction between the feature \(x_s\) and the rest of the features
+inside the subregion \(\mathcal{R}_{st}\).
+In compuatational terms, this means that instead of using the whole dataset \(\mathcal{D}\) to compute the bin-effect and the bin-deviation,
+we use only the instances that belong to the subregion \(\mathcal{R}_{st}\).
+In this way, we can define $\hat{\mu}_{\mathcal{R}_{st}}(z_{k-1}, z_k), \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k)$ and $\mathcal{H}_{\mathcal{R}_{st}}$ exaclty as in
+Eq.~\eqref{eq:DALE_accumulated_mean_est}, Eq.~\eqref{eq:var_bin_approx} and Eq.~\eqref{eq:DALE_interaction} respectively,
+but using only the instances that belong to the subregion \(\mathcal{R}_{st}\), i.e. $\xb^i: x_s^i \in \mathcal{S}_k \land x_{s}^i \in \mathcal{R}_{st}$.
+Analytical formulas in the Appendix~\ref{sec:regional_dale}.
+
 Therefore, in order to minimize the interaction we search for a set of regions \(\{\mathcal{R}_{st}\}_{t=1}^{T_s}\),
-that minimize the aggregated bin-deviation defined on the subregions.
-For this reason we define the bin-effect, the bin-deviation and the aggregated deviation on a subregion \(\mathcal{R}_{st}\) as:
-
-\begin{equation}
-    \label{eq:bin_effect_subregion}
-    \hat{\mu}_{\mathcal{R}_{st}}(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k \cap \mathcal{R}_{st}|} \sum_{i:\mathbf{x}^i \in \mathcal{S}_k \cap \mathcal{R}_{st} } \dfdx(\mathbf{x}^i)
-\end{equation}
-
-\begin{equation}
-  \label{eq:bin_deviation_subregion}
-  \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k \cap \mathcal{R}_{st}| - 1}
-\sum_{i:\mathbf{x}^i \in \mathcal{S}_k \cap \mathcal{R}_{st} } \left ( \dfdx(\mathbf{x}^i) -
-    \hat{\mu}(z_{k-1}, z_k) \right )^2
-\end{equation}
-
-\begin{equation}
-  \label{eq:SE}
-  \mathcal{L}_{\mathcal{R}_{sk}} = \sum_{k=1}^K (z_k - z_{k-1})^2 \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k)
-\end{equation}
-
-The goal is to find the optimal set of subregions \(\{\mathcal{R}_{st}\}_{t=1}^{T_s}\) that minimize
-the aggregated deviation. For this reason, we define the following optimization problem:
+that minimize:
 
 \begin{equation}
   \label{eq:optimal_subregions}
   \begin{aligned}
     & \underset{\{\mathcal{R}_{st}\}_{t=1}^{T_s}}{\text{minimize}}
-    & & \sum_{t=1}^{T_s} \mathcal{L}_{\mathcal{R}_{st}} \\
+    & & \mathcal{L} = \sum_{s=1}^S \sum_{t=1}^{T} \mathcal{H}_{\mathcal{R}_{st}} \\
     & \text{subject to}
-    & & \bigcup_{t=1}^{T_s} \mathcal{R}_{st} = \mathcal{X} \\
+    & & \bigcup_{t=1}^{T} \mathcal{R}_{st} = \mathcal{X} \\
     & & & \mathcal{R}_{st} \cap \mathcal{R}_{s\tau} = \emptyset, \quad \forall t \neq \tau
   \end{aligned}
 \end{equation}
 
-For minimizing Eq.~\eqref{eq:SE}, we set up a CART-like algorithm, as proposed by \citet{herbinger2023decomposing}.
-The algorithm is described in Algorithm~\ref{alg:subregion_identification}.
+For minimizing Eq.~\eqref{eq:SE}, we set up a CART-like algorithm, as proposed by \citep{herbinger2023decomposing}.
+The backbone of the algorithm is described in Algorithm~\ref{alg:subregion_identification}.
+The basic idea is for each feature $s \in \{1, \ldots, D\}$, to exhaustively search level-by-level, for
+all possible splits before choosing the one that minimizes the interaction.
+For the first level, we search
 
 
 \begin{algorithm}
@@ -304,17 +309,17 @@ The algorithm is described in Algorithm~\ref{alg:subregion_identification}.
 \BlankLine
 \Output{optimal\_splits}
 \BlankLine
-splits[s, c, t] $\gets$ None\;
-positions[s, c, t] $\gets$ None\;
+splits[s, t] $\gets$ None\;
+positions[s, t] $\gets$ None\;
+feat\_c[s, t] $\gets$ None\;
 \For{$s = 1$ to $D$}{
-    \For{$c \in \{1, \dots, D\} \setminus \{s\}$}{
-        is\_cat = True/False \;
-        X\_list $\gets [X]$\;
-        J\_list $\gets [J]$\;
-        \For{$t = 1$ to $T$}{
-            L, position, X\_split, J\_split $\gets$ BestSplit(X\_list, J\_list, s, is\_cat)\;
-            splits[s, c, t] $\gets$ L\;
-            positions[s, c, t] $\gets$ position\;
+    X\_list $\gets [X]$\;
+    J\_list $\gets [J]$\;
+    \For{$t = 1$ to $T$}{
+            L, p, c, X\_list, J\_list $\gets$ BestSplit(X\_list, J\_list, s, is\_cat)\;
+            splits[s, t] $\gets$ L\;
+            position[s, t] $\gets$ p\;
+            feat\_c[s, t] $\gets$ c\;
         }
     }
 }
@@ -429,6 +434,29 @@ aforementioned methods to improve the accuracy of the resulting model, while mai
 \bibliography{report}
 
 \section{Appendix}
+
+\subsection{Regional DALE formulation}
+\label{sec:regional_dale}
+
+For this reason we define the bin-effect, the bin-deviation and the aggregated deviation on a subregion \(\mathcal{R}_{st}\) as:
+
+\begin{equation}
+    \label{eq:bin_effect_subregion}
+    \hat{\mu}_{\mathcal{R}_{st}}(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k \cap \mathcal{R}_{st}|} \sum_{i:\mathbf{x}^i \in \mathcal{S}_k \cap \mathcal{R}_{st} } \dfdx(\mathbf{x}^i)
+\end{equation}
+
+\begin{equation}
+  \label{eq:bin_deviation_subregion}
+  \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k \cap \mathcal{R}_{st}| - 1}
+\sum_{i:\mathbf{x}^i \in \mathcal{S}_k \cap \mathcal{R}_{st} } \left ( \dfdx(\mathbf{x}^i) -
+    \hat{\mu}(z_{k-1}, z_k) \right )^2
+\end{equation}
+
+\begin{equation}
+  \label{eq:SE}
+  \mathcal{L}_{\mathcal{R}_{sk}} = \sum_{k=1}^K (z_k - z_{k-1})^2 \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k)
+\end{equation}
+
 
     \subsubsection{Algorithmic Details of Subregion Detection}
 
