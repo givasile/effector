@@ -127,48 +127,63 @@ class DataTransformer:
         self.splits = splits
 
     def transform(self, X):
-        new_features = []
+        # feat_mapping <- to how many features each feature is mapped
+        feat_mapping = []
         for split in self.splits.values():
             if len(split) == 0:
-                new_features.append(1)
+                feat_mapping.append(1)
             else:
-                new_features.append(2**len(split))
+                feat_mapping.append(2**len(split))
 
+        # the enhaned data, without masking
         new_data = []
         for i in range(X.shape[1]):
-            new_data.append(np.repeat(X[:, i, np.newaxis], new_features[i], axis=-1))
+            new_data.append(np.repeat(X[:, i, np.newaxis], feat_mapping[i], axis=-1))
         new_data = np.concatenate(new_data, axis=-1)
 
         # create mask, based on splits
         mask = np.ones(new_data.shape)
+        new_columns = []
         for feat in range(X.shape[1]):
-            # position in new data
-            cur_pos = int(np.sum(new_features[:feat]))
+            # jj = j in the enhanced dataset
+            pos = int(np.sum(feat_mapping[:feat]))
 
-            if new_features[feat] == 1:
+            if feat_mapping[feat] == 1:
+                new_columns.append("x{}".format(feat))
                 continue
             else:
                 feat_splits = self.splits["feat_{}".format(feat)]
                 lst = [list(i) for i in itertools.product([0, 1], repeat=len(feat_splits))]
                 for ii, bin in enumerate(lst):
+                    new_name = "x{} | ".format(feat)
                     init_col_mask = np.ones(new_data.shape[0]) * True
                     for jj, b in enumerate(bin):
                         if b == 0:
                             if feat_splits[jj]["type"] == "cat":
                                 init_col_mask = np.logical_and(init_col_mask, X[:, feat_splits[jj]["feature"]] == feat_splits[jj]["position"])
+                                # add with two decimals
+                                new_name += "x{}={:.2f} & ".format(feat_splits[jj]["feature"], feat_splits[jj]["position"])
                             else:
                                 init_col_mask = np.logical_and(init_col_mask, X[:, feat_splits[jj]["feature"]] <= feat_splits[jj]["position"])
+                                new_name += "x{}<={:.2f} & ".format(feat_splits[jj]["feature"], feat_splits[jj]["position"])
                         else:
                             if feat_splits[jj]["type"] == "cat":
                                 init_col_mask = np.logical_and(init_col_mask, X[:, feat_splits[jj]["feature"]] != feat_splits[jj]["position"])
+                                new_name += "x{}!={:.2f} & ".format(feat_splits[jj]["feature"], feat_splits[jj]["position"])
                             else:
                                 init_col_mask = np.logical_and(init_col_mask, X[:, feat_splits[jj]["feature"]] > feat_splits[jj]["position"])
+                                new_name += "x{}>{:.2f} & ".format(feat_splits[jj]["feature"], feat_splits[jj]["position"])
                     # current position in mask
-                    mask[:, cur_pos + ii] = init_col_mask
+                    mask[:, pos + ii] = init_col_mask
+                    new_columns.append(new_name[:-3])
         self.mask = mask
         self.new_data = new_data * mask
+        self.new_names = new_columns
         return self.new_data
 
+
+def rename_features():
+    pass
 
 def pdp_heter(data, model, model_jac, foi, min_points=15):
     # if data is empty, return zero
