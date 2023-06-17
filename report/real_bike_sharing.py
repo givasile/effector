@@ -11,6 +11,16 @@ from tensorflow import keras
 import matplotlib.pyplot as plt
 from interpret.glassbox import ExplainableBoostingRegressor
 import sklearn.metrics as metrics
+import importlib
+from sklearn.utils import check_random_state
+import random
+pythia = importlib.reload(pythia)
+
+# make everyting reproducible
+np.random.seed(42)
+tf.random.set_seed(42)
+check_random_state(42)
+random.seed(42)
 
 def preprocess(df):
     # shuffle
@@ -102,36 +112,7 @@ X_train, Y_train, X_test, Y_test = split(X_df, Y_df)
 
 cols = df.columns
 
-# # train model
-# lin_model = linear_model.LinearRegression()
-# lin_model.fit(X_train, Y_train)
-# # root mean squared error
-# print("RMSE: ", metrics.mean_squared_error(Y_train, lin_model.predict(X_train), squared=False)*y_std)
-# print("R2 score: ", lin_model.score(X_train, Y_train))
-#
-# # Same on the test set
-# print("RMSE: ", metrics.mean_squared_error(Y_test, lin_model.predict(X_test), squared=False)*y_std)
-# print("R2 score: ", lin_model.score(X_test, Y_test))
-#
-# def lin_model_jac(x):
-#     return np.ones_like(x) * lin_model.coef_
-#
-# # Explain
-# ale = pythia.ALE(data=X_train.to_numpy(), model=lin_model.predict)
-# binning_method = pythia.binning_methods.Fixed(nof_bins=30)
-# ale.fit(features="all")
-# ale.plot(feature=8)
-#
-# rhale = pythia.RHALE(data=X_train.to_numpy(), model=lin_model.predict, model_jac=lin_model_jac)
-# binning_method = pythia.binning_methods.DynamicProgramming(max_nof_bins=30, min_points_per_bin=10)
-# rhale.fit(features="all", binning_method=binning_method)
-# rhale.plot(feature=8)
-#
-# # pdp = pythia.PDP(data=X_train.to_numpy(), model=lin_model.predict)
-# # pdp.plot(feature=8)
-#
-#
-#
+# Train - Evaluate - Explain a neural network
 model = keras.Sequential([
     keras.layers.Dense(1024, activation="relu"),
     keras.layers.BatchNormalization(),
@@ -148,8 +129,9 @@ model = keras.Sequential([
     keras.layers.Dense(1)
 ])
 
-model.compile(optimizer="adam", loss="mse", metrics=["mae", keras.metrics.RootMeanSquaredError()])
-model.fit(X_train, Y_train, epochs=3, verbose=1)
+optimizer = keras.optimizers.Adam(learning_rate=0.001)
+model.compile(optimizer=optimizer, loss="mse", metrics=["mae", keras.metrics.RootMeanSquaredError()])
+model.fit(X_train, Y_train, batch_size=512, epochs=60, verbose=1)
 model.evaluate(X_train, Y_train, verbose=1)
 model.evaluate(X_test, Y_test, verbose=1)
 
@@ -165,46 +147,86 @@ def model_jac(x):
 def model_forward(x):
     return model(x).numpy().squeeze()
 
+# Explain
+ale = pythia.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
+binning_method = pythia.binning_methods.Greedy(init_nof_bins=200, min_points_per_bin=10)
+ale.fit(features=3, binning_method=binning_method)
+ale.plot(feature=3)
+
+
 # find regions
 reg = pythia.regions.Regions(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, cat_limit=25)
 reg.find_splits(nof_levels=2, nof_candidate_splits=10, method="rhale")
 opt_splits = reg.choose_important_splits(0.2)
 
+# check opt_splits for feature s
+s = 3
+if bool(opt_splits["feat_%s" % s]) is False:
+    print("Feature: %s, no splits" % cols[s])
+else:
+    for i in range(len(opt_splits["feat_%s" % s])):
+        print("Feature: %s, level: %s, opt_splits:" % (cols[s], i+1))
+        print("---> Feature: %s" % (cols[opt_splits["feat_%s" % s][i]["feature"]]))
+        print("---> Position: %s" % (opt_splits["feat_%s" % s][i]["position"]))
+        print("---> Candidate Positions: %s" % (opt_splits["feat_%s" % s][i]["candidate_split_positions"]))
+        print("---> Weighted Heterogeneity before: %s" % (opt_splits["feat_%s" % s][i]["weighted_heter"] + opt_splits["feat_%s" % s][i]["weighted_heter_drop"]))
+        print("---> Weighted Heterogeneity after : %s" % (opt_splits["feat_%s" % s][i]["weighted_heter"]))
+
+
+# transform data
 transf = pythia.regions.DataTransformer(splits=opt_splits)
 X_train_new = transf.transform(X_train.to_numpy())
 X_test_new = transf.transform(X_test.to_numpy())
 
-# train model
-# fit a GAM to the transformed data
-gam_subspaces = ExplainableBoostingRegressor(interactions=0)
-gam_subspaces.fit(X_train_new, Y_train)
-y_train_pred = gam_subspaces.predict(X_train_new)
-print(gam_subspaces.score(X_test_new, Y_test))
-print("RMSE: ", metrics.mean_squared_error(Y_train, y_train_pred, squared=False))
-print("RMSE: ", metrics.mean_squared_error(Y_test, gam_subspaces.predict(X_test_new), squared=False))
-
-# fit an EBM
-ebm = ExplainableBoostingRegressor(interactions=0)
-ebm.fit(X_train, Y_train)
-y_train_pred = ebm.predict(X_train)
-print(ebm.score(X_test, Y_test))
-print("RMSE: ", metrics.mean_squared_error(Y_train, y_train_pred, squared=False))
-print("RMSE: ", metrics.mean_squared_error(Y_test, ebm.predict(X_test), squared=False))
+def fit_eval_gam(title, model, X_train, Y_train, X_test, Y_test):
+    print(title)
+    model.fit(X_train, Y_train)
+    y_train_pred = model.predict(X_train)
+    print(model.score(X_test, Y_test))
+    print("RMSE - TRAIN: ", metrics.mean_squared_error(Y_train, y_train_pred, squared=False))
+    print("MAE - TRAIN", metrics.mean_absolute_error(Y_train, y_train_pred))
+    print("RMSE - TEST: ", metrics.mean_squared_error(Y_test, model.predict(X_test), squared=False))
+    print("MAE - TEST", metrics.mean_absolute_error(Y_test, model.predict(X_test)))
 
 
-# fit GAM with interactions to the initial data
-ebm_interactions = ExplainableBoostingRegressor()
-ebm_interactions.fit(X_train, Y_train)
-y_train_pred = ebm_interactions.predict(X_train)
-print(ebm_interactions.score(X_test, Y_test))
-print("RMSE: ", metrics.mean_squared_error(Y_train, y_train_pred, squared=False))
-print("RMSE: ", metrics.mean_squared_error(Y_test, ebm_interactions.predict(X_test), squared=False))
+# fit a RAM (no interactions)
+title = "RAM (no interactions)"
+ram_no_int = ExplainableBoostingRegressor(interactions=0)
+fit_eval_gam(title, ram_no_int, X_train_new, Y_train, X_test_new, Y_test)
+
+# fit a GAM (no interactions)
+title = "GAM (no interactions)"
+gam_no_int = ExplainableBoostingRegressor(interactions=0)
+fit_eval_gam(title, gam_no_int, X_train, Y_train, X_test, Y_test)
+
+# fit RAM (with interactions)
+title = "RAM (with interactions)"
+ram_int = ExplainableBoostingRegressor()
+fit_eval_gam(title, ram_int, X_train_new, Y_train, X_test_new, Y_test)
+
+# fit a GAM (with interactions)
+title = "GAM (with interactions)"
+gam_int = ExplainableBoostingRegressor()
+fit_eval_gam(title, gam_int, X_train, Y_train, X_test, Y_test)
 
 
-# fit GAM with interactions to the transformed data
-ebm_interactions = ExplainableBoostingRegressor()
-ebm_interactions.fit(X_train_new, Y_train)
-y_train_pred = ebm_interactions.predict(X_train_new)
-print(ebm_interactions.score(X_test_new, Y_test))
-print("RMSE: ", metrics.mean_squared_error(Y_train, y_train_pred, squared=False))
-print("RMSE: ", metrics.mean_squared_error(Y_test, ebm_interactions.predict(X_test_new), squared=False))
+# Plot a feature of the Explainable Boosting Regressor
+def get_effect_from_ebm(ebm_model, ii):
+    explanation = ebm_model.explain_global()
+    xx = explanation.data(ii)["names"][:-1]
+    yy = explanation.data(ii)["scores"]
+    return xx, yy
+
+def plot_effect_ebm(ebm_model, ii):
+    xx, yy = get_effect_from_ebm(ebm_model, ii)
+    plt.figure(figsize=(10, 6))
+    plt.plot(xx, yy)
+    plt.show()
+
+# plot effect of feature 3
+plot_effect_ebm(gam_no_int, 3)
+
+#
+print(transf.new_names)
+plot_effect_ebm(ram_no_int, 4)
+plot_effect_ebm(ram_no_int, 5)

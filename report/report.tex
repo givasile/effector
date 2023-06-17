@@ -6,11 +6,13 @@
 \usepackage{graphicx}
 \usepackage{geometry}[margin=1in]
 \usepackage{subcaption}
+\usepackage{array}
 
 % for algorithms
 \usepackage[linesnumbered,ruled]{algorithm2e}
 
 \usepackage{natbib}
+\usepackage{multicol}
 \bibliographystyle{plainnat}
 % set path for bibliography
 
@@ -395,6 +397,27 @@ aforementioned methods to improve the accuracy of the resulting model, while mai
 \subsection{Synthetic Examples}
 
 \subsection{Real-World Datasets}
+
+
+\begin{table}[htbp]
+  \centering
+  \caption{Result Comparison}
+  \label{tab:sample}
+  \begin{tabular}{cccccc}
+      \hline
+      Type & \textbf{Black-box} & \multicolumn{4}{c}{\textbf{x-by-design}} \\
+      \hline
+      \hline
+      Interactions & \textbf{all orders} & \multicolumn{2}{c}{1\textsuperscript{st} order} & \multicolumn{2}{c}{2\textsuperscript{nd} order} \\
+      \hline
+      Model & \textbf{DNN} & \textbf{GAM} & \textbf{RAM} & \textbf{GAM}$^2$ & \textbf{RAM}$^2$ \\
+      \hline
+      Training & 0.135 & 0.374 & 0.274 & 0.181 & 0.176 \\
+      Test     & 0.254 & 0.549 & 0.430 & 0.298 & 0.278 \\
+      \hline
+  \end{tabular}
+\end{table}
+
 
 
 
