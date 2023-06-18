@@ -398,23 +398,117 @@ aforementioned methods to improve the accuracy of the resulting model, while mai
 
 \subsection{Real-World Datasets}
 
+We evaluate the proposed approach on two typical tabular datasets, namely the Bike-Sharing Dataset~\citep{misc_bike_sharing_dataset_275}
+and the California Housing Dataset~\citep{pace1997sparse}.
+
+\paragraph{Bike-Sharing Dataset}
+
+The Bike-Sharing dataset contains the hourly bike rentals in Washington DC. over the period 2011 and 2012.
+The dataset contains 14 features and we select the 11 features that are relevant to the prediction task.
+Most of the features are measurements of the environmental conditions, like,
+month, hour, temperature, humidity, windspeed, while some others containt information about the
+day-type, e.g. if it is working-day.
+The target value \( Y_{\mathtt{count}}\) is the bike rentals per hour, which has mean value
+\(\mu_{\mathtt{count}} = 189\) and standard deviation \(\sigma_{\mathtt{count}} = 181\).
+
+% Training - Evaluation - Region Extraction
+As black-box model, we train a deep fully-connected Neural Network with 6 hidden layers,
+for \(20\) epochs using the Adam optimizer with learning rate 0.001, that
+leads a root mean squared error of \( 0.38 \cdot 181 \approx 69\) counts on the test set.
+
+We extract the subregions, setting the maximum depth of the tree to \(T=3\).
+The only feature that is split is $X_{\mathtt{hour}}$, which is split into $X_{\mathtt{hour}} | \when{X_{\mathtt{workingday}} \neq 1}$ and $X_{\mathtt{hour}} \when{X_{\mathtt{workingday} = 1}}$.
+As we observe in Figure (add citation), it is confirmed
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/bike_rentals_gam}
+        \caption{\(f(X_{\mathtt{hour}})\)}
+        \label{subfig:bike_rentals_gam}
+    \end{subfigure}
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/bike_rentals_ram_1}
+        \caption{\(f(X_{\mathtt{hour}}) \when{X_{\mathtt{workingday}} \neq 1}\)}
+        \label{subfig:bike_rentals_regional_gam_1}
+    \end{subfigure}
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/bike_rentals_ram_2}
+        \caption{\(f(X_{\mathtt{hour}}) \when{X_{\mathtt{workingday}} = 1}\)}
+        \label{subfig:bike_rentals_regional_gam_2}
+    \end{subfigure}
+    \caption{Caption for the entire figure}
+    \label{fig:bike_sharing}
+\end{figure}
+
+
+\paragraph{California Housing Dataset}
+The California Housing is a largely-studied dataset with approximately
+\(20000\) training instances, making it appropriate for robust
+approximation with large \(K\).  The dataset contains \(D=8\)
+numerical features with characteristics about the building blocks of
+California, e.g., latitude, longitude, population of the block or
+median age of houses in the block.  The target variable is the median
+value of the houses inside the block in dollars that ranges between
+\([15, 500] \cdot 10^3\), with a mean value of
+\(\mu_Y \approx 201 \cdot 10^3 \) and a standard deviation of
+\(\sigma_Y \approx 110 \cdot 10^3\). We exclude instances with missing
+or outlier values and we normalize all features to zero-mean and unit
+standard deviation. We split the dataset into \(N_{tr} = 15639\)
+training and \(N_{test} = 3910\) test examples (80/20 split) and we
+fit a Neural Network with 3 hidden layers of 256, 128 and 36 units
+respectively.  After 15 epochs using the Adam optimizer with learning
+rate \(\eta = 0.02\), the model achieves a MAE of \(37 \cdot 10^3\)
+dollars.
+
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/california_gam}
+        \caption{\(f(X_{\mathtt{longitude}})\)}
+        \label{subfig:california_gam}
+    \end{subfigure}
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/california_ram_1}
+        \caption{\(f(X_{\mathtt{longitude}}) \when{X_{\mathtt{latitude}} \leq 34.89}\)}
+        \label{subfig:california_ram_1}
+    \end{subfigure}
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/california_ram_2}
+        \caption{\(f(X_{\mathtt{longitude}}) \when{X_{\mathtt{latitude}} > 34.89}\)}
+        \label{subfig:california_ram_2}
+    \end{subfigure}
+    \caption{Caption for the entire figure}
+    \label{fig:california_housing}
+\end{figure}
+
 
 \begin{table}[htbp]
   \centering
   \caption{Result Comparison}
   \label{tab:sample}
-  \begin{tabular}{cccccc}
+  \begin{tabular}{l|c|cccc}
       \hline
       Type & \textbf{Black-box} & \multicolumn{4}{c}{\textbf{x-by-design}} \\
       \hline
       \hline
       Interactions & \textbf{all orders} & \multicolumn{2}{c}{1\textsuperscript{st} order} & \multicolumn{2}{c}{2\textsuperscript{nd} order} \\
       \hline
+      \hline
       Model & \textbf{DNN} & \textbf{GAM} & \textbf{RAM} & \textbf{GAM}$^2$ & \textbf{RAM}$^2$ \\
       \hline
       Training & 0.135 & 0.374 & 0.274 & 0.181 & 0.176 \\
       Test     & 0.254 & 0.549 & 0.430 & 0.298 & 0.278 \\
       \hline
+      Training & 0.282 & 0.322 & 0.314 & 0.278 & 0.265 \\
+      Test     & 0.369 & 0.600 & 0.535 & 0.554 & 0.514 \\
   \end{tabular}
 \end{table}
 

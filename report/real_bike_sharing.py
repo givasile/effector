@@ -49,53 +49,53 @@ def split(X_df, Y_df):
     return X_train, Y_train, X_test, Y_test
 
 
-def plot_subregions_rhale(feat, feature, type, position, X_train, model, model_jac):
+def plot_subregions(splits, feat, feat_ram, X_train, model, model_jac, gam, ram):
+    foc = splits["feat_{0}".format(feat)][0]["feature"]
+    position = splits["feat_{0}".format(feat)][0]["position"]
+    type = splits["feat_{0}".format(feat)][0]["type"]
+
     # Regional Plot
     if type == "cat":
         rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
-        rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] == position].to_numpy(), model=model, model_jac=model_jac)
-        rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] != position].to_numpy(), model=model, model_jac=model_jac)
+        rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, foc] == position].to_numpy(), model=model, model_jac=model_jac)
+        rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, foc] != position].to_numpy(), model=model, model_jac=model_jac)
     else:
         rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
-        rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] <= position].to_numpy(), model=model, model_jac=model_jac)
-        rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] > position].to_numpy(), model=model, model_jac=model_jac)
+        rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, foc] <= position].to_numpy(), model=model, model_jac=model_jac)
+        rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, foc] > position].to_numpy(), model=model, model_jac=model_jac)
 
-    def plot(rhale):
-        binning_method = pythia.binning_methods.Fixed(nof_bins=100)
-        rhale.fit(features=feat, binning_method=binning_method, centering="zero_integral")
-        scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
-        scale_y = {"mean": 0, "std": y_std}
-        rhale.plot(feature=feat, uncertainty=None, scale_x=scale_x, scale_y=scale_y)
+    rhale.fit(features=feat, binning_method=pythia.binning_methods.Greedy(), centering="zero_integral")
+    rhale_1.fit(features=feat, binning_method=pythia.binning_methods.Greedy(), centering="zero_integral")
+    rhale_2.fit(features=feat, binning_method=pythia.binning_methods.Greedy(), centering="zero_integral")
+
+    def get_effect_from_ebm(ebm_model, ii):
+        explanation = ebm_model.explain_global()
+        xx = explanation.data(ii)["names"][:-1]
+        yy = explanation.data(ii)["scores"]
+        return xx, yy
+
+    def plot_fig(ebm, rhale, title, feat, feat_ram, xlabel, ylabel, save=False):
+        # gam
+        xx, y_ebm = get_effect_from_ebm(ebm, feat_ram)
+        xx = np.array(xx)
+        y_rhale = rhale.eval(feature=feat, x=xx, uncertainty=False, centering="zero_integral")
+
+        plt.figure()
+        plt.title(title)
+        plt.plot(xx*x_std.iloc[feat] + x_mean.iloc[feat], y_ebm*y_std, "r--", label="EBM")
+        plt.plot(xx*x_std.iloc[feat] + x_mean.iloc[feat], y_rhale*y_std, "b--", label="DALE")
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.legend()
+        if save is not False:
+            plt.savefig(save)
+
         plt.show()
 
-    # plot global and regionals
-    plot(rhale)
-    plot(rhale_1)
-    plot(rhale_2)
+    plot_fig(gam, rhale, "GAM", feat, feat, "hour", "Bike Rentals", "./figures/bike_rentals_gam.pdf")
+    plot_fig(ram, rhale_1, "RAM", feat, feat_ram[0], "Hour (non workingday)", "Bike Rentals", "./figures/bike_rentals_ram_1.pdf")
+    plot_fig(ram, rhale_2, "RAM", feat, feat_ram[1], "Hour (workingday)", "Bike Rentals", "./figures/bike_rentals_ram_2.pdf")
 
-
-def plot_subregions_pdp_ice(feat, features, types, positions, X_train, model):
-    # Regional Plot
-    if types[0] == "categorical":
-        pdp = pythia.pdp.PDPwithICE(data=X_train.to_numpy(), model=model)
-        pdp_1 = pythia.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] == positions[0]].to_numpy(), model=model)
-        pdp_2 = pythia.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] != positions[0]].to_numpy(), model=model)
-    else:
-        pdp = pythia.pdp.PDPwithICE(data=X_train.to_numpy(), model=model)
-        pdp_1 = pythia.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] <= positions[0]].to_numpy(), model=model)
-        pdp_2 = pythia.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] > positions[0]].to_numpy(), model=model)
-
-    def plot(pdp):
-        pdp.fit(features=feat, centering=False)
-        scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
-        scale_y = {"mean": 0, "std": y_std}
-        pdp.plot(feature=feat, scale_x=scale_x, scale_y=scale_y)
-        plt.show()
-
-    # plot global and regionals
-    plot(pdp)
-    plot(pdp_1)
-    plot(pdp_2)
 
 # load dataset
 df = pd.read_csv("./../data/Bike-Sharing-Dataset/hour.csv")
@@ -155,22 +155,22 @@ ale.plot(feature=3)
 
 
 # find regions
-reg = pythia.regions.Regions(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, cat_limit=25)
+reg = pythia.regions.Regions(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, cat_limit=15)
 reg.find_splits(nof_levels=2, nof_candidate_splits=10, method="rhale")
 opt_splits = reg.choose_important_splits(0.2)
 
 # check opt_splits for feature s
-s = 3
-if bool(opt_splits["feat_%s" % s]) is False:
-    print("Feature: %s, no splits" % cols[s])
-else:
-    for i in range(len(opt_splits["feat_%s" % s])):
-        print("Feature: %s, level: %s, opt_splits:" % (cols[s], i+1))
-        print("---> Feature: %s" % (cols[opt_splits["feat_%s" % s][i]["feature"]]))
-        print("---> Position: %s" % (opt_splits["feat_%s" % s][i]["position"]))
-        print("---> Candidate Positions: %s" % (opt_splits["feat_%s" % s][i]["candidate_split_positions"]))
-        print("---> Weighted Heterogeneity before: %s" % (opt_splits["feat_%s" % s][i]["weighted_heter"] + opt_splits["feat_%s" % s][i]["weighted_heter_drop"]))
-        print("---> Weighted Heterogeneity after : %s" % (opt_splits["feat_%s" % s][i]["weighted_heter"]))
+for s in range(len(opt_splits)):
+    if bool(opt_splits["feat_%s" % s]) is False:
+        print("Feature: %s, no splits" % cols[s])
+    else:
+        for i in range(len(opt_splits["feat_%s" % s])):
+            print("Feature: %s, level: %s, opt_splits:" % (cols[s], i+1))
+            print("---> Feature: %s" % (cols[opt_splits["feat_%s" % s][i]["feature"]]))
+            print("---> Position: %s" % (opt_splits["feat_%s" % s][i]["position"]))
+            print("---> Candidate Positions: %s" % (opt_splits["feat_%s" % s][i]["candidate_split_positions"]))
+            print("---> Weighted Heterogeneity before: %s" % (opt_splits["feat_%s" % s][i]["weighted_heter"] + opt_splits["feat_%s" % s][i]["weighted_heter_drop"]))
+            print("---> Weighted Heterogeneity after : %s" % (opt_splits["feat_%s" % s][i]["weighted_heter"]))
 
 
 # transform data
@@ -190,43 +190,23 @@ def fit_eval_gam(title, model, X_train, Y_train, X_test, Y_test):
 
 
 # fit a RAM (no interactions)
-title = "RAM (no interactions)"
+title = "\nRAM (no interactions)"
 ram_no_int = ExplainableBoostingRegressor(interactions=0)
 fit_eval_gam(title, ram_no_int, X_train_new, Y_train, X_test_new, Y_test)
 
 # fit a GAM (no interactions)
-title = "GAM (no interactions)"
+title = "\nGAM (no interactions)"
 gam_no_int = ExplainableBoostingRegressor(interactions=0)
 fit_eval_gam(title, gam_no_int, X_train, Y_train, X_test, Y_test)
 
 # fit RAM (with interactions)
-title = "RAM (with interactions)"
+title = "\nRAM (with interactions)"
 ram_int = ExplainableBoostingRegressor()
 fit_eval_gam(title, ram_int, X_train_new, Y_train, X_test_new, Y_test)
 
 # fit a GAM (with interactions)
-title = "GAM (with interactions)"
+title = "\nGAM (with interactions)"
 gam_int = ExplainableBoostingRegressor()
 fit_eval_gam(title, gam_int, X_train, Y_train, X_test, Y_test)
 
-
-# Plot a feature of the Explainable Boosting Regressor
-def get_effect_from_ebm(ebm_model, ii):
-    explanation = ebm_model.explain_global()
-    xx = explanation.data(ii)["names"][:-1]
-    yy = explanation.data(ii)["scores"]
-    return xx, yy
-
-def plot_effect_ebm(ebm_model, ii):
-    xx, yy = get_effect_from_ebm(ebm_model, ii)
-    plt.figure(figsize=(10, 6))
-    plt.plot(xx, yy)
-    plt.show()
-
-# plot effect of feature 3
-plot_effect_ebm(gam_no_int, 3)
-
-#
-print(transf.new_names)
-plot_effect_ebm(ram_no_int, 4)
-plot_effect_ebm(ram_no_int, 5)
+plot_subregions(splits=reg.important_splits, feat=3, feat_ram=[3,4], X_train=X_train, model=model, model_jac=model_jac, gam=gam_no_int, ram=ram_no_int)
