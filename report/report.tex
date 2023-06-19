@@ -394,31 +394,42 @@ aforementioned methods to improve the accuracy of the resulting model, while mai
 
 \section{Experiments}
 
-\subsection{Synthetic Examples}
-
-\subsection{Real-World Datasets}
-
 We evaluate the proposed approach on two typical tabular datasets, namely the Bike-Sharing Dataset~\citep{misc_bike_sharing_dataset_275}
 and the California Housing Dataset~\citep{pace1997sparse}.
 
 \paragraph{Bike-Sharing Dataset}
 
-The Bike-Sharing dataset contains the hourly bike rentals in Washington DC. over the period 2011 and 2012.
-The dataset contains 14 features and we select the 11 features that are relevant to the prediction task.
-Most of the features are measurements of the environmental conditions, like,
-month, hour, temperature, humidity, windspeed, while some others containt information about the
-day-type, e.g. if it is working-day.
+The Bike-Sharing dataset contains the hourly bike rentals in the state of Washington DC over the period 2011 and 2012.
+The dataset contains a total of 14 features, out of which 11 are selected as relevant for the purpose of prediction.
+The majority of these features involve measurements related to environmental conditions,
+such as $X_{\mathtt{month}}$, $X_{\mathtt{hour}}$, $X_{\mathtt{temperature}}$, $X_{\mathtt{humidity}}$ and $X_{\mathtt{windspeed}}$.
+Additionally, certain features provide information about the type of day, for example, whether it is a working day ($X_{\mathtt{workingday}}$) or not.
 The target value \( Y_{\mathtt{count}}\) is the bike rentals per hour, which has mean value
 \(\mu_{\mathtt{count}} = 189\) and standard deviation \(\sigma_{\mathtt{count}} = 181\).
 
 % Training - Evaluation - Region Extraction
-As black-box model, we train a deep fully-connected Neural Network with 6 hidden layers,
-for \(20\) epochs using the Adam optimizer with learning rate 0.001, that
-leads a root mean squared error of \( 0.38 \cdot 181 \approx 69\) counts on the test set.
+As a black-box model, we train for \(60\) epochs a fully-connected Neural Network with 6 hidden layers, using the Adam optimizer with a learning rate of $0.001$.
+The model attains a root mean squared error of \( 0.25 \cdot 181 \approx 45\) counts on the test set.
+Subsequently, we extract the subregions, searching for splits up to a maximum spliting depth of \(T=3\).
+Following the postprocessing step, we find that the only split that substantially reduces the level of interactions within the subregions is based on the feature
+$X_{\mathtt{hour}}$. This feature is divided into two subgroups: $X_{\mathtt{hour}} | \when{X_{\mathtt{workingday}} \neq 1}$ and $X_{\mathtt{hour}} \when{X_{\mathtt{workingday} = 1}}$.
 
-We extract the subregions, setting the maximum depth of the tree to \(T=3\).
-The only feature that is split is $X_{\mathtt{hour}}$, which is split into $X_{\mathtt{hour}} | \when{X_{\mathtt{workingday}} \neq 1}$ and $X_{\mathtt{hour}} \when{X_{\mathtt{workingday} = 1}}$.
-As we observe in Figure (add citation), it is confirmed
+Figure~\ref{fig:bike_sharing} clearly illustrates that the impact of the hour of the day on bike rentals varies
+significantly depending on whether it is a working day or a non-working day.
+Specifically, during working days, there is higher demand for bike rentals in the morning and afternoon hours,
+which aligns with the typical commuting times (\ref{subfig:bike_rentals_regional_gam_1}).
+On the other hand, during non-working days, bike rentals peak in the afternoon as individuals engage in
+leisure activities (\ref{subfig:bike_rentals_regional_gam_2}).
+The proposed RAM method effectively captures and detects this interaction by establishing two distinct subregions,
+each corresponding to working days and non-working days, respectively.
+Subsequently, the EBM that is fitted to each subregion, successfully learns these patterns,
+achieving a root mean squared error of approximately \( 0.43 \cdot 181 \approx 77\) counts on the test set.
+It is noteworthy that RAM not only preserves the interpretability of the model,
+but it also enhances the interpretation of the underlying modeling process.
+By identifying and highlighting the interaction between the hour of the day and the day type,
+RAM provides valuable insights into the relationship between these variables and their influence on bike rentals.
+In contrast, the GAM model~\ref{subfig:bike_rentals_gam} is not able to capture this interaction and
+achieves a root mean squared error of \( 0.55 \cdot 181 \approx 100\) counts on the test set.
 
 \begin{figure}[htbp]
     \centering
@@ -440,7 +451,13 @@ As we observe in Figure (add citation), it is confirmed
         \caption{\(f(X_{\mathtt{hour}}) \when{X_{\mathtt{workingday}} = 1}\)}
         \label{subfig:bike_rentals_regional_gam_2}
     \end{subfigure}
-    \caption{Caption for the entire figure}
+    \caption{Comparison of different models' predictions for bike rentals based on the hour of the day.
+    Subfigure (a) depicts the generalized additive model (GAM),
+        while subfigures (b) and (c) illustrate the RAM model's predictions for different day types: non-working days
+        \(f(X_{\mathtt{hour}}) \when{X_{\mathtt{workingday}} \neq 1}\) and
+        working days \(f(X_{\mathtt{hour}}) \when{X_{\mathtt{workingday}} = 1}\), respectively.
+        The RAM model successfully captures the interaction between the hour of the day and the day type,
+        leading to improved predictions and enhanced interpretability.}
     \label{fig:bike_sharing}
 \end{figure}
 
