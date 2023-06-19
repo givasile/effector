@@ -7,6 +7,7 @@
 \usepackage{geometry}[margin=1in]
 \usepackage{subcaption}
 \usepackage{array}
+\usepackage{multirow}
 
 % for algorithms
 \usepackage[linesnumbered,ruled]{algorithm2e}
@@ -36,17 +37,17 @@
 \maketitle
 
 \begin{abstract}
-Generalized Additive Models (GAMs) are a popular class of explainable-by-design models that are widely used in practice.
-GAMs are based on the assumption that the effect of each feature on the target is independent of the values of the
-other features, however, in cases where this assumption is violated they may lead to poor performance.
-To address this limitation we propose Regionally Additive Models (RAMs), a novel class of explainable-by-design models,
-that fits multiple GAMs to subregions of the feature space where interactions are minimized.
-Our approach consists of two steps: first, we fit a black-box model and we identify the subregions where the black-box model is nearly locally additive,
-i.e., where the effect of each feature on the target is independent of the values of the other features.
-Secondly, we train a GAM specifically for each identified subregion.
-
-We show that RAMs are more expressive than GAMs while they are still interpretable.
-
+Generalized Additive Models (GAMs) are widely utilized explainable-by-design models in various applications.
+However, their assumption of independence among features can lead to suboptimal performance when violated.
+To overcome this limitation, we introduce Regionally Additive Models (RAMs), a novel class of explainable-by-design models.
+RAMs mitigate the issue by identifying subregions in the feature space where interactions are minimized and fitting multiple GAMs accordingly.
+The RAM framework consists of three steps.
+Firstly, we train a black-box model.
+Secondly, using Regional Effect Plots, we identify subregions where the black-box model exhibits near-local additivity.
+In these subregions, the effect of each feature on the target is independent of the values of other features.
+Lastly, we fit a GAM specifically for each identified subregion.
+We validate the effectiveness of RAMs through experiments on both a synthetic example and real-world datasets.
+The results confirm that RAMs offer improved expressiveness compared to GAMs while maintaining interpretability.
 \end{abstract}
 
 \section{Introduction}
@@ -394,6 +395,26 @@ aforementioned methods to improve the accuracy of the resulting model, while mai
 
 \section{Experiments}
 
+\begin{table}[htbp]
+  \centering
+  \caption{Result Comparison}
+  \label{tab:sample}
+  \begin{tabular}{l|c|cccc}
+      \hline
+      & \textbf{Black-box} & \multicolumn{4}{c}{\textbf{x-by-design}} \\
+      \hline
+      \hline
+      & all orders & \multicolumn{2}{c}{1\textsuperscript{st} order} & \multicolumn{2}{c}{2\textsuperscript{nd} order} \\
+      \hline
+      \hline
+      & \textbf{DNN} & \textbf{GAM} & \textbf{RAM} & \textbf{GAM}$^2$ & \textbf{RAM}$^2$ \\
+      \hline
+      Bike Sharing      & 0.254 & 0.549 & 0.430 & 0.298 & 0.278 \\
+      \hline
+      California Housing      & 0.369 & 0.600 & 0.535 & 0.554 & 0.514 \\
+  \end{tabular}
+\end{table}
+
 We evaluate the proposed approach on two typical tabular datasets, namely the Bike-Sharing Dataset~\citep{misc_bike_sharing_dataset_275}
 and the California Housing Dataset~\citep{pace1997sparse}.
 
@@ -430,6 +451,8 @@ By identifying and highlighting the interaction between the hour of the day and 
 RAM provides valuable insights into the relationship between these variables and their influence on bike rentals.
 In contrast, the GAM model~\ref{subfig:bike_rentals_gam} is not able to capture this interaction and
 achieves a root mean squared error of \( 0.55 \cdot 181 \approx 100\) counts on the test set.
+Finally, in table~\ref{tab:sample}, we also observe that the RAM$^2$, i.e., RAM with second-order interactions,
+outperforms the equivalent GAM$^2$ model in terms of predictive performance.
 
 \begin{figure}[htbp]
     \centering
@@ -463,23 +486,60 @@ achieves a root mean squared error of \( 0.55 \cdot 181 \approx 100\) counts on 
 
 
 \paragraph{California Housing Dataset}
-The California Housing is a largely-studied dataset with approximately
-\(20000\) training instances, making it appropriate for robust
-approximation with large \(K\).  The dataset contains \(D=8\)
-numerical features with characteristics about the building blocks of
-California, e.g., latitude, longitude, population of the block or
-median age of houses in the block.  The target variable is the median
-value of the houses inside the block in dollars that ranges between
-\([15, 500] \cdot 10^3\), with a mean value of
-\(\mu_Y \approx 201 \cdot 10^3 \) and a standard deviation of
-\(\sigma_Y \approx 110 \cdot 10^3\). We exclude instances with missing
-or outlier values and we normalize all features to zero-mean and unit
-standard deviation. We split the dataset into \(N_{tr} = 15639\)
-training and \(N_{test} = 3910\) test examples (80/20 split) and we
-fit a Neural Network with 3 hidden layers of 256, 128 and 36 units
-respectively.  After 15 epochs using the Adam optimizer with learning
-rate \(\eta = 0.02\), the model achieves a MAE of \(37 \cdot 10^3\)
-dollars.
+
+
+The California Housing dataset consists of approximately $20,000$ of housing blocks situated in California.
+Each housing block is described by eight numerical features, namely,
+$X_{\mathtt{latitude}}$, $X_{\mathtt{longitude}}$, $X_{\mathtt{median\_age}}$, $X_{\mathtt{total\_rooms}}$, $X_{\mathtt{total\_bedrooms}}$, $X_{\mathtt{population}}$, $X_{\mathtt{households}}$, and $X_{\mathtt{median\_income}}$.
+The target variable, $Y_{\mathtt{value}}$, is the median house value in dollars for each block.
+The target value ranges in the interval \([15, 500] \cdot 10^3\), with a mean value of
+\(\mu_Y \approx 201 \cdot 10^3 \) and a standard deviation of \(\sigma_Y \approx 110 \cdot 10^3\).
+
+As a black-box model, we train for $45$ epochs a fully-connected Neural Network with 6 hidden layers,
+using the Adam optimizer with a learning rate of $0.001$.
+The model achieves a root mean square error (RMSE) of about \(40\)K dollars on the test set.
+Subsequently, we perform subregion extraction by searching for splits up to a maximum depth of \(T=3\).
+After the postprocessing step, we discover that several splits significantly reduce the level of interactions,
+resulting in an expanded input space consisting of \(16\) features, as we show in table~\ref{tab:california_housing_subregions}.
+Out of them, we randomly select and illustrate in Figure~\ref{fig:california_housing} the effect of the feature $X_{\mathtt{longitude}}$.
+As we observe, for the house blocks located in the southern part of California ($X_{\mathtt{latitude}} \leq 34.9$),
+the house value decreases in an almost linear fashion as we move eastward ($X_{\mathtt{longitude}}$ increases).
+In contrast, for the house blocks located in the northern part of California ($X_{\mathtt{latitude}} > 34.9$),
+the house value performs a rapid (non-linear) decrease as we move eastward ($X_{\mathtt{longitude}}$ increases).
+We also observe that although the EBM fitted to each subregion captures the general trend,
+it does not align perfectly with the regional effect.
+As in the Bike-Sharing Example, the RMSE of the RAM model, i.e. \( 0.53 \cdot 110 \cdot 10^3 \approx 58.3 \cdot 10^3\) dollars on the test set,
+is lower than the one of the GAM model, i.e.\( 0.6 \cdot 110 \cdot 10^3 \approx 66 \cdot 10^3\) dollars.
+These results indicate that the RAM model provides superior predictions compared to the GAM model.
+The same conclusion holds is when comparing the RAM$^2$ and the GAM$^2$ models.
+\begin{table}[htbp]
+  \centering
+  \caption{California Housing: Subregions Detected by RAM}
+  \label{tab:california_housing_subregions}
+  \begin{tabular}{c|c|}
+      Feature & Subregions \\
+      \hline
+      \multirow{2}{*}{$X_{\mathtt{longitude}}$} & $X_{\mathtt{longitude}} \when{X_{\mathtt{latitude}} \leq 34.9}$ \\
+      & $X_{\mathtt{longitude}} \when{X_{\mathtt{latitude}} > 34.9}$ \\
+      \hline
+      \multirow{2}{*}{$X_{\mathtt{latitude}}$} & $X_{\mathtt{latitude}} \when{X_{\mathtt{longitude}} \leq -120.31}$ \\
+      & $X_{\mathtt{latitude}} \when{X_{\mathtt{longitude}} > -120.31}$ \\
+      \hline
+      \multirow{2}{*}{$X_{\mathtt{total\_rooms}}$} & $X_{\mathtt{total\_rooms}} \when{X_{\mathtt{total\_bedrooms}} \leq 449.37}$ \\
+        & $X_{\mathtt{total\_rooms}} \when{X_{\mathtt{total\_bedrooms}} > 449.37}$ \\
+      \hline
+      \multirow{4}{*}{$X_{\mathtt{total\_bedrooms}}$} & $X_{\mathtt{total\_bedrooms}} \when{X_{\mathtt{households}} \leq 411} \when{X_{\mathtt{total\_bedrooms}} \leq 647}$ \\
+        & $X_{\mathtt{total\_bedrooms}} \when{X_{\mathtt{households}} \leq 411} \when{X_{\mathtt{total\_bedrooms}} > 647}$ \\
+        & $X_{\mathtt{total\_bedrooms}} \when{X_{\mathtt{households}} > 411} \when{X_{\mathtt{total\_bedrooms}} \leq 647}$ \\
+        & $X_{\mathtt{total\_bedrooms}} \when{X_{\mathtt{households}} > 411} \when{X_{\mathtt{total\_bedrooms}} > 647}$ \\
+      \hline
+      \multirow{2}{*}{$X_{\mathtt{population}}$} & $X_{\mathtt{population}} \when{X_{\mathtt{households}} \leq 411.5}$ \\
+      & $X_{\mathtt{population}} \when{X_{\mathtt{households}} > 411.5}$ \\
+      \hline
+      \multirow{2}{*}{$X_{\mathtt{households}}$} & $X_{\mathtt{households}} \when{X_{\mathtt{total\_bedrooms}} \leq 630.57}$ \\
+        & $X_{\mathtt{households}} \when{X_{\mathtt{total\_bedrooms}} > 630.57}$ \\
+  \end{tabular}
+\end{table}
 
 
 \begin{figure}[htbp]
@@ -506,28 +566,27 @@ dollars.
     \label{fig:california_housing}
 \end{figure}
 
+\section{Conclusion and Future Work}
 
-\begin{table}[htbp]
-  \centering
-  \caption{Result Comparison}
-  \label{tab:sample}
-  \begin{tabular}{l|c|cccc}
-      \hline
-      Type & \textbf{Black-box} & \multicolumn{4}{c}{\textbf{x-by-design}} \\
-      \hline
-      \hline
-      Interactions & \textbf{all orders} & \multicolumn{2}{c}{1\textsuperscript{st} order} & \multicolumn{2}{c}{2\textsuperscript{nd} order} \\
-      \hline
-      \hline
-      Model & \textbf{DNN} & \textbf{GAM} & \textbf{RAM} & \textbf{GAM}$^2$ & \textbf{RAM}$^2$ \\
-      \hline
-      Training & 0.135 & 0.374 & 0.274 & 0.181 & 0.176 \\
-      Test     & 0.254 & 0.549 & 0.430 & 0.298 & 0.278 \\
-      \hline
-      Training & 0.282 & 0.322 & 0.314 & 0.278 & 0.265 \\
-      Test     & 0.369 & 0.600 & 0.535 & 0.554 & 0.514 \\
-  \end{tabular}
-\end{table}
+In this paper we have introduced the Regional Additive Models (RAM) framework, a novel approach for learning accurate
+x-by-design models from data.
+RAMs operate by decomposing the data into subregions, where the relationship between the target variable and the
+features exhibits an approximately additive nature.
+Subsequently, Generalized Additive Models (GAMs) are fitted to each subregion and combined to create the final model.
+Our experiments on two standard regression datasets have shown promising results, indicating that RAMs can provide more accurate predictions compared to GAMs while maintaining the same level of interpretability.
+
+Nevertheless, there are still several unresolved questions that require attention and further experimentation.
+Firstly, it is essential to systematically evaluate the performance of RAMs on a larger set of datasets to ensure that the observed improvements are not specific to particular datasets.
+Secondly, we need to explore different approaches for each step of the RAM framework.
+For the initial step, we should experiment with various black-box models.
+Regarding the subregion detection step, we can explore alternative clustering algorithms.
+Finally, in the last step, we should investigate different types of GAM models to fit within each subregion.
+
+Another important area of investigation involves exploring the impact of second-order effects within the RAM framework.
+While our experimenation demonstrated that even with the current subregion detection, RAM$^2$s outperform GAM$^2$s,
+it may be the case, that for second-order models the optimal subregions are not necessarily those that maximize the additive effect of individual features,
+but rather those that maximize the additive effect of feature pairs.
+
 
 
 

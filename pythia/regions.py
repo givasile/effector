@@ -57,10 +57,16 @@ class Regions:
 
         # method
         for feat in tqdm(range(self.dim)):
+            # if feature is categorical, skip
+            if self.feature_types[feat] == "cat":
+                self.splits["feat_{}".format(feat)] = []
+                continue
+
             foi, foc = feat, [i for i in range(self.dim) if i != feat]
 
             # get feature types
             foc_types = [self.feature_types[i] for i in foc]
+
 
             # get splits
             splits = find_splits(
@@ -85,6 +91,16 @@ class Regions:
         assert self.regions_found is True
         optimal_splits = {}
         for feat in range(self.dim):
+            # if split is empy, skip
+            if len(self.splits["feat_{}".format(feat)]) == 0:
+                optimal_splits["feat_{}".format(feat)] = {}
+                continue
+
+            # if initial heterogeneity is BIG_M, skip
+            if self.splits["feat_{}".format(feat)][0]["weighted_heter"] == BIG_M:
+                optimal_splits["feat_{}".format(feat)] = {}
+                continue
+
 
             # if initial heterogeneity is small right from the beginning, skip
             if self.splits["feat_{}".format(feat)][0]["weighted_heter"] < heter_thres:
@@ -313,7 +329,7 @@ def split_rhale(model: callable,
     weighted_heter = np.ones([len(foc), max(nof_splits, cat_limit)]) * big_M
 
     # limits of the feature of interest for each dataset in x_list
-    lims = np.array([pythia.helpers.axis_limits_from_data(xx)[:,foi] for xx in x_list])
+    # lims = np.array([pythia.helpers.axis_limits_from_data(xx)[:,foi] for xx in x_list])
 
     # list with len(foc) elements
     # each element is a list with the split positions for the corresponding feature of conditioning
@@ -377,6 +393,10 @@ def find_splits(nof_levels: int,
     x_jac_list = [model_jac(data)]
     splits = [{"heterogeneity": [heter_init], "weighted_heter": heter_init, "nof_instances": [len(data)], "split_i": -1, "split_j": -1, "foc": foc}]
     for lev in range(nof_levels):
+        # if any x in x_list is empty then stop
+        if any([len(x) == 0 for x in x_list]):
+            break
+
         # find split
         split_fn = split_pdp if criterion == "pdp" else split_rhale
         split = split_fn(model, model_jac, data, x_list, x_jac_list, foi, foc_types, foc, nof_splits, cat_limit, splits[-1]["heterogeneity"], min_points)
