@@ -355,12 +355,13 @@ The pruned set of splits is denoted as $\{\mathcal{R}_{st}\}_{t=1}^{T_s}$.
 \SetKwInOut{Input}{Input}
 \SetKwInOut{Output}{Output}
 \BlankLine
-\Input{A dataset $(X, y)$}
+\Input{A dataset $(X, y)$ and a maximum level $T$}
 \Output{A trained RAM model $f^{\mathtt{RAM}}$}
   \BlankLine
   Train a differentiable black box model $f$ using $(X, y)$\;
   \tcc{Detect subregions for all features}
-  $\left\{\mathcal{R}_{st}|s\in\left\{1,\ldots,D\right\}, t\in\left\{1,\ldots,T_s\right\}\right\}$ = DetectSubregions($X$, $y$, $f$)\;
+  $\left\{\mathcal{R}_{st}|s\in\left\{1,\ldots,D\right\},
+  t\in\left\{1,\ldots,T_s\right\}\right\}$ = DetectSubregions($X$, $y$, $f$, $T$)\;
   Create the extended feature space $\mathcal{X}^{\mathtt{RAM}}$ using all
   $\mathcal{R}_{st}$, as in Eq. \eqref{eq:ram_feature_space} \;
   Fit a GAM in $\mathcal{X}^{\mathtt{RAM}}$ \tcp*{i.e., train each $f_{st}$ using
@@ -375,22 +376,25 @@ The pruned set of splits is denoted as $\{\mathcal{R}_{st}\}_{t=1}^{T_s}$.
 \SetKwInOut{Input}{Input}
 \SetKwInOut{Output}{Output}
 \BlankLine
-\Input{Data matrix $X$, Black box model $f$, Maximum Depth $T$}
+\Input{Dataset $(X, y)$, Black box model $f$, Maximum depth $T$}
 \BlankLine
-\Output{Subregions $\mathcal{R}_{sK}$ for all features $s$ and depth $K=2^T$}
+\Output{Subregions $\mathcal{R}_{sT_s}$ for all features $s$, where $T_s \leq 2^T$}
 \BlankLine
-Initialize empty arrays for \texttt{loss}, \texttt{position}, and \texttt{feature\_c}
-\BlankLine
+\tcc{Needed for DALE feature effect estimation}
+Compute the Jacobian w.r.t. features $\xb$,  $J = \nabla_{\xb}f(\xb)$ \;
 \For{$s = 1$ to $D$}{
-X\_list, J\_list = [X], [J] \tcp*{Init lists}
-\For{$t = 1$ to $T$}{
-    \tcc{Find best split}
-    L, p, c, X\_list, J\_list $\gets$ BestSplit(X\_list, J\_list, s, is\_cat)\;
-    \tcc{Store best split}
-    loss[s, t], position[s, t], feature\_c[s, t] $\gets$ L, p, c
+  \For{$t = 1$ to $T$}{
+    \tcc{Find best split feature $c$ at point $p$, leading to loss
+      $\mathcal{H}_{st}$ using regions of previous level}
+    $\mathcal{H}_{st}, c, p$ $\gets$
+    BestSplit($\left\{\mathcal{R}_{sk}|k\in\left\{1,\ldots,T_{t-1}\right\}\right\}$)\;
+    \If{$\lVert\mathcal{H}_{st} - \mathcal{H}_{s(t-1)}\rVert < \epsilon$}{
+      break\;
+    }
+  }
 }
-}
-\Return{loss, position, feature\_c}
+\Return{$\left\{\mathcal{R}_{st}|s\in\left\{1,\ldots,D\right\},
+  t\in\left\{1,\ldots,T_s\right\}\right\}$}
 \end{algorithm}
 
 \begin{algorithm}
