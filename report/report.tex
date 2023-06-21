@@ -338,15 +338,35 @@ The final set of splits is denoted as $\{\mathcal{R}_{st}\}_{t=1}^{T_s}$.
 
 
 \begin{algorithm}
+\caption{Regionally Additive Model (RAM) training}
+\label{alg:ram}
+\SetAlgoLined
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Output}{Output}
+\BlankLine
+\Input{A dataset $(X, y)$}
+\Output{A trained RAM model $f^{\mathtt{RAM}}$}
+  \BlankLine
+  Train a differentiable black box model $f$ using $(X, y)$\;
+  \tcc{Detect subregions for all features}
+  $\left\{\mathcal{R}_{st}|s\in\left\{1,\ldots,D\right\}, t\in\left\{1,\ldots,T_s\right\}\right\}$ = DetectSubregions($X$, $y$, $f$)\;
+  Create the extended feature space $\mathcal{X}^{\mathtt{RAM}}$ using all
+  $\mathcal{R}_{st}$, as in Eq. \eqref{eq:ram_feature_space} \;
+  Fit a GAM in $\mathcal{X}^{\mathtt{RAM}}$ \tcp*{i.e., train each $f_{st}$ using
+    only data in $\mathcal{R}_{st}$}
+  \Return{$f^{\mathtt{RAM}}(\xb) = c + \sum_{s,t} f_{st}(x_{st}), \quad \xb \in \Xcal^{\mathtt{RAM}}$}
+\end{algorithm}
+
+\begin{algorithm}
 \caption{Detection of Subregions using DALE}
 \label{alg:subregion_detection}
 \SetAlgoLined
 \SetKwInOut{Input}{Input}
 \SetKwInOut{Output}{Output}
 \BlankLine
-\Input{Data matrix $X$, Jacobian matrix $J$, Maximum Depth $T$}
+\Input{Data matrix $X$, Black box model $f$, Maximum Depth $T$}
 \BlankLine
-\Output{Optimal splits}
+\Output{Subregions $\mathcal{R}_{sK}$ for all features $s$ and depth $K=2^T$}
 \BlankLine
 Initialize empty arrays for \texttt{loss}, \texttt{position}, and \texttt{feature\_c}
 \BlankLine
