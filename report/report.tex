@@ -35,6 +35,7 @@
 
 
 \begin{document}
+    \def\MakeUppercaseUnsupportedInPdfStrings{\scshape}
 \maketitle
 
 \begin{abstract}
@@ -52,7 +53,6 @@ The results confirm that RAMs offer improved expressiveness compared to GAMs whi
 \end{abstract}
 
 \section{Introduction}
-
 
 % Paragraph for Motivating about Regionally Additive Models
 Generalized Additive Models (GAMs)~\citep{hastie1987generalized} are a popular class of explainable by design (x-by-design) models.
@@ -127,7 +127,9 @@ regional effect plots.
         \caption{\(f_2(x_2) \when{x_1 \leq 0 \text{ or } x_3 \neq 1}\)}
         \label{subfig:regional_gam_2}
     \end{subfigure}
-    \caption{Caption for the entire figure}
+    \caption{The left image showcases the global GAM which erroneously learns an approximation of \(f(\xb) \approx 2x_2\).
+    In contrast, the middle and right images demonstrate the RAM's ability to identify two distinct subregions where \(f\) exhibits regional additivity.
+    By fitting a GAM to each subregion, the RAM accurately captures the true function $f$ while retaining interpretability.}
     \label{fig:ram_example}
 \end{figure}
 
@@ -158,7 +160,7 @@ it is necessary to select a differentiable function.
 Recent advancements have demonstrated that differentiable Deep Learning models,
 specifically designed for tabular data~\citep{arik2021tabnet}, are capable of achieving state-of-the-art performance,
 making them a suitable choice for this step.
-
+% Driver, teacher, guide
 
 \subsection{Second step: Find subregions}
 \label{subsec:regional_effect_methods}
@@ -309,32 +311,41 @@ that minimize:
 
 \paragraph{Proposed solution}
 
-For minimizing Eq.~\eqref{eq:SE}, we develop a tree-based algorithm, similar to the one proposed by~\citep{herbinger2023decomposing}.
-The backbone of the algorithm is described in Algorithm~\ref{alg:subregion_detection}.
-For each feature $s$, we search for the $T$ optimal splits.
-To better understand the algorithm, let's take the toy example of Section~\ref{sec:motivation}.
-The subregions are searched independently for each feature $s \in \{1, \ldots, D\}$.
-For feture $s=2$, we start by searching for the optimal split for the first level of the tree.
-The candidate features for defining the first level split are $x_1$ and $x_3$.
-The algorithm~\ref{alg:single_feature_subregion} is responsible to find the optimal first level split.
-First, it defines the candidate split points for each feature.
-Since $x_1$ is a continuous feature, the candidate split points are a linearly spaced grid of $p$ points in the range $[-1, 1]$,
-where $P$ is a hyperparameter of the algorithm, set to 10 in the experiments.
-Therefore, the candidate split points are $p = \{-1, -0.8, -0.6, \ldots, 0.8, 1\}$ and
-the corrsponding subregions are $\mathcal{R}_{21} = \{ \mathbb{R}^2 : x_1 \leq p \}$ and $\mathcal{R}_{22} = \{ \mathbb{R}^2 : x_1 > p \}$.
-Since $x_3$ is categorical, the candidate split points are the unique values of $x_3$, i.e. $\{0, 1\}$
-and the corresponding subregions are $\mathcal{R}_{21} = \{ \mathbb{R}^2 : x_3 = 0 \}$ and $\mathcal{R}_{22} = \{ \mathbb{R}^2 : x_3 = 1 \}$.
-For each candidate split point, the algorithm computes the corresponding subregions and the corresponding $\mathcal{H}_{\mathcal{R}_{st}}$.
-and selects the split point that minimizes the weighted level of interactions, as defined by Algorithm~\ref{alg:get_interaction}.
-Suppose that the optimal first-level subregions are $\mathcal{R}_{21} = \{ \mathbb{R}^2 : x_3 = 0 \}$ and $\mathcal{R}_{22} = \{ \mathbb{R}^2 : x_3 \neq 0 \}$.
-The algorithm then proceeds to the second level of the tree.
-For the second level, the first split is fixed, i.e. the are two datasets split according to the first-level split and the algorithm searches for the optimal second-level split.
-The candidate features for defining the second level split are $x_3$.
+To minimize the objective of Eq.~\eqref{eq:SE}, we have developed a tree-based algorithm based on the approach proposed
+by~\citep{herbinger2023decomposing}.
+The core of the algorithm is outlined in Algorithm~\ref{alg:subregion_detection}.
+We search for subregions independently for each feature $s \in \{1, \ldots, D\}$.
+and we select the $T$ optimal splits, in a greedy manner.
+To better comprehend the algorithm, let's consider the illustrative example of Section~\ref{sec:motivation}.
+For feature $s=2$, the algorithm starts with the first level of the tree, with $/s = \{1, 3\}$ as candidate split-features.
+Algorithm~\ref{alg:single_feature_subregion} identifies the optimal first-level split, with the following procedure.
+Initially, it determines the candidate split points for each feature.
 
-The output of algorithm~\ref{alg:subregion_detection} is a set of $T$ splits per feature $s$.
-It is imporant to note, that since not all splits lead to an important decrease in the level of interactions,
-we post-process the splits by pruning all splits that do not decrease the loss function by more than a threshold $\epsilon$.
-The final set of splits is denoted as $\{\mathcal{R}_{st}\}_{t=1}^{T_s}$.
+Since $x_1$ is a continuous feature, are generated as a linearly spaced grid of $P$ points within the range of the feature, i.e. $[-1, 1]$,
+where $P$ is a hyperparameter of the algorithm, set to 10 in the experiments.
+Consequently, the candidate split points $p \in \{-1, -0.8, -0.6, \ldots, 0.8, 1\}$ define the candidate subregions
+$\mathcal{R}_{21} = \{ \mathbb{R}^2 : x_1 \leq p \}$ and $\mathcal{R}_{22} = \{ \mathbb{R}^2 : x_1 > p \}$.
+As for $x_3$, being a categorical feature, the candidate split points are its unique values, i.e., $\{0, 1\}$,
+and the corresponding subregions are $\mathcal{R}_{21} = \{ \mathbb{R}^2 : x_3 = 0 \}$ and $\mathcal{R}_{22} = \{ \mathbb{R}^2 : x_3 \neq 0 \}$.
+
+For each candidate position, the algorithm splits the initial dataset into two subsets,
+$[\mathcal{D}_1, \mathcal{D}_2]$ one for each subregion and computes the level of interaction
+as the weighted sum of the interactions of the two subregions, as defined by Algorithm~\ref{alg:get_interaction}.
+After the iteration over all points and all candidate positions,
+the split point that minimizes the weighted level of interactions is selected.
+In the illustrative example, the optimal first-level subregions are
+$\mathcal{R}_{21} = \{ \mathbb{R}^2 : x_3 = 0 \}$ and $\mathcal{R}_{22} = \{ \mathbb{R}^2 : x_3 \neq 0 \}$.
+The algorithm then proceeds to the second level of the tree, where the only candidate feature is $x_3$.
+In this step, the first split is considered fixed, i.e., the algorithm uses a list of two datasets,
+and searches in an analogous manner for the optimal second-level split that will be applied on top of the first split,
+leading to four subregions.
+The algorithm proceeds in a similar manner, until it reaches the maximum depth $T$.
+
+The output of algorithm~\ref{alg:subregion_detection} is a collection of $T$ splits for each feature $s$.
+It is important to note that not all splits lead to a significant decrease in the level of interactions.
+To address this, we post-process the splits by pruning any splits that do not result in a decrease of the
+weighted interaction greater than a threshold value $\epsilon$ (set to $20\%$ drop in the experiments).
+The pruned set of splits is denoted as $\{\mathcal{R}_{st}\}_{t=1}^{T_s}$.
 
 
 \begin{algorithm}
@@ -422,37 +433,48 @@ L $\gets$ []\;
 
 \paragraph{Computational Complexity}
 
-Algorithm~\ref{alg:subregion_detection} has a computational complexity of $\mathcal{O}(D \cdot T)$.
-and Algorithm~\ref{alg:single_feature_subregion} has a computational complexity of $\mathcal{O}(D-1 \cdot P \cdot N)$
-where $D$ is the number of feature, $N$ is the number of samples, $T$ is the maximum depth of the tree and $P$ is the number of query postitions.
-The computational complexity of the proposed method is therefore $\mathcal{O}(D \cdot (D-1) \cdot T \cdot P \cdot N)$.
-However, in practice, the number of query positions $P$ and the maximum depth $T$ are small numbers.
-Therefore, the computational complexity of the proposed method is $\mathcal{O}(D^2 \cdot N)$.
 
-\subsection{Fitting the GAMs}
+Algorithm~\ref{alg:subregion_detection} has a computational complexity of $\mathcal{O}(D \cdot T)$
+as it iterates over all features and levels of the tree.
+Algorithm~\ref{alg:single_feature_subregion} has a computational complexity of $\mathcal{O}(D \cdot P \cdot N)$
+as it iterates over all features, query positions, and performs indexing operations on the data (SplitDataset and GetInteraction).
+The use of DALE eliminates the need to compute the Jacobian matrix for each split,
+resulting in computational complexity independent of the model complexity.
+Considering the entire algorithm, the computational complexity is $\mathcal{O}(D \cdot (D-1) \cdot T \cdot P \cdot N)$.
+However, in practice, $P$ and $T$ are small numbers.
+Therefore, the computational complexity of the proposed method simplifies to $\mathcal{O}(D^2 \cdot N)$,
+making it suitable for large datasets, heavy models, and reasonably high-dimensional data.
+In practice, for a typical scenario with $N=10 \times 10^3$ samples and $D=20$ features, the proposed method takes less than $10$ seconds to run.
+
+\subsection{Third step: Fit a GAM in each subregion}
 \label{subsec:fitting_gams}
 
-\subsubsection{Objective}
+Once the subregions are detected, any Generalized Additive Model (GAM) family can be fitted to the augmented input space $\mathcal{X}^{\mathtt{RAM}}$.
+Recently, several methods have been proposed to extend GAMs and enhance their expressiveness.
+These methods can be categorized into two main research directions.
+The first direction targets on representing the main components of a GAM $\{ f_i(x_i) \}$ using novel models.
+For example,~\citep{agarwal2021neural} introduced an approach that employs an end-to-end neural network to learn the main components.
+The second direction aims to extend GAMs to model feature interactions.
+Examples of such extensions include Explainable Boosting Machines (EBMs)~\citep{lou2013accurate} or
+Node-GAMs~\citep{chang2021node}.
+These models are generalized additive models that incorporate pairwise interaction terms.
+It is worth noticing, that the RAM framework and can be used on top of both these research directions
+to further enhance the expressiveness of the models while maintaining their interpretability.
+In our experiments, we use the Explainable Boosting Machines (EBMs).
 
-\subsubsection{Proposed Approach}
-
-\subsection{Discussion}
-
-Recently, a number of methods have been proposed to extend traditional GAMs and make them more expressive.
-The majority of the ideas follow one of the following research directions;
-The first one targets on representing the main components of a GAM $\{ f_i(x_i) \}$ with novel models.
-For example, \citet{agarwal2021neural} who used an end-to-end neural network for learning the main components.
-The second one focuses on extending the GAMs to model interactions between the features.
-For example, \citet{lou2013accurate} proposed Explainable Boosting Machines (EBMs) which are a generalized additive model with pairwise interaction terms.
-It is worth noting that the proposed method is orthogonal to the aforementioned research directions.
-As we will show in the experiments, the proposed method can be used in conjunction with any of the
-aforementioned methods to improve the accuracy of the resulting model, while maintaining the interpretability of the model.
 
 \section{Experiments}
 
+We evaluate the proposed approach on two typical tabular datasets, namely the Bike-Sharing Dataset~\citep{misc_bike_sharing_dataset_275}
+and the California Housing Dataset~\citep{pace1997sparse}.
+
+
 \begin{table}[htbp]
   \centering
-  \caption{Result Comparison}
+  \caption{The table compares RMSE values of different models on two datasets: Bike-Sharing and California Housing.
+  The models include DNN, GAM, RAM, GAM², and RAM² (representing 2nd order interactions).
+  Lower values indicate better performance.
+  RAM consistently outperforms GAM and approaches DNN performance.}
   \label{tab:sample}
   \begin{tabular}{l|c|cccc}
       \hline
@@ -469,9 +491,6 @@ aforementioned methods to improve the accuracy of the resulting model, while mai
       California Housing      & 0.369 & 0.600 & 0.535 & 0.554 & 0.514 \\
   \end{tabular}
 \end{table}
-
-We evaluate the proposed approach on two typical tabular datasets, namely the Bike-Sharing Dataset~\citep{misc_bike_sharing_dataset_275}
-and the California Housing Dataset~\citep{pace1997sparse}.
 
 \paragraph{Bike-Sharing Dataset}
 
@@ -539,13 +558,12 @@ outperforms the equivalent GAM$^2$ model in terms of predictive performance.
     \label{fig:bike_sharing}
 \end{figure}
 
-
 \paragraph{California Housing Dataset}
 
 
 The California Housing dataset consists of approximately $20,000$ of housing blocks situated in California.
 Each housing block is described by eight numerical features, namely,
-$X_{\mathtt{latitude}}$, $X_{\mathtt{longitude}}$, $X_{\mathtt{median\_age}}$, $X_{\mathtt{total\_rooms}}$, $X_{\mathtt{total\_bedrooms}}$, $X_{\mathtt{population}}$, $X_{\mathtt{households}}$, and $X_{\mathtt{median\_income}}$.
+$X_{\mathtt{lat}}$, $X_{\mathtt{long}}$, $X_{\mathtt{median\_age}}$, $X_{\mathtt{total\_rooms}}$, $X_{\mathtt{total\_bedrooms}}$, $X_{\mathtt{population}}$, $X_{\mathtt{households}}$, and $X_{\mathtt{median\_income}}$.
 The target variable, $Y_{\mathtt{value}}$, is the median house value in dollars for each block.
 The target value ranges in the interval \([15, 500] \cdot 10^3\), with a mean value of
 \(\mu_Y \approx 201 \cdot 10^3 \) and a standard deviation of \(\sigma_Y \approx 110 \cdot 10^3\).
@@ -556,11 +574,11 @@ The model achieves a root mean square error (RMSE) of about \(40\)K dollars on t
 Subsequently, we perform subregion extraction by searching for splits up to a maximum depth of \(T=3\).
 After the postprocessing step, we discover that several splits significantly reduce the level of interactions,
 resulting in an expanded input space consisting of \(16\) features, as we show in table~\ref{tab:california_housing_subregions}.
-Out of them, we randomly select and illustrate in Figure~\ref{fig:california_housing} the effect of the feature $X_{\mathtt{longitude}}$.
-As we observe, for the house blocks located in the southern part of California ($X_{\mathtt{latitude}} \leq 34.9$),
-the house value decreases in an almost linear fashion as we move eastward ($X_{\mathtt{longitude}}$ increases).
-In contrast, for the house blocks located in the northern part of California ($X_{\mathtt{latitude}} > 34.9$),
-the house value performs a rapid (non-linear) decrease as we move eastward ($X_{\mathtt{longitude}}$ increases).
+Out of them, we randomly select and illustrate in Figure~\ref{fig:california_housing} the effect of the feature $X_{\mathtt{long}}$.
+As we observe, for the house blocks located in the southern part of California ($X_{\mathtt{lat}} \leq 34.9$),
+the house value decreases in an almost linear fashion as we move eastward ($X_{\mathtt{long}}$ increases).
+In contrast, for the house blocks located in the northern part of California ($X_{\mathtt{lat}} > 34.9$),
+the house value performs a rapid (non-linear) decrease as we move eastward ($X_{\mathtt{long}}$ increases).
 We also observe that although the EBM fitted to each subregion captures the general trend,
 it does not align perfectly with the regional effect.
 As in the Bike-Sharing Example, the RMSE of the RAM model, i.e. \( 0.53 \cdot 110 \cdot 10^3 \approx 58.3 \cdot 10^3\) dollars on the test set,
@@ -571,14 +589,14 @@ The same conclusion holds is when comparing the RAM$^2$ and the GAM$^2$ models.
   \centering
   \caption{California Housing: Subregions Detected by RAM}
   \label{tab:california_housing_subregions}
-  \begin{tabular}{c|c|}
+  \begin{tabular}{c|c}
       Feature & Subregions \\
       \hline
-      \multirow{2}{*}{$X_{\mathtt{longitude}}$} & $X_{\mathtt{longitude}} \when{X_{\mathtt{latitude}} \leq 34.9}$ \\
-      & $X_{\mathtt{longitude}} \when{X_{\mathtt{latitude}} > 34.9}$ \\
+      \multirow{2}{*}{$X_{\mathtt{long}}$} & $X_{\mathtt{long}} \when{X_{\mathtt{lat}} \leq 34.9}$ \\
+      & $X_{\mathtt{long}} \when{X_{\mathtt{lat}} > 34.9}$ \\
       \hline
-      \multirow{2}{*}{$X_{\mathtt{latitude}}$} & $X_{\mathtt{latitude}} \when{X_{\mathtt{longitude}} \leq -120.31}$ \\
-      & $X_{\mathtt{latitude}} \when{X_{\mathtt{longitude}} > -120.31}$ \\
+      \multirow{2}{*}{$X_{\mathtt{lat}}$} & $X_{\mathtt{lat}} \when{X_{\mathtt{long}} \leq -120.31}$ \\
+      & $X_{\mathtt{lat}} \when{X_{\mathtt{long}} > -120.31}$ \\
       \hline
       \multirow{2}{*}{$X_{\mathtt{total\_rooms}}$} & $X_{\mathtt{total\_rooms}} \when{X_{\mathtt{total\_bedrooms}} \leq 449.37}$ \\
         & $X_{\mathtt{total\_rooms}} \when{X_{\mathtt{total\_bedrooms}} > 449.37}$ \\
@@ -602,22 +620,28 @@ The same conclusion holds is when comparing the RAM$^2$ and the GAM$^2$ models.
     \begin{subfigure}{0.32\textwidth}
         \centering
         \includegraphics[width=\textwidth]{figures/california_gam}
-        \caption{\(f(X_{\mathtt{longitude}})\)}
+        \caption{\(f(X_{\mathtt{long}})\)}
         \label{subfig:california_gam}
     \end{subfigure}
     \begin{subfigure}{0.32\textwidth}
         \centering
         \includegraphics[width=\textwidth]{figures/california_ram_1}
-        \caption{\(f(X_{\mathtt{longitude}}) \when{X_{\mathtt{latitude}} \leq 34.89}\)}
+        \caption{\(f(X_{\mathtt{long}}) \when{X_{\mathtt{lat}} \leq 34.89}\)}
         \label{subfig:california_ram_1}
     \end{subfigure}
     \begin{subfigure}{0.32\textwidth}
         \centering
         \includegraphics[width=\textwidth]{figures/california_ram_2}
-        \caption{\(f(X_{\mathtt{longitude}}) \when{X_{\mathtt{latitude}} > 34.89}\)}
+        \caption{\(f(X_{\mathtt{long}}) \when{X_{\mathtt{lat}} > 34.89}\)}
         \label{subfig:california_ram_2}
     \end{subfigure}
-    \caption{Caption for the entire figure}
+    \caption{Comparison of different predictions for housing prices in California based on the longitude.
+    Subfigure (a) showcases the generalized additive model (GAM),
+        while subfigures (b) and (c) demonstrate the RAM components for different latitude ranges:
+        \(f(X_{\mathtt{long}}) \when{X_{\mathtt{lat}} \leq 34.89}\) and
+        \(f(X_{\mathtt{long}}) \when{X_{\mathtt{lat}} > 34.89}\), respectively.
+        We observe, that although the EBM model is able to capture the overall trend in the data,
+        it also exhibits a large amount of variance.}
     \label{fig:california_housing}
 \end{figure}
 
@@ -642,58 +666,58 @@ While our experimenation demonstrated that even with the current subregion detec
 it may be the case, that for second-order models the optimal subregions are not necessarily those that maximize the additive effect of individual features,
 but rather those that maximize the additive effect of feature pairs.
 
-\section{Appendix}
+%\section{Appendix}
+%
+%\subsection{Regional DALE formulation}
+%\label{sec:regional_dale}
+%
+%Below we provide the regional DALE formulation for the bin-effect, the bin-deviation and the aggregated deviation on a subregion \(\mathcal{R}_{st}\):
+%
+%\begin{equation}
+%    \label{eq:bin_effect_subregion}
+%    \hat{\mu}_{\mathcal{R}_{st}}(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k \cap \mathcal{R}_{st}|} \sum_{i:\mathbf{x}^i \in \mathcal{S}_k \cap \mathcal{R}_{st} } \dfdx(\mathbf{x}^i)
+%\end{equation}
+%
+%\begin{equation}
+%  \label{eq:bin_deviation_subregion}
+%  \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k \cap \mathcal{R}_{st}| - 1}
+%\sum_{i:\mathbf{x}^i \in \mathcal{S}_k \cap \mathcal{R}_{st} } \left ( \dfdx(\mathbf{x}^i) -
+%    \hat{\mu}(z_{k-1}, z_k) \right )^2
+%\end{equation}
+%
+%\begin{equation}
+%  \label{eq:SE}
+%  \mathcal{H}_{\mathcal{R}_{sk}} = \sum_{k=1}^K (z_k - z_{k-1})^2 \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k)
+%\end{equation}
 
-\subsection{Regional DALE formulation}
-\label{sec:regional_dale}
-
-For this reason we define the bin-effect, the bin-deviation and the aggregated deviation on a subregion \(\mathcal{R}_{st}\) as:
-
-\begin{equation}
-    \label{eq:bin_effect_subregion}
-    \hat{\mu}_{\mathcal{R}_{st}}(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k \cap \mathcal{R}_{st}|} \sum_{i:\mathbf{x}^i \in \mathcal{S}_k \cap \mathcal{R}_{st} } \dfdx(\mathbf{x}^i)
-\end{equation}
-
-\begin{equation}
-  \label{eq:bin_deviation_subregion}
-  \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k \cap \mathcal{R}_{st}| - 1}
-\sum_{i:\mathbf{x}^i \in \mathcal{S}_k \cap \mathcal{R}_{st} } \left ( \dfdx(\mathbf{x}^i) -
-    \hat{\mu}(z_{k-1}, z_k) \right )^2
-\end{equation}
-
-\begin{equation}
-  \label{eq:SE}
-  \mathcal{L}_{\mathcal{R}_{sk}} = \sum_{k=1}^K (z_k - z_{k-1})^2 \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k)
-\end{equation}
-
-\subsection{Algorithmic Details of Subregion Detection}
-
-\begin{algorithm}
-\caption{SplitDataset}
-\label{alg:split_dataset}
-\SetAlgoLined
-\SetKwInOut{Input}{Input}
-\SetKwInOut{Output}{Output}
-\Input{X\_list, J\_list, c, val, is\_cat}
-\Output{X\_split, J\_split}
-X\_split $\gets$ []\;
-J\_split $\gets$ []\;
-\For{i = 1 to len(X\_list)}{
-    X= X\_list[i]\;
-    J= J\_list[i]\;
-    \uIf{is\_cat}{
-        ind\_1 $\gets$ X[:, c] $=$ val\;
-        ind\_2 $\gets$ X[:, c] $\neq$ val\;
-    }
-    \Else{
-        ind\_1 $\gets$ X[:, c] $\leq$ val\;
-        ind\_2 $\gets$ X[:, c] $>$ val\;
-    }
-    Append X[ind\_1], X[ind\_2] to X\_split\;
-    Append J[ind\_1], J[ind\_2] to J\_split\;
-}
-\Return X\_split, J\_split
-\end{algorithm}
+%\subsection{Algorithmic Details of Subregion Detection}
+%
+%\begin{algorithm}
+%\caption{SplitDataset}
+%\label{alg:split_dataset}
+%\SetAlgoLined
+%\SetKwInOut{Input}{Input}
+%\SetKwInOut{Output}{Output}
+%\Input{X\_list, J\_list, c, val, is\_cat}
+%\Output{X\_split, J\_split}
+%X\_split $\gets$ []\;
+%J\_split $\gets$ []\;
+%\For{i = 1 to len(X\_list)}{
+%    X= X\_list[i]\;
+%    J= J\_list[i]\;
+%    \uIf{is\_cat}{
+%        ind\_1 $\gets$ X[:, c] $=$ val\;
+%        ind\_2 $\gets$ X[:, c] $\neq$ val\;
+%    }
+%    \Else{
+%        ind\_1 $\gets$ X[:, c] $\leq$ val\;
+%        ind\_2 $\gets$ X[:, c] $>$ val\;
+%    }
+%    Append X[ind\_1], X[ind\_2] to X\_split\;
+%    Append J[ind\_1], J[ind\_2] to J\_split\;
+%}
+%\Return X\_split, J\_split
+%\end{algorithm}
 
 
 \bibliography{report}
