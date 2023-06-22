@@ -55,22 +55,53 @@ The results confirm that RAMs offer improved expressiveness compared to GAMs whi
 \section{Introduction}
 
 % Paragraph for Motivating about Regionally Additive Models
-Generalized Additive Models (GAMs)~\citep{hastie1987generalized} are a popular class of explainable by design (x-by-design) models.
-Their popularity stems from their seamless interpretability; since they are a linear (additive) combination of univariate functions,
-\(f(\xb) = c + \sum_{s=1}^D f_s(x_s)\), each individual univariate function (component) can be readily visualized and comprehended in isolation.
-However, GAM's main limitation is that they cannot express interactions between features.
-To mitigation this limitation, some approaches~\citep{lou2013accurate} extend them enabling pairwise interactions,
-i.e., \(f(\xb) = c + \sum_{s=1}^D f_s(x_s) + \sum_{s=1}^D \sum_{c \neq s} f_{sc}(x_s, x_c)\).
-Pairwise interactions can also be visualized and understood in isolation, so these models also maintain their x-by-design nature.
-Unfortunately, this does not hold for any interaction that involves more than two features, thus, the expressiveness of GAMs is limited to capturing up to two-feature interactions.
+Generalized Additive Models (GAMs)~\citep{hastie1987generalized} are a popular class of explainable by design (x-by-design) models~\citep{rudin2019stop, ghassemi2021false}.
+Their popularity stems from their inherent interpretability.
+GAMs represent an aggregation of univariate functions, where the overall model can be expressed as \(f(\xb) = c + \sum_{s=1}^D f_s(x_s)\).
+Due to this structure, each individual univariate function (component) can be visualized and interpreted independently.
+Consequently, understanding the behavior of the overall model simply requires visualizing all components, each with a one-dimensional plot.
 
+However, GAMs encounter limitations when predicting outcomes that depend on multiple features simultaneously.
+In such cases, the unknown predictive function includes terms representing interactions between features.
+To mitigate this limitation, GA$^2$Ms~\citep{lou2013accurate} extended GAMs adding pairwise interactions in the
+formulation, i.e., \(f(\xb) = c + \sum_{s=1}^D f_s(x_s) + \sum_{s=1}^D \sum_{s_1 \neq s_2} f_{s_1 s_2}(x_{s_1}, x_{s_2})\).
+Interpreting GA$^2$Ms involves visualizing both the first-order ($1D$ plots) and second-order (($2D$ plots)) components.
+However, as the number of features increases, the number of pairwise interactions grows exponentially,
+making it impractical for users to remember and interpret a large number of two-dimensional plots.
+Therefore, these methods target on automatically selecting the most significant interaction terms.
+
+Both GAMs and GA$^2$Ms have limitations in modeling interactions beyond the second degree,
+and as far as we know, there is no existing work that focuses on x-by-design GAM-based models capable of
+representing higher-order interactions.
+The main challenge lies in the difficulty of visualizing more than three terms simultaneously,
+which would violate the x-by-design principle.
+To address this limitation, we propose a new class of x-by-design models called Regionally Additive Models (RAMs).
+
+RAMs tackle the challenge of visualizing general interaction terms involving more than two variables by focusing
+on a specific class of terms.
+These terms have a general structure of these terms is
+$f(x_{s_1} | \when{x_{c_1}}, \when{x_{c_2}}, \cdots)$ for first-degree interactions and
+$f(x_{s_1}, x_{s_2} | \when{x_{c_1}}, \when{x_{c_2}}, \cdots)$ for second-degree interactions.
+To better grasp the idea, consider a prediction task where the outcome depends, among others,
+on a combination of three features: $x_1 \in [20, 80]$ (age), $x_2 \in [0, 40]$ (years in work), and $x_3 \in \{True, False\}$ (married).
+Both GAM and GA$^2$M would fail to capture the effect of the three-feature interaction.
+However, the three-feature effect can be decomposed in two sets of second-degree conditional terms based on the marital status:
+$f_{1}(x_1, x_2 | x_3 = True)$
+and
+$f_{2}(x_1, x_2 | x_3 = False)$, which can be visualized and interpreted as using two-dimensional plots.
+In a different scenario, it may be better to it in four sets of first-degree conditional terms:
+$f_{1}(x_1 | x_2 < 10, x_3 = True)$,
+$f_{2}(x_1 | x_2 \geq 10, x_3 = True)$,
+$f_{3}(x_1 | x_2 < 10, x_3 = False)$, and
+$f_{4}(x_1 | x_2 \geq 10, x_3 = False)$, which can be visualized and interpreted as four one-dimensional plots.
 % Paragraph for Motivating about Regionally Additive Models
-To overcome this limitation, we propose Regionally Additive Models (RAMs), a novel class of x-by-design models,
-that fits multiple GAMs to subregions of the feature space where interactions are minimized.
-Our approach consists of a three-step pipeline.
-First, we fit a black-box model to capture all high-order interactions.
-Second, we identify the subregions where the black-box model is nearly locally additive.
-Finally, we train a GAM specifically for each identified subregion.
+
+The objective of RAMs is to automatically identify the most significant conditional terms and fit a GAM for each of them.
+The RAM framework involves three steps.
+First, a black-box model is fitted to capture all high-order interactions.
+Then, the subregions where the black-box model exhibits near-local additivity are identified using Regional Effect Plots (REPs).
+Finally, a GAM is trained specifically for each identified subregion.
+
 
 \section{Background and motivation}
 \label{sec:motivation}
