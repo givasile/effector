@@ -15,6 +15,7 @@
 
 \usepackage{natbib}
 \usepackage{multicol}
+\usepackage{algpseudocode}
 \bibliographystyle{plainnat}
 % set path for bibliography
 
@@ -55,61 +56,78 @@ The results confirm that RAMs offer improved expressiveness compared to GAMs whi
 \section{Introduction}
 
 % Paragraph for Motivating about Regionally Additive Models
-Generalized Additive Models (GAMs)~\citep{hastie1987generalized} are a popular class of explainable by design (x-by-design) models~\citep{rudin2019stop, ghassemi2021false}.
+Generalized Additive Models (GAMs)~\citep{hastie1987generalized} are a popular class of explainable by design
+(x-by-design) models~\citep{rudin2019stop, ghassemi2021false}.
 Their popularity stems from their inherent interpretability.
-GAMs represent an aggregation of univariate functions, where the overall model can be expressed as \(f(\xb) = c + \sum_{s=1}^D f_s(x_s)\).
+GAMs represent an aggregation of univariate functions, where the overall model can be expressed as
+\(f(\xb) = c + \sum_{s=1}^D f_s(x_s)\).
 Due to this structure, each individual univariate function (component) can be visualized and interpreted independently.
 Consequently, understanding the behavior of the overall model simply requires visualizing all components, each with a one-dimensional plot.
 
-However, GAMs encounter limitations when predicting outcomes that depend on multiple features simultaneously.
-In such cases, the unknown predictive function includes terms representing interactions between features.
-To mitigate this limitation, GA$^2$Ms~\citep{lou2013accurate} extended GAMs adding pairwise interactions in the
-formulation, i.e., \(f(\xb) = c + \sum_{s=1}^D f_s(x_s) + \sum_{s=1}^D \sum_{s_1 \neq s_2} f_{s_1 s_2}(x_{s_1}, x_{s_2})\).
-Interpreting GA$^2$Ms involves visualizing both the first-order ($1D$ plots) and second-order (($2D$ plots)) components.
-However, as the number of features increases, the number of pairwise interactions grows exponentially,
+However, GAMs have limited accuracy in cases where the outcome depends on multiple features simultaneously,
+i.e., when the unknown predictive function includes terms that combine multiple features.
+To mitigate this limitation, GA$^2$Ms~\citep{lou2013accurate} extend the traditional GAMs by adding pairwise interactions in their
+    formulation, i.e., \(f(\xb) = c + \sum_{s=1}^D f_s(x_s) + \sum_{s=1}^D \sum_{s_1 \neq s_2} f_{s_1 s_2}(x_{s_1}, x_{s_2})\).
+GA$^2$Ms are also x-by-design, because the user can visualize both the first-order ($1D$ plots) and
+second-order (($2D$ plots)) components.
+However, as the number of features increases, the number of second-order interactions grows exponentially,
 making it impractical for users to remember and interpret a large number of two-dimensional plots.
-Therefore, these methods target on automatically selecting the most significant interaction terms.
+Therefore, methods like GA$^2$Ms target on automatically selecting the most significant interaction terms.
 
-Both GAMs and GA$^2$Ms have limitations in modeling interactions beyond the second degree,
+Both GAMs and GA$^2$Ms have limitations in modeling interactions of more than two features,
 and as far as we know, there is no existing work that focuses on x-by-design GAM-based models capable of
 representing higher-order interactions.
-The main challenge lies in the difficulty of visualizing more than three terms simultaneously,
+The main reason for that is the difficulty of visualizing more than three terms simultaneously,
 which would violate the x-by-design principle.
-To address this limitation, we propose a new class of x-by-design models called Regionally Additive Models (RAMs).
 
-RAMs tackle the challenge of visualizing general interaction terms involving more than two variables by focusing
-on a specific class of terms.
-These terms have a general structure of these terms is
+To address this limitation, we propose a new class of x-by-design models called Regionally Additive Models (RAMs).
+Since in the general case, it is infeasible to visualize terms with more than two variables
+RAMs focus on learning terms with the following conditional structure:
 $f(x_{s_1} | \when{x_{c_1}}, \when{x_{c_2}}, \cdots)$ for first-degree interactions and
 $f(x_{s_1}, x_{s_2} | \when{x_{c_1}}, \when{x_{c_2}}, \cdots)$ for second-degree interactions.
+The symbol $\when{x_{c_1}}$ denotes the condition that the feature $x_{c_1}$ takes a specific value or belongs to a specific range.
+
 To better grasp the idea, consider a prediction task where the outcome depends, among others,
-on a combination of three features: $x_1 \in [20, 80]$ (age), $x_2 \in [0, 40]$ (years in work), and $x_3 \in \{True, False\}$ (married).
-Both GAM and GA$^2$M would fail to capture the effect of the three-feature interaction.
-However, the three-feature effect can be decomposed in two sets of second-degree conditional terms based on the marital status:
-$f_{1}(x_1, x_2 | x_3 = True)$
-and
-$f_{2}(x_1, x_2 | x_3 = False)$, which can be visualized and interpreted as using two-dimensional plots.
-In a different scenario, it may be better to it in four sets of first-degree conditional terms:
+on a combination $f(x_1, x_2, x_3)$ of three features:
+$x_1 \in [20, 80]$ (age), $x_2 \in [0, 40]$ (years in work), and $x_3 \in \{True, False\}$ (married).
+Both GAM and GA$^2$M would fail to accurately learn this term of the underlying predictive function.
+However, the three-feature effect can be decomposed in two sets of second-degree conditional terms based
+on the marital status: $f_{1}(x_1, x_2 | x_3 = True)$ and $f_{2}(x_1, x_2 | x_3 = False)$.
+In this way, RAM can accurately represent $f$ through learning two second-degree conditional terms, one for each marital status.
+Furthermore, the two sets of terms can be visualized and interpreted as using two-dimensional plots.
+It is worth noting that the conditional terms can also include numerical features.
+For example, it could be more accurate to learn instead a set of four first-degree terms, conditioned on the marital status and the years in work:
 $f_{1}(x_1 | x_2 < 10, x_3 = True)$,
 $f_{2}(x_1 | x_2 \geq 10, x_3 = True)$,
 $f_{3}(x_1 | x_2 < 10, x_3 = False)$, and
 $f_{4}(x_1 | x_2 \geq 10, x_3 = False)$, which can be visualized and interpreted as four one-dimensional plots.
-% Paragraph for Motivating about Regionally Additive Models
 
-The objective of RAMs is to automatically identify the most significant conditional terms and fit a GAM for each of them.
-The RAM framework involves three steps.
+To adhere to the x-by-design principle, RAMs should be able to automatically identify the
+most significant conditional terms.
+As the number of these terms increases, it becomes difficult for users to retain and interpret numerous plots
+associated with each feature or pair of features.
+Therefore, RAMs use Regional Effect Plots~\citep{herbinger2023decomposing} to identify a small set
+of conditional terms that have the greatest impact in minimizing feature interactions.
+The RAM framework consists of three key steps.
 First, a black-box model is fitted to capture all high-order interactions.
-Then, the subregions where the black-box model exhibits near-local additivity are identified using Regional Effect Plots (REPs).
-Finally, a GAM is trained specifically for each identified subregion.
+Then, the subregions where the black-box model exhibits near-local additivity are identified using Regional Effect Plots.
+Finally, a GAM component is fit to each identified subregion.
 
+The main contributions of this paper are as follows:
 
-\section{Background and motivation}
+\begin{itemize}
+    \item We formulate a new class of x-by-design models called Regionally Additive Models (RAMs).
+    \item We propose a generic framework for learning RAMs and we propose a novel method for identifying the most significant conditional terms.
+    \item We demonstrate the effectiveness of RAMs in modeling high-order interactions on a synthetic toy example and two real-world datasets.
+\end{itemize}
+
+\section{Motivation}
 \label{sec:motivation}
 
 Consider the black-box function \(f(\xb) = 8x_2\when{x_1 > 0}\when{x_3=0}\)
 with \(x_1, x_2 \sim \mathcal{U}(-1,1)\) and \(x_3 \sim Bernoulli(0,1)\).
-Although very simple, a GAM would fail to learn this mapping due to
-the existence of the three-features interaction term $8x_2\when{x_1 > 0}\when{x_3=0}$.
+Although very simple, GAM and GA$^2$M would fail to learn this mapping due to
+the the three-features interaction term.
 As we see in Figure~\ref{subfig:global_gam}, a GAM misleadingly learns that $\hat{f}(\xb) \approx 2x_2$,
 because in $\frac{1}{4}$ of the cases ($x_1 > 0 \text{ and } x_3 = 0$) the impact of $x_2$ to the output is $8x_2$,
 and in the rest $\frac{3}{4}$ of the cases the impact of $x_2$ to the output is $0$.
@@ -165,12 +183,10 @@ regional effect plots.
 \end{figure}
 
 
-\section{The RAM framework}
+\section{RAM formulation}
+\label{sec:ram_formulation}
 
-The RAM framework consists of a three-step pipeline; (a) fit a black-box model (Section~\ref{subsec:fit_black_box}),
-(b) identify subregions with minimal interactions (Section~\ref{subsec:regional_effect_methods}) and
-(c) fit a GAM to each subregion (Section~\ref{subsec:fitting_gams}).
-Throughout this section, we will use the following notation.
+\paragraph{Notation.}
 Let \(\Xcal \in \Rd\) be the \(d\)-dimensional feature space, \(\Ycal\) the target space and \(f(\cdot) : \Xcal \rightarrow \Ycal\) the black-box function.
 We use index \(s \in \{1, \ldots, d\}\) for the feature of interest and \(/s = \{1, \ldots, D\} - s\) for the rest.
 For convenience, we use \((x_s, \xcc)\) to refer to \((x_1, \cdots , x_s, \cdots, x_D)\) and, equivalently, \((X_s, X_{/s})\) instead of \((X_1, \cdots , X_s, \cdots, X_D)\) when we refer to random variables.
@@ -180,23 +196,12 @@ i.i.d.\ from the distribution \(\mathbb{P}_{X,Y}\).
 %defines the feature effect and \(\hat{f}^{\mathtt{<method>}}(x_s)\)
 %how it estimates it from the training set.
 
-\subsection{First step: Fit a black-box function}
-\label{subsec:fit_black_box}
 
-In the initial step of the pipeline, we fit a black-box function \(f(\cdot)\) to the training set
-\(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\) to accurately learn the underlying mapping \(f(\cdot) : \Xcal \rightarrow \Ycal\).
-While any black-box function can theoretically be employed in this stage,
-for utilizing the DALE approximation, as we will show in the next step,
-it is necessary to select a differentiable function.
-Recent advancements have demonstrated that differentiable Deep Learning models,
-specifically designed for tabular data~\citep{arik2021tabnet}, are capable of achieving state-of-the-art performance,
-making them a suitable choice for this step.
-% Driver, teacher, guide
+The RAM consists of a three-step pipeline; (a) fit a black-box model (Section~\ref{subsec:fit_black_box}),
+(b) identify subregions with minimal interactions (Section~\ref{subsec:regional_effect_methods}) and
+(c) fit a GAM component to each subregion (Section~\ref{subsec:fitting_gams}).
 
-\subsection{Second step: Find subregions}
-\label{subsec:regional_effect_methods}
-
-In this step, we use regional effect methods~\citep{herbinger2023decomposing, herbinger2022repid}
+In step (b), we use regional effect methods~\citep{herbinger2023decomposing, herbinger2022repid}
 to identify the regions where the black-box function is (close to) regionally additive.
 % Describe the goal of the regional effect methods
 Regional effect methods yield for each individual feature \(s\), a set of \(T_s\) non-overlapping regions,
@@ -241,14 +246,35 @@ f^{\mathtt{RAM}}(\xb) = c + \sum_{s,t} f_{st}(x_{st}) \quad \xb \in \Xcal^{\math
 \end{equation}
 %
 Equations~\ref{eq:ram_formulation} and~\ref{eq:ram_formulation2} are equivalent.
-To gain a better understanding of the latter formulation, consider the toy example described in Section~\ref{sec:motivation}.
+To better understand of the formulations, consider the toy example described in Section~\ref{sec:motivation}.
 To minimize the impact of feature interactions, we need to divide feature \(x_2\) into two subregions,
 \(\mathcal{R}_{21} = \{x_1 > 0 \text{ and } x_3 = 1\}\) and \(\mathcal{R}_{22} = \{x_1 \leq 0 \text{ or } x_3 = 0\}\).
-This division results in an augmented feature space \(\Xcal^{\mathtt{RAM}} = (x_1, x_{21}, x_{22}, x_3)\)
-and a RAM formulation of the form: \(f^{\mathtt{RAM}}(\xb) = f_1(x_1) + f_{21}(x_{21}) + f_{22}(x_{22}) + f_3(x_3)\).
+Using Eq.~\ref{eq:ram_formulation}, RAM formulation is:
+\(f^{\mathtt{RAM}}(\xb) = f_1(x_1) + f_{21}(x_2) \when{x_1 > 0 \text{ and } x_3 = 1} + f_{22}(x_2) \when{x_1 \leq 0 \text{ or } x_3 = 0} + f_3(x_3)\).
+Using Eq.~\ref{eq:ram_feature_space}, we should first define the augmented feature space
+\(\Xcal^{\mathtt{RAM}} = (x_1, x_{21}, x_{22}, x_3)\),
+where \(x_{21} = x_2 \when{x_1 > 0 \text{ and } x_3 = 1}\) and \(x_{22} = x_2 \when{x_1 \leq 0 \text{ or } x_3 = 0}\)
+and then RAM formulation is: \(f^{\mathtt{RAM}}(\xb) = f_1(x_1) + f_{21}(x_{21}) + f_{22}(x_{22}) + f_3(x_3)\).
 
 
-\subsubsection{Proposed Approach}
+\section{RAM framework}
+\label{sec:ram_framework}
+
+\subsection{First step: Fit a black-box function}
+\label{subsec:fit_black_box}
+
+In the initial step of the pipeline, we fit a black-box function \(f(\cdot)\) to the training set
+\(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\) to accurately learn the underlying mapping \(f(\cdot) : \Xcal \rightarrow \Ycal\).
+While any black-box function can theoretically be employed in this stage,
+for utilizing the DALE approximation, as we will show in the next step,
+it is necessary to select a differentiable function.
+Recent advancements have demonstrated that differentiable Deep Learning models,
+specifically designed for tabular data~\citep{arik2021tabnet}, are capable of achieving state-of-the-art performance,
+making them a suitable choice for this step.
+% Driver, teacher, guide
+
+\subsection{Second step: Find subregions}
+\label{subsec:regional_effect_methods}
 
 To identify the regions of the input space where the impact of feature interactions is reduced,
 we have developed a regional effect method influenced by the research conducted by
@@ -260,11 +286,11 @@ First, instead of using the ALE plot, we employ the Differential ALE (DALE) meth
 which provides considerable computational advantages when the underlying black-box function is differentiable.
 Second, we utilize variable-size bins, instead of the fixed-size ones in DALE, because the result in a more accurate approximation.
 
-\paragraph{DALE formulation}
+\paragraph{DALE}
 
 DALE gets as input the black-box function \(f(\cdot)\)
 and the dataset \(\mathcal{D} = \{(\xb^i, y^i)\}_{i=1}^N\),
-and returns the effect (impact) of a specific feature $s$ on the output $y$:
+and returns the effect (impact) of the $s$-th feature $s$ on the output $y$:
 %
 \begin{equation}  \label{eq:DALE_accumulated_mean_est}
   \hat{f}^{\mathtt{DALE}}(x_s) = \Delta x \sum_{k=1}^{k_x} \underbrace{\frac{1}{|\mathcal{S}_k|} \sum_{i:\mathbf{x}^{(i)} \in
@@ -284,8 +310,8 @@ and, finally, aggregating the bin-level effects.
 \paragraph{DALE for feature interactions}
 
 In cases where there are strong interactions between the features,
-the instance-level effects inside each bin deviate from the average bin-effect.
-We can measure such deviation using the standard deviation of the instance-level effects inside each bin (bin-deviation):
+the instance-level effects inside each bin deviate from the average bin-effect (bin-deviation).
+We can measure such deviation using the standard deviation of the instance-level effects inside each bin:
 
 \begin{equation}
   \label{eq:var_bin_approx}
@@ -294,89 +320,96 @@ We can measure such deviation using the standard deviation of the instance-level
   \hat{\mu}(z_{k-1}, z_k) \right )^2
 \end{equation}
 %
-and the interaction between the feature \(x_s\) and the rest of the features along the whole \(s\)-th dimension
+The bin-deviation is a measure of the interaction between the feature \(x_s\) and the rest of the features inside the \(k\)-th bin.
+Therefore, we can measure the global interaction between the feature \(x_s\) and the rest of the features along the whole \(s\)-th dimension
 with the aggregated bin-deviation:
 \begin{equation}
   \label{eq:DALE_interaction}
   \mathcal{H}_s = \sqrt{ \sum_{k=1}^{k_x} (z_k - z_{k-1})^2 \hat{\sigma}^2(z_{k-1}, z_k) }
 \end{equation}
 %
-Eq.~\eqref{eq:DALE_interaction} measures the interaction between the feature \(x_s\) and the rest of the features.
-It takes values in the range \([0, \infty)\) with zero indicating that \(x_s\) does not interact with the rest of the features,
+Eq.~\eqref{eq:DALE_interaction} outputs values in the range \([0, \infty)\) with zero indicating that \(x_s\) does not interact with any other feature,
 i.e., the underlying black box function can be written as $f(\xb) = f_s(x_s) + f_{/s}(x_{/s})$.
 In all other cases, $\mathcal{H}_s$ is greater than zero and the higher the value, the stronger the interaction.
 
 A final detail, is that in order to have a more robust estimation of the bin-effect and the bin-deviation,
 we use variable-size bins instead of the fixed-size ones in DALE.
 In particular, we start with a dense fixed-size grid of bins and we iteratively merge the neighboring bins with similar
-bin-effect and bin-deviation until all bins have at least $n_{\min}$ instances.
+bin-effect and bin-deviation until all bins have at least a minimum number of instances.
 In this way, we can have a more accurate approximation of the bin-effect and the bin-deviation.
 
 \paragraph{Subregions as an optimization problem}
 
-In the same way that we can estimate the feature effect and the feature interactions for the $s$-th feature in the whole input space,
-using Eq.~\eqref{eq:DALE_accumulated_mean_est} and Eq.~\eqref{eq:DALE_interaction},
+In the same way that we can estimate the feature effect (Eq.~\eqref{eq:DALE_accumulated_mean_est}) and
+the feature interactions (Eq.~\eqref{eq:DALE_interaction}) for the $s$-th feature in the whole input space,
 we can also estimate the effect and the interactions in a subregion of the input space \(\mathcal{R}_{st} \subset \mathcal{X}\).
-We denote the equivalent regional qunatities as $f^{\mathtt{DALE}}_{\mathcal{R}_{st}}(x_s)$ and $\mathcal{H}_{\mathcal{R}_{st}}$.
+We denote the equivalent regional qunatities as $\hat{f}^{\mathtt{DALE}}_{st}(x_s)$ and $\mathcal{H}_{st}$.
 $f^{\mathtt{DALE}}_{\mathcal{R}_{st}}(x_s)$ and $\mathcal{H}_{\mathcal{R}_{st}}$ are defined exactly as in
 Eq.~\eqref{eq:DALE_accumulated_mean_est} and Eq.~\eqref{eq:DALE_interaction} respectively,
-with the only difference that instead of using the whole dataset \(\mathcal{D}\) to compute the regional bin-effect $\hat{\mu}_{\mathcal{R}_{st}}(z_{k-1}, z_k)$
-and the regional bin-deviation $\hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k)$,
-we use only the instances that belong to the subregion \(\mathcal{R}_{st}\), i.e. $\xb^i: x_s^i \in \mathcal{S}_k \land x_{s}^i \in \mathcal{R}_{st}$.
+with the only difference that instead of using the whole dataset \(\mathcal{D}\), to compute the regional bin-effect $\hat{\mu}_{st}(z_{k-1}, z_k)$
+and the regional bin-deviation $\hat{\sigma}_{st}^2(z_{k-1}, z_k)$,
+we use $\mathcal{D}_{st}$ which includes only the instances that belong to the subregion \(\mathcal{R}_{st}\),
+i.e., $\mathcal{D}_{st} = \{\xb^i: x_s^i \in \mathcal{S}_k \land \xc^i \in \mathcal{R}_{st}\}$.
 Therefore, in order to minimize the interactions of a particular feature $s$ we search for a set of regions \(\{\mathcal{R}_{st}\}_{t=1}^{T_s}\),
-that minimize:
+that minimizes the following objective:
 
 \begin{equation}
   \label{eq:optimal_subregions}
   \begin{aligned}
     & \underset{\{\mathcal{R}_{st}\}_{t=1}^{T_s}}{\text{minimize}}
-    & & \mathcal{L} = \sum_{t=1}^{T_s} \mathcal{H}_{\mathcal{R}_{st}} \\
+    & & \mathcal{L}_s = \sum_{t=1}^{T_s} \frac{| \mathcal{D}_{st} |}{|\mathcal{D}|} \mathcal{H}_{st} \\
     & \text{subject to}
     & & \bigcup_{t=1}^{T} \mathcal{R}_{st} = \mathcal{X} \\
     & & & \mathcal{R}_{st} \cap \mathcal{R}_{s\tau} = \emptyset, \quad \forall t \neq \tau
   \end{aligned}
 \end{equation}
 %
-
-
+In Eq.~\eqref{eq:optimal_subregions}, the objective function is the weighted sum of the regional interactions $\mathcal{H}_{st}$,
+where the weights are the number of instances in each subregion.
+In this way, we give more importance to the subregions that contain more instances.
+The first constraint ensures that the subregions cover the whole input space and the second constraint ensures that the subregions are disjoint.
 
 \paragraph{Proposed solution}
 
-To minimize the objective of Eq.~\eqref{eq:SE}, we have developed a tree-based algorithm based on the approach proposed
-by~\citep{herbinger2023decomposing}.
-The core of the algorithm is outlined in Algorithm~\ref{alg:subregion_detection}.
-We search for subregions independently for each feature $s \in \{1, \ldots, D\}$.
-and we select the $T$ optimal splits, in a greedy manner.
-To better comprehend the algorithm, let's consider the illustrative example of Section~\ref{sec:motivation}.
-For feature $s=2$, the algorithm starts with the first level of the tree, with $/s = \{1, 3\}$ as candidate split-features.
-Algorithm~\ref{alg:single_feature_subregion} identifies the optimal first-level split, with the following procedure.
-Initially, it determines the candidate split points for each feature.
+The core of the method is outlined in Algorithm~\ref{alg:ram}.
+First, we fit a differentiable black box model to the data (Step 1) and we copute the Jacobian matrix w.r.t. the input features (Step 2).
+Then we search for a set of subregions by minimizing the objective of Eq.~\eqref{eq:optimal_subregions}
+for each feature $s$ independently (Steps 3-4-5).
+Based on the optimal subregions, we define the extended feature space (Step 6) and we fit a GAM in the extended feature space (Step 7).
 
-Since $x_1$ is a continuous feature, are generated as a linearly spaced grid of $P$ points within the range of the feature, i.e. $[-1, 1]$,
-where $P$ is a hyperparameter of the algorithm, set to 10 in the experiments.
-Consequently, the candidate split points $p \in \{-1, -0.8, -0.6, \ldots, 0.8, 1\}$ define the candidate subregions
-$\mathcal{R}_{21} = \{ \mathbb{R}^2 : x_1 \leq p \}$ and $\mathcal{R}_{22} = \{ \mathbb{R}^2 : x_1 > p \}$.
+For solving Eq.~\eqref{eq:optimal_subregions}, we have developed a tree-based algorithm
+based on the approach proposed by~\citep{herbinger2023decomposing}, which we describe in detail in Algorithm~\ref{alg:subregion_detection}.
+To describe the algorithm, we define some additional notation: $\mathcal{R}_s^l$ is the set of optimal subregion of the $s$-th feature at level $l$ of the tree.
+Since at each level of the tree we divide the input space into two subregions, at level $l$ we have $2^l$ subregions,
+i.e., $\mathcal{R}_s^l = \{\mathcal{R}_{st}\}_{t=1}^{2^l}$.
+Equivalently, $\mathcal{L}_s^l$ is the optimal objective value of Eq.~\eqref{eq:optimal_subregions} at level $l$ of the tree.
+Although the algorithm can search for an abritrary number of subregions per feature,
+in order to preserve the smooth interpretation of the method,
+we limit the maximum depth of the tree to $L=3$ levels,
+which stands for a maximum of $T = 2^L = 8$ subregions per feature.
+In general, the user can control the trade-off between the interpretability and the accuracy of the method by changing the maximum depth of the tree.
+Note that with three splits, we already have an interaction term of
+four ($f(x_s | \when{x_{c_1}}, \when{x_{c_2}}, \when{x_{c_3}}$) or
+five ($f(x_{s_1}, x_{s_{2}} | \when{x_{c_1}}, \when{x_{c_2}}, \when{x_{c_3}}$) features.
+
+To describe how the algorithm finds the optimal splits at each level $l$, let's consider the illustrative example of Section~\ref{sec:motivation}.
+For feature $s=2$, the algorithm starts with $/s = \{1, 3\}$ as candidate split-features for the first level of the tree.
+For each candidate split-feature, the algorithm determines the candidate split positions.
+Since $x_1$ is a continuous feature, the candidate splits postions are a linearly spaced grid of $P$ points within the range of the feature, i.e. $[-1, 1]$,
+where $P$ is a hyperparameter of the algorithm, set to $10$ in the experiments.
+Therefore, the candidate positions are $p \in \{-1, -0.8, -0.6, \ldots, 0.8, 1\}$ each on defining two subregions,
+$\mathcal{R}_{21} = \{ (x_1, x_3) : x_1 \leq p \}$ and $\mathcal{R}_{22} = \{ (x_1, x_3) : x_1 > p \}$.
 As for $x_3$, being a categorical feature, the candidate split points are its unique values, i.e., $\{0, 1\}$,
-and the corresponding subregions are $\mathcal{R}_{21} = \{ \mathbb{R}^2 : x_3 = 0 \}$ and $\mathcal{R}_{22} = \{ \mathbb{R}^2 : x_3 \neq 0 \}$.
-
-For each candidate position, the algorithm splits the initial dataset into two subsets,
-$[\mathcal{D}_1, \mathcal{D}_2]$ one for each subregion and computes the level of interaction
-as the weighted sum of the interactions of the two subregions, as defined by Algorithm~\ref{alg:get_interaction}.
-After the iteration over all points and all candidate positions,
-the split point that minimizes the weighted level of interactions is selected.
-In the illustrative example, the optimal first-level subregions are
-$\mathcal{R}_{21} = \{ \mathbb{R}^2 : x_3 = 0 \}$ and $\mathcal{R}_{22} = \{ \mathbb{R}^2 : x_3 \neq 0 \}$.
-The algorithm then proceeds to the second level of the tree, where the only candidate feature is $x_3$.
-In this step, the first split is considered fixed, i.e., the algorithm uses a list of two datasets,
-and searches in an analogous manner for the optimal second-level split that will be applied on top of the first split,
-leading to four subregions.
-The algorithm proceeds in a similar manner, until it reaches the maximum depth $T$.
-
-The output of algorithm~\ref{alg:subregion_detection} is a collection of $T$ splits for each feature $s$.
-It is important to note that not all splits lead to a significant decrease in the level of interactions.
-To address this, we post-process the splits by pruning any splits that do not result in a decrease of the
-weighted interaction greater than a threshold value $\epsilon$ (set to $20\%$ drop in the experiments).
-The pruned set of splits is denoted as $\{\mathcal{R}_{st}\}_{t=1}^{T_s}$.
+and the corresponding subregions are $\mathcal{R}_{21} = \{ (x_1, x_3) : x_3 = 0 \}$ and $\mathcal{R}_{22} = \{ (x_1, x_3) : x_3 \neq 0 \}$.
+Each candidate position, creates a corresponding dataset $[\mathcal{D}_{21}, \mathcal{D}_{22}]$,
+and the algorithm computes the weighted level of interactions $\mathcal{H}_{21}$ and $\mathcal{H}_{22}$ for each dataset.
+After iterating over all features and all candidate positions for each feature,
+it selects the split point that minimizes the weighted level of interactions.
+In the illustrative example, the optimal first-level split is based on $x_3$ and the optimal split point is $p = 0$.
+The algorithm next proceeds to the second level, where the only candidate feature is $x_3$.
+In this step, the first split is considered fixed so the optimal second split is applied to the subregions $\mathcal{R}_{21}$ and $\mathcal{R}_{22}$,
+creating four subregions in total.
+The algorithm continues in a similar manner, until it reaches the maximum depth $T$ or the drop in the weighted level of interactions is below a threshold $\epsilon$ (set to $20\%$ drop in the experiments).
 
 
 \begin{algorithm}
@@ -390,9 +423,10 @@ The pruned set of splits is denoted as $\{\mathcal{R}_{st}\}_{t=1}^{T_s}$.
 \Output{A trained RAM model $f^{\mathtt{RAM}}$}
   \BlankLine
   Train a differentiable black box model $f$ using $(X, y)$\;
-  \tcc{Detect subregions for all features}
-  $\left\{\mathcal{R}_{st}|s\in\left\{1,\ldots,D\right\},
-  t\in\left\{1,\ldots,T_s\right\}\right\}$ = DetectSubregions($X$, $y$, $f$, $T$)\;
+  Compute the Jacobian w.r.t. features $\xb$,  $J = \nabla_{\xb}f(\xb)$ \;
+  \For{$s \in \{1, \ldots, D\}$}{
+    $\left\{\mathcal{R}_{st}\right\}_{t=1}^{T_s}$ = DetectSubregions($X$, $J$, $T$, $s$)\;
+  }
   Create the extended feature space $\mathcal{X}^{\mathtt{RAM}}$ using all
   $\mathcal{R}_{st}$, as in Eq. \eqref{eq:ram_feature_space} \;
   Fit a GAM in $\mathcal{X}^{\mathtt{RAM}}$ \tcp*{i.e., train each $f_{st}$ using
@@ -401,105 +435,105 @@ The pruned set of splits is denoted as $\{\mathcal{R}_{st}\}_{t=1}^{T_s}$.
 \end{algorithm}
 
 \begin{algorithm}
-\caption{Detection of Subregions using DALE}
+\caption{DetectSubregions}
 \label{alg:subregion_detection}
 \SetAlgoLined
 \SetKwInOut{Input}{Input}
 \SetKwInOut{Output}{Output}
 \BlankLine
-\Input{Dataset $(X, y)$, Black box model $f$, Maximum depth $T$}
+\Input{Dataset $X$, Gradients $J$, Maximum depth $T$, Feature $s$}
 \BlankLine
-\Output{Subregions $\mathcal{R}_{sT_s}$ for all features $s$, where $T_s \leq 2^T$}
+\Output{Subregions $\{\mathcal{R}_{st}\}_{t=1}^{T_s}$, where $T_s \leq 2^T$}
 \BlankLine
-\tcc{Needed for DALE feature effect estimation}
-Compute the Jacobian w.r.t. features $\xb$,  $J = \nabla_{\xb}f(\xb)$ \;
-\For{$s = 1$ to $D$}{
-  \For{$t = 1$ to $T$}{
-    \tcc{Find best split feature $c$ at point $p$, leading to loss
-      $\mathcal{H}_{st}$ using regions of previous level}
-    $\mathcal{H}_{st}, c, p$ $\gets$
-    BestSplit($\left\{\mathcal{R}_{sk}|k\in\left\{1,\ldots,T_{t-1}\right\}\right\}$)\;
-    \If{$\lVert\mathcal{H}_{st} - \mathcal{H}_{s(t-1)}\rVert < \epsilon$}{
-      break\;
+$\mathcal{H}_s^0$ \tcp*{Compute the level of interactions before any split}
+$T_s = 0$ \tcp*{Initialize the number of splits for feature $s$}
+\For{$l = 1$ to $L$}{
+    \If{H_{s}^{l-1} = 0}{
+        break\;
     }
-  }
+    \tcc{Find best split feature $c_s^l$ at point $p_s^l$, leading to loss
+        $\mathcal{H}_s^l$ using regions of previous level}
+    Find $\mathcal{H}_{st}, c, p$ of the optimal split based on $\mathcal{R}_s^l$ \;
+    \If{$1 - \frac{\mathcal{H}_s^l}{\mathcal{H}_s^{l-1}} > \epsilon$}{
+        break\;
+    }
+    $T_s = 2^l$ \tcp*{Update the number of splits for feature $s$}
 }
 \Return{$\left\{\mathcal{R}_{st}|s\in\left\{1,\ldots,D\right\},
   t\in\left\{1,\ldots,T_s\right\}\right\}$}
 \end{algorithm}
 
-\begin{algorithm}
-\caption{BestSplit}
-\label{alg:single_feature_subregion}
-\SetAlgoLined
-\SetKwInOut{Input}{Input}
-\SetKwInOut{Output}{Output}
-
-\Input{X\_list, J\_list, s, c, is\_cat}
-\Output{BestSplits}
-
-% Initialize variables
-\BlankLine
-L[c, p] $\gets$ None\; % \Comment{List to store interaction values}
-\For{c $s = 1$ to $D$ \textnormal{if} c $\neq$ s}{
-    is\_cat $\gets$ IsCategorical(X\_list, c)\;
-    positions $\gets$ GetPositions(X\_list, c, is\_cat)\;
-    L\_pos $\gets$ []\; % \Comment{List to store interaction values}
-    \For{p \textnormal{in} positions}{
-        X\_split, J\_split $\gets$ SplitDataset(X\_list, J\_list, c, p, is\_cat)\;
-        L $\gets$ GetInteraction(X\_split, J\_split)\;
-    }
-}
-L\_min $\gets$ min(L)\;
-c\_min, p\_min = argmin(L)\;
-is\_cat $\gets$ IsCategorical(X\_list, c\_min)\;
-X\_split, J\_split $\gets$ SplitDataset(X\_list, J\_list, c\_min, p\_min, is\_cat)\;
-
-\Return{L\_min, p\_min c\_min, X\_split, J\_split}
-\BlankLine
-\end{algorithm}
-
-\begin{algorithm}
-\caption{GetInteraction}
-\label{alg:get_interaction}
-\SetAlgoLined
-\SetKwInOut{Input}{Input}
-\SetKwInOut{Output}{Output}
-\Input{$X\_list$, $J\_list$, $min\_points$}
-\Output{weighted average of interaction levels}
-N $\gets$ total number of items in $X\_list$\;
-W $\gets$ []\;
-L $\gets$ []\;
-\For{$i$ in len($X\_list$)}{
-    X $\gets$ X\_list[i]\;
-    J $\gets$ J\_list[i]\;
-    \uIf{$|X|$ < min\_points}{
-      Append $\infty$ to L\;
-    }
-    \Else{
-        Append $\mathcal{L}(X, J)$ to $L$\;
-    }
-    Append $\frac{|X|}{N}$ to $W$\;
-}
-\Return $\text{sum}(L \cdot W)$\;
-\end{algorithm}
+%\begin{algorithm}
+%\caption{BestSplit}
+%\label{alg:single_feature_subregion}
+%\SetAlgoLined
+%\SetKwInOut{Input}{Input}
+%\SetKwInOut{Output}{Output}
+%
+%\Input{X\_list, J\_list, s, c, is\_cat}
+%\Output{BestSplits}
+%
+%% Initialize variables
+%\BlankLine
+%L[c, p] $\gets$ None\; % \Comment{List to store interaction values}
+%\For{c $s = 1$ to $D$ \textnormal{if} c $\neq$ s}{
+%    is\_cat $\gets$ IsCategorical(X\_list, c)\;
+%    positions $\gets$ GetPositions(X\_list, c, is\_cat)\;
+%    L\_pos $\gets$ []\; % \Comment{List to store interaction values}
+%    \For{p \textnormal{in} positions}{
+%        X\_split, J\_split $\gets$ SplitDataset(X\_list, J\_list, c, p, is\_cat)\;
+%        L $\gets$ GetInteraction(X\_split, J\_split)\;
+%    }
+%}
+%L\_min $\gets$ min(L)\;
+%c\_min, p\_min = argmin(L)\;
+%is\_cat $\gets$ IsCategorical(X\_list, c\_min)\;
+%X\_split, J\_split $\gets$ SplitDataset(X\_list, J\_list, c\_min, p\_min, is\_cat)\;
+%
+%\Return{L\_min, p\_min c\_min, X\_split, J\_split}
+%\BlankLine
+%\end{algorithm}
+%
+%\begin{algorithm}
+%\caption{GetInteraction}
+%\label{alg:get_interaction}
+%\SetAlgoLined
+%\SetKwInOut{Input}{Input}
+%\SetKwInOut{Output}{Output}
+%\Input{$X\_list$, $J\_list$, $min\_points$}
+%\Output{weighted average of interaction levels}
+%N $\gets$ total number of items in $X\_list$\;
+%W $\gets$ []\;
+%L $\gets$ []\;
+%\For{$i$ in len($X\_list$)}{
+%    X $\gets$ X\_list[i]\;
+%    J $\gets$ J\_list[i]\;
+%    \uIf{$|X|$ < min\_points}{
+%      Append $\infty$ to L\;
+%    }
+%    \Else{
+%        Append $\mathcal{L}(X, J)$ to $L$\;
+%    }
+%    Append $\frac{|X|}{N}$ to $W$\;
+%}
+%\Return $\text{sum}(L \cdot W)$\;
+%\end{algorithm}
 
 
 
 \paragraph{Computational Complexity}
 
 
-Algorithm~\ref{alg:subregion_detection} has a computational complexity of $\mathcal{O}(D \cdot T)$
-as it iterates over all features and levels of the tree.
-Algorithm~\ref{alg:single_feature_subregion} has a computational complexity of $\mathcal{O}(D \cdot P \cdot N)$
-as it iterates over all features, query positions, and performs indexing operations on the data (SplitDataset and GetInteraction).
-The use of DALE eliminates the need to compute the Jacobian matrix for each split,
-resulting in computational complexity independent of the model complexity.
-Considering the entire algorithm, the computational complexity is $\mathcal{O}(D \cdot (D-1) \cdot T \cdot P \cdot N)$.
+Algorithm~\ref{alg:subregion_detection} has a computational complexity of $\mathcal{O}(D-1 \cdot L \cdot N)$
+as it iterates over all features, query positions, and performs indexing operations on the data (splitting the dataset and computing the level of interactions).
+Algorithm~\ref{alg:subregion_detection} is applied to each feature $s$ independently, and so computational complexity of the entire algorithm is $\mathcal{O}(D \cdot (D-1) \cdot L \cdot N)$.
 However, in practice, $P$ and $T$ are small numbers.
 Therefore, the computational complexity of the proposed method simplifies to $\mathcal{O}(D^2 \cdot N)$,
 making it suitable for large datasets, heavy models, and reasonably high-dimensional data.
-In practice, for a typical scenario with $N=10 \times 10^3$ samples and $D=20$ features, the proposed method takes less than $10$ seconds to run.
+The key point is that the use of DALE eliminates the need to compute the Jacobian matrix for each split,
+which is the most computationally expensive step.
+This is because the Jacobian matrix is computed only once for the entire dataset, and then it is used as a lookup table for computing the level of interactions for each split.
+This makes the proposed method applicable to heavy models.
 
 \subsection{Third step: Fit a GAM in each subregion}
 \label{subsec:fitting_gams}
