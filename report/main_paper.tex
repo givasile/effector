@@ -1,9 +1,27 @@
-\documentclass[12pt]{article}
+% This is samplepaper.tex, a sample chapter demonstrating the
+% LLNCS macro package for Springer Computer Science proceedings;
+% Version 2.21 of 2022/01/12
+%
+\documentclass[runningheads]{llncs}
+%
+\usepackage[T1]{fontenc}
+% T1 fonts will be used to generate the final print and online PDFs,
+% so please use T1 fonts in your manuscript whenever possible.
+% Other font encondings may result in incorrect characters.
+%
+\usepackage{graphicx}
+% Used for displaying a sample figure. If possible, figure files should
+% be included in EPS format.
+%
+% If you use the hyperref package, please uncomment the following two lines
+% to display URLs in blue roman font according to Springer's eBook style:
+%\usepackage{color}
+%\renewcommand\UrlFont{\color{blue}\rmfamily}
+%
 \usepackage{amsfonts}
 \usepackage{amsmath}
 \usepackage{bm}
 \usepackage{bbm}
-\usepackage{graphicx}
 \usepackage{geometry}[margin=1in]
 \usepackage{subcaption}
 \usepackage{array}
@@ -14,12 +32,9 @@
 \usepackage[linesnumbered,ruled]{algorithm2e}
 
 \usepackage{natbib}
-\usepackage{multicol}
 \usepackage{algpseudocode}
 \bibliographystyle{plainnat}
 % set path for bibliography
-
-\title{Regionally Additive Models: Explainable-by-design models minimizing feature interactions}
 
 \newcommand{\dfdx}{\frac{\partial f}{\partial x_s}}
 \newcommand{\Rd}{\mathbb{R}^d}
@@ -32,13 +47,36 @@
 \newcommand{\Ycal}{\mathcal{Y}}
 \newcommand{\when}[1]{\mathbbm{1}_{#1}}
 
-\author{Vasilis Gkolemis}
-
 
 \begin{document}
-    \def\MakeUppercaseUnsupportedInPdfStrings{\scshape}
-\maketitle
-
+%
+\title{Regionally Additive Models: Explainable-by-design models minimizing feature interactions}
+%
+%\titlerunning{Abbreviated paper title}
+% If the paper title is too long for the running head, you can set
+% an abbreviated paper title here
+%
+\author{
+%    First Author\inst{1}\orcidID{0000-1111-2222-3333} \and
+%Second Author\inst{2,3}\orcidID{1111-2222-3333-4444} \and
+%Third Author\inst{3}\orcidID{2222--3333-4444-5555}
+}
+%
+\authorrunning{F. Author et al.}
+% First names are abbreviated in the running head.
+% If there are more than two authors, 'et al.' is used.
+%
+\institute{
+%    Princeton University, Princeton NJ 08544, USA \and
+%Springer Heidelberg, Tiergartenstr. 17, 69121 Heidelberg, Germany
+%\email{lncs@springer.com}\\
+%\url{http://www.springer.com/gp/computer-science/lncs} \and
+%ABC Institute, Rupert-Karls-University Heidelberg, Heidelberg, Germany\\
+%\email{\{abc,lncs\}@uni-heidelberg.de}
+}
+%
+\maketitle              % typeset the header of the contribution
+%
 \begin{abstract}
 Generalized Additive Models (GAMs) are widely utilized explainable-by-design models in various applications.
 However, their assumption of independence among features can lead to suboptimal performance when violated.
@@ -51,8 +89,11 @@ In these subregions, the effect of each feature on the target is independent of 
 Lastly, we fit a GAM specifically for each identified subregion.
 We validate the effectiveness of RAMs through experiments on both a synthetic example and real-world datasets.
 The results confirm that RAMs offer improved expressiveness compared to GAMs while maintaining interpretability.
+\keywords{Explainable AI \and Generalized Additive models \and x-by-design}
 \end{abstract}
-
+%
+%
+%
 \section{Introduction}
 
 % Paragraph for Motivating about Regionally Additive Models
@@ -448,7 +489,7 @@ The algorithm continues in a similar manner, until it reaches the maximum depth 
 $\mathcal{H}_s^0$ \tcp*{Compute the level of interactions before any split}
 $T_s = 0$ \tcp*{Initialize the number of splits for feature $s$}
 \For{$l = 1$ to $L$}{
-    \If{H_{s}^{l-1} = 0}{
+    \If{$H_{s}^{l-1} = 0$}{
         break\;
     }
     \tcc{Find best split feature $c_s^l$ at point $p_s^l$, leading to loss
@@ -462,63 +503,6 @@ $T_s = 0$ \tcp*{Initialize the number of splits for feature $s$}
 \Return{$\left\{\mathcal{R}_{st}|s\in\left\{1,\ldots,D\right\},
   t\in\left\{1,\ldots,T_s\right\}\right\}$}
 \end{algorithm}
-
-%\begin{algorithm}
-%\caption{BestSplit}
-%\label{alg:single_feature_subregion}
-%\SetAlgoLined
-%\SetKwInOut{Input}{Input}
-%\SetKwInOut{Output}{Output}
-%
-%\Input{X\_list, J\_list, s, c, is\_cat}
-%\Output{BestSplits}
-%
-%% Initialize variables
-%\BlankLine
-%L[c, p] $\gets$ None\; % \Comment{List to store interaction values}
-%\For{c $s = 1$ to $D$ \textnormal{if} c $\neq$ s}{
-%    is\_cat $\gets$ IsCategorical(X\_list, c)\;
-%    positions $\gets$ GetPositions(X\_list, c, is\_cat)\;
-%    L\_pos $\gets$ []\; % \Comment{List to store interaction values}
-%    \For{p \textnormal{in} positions}{
-%        X\_split, J\_split $\gets$ SplitDataset(X\_list, J\_list, c, p, is\_cat)\;
-%        L $\gets$ GetInteraction(X\_split, J\_split)\;
-%    }
-%}
-%L\_min $\gets$ min(L)\;
-%c\_min, p\_min = argmin(L)\;
-%is\_cat $\gets$ IsCategorical(X\_list, c\_min)\;
-%X\_split, J\_split $\gets$ SplitDataset(X\_list, J\_list, c\_min, p\_min, is\_cat)\;
-%
-%\Return{L\_min, p\_min c\_min, X\_split, J\_split}
-%\BlankLine
-%\end{algorithm}
-%
-%\begin{algorithm}
-%\caption{GetInteraction}
-%\label{alg:get_interaction}
-%\SetAlgoLined
-%\SetKwInOut{Input}{Input}
-%\SetKwInOut{Output}{Output}
-%\Input{$X\_list$, $J\_list$, $min\_points$}
-%\Output{weighted average of interaction levels}
-%N $\gets$ total number of items in $X\_list$\;
-%W $\gets$ []\;
-%L $\gets$ []\;
-%\For{$i$ in len($X\_list$)}{
-%    X $\gets$ X\_list[i]\;
-%    J $\gets$ J\_list[i]\;
-%    \uIf{$|X|$ < min\_points}{
-%      Append $\infty$ to L\;
-%    }
-%    \Else{
-%        Append $\mathcal{L}(X, J)$ to $L$\;
-%    }
-%    Append $\frac{|X|}{N}$ to $W$\;
-%}
-%\Return $\text{sum}(L \cdot W)$\;
-%\end{algorithm}
-
 
 
 \paragraph{Computational Complexity}
@@ -755,65 +739,10 @@ While our experimenation demonstrated that even with the current subregion detec
 it may be the case, that for second-order models the optimal subregions are not necessarily those that maximize the additive effect of individual features,
 but rather those that maximize the additive effect of feature pairs.
 
-%\section{Appendix}
-%
-%\subsection{Regional DALE formulation}
-%\label{sec:regional_dale}
-%
-%Below we provide the regional DALE formulation for the bin-effect, the bin-deviation and the aggregated deviation on a subregion \(\mathcal{R}_{st}\):
-%
-%\begin{equation}
-%    \label{eq:bin_effect_subregion}
-%    \hat{\mu}_{\mathcal{R}_{st}}(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k \cap \mathcal{R}_{st}|} \sum_{i:\mathbf{x}^i \in \mathcal{S}_k \cap \mathcal{R}_{st} } \dfdx(\mathbf{x}^i)
-%\end{equation}
-%
-%\begin{equation}
-%  \label{eq:bin_deviation_subregion}
-%  \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k) = \frac{1}{|\mathcal{S}_k \cap \mathcal{R}_{st}| - 1}
-%\sum_{i:\mathbf{x}^i \in \mathcal{S}_k \cap \mathcal{R}_{st} } \left ( \dfdx(\mathbf{x}^i) -
-%    \hat{\mu}(z_{k-1}, z_k) \right )^2
-%\end{equation}
-%
-%\begin{equation}
-%  \label{eq:SE}
-%  \mathcal{H}_{\mathcal{R}_{sk}} = \sum_{k=1}^K (z_k - z_{k-1})^2 \hat{\sigma}_{\mathcal{R}_{st}}^2(z_{k-1}, z_k)
-%\end{equation}
-
-%\subsection{Algorithmic Details of Subregion Detection}
-%
-%\begin{algorithm}
-%\caption{SplitDataset}
-%\label{alg:split_dataset}
-%\SetAlgoLined
-%\SetKwInOut{Input}{Input}
-%\SetKwInOut{Output}{Output}
-%\Input{X\_list, J\_list, c, val, is\_cat}
-%\Output{X\_split, J\_split}
-%X\_split $\gets$ []\;
-%J\_split $\gets$ []\;
-%\For{i = 1 to len(X\_list)}{
-%    X= X\_list[i]\;
-%    J= J\_list[i]\;
-%    \uIf{is\_cat}{
-%        ind\_1 $\gets$ X[:, c] $=$ val\;
-%        ind\_2 $\gets$ X[:, c] $\neq$ val\;
-%    }
-%    \Else{
-%        ind\_1 $\gets$ X[:, c] $\leq$ val\;
-%        ind\_2 $\gets$ X[:, c] $>$ val\;
-%    }
-%    Append X[ind\_1], X[ind\_2] to X\_split\;
-%    Append J[ind\_1], J[ind\_2] to J\_split\;
-%}
-%\Return X\_split, J\_split
-%\end{algorithm}
-
+\subsubsection{Acknowledgements} Please place your acknowledgments at
+the end of the paper, preceded by an unnumbered run-in heading (i.e.
+3rd-level heading).
 
 \bibliography{report}
-
-
-
-
-
 
 \end{document}
