@@ -78,16 +78,20 @@
 \maketitle              % typeset the header of the contribution
 %
 \begin{abstract}
-Generalized Additive Models (GAMs) are widely utilized explainable-by-design models in various applications.
-However, their assumption of independence among features can lead to suboptimal performance when violated.
-To overcome this limitation, we introduce Regionally Additive Models (RAMs), a novel class of explainable-by-design models.
-RAMs mitigate the issue by identifying subregions in the feature space where interactions are minimized and fitting multiple GAMs accordingly.
+Generalized Additive Models (GAMs) are widely used explainable-by-design models in various applications.
+GAMs assume that the output can be represented as a sum of univariate functions, referred to as components.
+However, this assumption fails in ML problems where the output depends on multiple features simultaneously.
+In these cases, GAMs fail to capture the interaction terms of the underlying function, leading to subpar accuracy.
+To (partially) address this issue, we propose Regionally Additive Models (RAMs), a novel class of explainable-by-design models.
+RAMs identify subregions within the feature space where interactions are minimized.
+Within these regions, it is more accurate to express the output as a sum of univariate functions (components).
+Consequently, RAMs fit one component per subregion of each feature instead of one component per feature.
+This approach yields a more expressive model compared to GAMs while retaining interpretability.
 The RAM framework consists of three steps.
 Firstly, we train a black-box model.
 Secondly, using Regional Effect Plots, we identify subregions where the black-box model exhibits near-local additivity.
-In these subregions, the effect of each feature on the target is independent of the values of other features.
-Lastly, we fit a GAM specifically for each identified subregion.
-We validate the effectiveness of RAMs through experiments on both a synthetic example and real-world datasets.
+Lastly, we fit a GAM component for each identified subregion.
+We validate the effectiveness of RAMs through experiments on both synthetic and real-world datasets.
 The results confirm that RAMs offer improved expressiveness compared to GAMs while maintaining interpretability.
 \keywords{Explainable AI \and Generalized Additive models \and x-by-design}
 \end{abstract}
@@ -95,6 +99,7 @@ The results confirm that RAMs offer improved expressiveness compared to GAMs whi
 %
 %
 \section{Introduction}
+\label{sec:intro}
 
 % Paragraph for Motivating about Regionally Additive Models
 Generalized Additive Models (GAMs)~\citep{hastie1987generalized} are a popular class of explainable by design
@@ -223,7 +228,6 @@ regional effect plots.
     \label{fig:ram_example}
 \end{figure}
 
-
 \section{RAM formulation}
 \label{sec:ram_formulation}
 
@@ -296,7 +300,6 @@ Using Eq.~\ref{eq:ram_feature_space}, we should first define the augmented featu
 \(\Xcal^{\mathtt{RAM}} = (x_1, x_{21}, x_{22}, x_3)\),
 where \(x_{21} = x_2 \when{x_1 > 0 \text{ and } x_3 = 1}\) and \(x_{22} = x_2 \when{x_1 \leq 0 \text{ or } x_3 = 0}\)
 and then RAM formulation is: \(f^{\mathtt{RAM}}(\xb) = f_1(x_1) + f_{21}(x_{21}) + f_{22}(x_{22}) + f_3(x_3)\).
-
 
 \section{RAM framework}
 \label{sec:ram_framework}
@@ -535,33 +538,33 @@ It is worth noticing, that the RAM framework and can be used on top of both thes
 to further enhance the expressiveness of the models while maintaining their interpretability.
 In our experiments, we use the Explainable Boosting Machines (EBMs).
 
-
 \section{Experiments}
 
-We evaluate the proposed approach on two typical tabular datasets, namely the Bike-Sharing Dataset~\citep{misc_bike_sharing_dataset_275}
-and the California Housing Dataset~\citep{pace1997sparse}.
+We evaluate the proposed approach on two typical tabular datasets:
+the Bike-Sharing Dataset~\citep{misc_bike_sharing_dataset_275} and the California Housing Dataset~\citep{pace1997sparse}.
 
 
 \begin{table}[htbp]
   \centering
-  \caption{The table compares RMSE values of different models on two datasets: Bike-Sharing and California Housing.
-  The models include DNN, GAM, RAM, GAM², and RAM² (representing 2nd order interactions).
+  \caption{The table compares the Mean Absolute Error (MAE) and the Root Mean Square Error (RMSE) of
+  DNN, GAM, RAM, GA$^2$M, and RA$^2$M (representing 2nd order interactions), on two datasets: Bike-Sharing and California Housing.
   Lower values indicate better performance.
   RAM consistently outperforms GAM and approaches DNN performance.}
   \label{tab:sample}
   \begin{tabular}{l|c|cccc}
-      \hline
       & \textbf{Black-box} & \multicolumn{4}{c}{\textbf{x-by-design}} \\
       \hline
       \hline
       & all orders & \multicolumn{2}{c}{1\textsuperscript{st} order} & \multicolumn{2}{c}{2\textsuperscript{nd} order} \\
       \hline
       \hline
-      & \textbf{DNN} & \textbf{GAM} & \textbf{RAM} & \textbf{GAM}$^2$ & \textbf{RAM}$^2$ \\
+      & \textbf{DNN} & \textbf{GAM} & \textbf{RAM} & \textbf{GA}$^2$\textbf{M} & \textbf{RA}$^2$\textbf{M} \\
       \hline
-      Bike Sharing      & 0.254 & 0.549 & 0.430 & 0.298 & 0.278 \\
+      Bike Sharing (MAE)  & 0.254 & 0.549 & 0.430 & 0.298 & 0.278 \\
+      Bike Sharing (RMSE) & 0.389 & 0.734 & 0.563 & 0.438 & 0.412 \\
       \hline
-      California Housing      & 0.369 & 0.600 & 0.535 & 0.554 & 0.514 \\
+      California Housing (MAE)  & 0.373 & 0.600 & 0.553 & 0.554 & 0.533 \\
+      California Housing (RMSE) & 0.533 & 0.819 & 0.754 & 0.774 & 0.739 \\
   \end{tabular}
 \end{table}
 
@@ -577,7 +580,7 @@ The target value \( Y_{\mathtt{count}}\) is the bike rentals per hour, which has
 
 % Training - Evaluation - Region Extraction
 As a black-box model, we train for \(60\) epochs a fully-connected Neural Network with 6 hidden layers, using the Adam optimizer with a learning rate of $0.001$.
-The model attains a root mean squared error of \( 0.25 \cdot 181 \approx 45\) counts on the test set.
+The model attains a root mean squared error of \( 0.39 \cdot 181 \approx 70\) counts on the test set.
 Subsequently, we extract the subregions, searching for splits up to a maximum spliting depth of \(T=3\).
 Following the postprocessing step, we find that the only split that substantially reduces the level of interactions within the subregions is based on the feature
 $X_{\mathtt{hour}}$. This feature is divided into two subgroups: $X_{\mathtt{hour}} | \when{X_{\mathtt{workingday}} \neq 1}$ and $X_{\mathtt{hour}} \when{X_{\mathtt{workingday} = 1}}$.
@@ -585,21 +588,24 @@ $X_{\mathtt{hour}}$. This feature is divided into two subgroups: $X_{\mathtt{hou
 Figure~\ref{fig:bike_sharing} clearly illustrates that the impact of the hour of the day on bike rentals varies
 significantly depending on whether it is a working day or a non-working day.
 Specifically, during working days, there is higher demand for bike rentals in the morning and afternoon hours,
-which aligns with the typical commuting times (\ref{subfig:bike_rentals_regional_gam_1}).
+which aligns with the typical commuting times (Figure~\ref{subfig:bike_rentals_regional_gam_1}).
 On the other hand, during non-working days, bike rentals peak in the afternoon as individuals engage in
-leisure activities (\ref{subfig:bike_rentals_regional_gam_2}).
+leisure activities (Figure~\ref{subfig:bike_rentals_regional_gam_2}).
 The proposed RAM method effectively captures and detects this interaction by establishing two distinct subregions,
 each corresponding to working days and non-working days, respectively.
 Subsequently, the EBM that is fitted to each subregion, successfully learns these patterns,
-achieving a root mean squared error of approximately \( 0.43 \cdot 181 \approx 77\) counts on the test set.
+achieving a root mean squared error of approximately \( 0.56 \cdot 181 \approx 101\) counts on the test set.
 It is noteworthy that RAM not only preserves the interpretability of the model,
 but it also enhances the interpretation of the underlying modeling process.
 By identifying and highlighting the interaction between the hour of the day and the day type,
 RAM provides valuable insights into the relationship between these variables and their influence on bike rentals.
 In contrast, the GAM model~\ref{subfig:bike_rentals_gam} is not able to capture this interaction and
-achieves a root mean squared error of \( 0.55 \cdot 181 \approx 100\) counts on the test set.
-Finally, in table~\ref{tab:sample}, we also observe that the RAM$^2$, i.e., RAM with second-order interactions,
-outperforms the equivalent GAM$^2$ model in terms of predictive performance.
+achieves a root mean squared error of \( 0.73 \cdot 181 \approx 132\) counts on the test set.
+Finally, in table~\ref{tab:sample}, we also observe that the RA$^2$M, i.e., RAM with second-order interactions,
+outperforms the equivalent GA$^2$M model in terms of predictive performance.
+Specifically, the RA$^2$M model achieves a root mean squared error of \( 0.41 \cdot 181 \approx 74\) counts,
+while the GA$^2$M model of \( 0.44 \cdot 181 \approx 80\) counts on the test set.
+It is worth noticing that the RA$^2$M model's accuracy is comparable to the black-box model's accuracy.
 
 \begin{figure}[htbp]
     \centering
@@ -643,7 +649,7 @@ The target value ranges in the interval \([15, 500] \cdot 10^3\), with a mean va
 
 As a black-box model, we train for $45$ epochs a fully-connected Neural Network with 6 hidden layers,
 using the Adam optimizer with a learning rate of $0.001$.
-The model achieves a root mean square error (RMSE) of about \(40\)K dollars on the test set.
+The model achieves a root mean square error (RMSE) of about \(58\)K dollars on the test set.
 Subsequently, we perform subregion extraction by searching for splits up to a maximum depth of \(T=3\).
 After the postprocessing step, we discover that several splits significantly reduce the level of interactions,
 resulting in an expanded input space consisting of \(16\) features, as we show in table~\ref{tab:california_housing_subregions}.
@@ -654,10 +660,13 @@ In contrast, for the house blocks located in the northern part of California ($X
 the house value performs a rapid (non-linear) decrease as we move eastward ($X_{\mathtt{long}}$ increases).
 We also observe that although the EBM fitted to each subregion captures the general trend,
 it does not align perfectly with the regional effect.
-As in the Bike-Sharing Example, the RMSE of the RAM model, i.e. \( 0.53 \cdot 110 \cdot 10^3 \approx 58.3 \cdot 10^3\) dollars on the test set,
-is lower than the one of the GAM model, i.e.\( 0.6 \cdot 110 \cdot 10^3 \approx 66 \cdot 10^3\) dollars.
+As in the Bike-Sharing Example, the RMSE of the RAM model, i.e. \( 0.75 \cdot 110 \approx 82.5\)K dollars on the test set,
+is lower than the one of the GAM model, i.e.\( 0.82 \cdot 110 \approx 90\)K dollars.
 These results indicate that the RAM model provides superior predictions compared to the GAM model.
-The same conclusion holds is when comparing the RAM$^2$ and the GAM$^2$ models.
+The same conclusion holds is when comparing the RA$^2$M and the GA$^2$M models,
+where the former achieves a RMSE of \( 0.74 \cdot 110 \approx 81\)K dollars,
+while the latter of \( 0.77 \cdot 110 \approx 85\)K dollars.
+
 \begin{table}[htbp]
   \centering
   \caption{California Housing: Subregions Detected by RAM}
@@ -735,7 +744,7 @@ Regarding the subregion detection step, we can explore alternative clustering al
 Finally, in the last step, we should investigate different types of GAM models to fit within each subregion.
 
 Another important area of investigation involves exploring the impact of second-order effects within the RAM framework.
-While our experimenation demonstrated that even with the current subregion detection, RAM$^2$s outperform GAM$^2$s,
+While our experimenation demonstrated that even with the current subregion detection, RA$^2$Ms outperform GA$^2$Ms,
 it may be the case, that for second-order models the optimal subregions are not necessarily those that maximize the additive effect of individual features,
 but rather those that maximize the additive effect of feature pairs.
 
