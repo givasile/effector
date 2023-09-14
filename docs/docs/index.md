@@ -1,6 +1,14 @@
 # Getting Started
 
-Feature effect plots in single-line commands
+`Effector` is a python package for feature effect plots; a collection of interpretability methods for visualizing the 
+effect of individual features on the output of a machine learning model. 
+
+---
+### Feature effect plots in a single-line
+
+`Effector` is designed to provide a simple API. In most cases, the user can get 
+the plot with a single-line command.
+
 
 ```python
 # for PDP
@@ -9,34 +17,33 @@ PDP(data=X, model=ml_model).plot(feature=0)
 # for ALE
 ALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature=0)
 ```
+--- 
+
+### Heterogeneity of Feature Effect plots
+
+`Effector` provides a measure of heterogeneity, i.e. measures how much individual effects deviate from 
+the global effect. For all methods, the heterogeneity is plots by simply enabling 
+the parameter `uncertainty=True`.
+
+```python
+# for PDP
+PDP(data=X, model=ml_model).plot(feature=0, uncertainty=True)
+
+# for ALE
+ALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature=0, uncertainty=True)
+```
+
+For more details, check out the [global effect tutorial](./tutorials/00_linear_global_effect/).
 
 --- 
 
-Regional Effect plots in single-line commands
+## Extended functionality around ALE
 
-```python
-# for RHALE
-```
+`Effector` provides additional functionality around ALE. For example, the user can
+
+
 
 ---
 
+### Regional Effect plots in a single-line
 
-
-
-
-
-
-
-## Commands
-
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
-
-## Project layout
-
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.

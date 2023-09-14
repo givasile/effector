@@ -1,4 +1,4 @@
-# mdale
+# Effector
 
 # Methods supported
 

@@ -2,7 +2,7 @@
 
 ## Global Feature Effect
 
-::: pythia.pdp.PDP
+::: effector.pdp.PDP
     options:
       members:
         - fit

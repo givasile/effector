@@ -165,7 +165,7 @@ class RHALE(FeatureEffectBase):
         centering = helpers.prep_centering(centering)
 
         # hack to fit the feature if not fitted
-        self.eval(feature, np.array([self.axis_limits[0, feature]]))
+        self.eval(feature, np.array([self.axis_limits[0, feature]]), centering=centering)
 
         vis.ale_plot(
             self.feature_effect["feature_" + str(feature)],
