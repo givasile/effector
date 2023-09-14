@@ -49,7 +49,6 @@ class Model:
         return np.stack([df_dx1, df_dx2, df_dx3], axis=-1)
 
 
-
 np.random.seed(21)
 dist = GeneratingDist(x1_min=0, x1_max=1, x2_sigma=.01, x3_sigma=1.)
 model = Model(b0=0, b1=7, b2=-3, b12=0, b3=4)
@@ -57,9 +56,16 @@ model = Model(b0=0, b1=7, b2=-3, b12=0, b3=4)
 # generate data
 X = dist.generate(nof_samples=10000)
 Y = model.predict(X)
+prediction = model.predict
+prediction_jac = model.jacobian
+
+# simplest use
+pdp = pythia.PDP(X, prediction)
+pdp.plot(feature=0)
+
 
 # PDP
-pdp = pythia.PDP(X, model.predict, dist.axis_limits)
+pdp = pythia.PDP(X, prediction, dist.axis_limits)
 pdp.fit(features="all", centering=True)
 for feat in [0, 1, 2]:
     pdp.plot(feature=feat, centering=True, uncertainty="std", nof_points=50)

@@ -1,6 +1,31 @@
-# Welcome to MkDocs
+# Getting Started
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+Feature effect plots in single-line commands
+
+```python
+# for PDP
+PDP(data=X, model=ml_model).plot(feature=0)
+
+# for ALE
+ALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature=0)
+```
+
+--- 
+
+Regional Effect plots in single-line commands
+
+```python
+# for RHALE
+```
+
+---
+
+
+
+
+
+
+
 
 ## Commands
 

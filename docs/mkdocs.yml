@@ -1,0 +1,18 @@
+site_name: Effector Documentation
+
+theme:
+  name: material
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [./../]
+          rendering:
+            show_source: true
+            heading_level: 3
+
+watch:
+  - ../pythia
