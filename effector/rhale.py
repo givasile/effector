@@ -1,10 +1,10 @@
 import typing
-import pythia.binning_methods
-import pythia.utils as utils
-import pythia.visualization as vis
-import pythia.binning_methods as bm
-import pythia.helpers as helpers
-from pythia.fe_base import FeatureEffectBase
+import effector.binning_methods
+import effector.utils as utils
+import effector.visualization as vis
+import effector.binning_methods as bm
+import effector.helpers as helpers
+from effector.fe_base import FeatureEffectBase
 import numpy as np
 
 

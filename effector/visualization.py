@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import typing
-from pythia import helpers
+from effector import helpers
 
 def trans_affine(x, mu, std):
     return x * std + mu

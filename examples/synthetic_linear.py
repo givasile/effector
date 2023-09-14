@@ -1,5 +1,5 @@
 import numpy as np
-import pythia
+import effector
 
 
 class GeneratingDist:
@@ -60,18 +60,18 @@ prediction = model.predict
 prediction_jac = model.jacobian
 
 # simplest use
-pdp = pythia.PDP(X, prediction)
+pdp = effector.PDP(X, prediction)
 pdp.plot(feature=0)
 
 
 # PDP
-pdp = pythia.PDP(X, prediction, dist.axis_limits)
+pdp = effector.PDP(X, prediction, dist.axis_limits)
 pdp.fit(features="all", centering=True)
 for feat in [0, 1, 2]:
     pdp.plot(feature=feat, centering=True, uncertainty="std", nof_points=50)
 
 # # dPDP
-# dpdp = pythia.pdp.dPDP(X, model.predict, model.jacobian, dist.axis_limits)
+# dpdp = effector.pdp.dPDP(X, model.predict, model.jacobian, dist.axis_limits)
 # dpdp.fit(features="all", normalize="zero_start")
 # for feat in [0, 1, 2]:
 #     dpdp.plot(feature=feat, normalized=True, confidence_interval="std", nof_points=50)
@@ -79,30 +79,30 @@ for feat in [0, 1, 2]:
 
 #
 # # ICE
-# ice = pythia.pdp.ICE(X, model.predict, dist.axis_limits, 0)
+# ice = effector.pdp.ICE(X, model.predict, dist.axis_limits, 0)
 # ice.plot(feature=0)
 #
-# ice = pythia.pdp.ICE(X, model.predict, dist.axis_limits, 10)
+# ice = effector.pdp.ICE(X, model.predict, dist.axis_limits, 10)
 # ice.plot(feature=0, normalized=False)
 
 
 # d-ICE
-# dice = pythia.pdp.dICE(X, model.predict, model.jacobian, dist.axis_limits, 0)
+# dice = effector.pdp.dICE(X, model.predict, model.jacobian, dist.axis_limits, 0)
 # dice.plot(feature=0)
 
 
-# pdp_ice = pythia.pdp.PDPwithICE(X, model.predict, dist.axis_limits)
+# pdp_ice = effector.pdp.PDPwithICE(X, model.predict, dist.axis_limits)
 # pdp_ice.fit("all", "zero_start")
 # pdp_ice.plot(0, normalized=True)
 #
-# pdp_dice = pythia.pdp.PDPwithdICE(X, model.predict, model.jacobian, dist.axis_limits)
+# pdp_dice = effector.pdp.PDPwithdICE(X, model.predict, model.jacobian, dist.axis_limits)
 # pdp_dice.fit("all", "zero_start")
 # pdp_dice.plot(0, normalized=False)
 
 
 # DALE
-dale = pythia.RHALE(X, model.predict, model.jacobian, dist.axis_limits)
-binning_method = pythia.binning_methods.Fixed(nof_bins=100)
+dale = effector.RHALE(X, model.predict, model.jacobian, dist.axis_limits)
+binning_method = effector.binning_methods.Fixed(nof_bins=100)
 dale.fit(features="all", binning_method=binning_method)
 
 # plot

@@ -1,4 +1,4 @@
-import pythia
+import effector
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -58,16 +58,16 @@ def split(X_df, Y_df):
 # def plot_subregions_rhale(feat, feature, type, position, X_train, model, model_jac):
 #     # Regional Plot
 #     if type == "cat":
-#         rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
-#         rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] == position].to_numpy(), model=model, model_jac=model_jac)
-#         rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] != position].to_numpy(), model=model, model_jac=model_jac)
+#         rhale = effector.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
+#         rhale_1 = effector.RHALE(data=X_train[X_train.iloc[:, feature] == position].to_numpy(), model=model, model_jac=model_jac)
+#         rhale_2 = effector.RHALE(data=X_train[X_train.iloc[:, feature] != position].to_numpy(), model=model, model_jac=model_jac)
 #     else:
-#         rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
-#         rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] <= position].to_numpy(), model=model, model_jac=model_jac)
-#         rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] > position].to_numpy(), model=model, model_jac=model_jac)
+#         rhale = effector.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
+#         rhale_1 = effector.RHALE(data=X_train[X_train.iloc[:, feature] <= position].to_numpy(), model=model, model_jac=model_jac)
+#         rhale_2 = effector.RHALE(data=X_train[X_train.iloc[:, feature] > position].to_numpy(), model=model, model_jac=model_jac)
 #
 #     def plot(rhale):
-#         binning_method = pythia.binning_methods.Fixed(nof_bins=100)
+#         binning_method = effector.binning_methods.Fixed(nof_bins=100)
 #         rhale.fit(features=feat, binning_method=binning_method, centering="zero_integral")
 #         scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
 #         scale_y = {"mean": 0, "std": y_std}

@@ -1,9 +1,8 @@
 # Global Feature Effect
 
-
 ```python
 import numpy as np
-import pythia
+import effector
 ```
 
 ## Generate a toy dataset

@@ -1,4 +1,4 @@
-import pythia.utils_integrate as integrate
+import effector.utils_integrate as integrate
 import typing
 import numpy as np
 import copy

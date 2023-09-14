@@ -1,7 +1,7 @@
 import numpy as np
 import typing
-from pythia import helpers
-from pythia import utils_integrate
+from effector import helpers
+from effector import utils_integrate
 from abc import ABC, abstractmethod
 
 

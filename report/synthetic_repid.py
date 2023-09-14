@@ -2,9 +2,9 @@ import sys, os
 import timeit
 sys.path.append(os.path.dirname(os.getcwd()))
 import numpy as np
-import pythia
-import pythia.regions as regions
-import pythia.interaction as interaction
+import effector
+import effector.regions as regions
+import effector.interaction as interaction
 import matplotlib.pyplot as plt
 from nodegam.sklearn import NodeGAMClassifier, NodeGAMRegressor
 from sklearn.model_selection import train_test_split
@@ -12,7 +12,7 @@ from interpret.glassbox import ExplainableBoostingRegressor
 
 # hack to reload modules
 import importlib
-pythia = importlib.reload(pythia)
+pythia = importlib.reload(effector)
 
 
 class RepidSimpleDist:
@@ -111,11 +111,11 @@ print("NN prediction: ", nn_model.predict(xx.reshape(1, -1)))
 print("Ground truth: ", model.predict(xx.reshape(1, -1)))
 
 # # find regions
-# reg = pythia.regions.Regions(data=X, model=model.predict, model_jac=model.jacobian, cat_limit=25)
+# reg = effector.regions.Regions(data=X, model=model.predict, model_jac=model.jacobian, cat_limit=25)
 # reg.find_splits(nof_levels=2, nof_candidate_splits=20, method="rhale")
 # opt_splits = reg.choose_important_splits(0.2)
 #
-# transf = pythia.regions.DataTransformer(splits=opt_splits)
+# transf = effector.regions.DataTransformer(splits=opt_splits)
 # new_X = transf.transform(X)
 #
 # # split data

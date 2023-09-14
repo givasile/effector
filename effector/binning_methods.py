@@ -1,6 +1,6 @@
 import numpy as np
 import typing
-import pythia.bin_estimation as be
+import effector.bin_estimation as be
 
 
 class DynamicProgramming:

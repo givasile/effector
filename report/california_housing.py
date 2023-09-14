@@ -1,10 +1,10 @@
 import sys, os
 import timeit
 sys.path.append(os.path.dirname(os.getcwd()))
-import pythia
+import effector
 import numpy as np
-import pythia.interaction as interaction
-import pythia.regions as regions
+import effector.interaction as interaction
+import effector.regions as regions
 import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
@@ -14,7 +14,7 @@ import sklearn.metrics as metrics
 import importlib
 from sklearn.utils import check_random_state
 import random
-pythia = importlib.reload(pythia)
+pythia = importlib.reload(effector)
 import report_utils
 
 

@@ -1,9 +1,9 @@
 import sys, os
 import timeit
 sys.path.append(os.path.dirname(os.getcwd()))
-import pythia
-import pythia.interaction as interaction
-import pythia.regions as regions
+import effector
+import effector.interaction as interaction
+import effector.regions as regions
 import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
@@ -39,16 +39,16 @@ def split(X_df, Y_df):
 def plot_subregions_rhale(feat, feature, type, position, X_train, model, model_jac):
     # Regional Plot
     if type == "cat":
-        rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
-        rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] == position].to_numpy(), model=model, model_jac=model_jac)
-        rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] != position].to_numpy(), model=model, model_jac=model_jac)
+        rhale = effector.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
+        rhale_1 = effector.RHALE(data=X_train[X_train.iloc[:, feature] == position].to_numpy(), model=model, model_jac=model_jac)
+        rhale_2 = effector.RHALE(data=X_train[X_train.iloc[:, feature] != position].to_numpy(), model=model, model_jac=model_jac)
     else:
-        rhale = pythia.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
-        rhale_1 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] <= position].to_numpy(), model=model, model_jac=model_jac)
-        rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, feature] > position].to_numpy(), model=model, model_jac=model_jac)
+        rhale = effector.RHALE(data=X_train.to_numpy(), model=model, model_jac=model_jac)
+        rhale_1 = effector.RHALE(data=X_train[X_train.iloc[:, feature] <= position].to_numpy(), model=model, model_jac=model_jac)
+        rhale_2 = effector.RHALE(data=X_train[X_train.iloc[:, feature] > position].to_numpy(), model=model, model_jac=model_jac)
 
     def plot(rhale):
-        binning_method = pythia.binning_methods.Fixed(nof_bins=100)
+        binning_method = effector.binning_methods.Fixed(nof_bins=100)
         rhale.fit(features=feat, binning_method=binning_method, centering="zero_integral")
         scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
         scale_y = {"mean": 0, "std": y_std}
@@ -64,13 +64,13 @@ def plot_subregions_rhale(feat, feature, type, position, X_train, model, model_j
 def plot_subregions_pdp_ice(feat, features, types, positions, X_train, model):
     # Regional Plot
     if types[0] == "categorical":
-        pdp = pythia.pdp.PDPwithICE(data=X_train.to_numpy(), model=model)
-        pdp_1 = pythia.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] == positions[0]].to_numpy(), model=model)
-        pdp_2 = pythia.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] != positions[0]].to_numpy(), model=model)
+        pdp = effector.pdp.PDPwithICE(data=X_train.to_numpy(), model=model)
+        pdp_1 = effector.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] == positions[0]].to_numpy(), model=model)
+        pdp_2 = effector.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] != positions[0]].to_numpy(), model=model)
     else:
-        pdp = pythia.pdp.PDPwithICE(data=X_train.to_numpy(), model=model)
-        pdp_1 = pythia.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] <= positions[0]].to_numpy(), model=model)
-        pdp_2 = pythia.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] > positions[0]].to_numpy(), model=model)
+        pdp = effector.pdp.PDPwithICE(data=X_train.to_numpy(), model=model)
+        pdp_1 = effector.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] <= positions[0]].to_numpy(), model=model)
+        pdp_2 = effector.pdp.PDPwithICE(data=X_train[X_train.iloc[:, features[0]] > positions[0]].to_numpy(), model=model)
 
     def plot(pdp):
         pdp.fit(features=feat, centering=False)
@@ -116,17 +116,17 @@ cols = df.columns
 #     return np.ones_like(x) * lin_model.coef_
 #
 # # Explain
-# ale = pythia.ALE(data=X_train.to_numpy(), model=lin_model.predict)
-# binning_method = pythia.binning_methods.Fixed(nof_bins=30)
+# ale = effector.ALE(data=X_train.to_numpy(), model=lin_model.predict)
+# binning_method = effector.binning_methods.Fixed(nof_bins=30)
 # ale.fit(features="all")
 # ale.plot(feature=8)
 #
-# rhale = pythia.RHALE(data=X_train.to_numpy(), model=lin_model.predict, model_jac=lin_model_jac)
-# binning_method = pythia.binning_methods.DynamicProgramming(max_nof_bins=30, min_points_per_bin=10)
+# rhale = effector.RHALE(data=X_train.to_numpy(), model=lin_model.predict, model_jac=lin_model_jac)
+# binning_method = effector.binning_methods.DynamicProgramming(max_nof_bins=30, min_points_per_bin=10)
 # rhale.fit(features="all", binning_method=binning_method)
 # rhale.plot(feature=8)
 #
-# # pdp = pythia.PDP(data=X_train.to_numpy(), model=lin_model.predict)
+# # pdp = effector.PDP(data=X_train.to_numpy(), model=lin_model.predict)
 # # pdp.plot(feature=8)
 #
 #
@@ -161,6 +161,6 @@ h_index.plot()
 
 repid = interaction.REPID(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, nof_instances=100)
 repid.plot()
-# reg = pythia.regions.Regions(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, cat_limit=25)
+# reg = effector.regions.Regions(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, cat_limit=25)
 # reg.search_splits(nof_levels=2, nof_candidate_splits=20, criterion="rhale")
 # opt_splits = reg.choose_important_splits(0.2)

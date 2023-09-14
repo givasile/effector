@@ -2,8 +2,8 @@
 import typing
 import numpy as np
 import itertools
-import pythia
-from pythia import pdp, helpers
+import effector
+from effector import pdp, helpers
 from tqdm import tqdm
 
 
@@ -30,7 +30,7 @@ class Regions:
 
         # on-init
         if feature_types is None:
-            self.feature_types = pythia.utils.get_feature_types(data, cat_limit)
+            self.feature_types = effector.utils.get_feature_types(data, cat_limit)
         else:
             self.feature_types = feature_types
 
@@ -208,7 +208,7 @@ def pdp_heter(data, model, model_jac, foi, min_points=15):
     feat = foi
    
     # Initialize dpdp
-    axis_limits = pythia.helpers.axis_limits_from_data(data)
+    axis_limits = effector.helpers.axis_limits_from_data(data)
     nof_instances = 100
     dpdp = pdp.dPDP(data, model, model_jac, axis_limits, nof_instances)
    
@@ -235,8 +235,8 @@ def rhale_heter(data: np.ndarray,
     if data.shape[0] < min_points:
         return BIG_M
 
-    rhale = pythia.RHALE(data, model, None, None, data_effect)
-    binning_method = pythia.binning_methods.Greedy(init_nof_bins=50, min_points_per_bin=10, discount=0.1)
+    rhale = effector.RHALE(data, model, None, None, data_effect)
+    binning_method = effector.binning_methods.Greedy(init_nof_bins=50, min_points_per_bin=10, discount=0.1)
     # rhale fit throws an error if there are not enough points. In this case, return a big z value
     try:
         rhale.fit(features=foi, binning_method=binning_method)
@@ -244,7 +244,7 @@ def rhale_heter(data: np.ndarray,
         return BIG_M
 
     # heterogeneity is the accumulated std at the end of the curve
-    axis_limits = pythia.helpers.axis_limits_from_data(data)
+    axis_limits = effector.helpers.axis_limits_from_data(data)
     stop = np.array([axis_limits[:, foi][1]])
     _, z, _ = rhale.eval(feature=foi, x=stop, uncertainty=True)
     return z.item()
@@ -258,7 +258,7 @@ def split_pdp(model, model_jac, data, D1: list, foi: int, feature_types: list, f
     I = np.ones([len(foc), np.max(nof_splits, cat_limit)]) * big_M
 
     nof_instances = 100
-    axis_limits = pythia.helpers.axis_limits_from_data(data)
+    axis_limits = effector.helpers.axis_limits_from_data(data)
 
     # evaluate heterogeneity before split
     print('evaluate heterogeneity before split')
@@ -329,7 +329,7 @@ def split_rhale(model: callable,
     weighted_heter = np.ones([len(foc), max(nof_splits, cat_limit)]) * big_M
 
     # limits of the feature of interest for each dataset in x_list
-    # lims = np.array([pythia.helpers.axis_limits_from_data(xx)[:,foi] for xx in x_list])
+    # lims = np.array([effector.helpers.axis_limits_from_data(xx)[:,foi] for xx in x_list])
 
     # list with len(foc) elements
     # each element is a list with the split positions for the corresponding feature of conditioning

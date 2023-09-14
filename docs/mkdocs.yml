@@ -15,4 +15,4 @@ plugins:
             heading_level: 3
 
 watch:
-  - ../pythia
+  - ../effector

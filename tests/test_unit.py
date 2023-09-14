@@ -1,5 +1,5 @@
 import numpy as np
-import pythia.utils as utils
+import effector.utils as utils
 
 
 def test_compute_data_effect_1():

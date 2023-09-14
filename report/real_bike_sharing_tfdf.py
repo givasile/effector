@@ -1,10 +1,10 @@
 import sys, os
 import timeit
 sys.path.append(os.path.dirname(os.getcwd()))
-import pythia
+import effector
 import numpy as np
-import pythia.interaction as interaction
-import pythia.regions as regions
+import effector.interaction as interaction
+import effector.regions as regions
 import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
@@ -16,7 +16,7 @@ import sklearn.metrics as metrics
 import importlib
 from sklearn.utils import check_random_state
 import random
-pythia = importlib.reload(pythia)
+pythia = importlib.reload(effector)
 
 # make everyting reproducible
 np.random.seed(42)
@@ -164,14 +164,14 @@ def model_forward(x):
     return model(x).numpy().squeeze()
 
 # # Explain
-# ale = pythia.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
-# binning_method = pythia.binning_methods.Greedy(init_nof_bins=200, min_points_per_bin=10)
+# ale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
+# binning_method = effector.binning_methods.Greedy(init_nof_bins=200, min_points_per_bin=10)
 # ale.fit(features=3, binning_method=binning_method)
 # ale.plot(feature=3)
 #
 #
 # # find regions
-# reg = pythia.regions.Regions(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, cat_limit=15)
+# reg = effector.regions.Regions(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, cat_limit=15)
 # reg.find_splits(nof_levels=2, nof_candidate_splits=10, method="rhale")
 # opt_splits = reg.choose_important_splits(0.2)
 #
@@ -190,7 +190,7 @@ def model_forward(x):
 #
 #
 # # transform data
-# transf = pythia.regions.DataTransformer(splits=opt_splits)
+# transf = effector.regions.DataTransformer(splits=opt_splits)
 # X_train_new = transf.transform(X_train.to_numpy())
 # X_test_new = transf.transform(X_test.to_numpy())
 #

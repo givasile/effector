@@ -1,7 +1,7 @@
 import typing
 
 import numpy as np
-import pythia.utils as utils
+import effector.utils as utils
 import matplotlib.pyplot as plt
 
 # global (script-level) variables

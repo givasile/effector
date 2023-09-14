@@ -5,9 +5,9 @@ import pandas as pd
 
 sys.path.append(os.path.dirname(os.getcwd()))
 import numpy as np
-import pythia
-import pythia.regions as regions
-import pythia.interaction as interaction
+import effector
+import effector.regions as regions
+import effector.interaction as interaction
 import matplotlib.pyplot as plt
 from nodegam.sklearn import NodeGAMClassifier, NodeGAMRegressor
 import pandas as pd
@@ -17,7 +17,7 @@ from interpret.glassbox import ExplainableBoostingRegressor
 
 # hack to reload modules
 import importlib
-pythia = importlib.reload(pythia)
+pythia = importlib.reload(effector)
 
 
 class RepidSimpleDist:

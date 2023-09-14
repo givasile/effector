@@ -1,10 +1,10 @@
 import numpy as np
 import logging
 import typing
-from pythia import helpers
-import pythia
-from pythia import dPDP, PDP
-from pythia.pdp import pdp_1d_vectorized, pdp_1d_non_vectorized, pdp_nd_non_vectorized, pdp_nd_vectorized
+from effector import helpers
+import effector
+from effector import dPDP, PDP
+from effector.pdp import pdp_1d_vectorized, pdp_1d_non_vectorized, pdp_nd_non_vectorized, pdp_nd_vectorized
 import tqdm
 
 class HIndex:
@@ -199,7 +199,7 @@ class REPID:
         if self.one_vs_all_matrix[feat] != self.empty_symbol:
             return self.one_vs_all_matrix[feat]
 
-        axis_limits = pythia.helpers.axis_limits_from_data(self.data)
+        axis_limits = effector.helpers.axis_limits_from_data(self.data)
         pdp = PDP(self.data, self.model, axis_limits)
         pdp.fit(feat)
 

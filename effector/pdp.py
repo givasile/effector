@@ -1,9 +1,9 @@
 import typing
 import copy
 import numpy as np
-import pythia.visualization as vis
-import pythia.helpers as helpers
-from pythia.fe_base import FeatureEffectBase
+import effector.visualization as vis
+import effector.helpers as helpers
+from effector.fe_base import FeatureEffectBase
 
 
 class PDP(FeatureEffectBase):

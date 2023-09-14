@@ -1,5 +1,5 @@
 import numpy as np
-import pythia
+import effector
 
 
 class PiecewiseLinear:
@@ -119,15 +119,15 @@ X = gen_dist.generate(N=10000)
 X_jac = model.jacobian(X)
 
 for s in [0, 1]:
-    pdp = pythia.PDP(data=X, model=model.predict, axis_limits=gen_dist.axis_limits)
+    pdp = effector.PDP(data=X, model=model.predict, axis_limits=gen_dist.axis_limits)
     pdp.plot(feature=s)
 
-    dale = pythia.RHALE(data=X, model=model.predict, model_jac=model.jacobian, axis_limits=gen_dist.axis_limits)
-    dale.fit(features="all", binning_method=pythia.binning_methods.Fixed(nof_bins=100))
+    dale = effector.RHALE(data=X, model=model.predict, model_jac=model.jacobian, axis_limits=gen_dist.axis_limits)
+    dale.fit(features="all", binning_method=effector.binning_methods.Fixed(nof_bins=100))
     dale.plot(feature=s)
 
-    dale = pythia.RHALE(data=X, model=model.predict, model_jac=model.jacobian, axis_limits=gen_dist.axis_limits)
-    dale.fit(features="all", binning_method=pythia.binning_methods.DynamicProgramming(max_nof_bins=40))
+    dale = effector.RHALE(data=X, model=model.predict, model_jac=model.jacobian, axis_limits=gen_dist.axis_limits)
+    dale.fit(features="all", binning_method=effector.binning_methods.DynamicProgramming(max_nof_bins=40))
     dale.plot(feature=s)
 
 
