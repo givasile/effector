@@ -1,71 +1,49 @@
-import effector.utils_integrate as integrate
 import typing
 import numpy as np
 import copy
 
 
-# def create_fix_size_bins(data: np.array, k: int) -> typing.Tuple[np.ndarray, float]:
-#     """Find the bin limits.
-#
-#     Parameters
-#     ----------
-#     data: ndarray (N,)
-#       array of points
-#     k: int
-#       number of bins
-#
-#     Returns
-#     -------
-#     limits: np.array, shape: (k+1,)
-#       The bin limits
-#     dx: float
-#       The bin size
-#     """
-#     assert data.ndim == 1
-#     assert data.size > 1, "The dataset must contain more than one point!"
-#
-#     z_start = np.min(data)
-#     z_stop = np.max(data)
-#     assert z_stop > z_start, "The dataset must contain more than one discrete points."
-#
-#     limits, dx = np.linspace(z_start, z_stop, num=k + 1, endpoint=True, retstep=True)
-#     return limits
+def compute_local_effects(data: np.ndarray, model: typing.Callable, limits: np.ndarray, feature: int) -> np.ndarray:
+    """Compute the local effects, permuting the feature of interest using the bin limits.
+
+    Notes:
+        The function (a) allocates the points in the bins based on the feature of interest (foi)
+        and (b) computes the effect as the difference when evaluating the output setting the foi at the right and the
+        left limit of the bin.
+
+        Given that the bins are defined as a list [l_0, l_1, ..., l_k], and x_s of the i-th point belongs to the k-th bin:
+
+        $$
+        {df \over dx_s}(x^i) = {f(x_0^i, ... ,x_s=l_k, ..., x_D^i) - f(x_0^i, ... ,x_s=l_{k-1}, ..., x_D^i)
+         \over l_k - l_{k-1}}
+        $$
 
 
-def compute_local_effects_at_bin_limits(
-    data: np.ndarray, model: typing.Callable, limits: np.ndarray, feature: int
-) -> np.ndarray:
-    """Compute the local effects by evaluating the model at bin limits.
+    Examples:
+        >>> data = np.array([[1, 2], [2, 3.0]])
+        >>> model = lambda x: np.sum(x, axis=1)
+        >>> limits = np.array([1.0, 2.0])
+        >>> data_effect = compute_local_effects(data, model, limits, feature=0)
+        >>> data_effect
+        array([1., 1.])
 
-    The function (a) allocates the points in the bins based on the feature of interest
-    and (b) computes the effect of each point measuring the difference in the output at the bin limits.
+    Args:
+        data: The training set, (N, D)
+        model: The black-box model ((N, D) -> (N))
+        limits: The bin limits, (K+1)
+        feature: Index of the feature-of-interest
 
-    # TODO add equation
+    Returns:
+        data_effect: The local effect of each data point, (N)
 
-    Parameters
-    ----------
-    data: ndarray, shape (N,D)
-      The training set
-    model: Callable: ndarray (N,D) -> (N)
-      The black-box model
-    limits: np.array, shape: (k+1,)
-      The bin limits
-    dx: float
-      The bin size
-    feature: int
-      Index of the feature-of-interest
-
-    Returns
-    -------
-    data_effect: ndarray, shape (N,)
-      The local effect of each data point.
     """
     assert data.ndim == 2
 
+    # check that limits cover all data points
     assert limits[0] <= np.min(data[:, feature])
     assert limits[-1] >= np.max(data[:, feature])
 
-    # find bin-index of points
+    # for each point, find the bin-index it belongs to
     eps = 1e-8
     limits[-1] += eps
     ind = np.digitize(data[:, feature], limits)
@@ -81,67 +59,87 @@ def compute_local_effects_at_bin_limits(
     return np.squeeze(data_effect) / dx
 
 
-def filter_points_in_bin(data: np.ndarray, data_effect: typing.Union[np.ndarray, None], limits: np.ndarray):
-    filt = np.logical_and(limits[0] <= data, data <= limits[1])
+def filter_points_in_bin(xs: np.ndarray, df_dxs: typing.Union[np.ndarray, None], limits: np.ndarray) \
+        -> typing.Tuple[np.ndarray, typing.Union[np.ndarray, None]]:
+    """
+    Filter the points inside the bin defined by the `limits`.
+
+    Notes:
+        Filtering depends on whether `xs` lies in the interval [limits[0], limits[1]], not `df_dxs`.
+
+    Examples:
+        >>> xs = np.array([1, 2, 3])
+        >>> df_dxs = np.array([32, 34, 36])
+        >>> limits = np.array([1, 2])
+        >>> xs, df_dxs = filter_points_in_bin(xs, df_dxs, limits)
+        >>> xs
+        array([1, 2])
+        >>> df_dxs
+        array([32, 34])
+
+    Args:
+        xs: The instances, (N)
+        df_dxs: The instance-effects (N) or None
+        limits: [Start, Stop] of the bin
+
+    Returns:
+        data: The instances in the bin, (nof_points_in_bin, D)
+        data_effect: The instance-effects in the bin, (nof_points_in_bin, D) or None
+
+    """
+    filt = np.logical_and(limits[0] <= xs, xs <= limits[1])
 
     # return data
-    data = data[filt]
+    xs = xs[filt]
 
     # return data effect if not None
-    if data_effect is not None:
-        data_effect = data_effect[filt]
-    return data, data_effect
+    if df_dxs is not None:
+        df_dxs = df_dxs[filt]
+    return xs, df_dxs
 
 
-# def compute_data_effect_single_bin(data: np.ndarray, model: typing.Callable, limits: np.ndarray,
-#                                    dx: float, feature: int) -> np.ndarray:
-#
-#     # compute effect
-#     right_lim = copy.deepcopy(data)
-#     left_lim = copy.deepcopy(data)
-#     right_lim[:, feature] = limits[-1]
-#     left_lim[:, feature] = limits[0]
-#     data_effect = (model(right_lim) - model(left_lim))/dx
-#     return data_effect
-
-
-def compute_bin_effect(
-    data: np.ndarray, data_effect: np.ndarray, limits: np.ndarray
-) -> typing.Tuple[np.ndarray, np.ndarray]:
+def compute_bin_effect(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray) -> typing.Tuple[np.ndarray, np.ndarray]:
     """Compute the mean effect in each bin.
 
-    The function (a) allocates the points in the bins and (b) computes the mean effect of the points that lie
-    in each bin as the bin effect. If no points lie in a bin, then NaN is passed as the bin effect.
+    Notes:
+        The function (a) allocates the instances in the bins and (b) aggregates the instance-level effects to compute
+        the average bin-effect. If no instances lie in a bin, then the bin effect is NaN.
 
-    # TODO add equation
+        $$
+        \mathtt{bin\_effect}_k = {1 \over |i \in bin_k|} \sum_{i \in bin_k} \mathtt{effect}_i
+        $$
 
-    Parameters
-    ----------
-    data: ndarray
-      The points we evaluate, shape (N,)
-    data_effect: ndarray
-      The effect of each point (N,)
-    limits: ndarray
-      The bin limits, shape: [k+1,]
+    Examples:
+        >>> n = 100
+        >>> xs = np.ones([n]) - 0.5
+        >>> df_dxs = np.ones_like(xs) * 10
+        >>> limits = np.array([0., 1., 2.0])
+        >>> bin_effects, ppb = compute_bin_effect(xs, df_dxs, limits)
+        >>> bin_effects
+        array([10., nan])
+        >>> ppb
+        array([100,   0])
 
-    Returns
-    -------
-    bin_effects: ndarray, shape (K,)
-      The effect of each bin.
-    points_per_bin: ndarray, shape (K,)
-      How many points lie in each bin.
+    Parameters:
+        xs: The s-th feature of the instances, (N)
+        df_dxs: The effect wrt the s-th feature for each instance, (N)
+        limits: The bin limits, (K+1)
+
+    Returns:
+        bin_effects: The average effect per bin, (K)
+        points_per_bin: The number of points per bin, (K)
     """
     empty_symbol = np.NaN
 
     # find bin-index of points
     eps = 1e-8
     limits[-1] += eps
-    ind = np.digitize(data, limits)
+    ind = np.digitize(xs, limits)
     # assert np.alltrue(ind > 0)
 
     # bin effect is the mean of all points that lie in the bin
     nof_bins = limits.shape[0] - 1
-    aggregated_effect = np.bincount(ind - 1, data_effect, minlength=nof_bins)
+    aggregated_effect = np.bincount(ind - 1, df_dxs, minlength=nof_bins)
     points_per_bin = np.bincount(ind - 1, minlength=nof_bins)
 
     # if no point lies in a bin, store Nan
@@ -154,49 +152,70 @@ def compute_bin_effect(
     return bin_effect_mean, points_per_bin
 
 
-def compute_bin_variance(data, data_effect, limits, bin_effect_mean):
-    """Compute the variance of the effect in each bin.
+def compute_bin_variance(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray, bin_effect_mean: np.ndarray) -> typing.Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute the variance of the effect in each bin.
 
-    The function (a) allocates the points in the bins and (b) computes the variance in each bin and the variance
-     of the estimated variance in each bin. If no points lie in a bin, then NaN is passed as the bin effect.
+    Notes:
+        The function (a) allocates the points in the bins and (b) computes the variance and the variance/nof points.
+        If less than two points in a bin, NaN is passed.
 
-    # TODO add equation
+        $$
+        \mathtt{bin\_variance}_k = {1 \over |i \in bin_k|} \sum_{i \in bin_k}
+        (\mathtt{effect}_i - \mathtt{bin\_effect}_k)^2
+        $$
 
-    Parameters
-    ----------
-    data: ndarray, shape (N,)
-      The points we evaluate
-    data_effect: ndarray
-      The effect of each point (N,)
-    limits: ndarray, shape: (k+1,)
-      The bin limits
-    bin_effect_mean: ndarray, shape: (k,)
-      Mean effect in each bin
+        $$
+        \mathtt{bin\_estimator\_variance_k} = {\mathtt{bin\_variance}_k \over |i \in bin_k|}
+        $$
 
-    Returns
-    -------
-    bin_variance: ndarray, shape (K,)
-      The variance in each bin
-    bin_estimator_variance: ndarray, shape (K,)
-      The variance of the estimated variance in each bin
+    Examples:
+        >>> n = 100
+        >>> xs = np.ones([n]) - 0.5
+        >>> df_dxs = np.ones_like(xs) * 10
+        >>> limits = np.array([0., 1., 2.0])
+        >>> bin_effect_mean, ppb = compute_bin_effect(xs, df_dxs, limits)
+        >>> bin_variance, bin_estimator_variance = compute_bin_variance(xs, df_dxs, limits, bin_effect_mean)
+        >>> bin_variance
+        array([ 0., nan])
+        >>> bin_estimator_variance
+        array([ 0., nan])
+
+        >>> xs = np.ones(4) * 0.5
+        >>> df_dxs = np.array([1.0, 3.0, 3.0, 5.0])
+        >>> limits = np.array([0, 1, 2.0])
+        >>> bin_effect_mean = np.array([np.mean(df_dxs), np.NaN])
+        >>> compute_bin_variance(xs, df_dxs, limits, bin_effect_mean)
+        (array([ 2., nan]), array([0.5, nan]))
+
+    Parameters:
+        xs: The points we evaluate, (N)
+        df_dxs: The effect of each point, (N, )
+        limits: The bin limits (K+1)
+        bin_effect_mean: Mean effect in each bin, (K)
+
+    Returns:
+        bin_variance: The variance in each bin, (K, )
+        bin_estimator_variance: The variance of the estimator in each bin, (K, )
+
     """
     empty_symbol = np.NaN
 
     # find bin-index of points
     eps = 1e-8
     limits[-1] += eps
-    ind = np.digitize(data, limits)
+    ind = np.digitize(xs, limits)
     # assert np.alltrue(ind > 0)
 
     # variance of the effect in each bin
-    variance_per_point = (data_effect - bin_effect_mean[ind - 1]) ** 2
+    variance_per_point = (df_dxs - bin_effect_mean[ind - 1]) ** 2
     nof_bins = limits.shape[0] - 1
     aggregated_variance_per_bin = np.bincount(
         ind - 1, variance_per_point, minlength=nof_bins
     )
     points_per_bin = np.bincount(ind - 1, minlength=nof_bins)
 
-    # if less that two points in a bin, store Nan
+    # if less than two points in a bin, store Nan
     bin_variance = np.divide(
         aggregated_variance_per_bin,
         points_per_bin,
@@ -214,21 +233,29 @@ def compute_bin_variance(data, data_effect, limits, bin_effect_mean):
     return bin_variance, bin_estimator_variance
 
 
-def fill_nans(bin_effect_mean):
-    """Interpolate the bin_effects with Nan values.
+def fill_nans(x: np.ndarray) -> np.ndarray:
+    """Replace NaNs with interpolated values.
 
-    Parameters
-    ----------
-    bin_effect_mean: ndarray
-      The bin effects with NaNs
+    Examples:
+        >>> x = np.array([1.0, np.NaN, 2.0])
+        >>> fill_nans(x)
+        array([1. , 1.5, 2. ])
 
-    Returns
-    -------
-    bin_effects: ndarray
-      The bin effects without NaNs
+        >>> x = np.array([1.0, np.NaN, np.NaN, np.NaN, 2.0])
+        >>> fill_nans(x)
+        array([1.  , 1.25, 1.5 , 1.75, 2.  ])
 
+        >>> x = np.array([0.5, 1.0, np.NaN, np.NaN, np.NaN])
+        >>> fill_nans(x)
+        array([0.5, 1. , 1. , 1. , 1. ])
+
+    Parameters:
+        x: Time-series with NaNs, (T)
+
+    Returns:
+        x: Time-series values without NaNs, (T)
     """
-    bin_effect_1 = copy.deepcopy(bin_effect_mean)
+    bin_effect_1 = copy.deepcopy(x)
 
     def nan_helper(y):
         return np.isnan(y), lambda z: z.nonzero()[0]
@@ -238,32 +265,66 @@ def fill_nans(bin_effect_mean):
     return bin_effect_1
 
 
-def compute_accumulated_effect(
-    x: np.ndarray, limits: np.ndarray, bin_effect: np.ndarray, dx: float, square=False
-):
+def compute_accumulated_effect(x: np.ndarray, limits: np.ndarray, bin_effect: np.ndarray, dx: np.ndarray, square: bool =False) -> np.ndarray:
     """Compute the accumulated effect.
 
-    Parameters
-    ----------
-    x: ndarray
-      points we want to evaluate, shape: (N,)
-    limits: ndarray
-      bin limits, shape: (k+1,)
-    bin_effect: ndarray
-      effect of the bins, shape: (k,)
-    dx: float
-      step between bins
+    Notes:
+        The function implements the following formula
 
-    Returns
-    -------
-    y: ndarray
-      the accumulated effect, shape: (N,)
+        $$
+        \mathtt{dx}[i] = \mathtt{limits}[i+1] - \mathtt{limits}[i]
+        $$
 
-    Notes
-    -----
-    The function implements the following formula
+        $$
+        \mathtt{full\_bin\_acc} = \sum_{i=0}^{k_x - 1} \mathtt{dx}[i] * \mathtt{bin\_effect}[i]
+        $$
 
-    .. math:: f(x) = dx * \sum_{i=0}^{k_x - 1} bin[i] + (x - limits[k_x-1])*bin[k_x]
+        $$
+        \mathtt{remainder} = (x - \mathtt{limits}[k_x-1])* \mathtt{bin\_effect}[k_x]
+        $$
+
+        $$
+        f(x) =  \mathtt{full\_bin\_acc} + \mathtt{remainder}
+        $$
+
+    Notes:
+        if `square=True`, then the formula is:
+        $$
+        \mathtt{full\_bin\_acc} = \sum_{i=0}^{k_x - 1} \mathtt{dx}^2[i] * \mathtt{bin\_effect}[i]
+        $$
+
+        $$
+        \mathtt{remainder} = (x - \mathtt{limits}[k_x-1])^2* \mathtt{bin\_effect}[k_x]
+        $$
+
+    Examples:
+        >>> x = np.array([-1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0])
+        >>> limits = np.array([0, 1.5, 2.0])
+        >>> bin_effect = np.array([1.0, -1.0])
+        >>> dx = np.array([1.5, 0.5])
+        >>> compute_accumulated_effect(x, limits, bin_effect, dx)
+        array([0. , 0. , 0. , 0.5, 1. , 1.5, 1. , 1. , 1. ])
+
+        >>> x = np.array([-1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0])
+        >>> limits = np.array([0, 1.5, 2.0])
+        >>> bin_effect = np.array([1.0, 1.0])
+        >>> dx = np.array([1.5, 0.5])
+        >>> compute_accumulated_effect(x, limits, bin_effect, dx)
+        array([0. , 0. , 0. , 0.5, 1. , 1.5, 2. , 2. , 2. ])
+
+
+
+    Parameters:
+        x: The points we want to evaluate at, (T)
+        limits: The bin limits, (K+1)
+        bin_effect: The effect in each bin, (K)
+        dx: The bin-widths, (K)
+        square: Whether to square the width. If true, the effect is bin_effect * dx^2, otherwise bin_effect * dx
+
+    Returns:
+        y: The accumulated effect at each point, (T)
+
+
     """
     big_m = 100000000000000.0
 
@@ -296,16 +357,31 @@ def compute_accumulated_effect(
     return y
 
 
-def compute_ale_params_from_data(data, data_effect, limits):
+def compute_ale_params_from_data(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray):
+    """
+    Compute all important parameters for the ALE plot.
 
+    Args:
+        xs: ndarray, shape: (N, )
+            The s-th feature of the instances
+        df_dxs: ndarray, shape: (N, )
+            The effect wrt the s-th feature for each instance
+        limits: ndarray
+            The bin limits, shape: (k+1,)
+
+    Returns:
+        parameters: dict
+
+    """
+    # compute bin-widths
     dx = np.array([limits[i + 1] - limits[i] for i in range(len(limits) - 1)])
 
     # compute mean effect on each bin
-    bin_effect_nans, points_per_bin = compute_bin_effect(data, data_effect, limits)
+    bin_effect_nans, points_per_bin = compute_bin_effect(xs, df_dxs, limits)
 
     # compute effect variance in each bin
     bin_variance_nans, bin_estimator_variance_nans = compute_bin_variance(
-        data, data_effect, limits, bin_effect_nans
+        xs, df_dxs, limits, bin_effect_nans
     )
 
     # interpolate NaNs
@@ -324,55 +400,18 @@ def compute_ale_params_from_data(data, data_effect, limits):
     return parameters
 
 
-def compute_ale_params_from_gt(mean, limits):
-    dx = np.array([limits[i + 1] - limits[i] for i in range(len(limits) - 1)])
-
-    bin_mean = []
-    bin_var = []
-    for i in range(limits.shape[0] - 1):
-        start = limits[i]
-        stop = limits[i + 1]
-        mu_bin = integrate.integrate_1d_quad(mean, start, stop) / (stop - start)
-        mean_var = lambda x: (mean(x) - mu_bin) ** 2
-        bin_var1 = integrate.integrate_1d_quad(mean_var, start, stop)
-        bin_var1 = bin_var1 / (stop - start)
-
-        bin_mean.append(mu_bin)
-        bin_var.append(bin_var1)
-
-    bin_mean = np.array(bin_mean)
-    bin_var = np.array(bin_var)
-    parameters = {
-        "dx": dx,
-        "limits": limits,
-        "bin_effect": bin_mean,
-        "bin_variance": bin_var,
-    }
-    return parameters
-
-
 def get_feature_types(data: np.ndarray, cat_limit: int = 10):
     """Determine the type of each feature.
 
     Args:
-        data: array-like, shape (n_samples, n_features)
-            The data to determine the types of features.
+        data: np.ndarray, shape (N, D)
+            The dataset.
         cat_limit: int, default=10
-            The maximum number of unique values for a feature to be considered categorical.
+            The maximum number of unique values for a feature to be considered as categorical.
 
     Returns:
         types: list
             A list of strings, where each string is either "cat" or "cont".
-
-    Examples:
-        >>> import numpy as np
-        >>> data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-        >>> types_of_features(data)
-        ['cont', 'cont', 'cont']
-        >>> data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [1, 2, 3]])
-        >>> types_of_features(data)
-        ['cat', 'cat', 'cat']
-
     """
 
     types = ["cat" if len(np.unique(data[:, f])) < cat_limit else "cont" for f in range(data.shape[1])]

@@ -260,11 +260,9 @@ class TestBinEstimation:
         limits_Greedy = est.find(min_points, cat_limit=1)
         assert limits_Greedy is False
 
-        # TODO check why this test fails
-        # min_points = 5
-        # est = effector.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
-        # limits_DP = est.find(min_points, cat_limit=1)
-
+        min_points = 5
+        est = effector.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
+        limits_DP = est.find(min_points=min_points, cat_limit=1)
         assert limits_DP is False
 
     def test_many_points(self):

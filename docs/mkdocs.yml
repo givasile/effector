@@ -12,7 +12,12 @@ plugins:
           paths: [./../]
           rendering:
             show_source: true
-            heading_level: 3
+            heading_level: 2
+
+extra_javascript:
+  - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-AMS-MML_HTMLorMML
+markdown_extensions:
+  - mdx_math
 
 watch:
   - ../effector

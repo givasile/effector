@@ -313,11 +313,10 @@ class DP(BinBase):
         nof_limits = max_nof_bins + 1
         nof_bins = max_nof_bins
 
-
         # if is categorical, then only one bin is possible
         if self._none_valid_binning():
             self.limits = False
-        if self._is_categorical(cat_limit):
+        elif self._is_categorical(cat_limit):
             return self.limits
         elif self._only_one_bin_possible():
             self.limits = np.array([self.xs_min, self.xs_max])

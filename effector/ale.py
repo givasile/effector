@@ -68,7 +68,7 @@ class ALE(FeatureEffectBase):
         )
 
         # compute data effect on bin limits
-        data_effect = utils.compute_local_effects_at_bin_limits(data, self.model, bin_est.limits, feature)
+        data_effect = utils.compute_local_effects(data, self.model, bin_est.limits, feature)
 
         # compute the bin effect
         dale_params = utils.compute_ale_params_from_data(data[:, feature], data_effect, bin_est.limits)

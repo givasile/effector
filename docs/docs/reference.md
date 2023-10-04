@@ -1,6 +1,6 @@
 # API reference
 
-## Global Feature Effect
+## Global Feature Effect Methods
 
 ::: effector.pdp.PDP
     options:
@@ -8,3 +8,5 @@
         - fit
         - plot
 
+
+::: effector.utils
