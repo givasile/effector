@@ -81,10 +81,15 @@ def compute_local_effects_at_bin_limits(
     return np.squeeze(data_effect) / dx
 
 
-def filter_points_in_bin(data: np.ndarray, data_effect: np.ndarray, limits: np.ndarray):
+def filter_points_in_bin(data: np.ndarray, data_effect: typing.Union[np.ndarray, None], limits: np.ndarray):
     filt = np.logical_and(limits[0] <= data, data <= limits[1])
-    data_effect = data_effect[filt]
+
+    # return data
     data = data[filt]
+
+    # return data effect if not None
+    if data_effect is not None:
+        data_effect = data_effect[filt]
     return data, data_effect
 
 

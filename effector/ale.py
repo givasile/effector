@@ -7,14 +7,12 @@ from effector.fe_base import FeatureEffectBase
 import numpy as np
 
 
-class RHALE(FeatureEffectBase):
+class ALE(FeatureEffectBase):
     def __init__(
         self,
         data: np.ndarray,
         model: callable,
-        model_jac: typing.Union[None, callable],
         axis_limits: typing.Union[None, np.ndarray] = None,
-        data_effect: typing.Union[None, np.ndarray] = None,
     ):
         """
         RHALE constructor
@@ -23,9 +21,7 @@ class RHALE(FeatureEffectBase):
         ---
             data (numpy.ndarray (N,D)): X matrix.
             model (Callable (N,D) -> (N,)): the black-box model.
-            model_jac (Callable (N,D) -> (N,) or None): the jacobian of the model. If set to None, the Jacobian will be computed numerically.
             axis_limits (numpy.ndarray or None): axis limits of the data. If set to None, the axis limits will be auto-computed from the input data.
-            data_effect (numpy.ndarray or None): data jacobian. If set to None, the effect will be computed from the Jacobian matrix.
 
         Returns
         -------
@@ -34,32 +30,16 @@ class RHALE(FeatureEffectBase):
         """
         # assertions
         assert data.ndim == 2
-        assert (model_jac is not None) or (data_effect is not None)
 
         # setters
         self.model = model
-        self.model_jac = model_jac
         self.data = data
         axis_limits = (helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits)
 
-        super(RHALE, self).__init__(axis_limits)
+        super(ALE, self).__init__(axis_limits)
 
-        # if data_effect is None, it will be computed after compile
-        self.data_effect = data_effect
-
-    def compile(self):
-        """Prepare everything for fitting, i.e., compute the gradients on data points.
-        TODO add numerical approximation
-        """
-        if self.data_effect is None:
-            self.data_effect = self.model_jac(self.data)
-        else:
-            # TODO add numerical approximation
-            pass
 
     def _fit_feature(self, feature: int, binning_method) -> typing.Dict:
-        if self.data_effect is None:
-            self.compile()
 
         # drop points outside of limits
         ind = np.logical_and(
@@ -67,10 +47,14 @@ class RHALE(FeatureEffectBase):
             self.data[:, feature] <= self.axis_limits[1, feature],
         )
         data = self.data[ind, :]
-        data_effect = self.data_effect[ind, :]
+
+        # assert binning_method is either "fixed" or an instance of the class binning_method.Fixed
+        assert isinstance(binning_method, bm.Fixed) or binning_method == "fixed", (
+            "binning_method must be either 'fixed' or an instance of the class binning_method.Fixed"
+        )
 
         # bin estimation
-        bin_est = bm.find_limits(data, data_effect, feature, self.axis_limits, binning_method)
+        bin_est = bm.find_limits(data, None, feature, self.axis_limits, binning_method)
         bin_name = bin_est.__class__.__name__
 
         # assert bins can be computed else raise error
@@ -83,14 +67,17 @@ class RHALE(FeatureEffectBase):
             "the parameters of the method"
         )
 
+        # compute data effect on bin limits
+        data_effect = utils.compute_local_effects_at_bin_limits(data, self.model, bin_est.limits, feature)
+
         # compute the bin effect
-        dale_params = utils.compute_ale_params_from_data(data[:, feature], data_effect[:, feature], bin_est.limits)
-        dale_params["alg_params"] = binning_method
+        dale_params = utils.compute_ale_params_from_data(data[:, feature], data_effect, bin_est.limits)
+        dale_params["alg_params"] = "fixed"
         return dale_params
 
     def fit(self,
             features: typing.Union[int, str, list] = "all",
-            binning_method="greedy",
+            binning_method="fixed",
             centering: typing.Union[bool, str] = "zero_integral",
             ) -> None:
         """Fit the model.
@@ -99,10 +86,6 @@ class RHALE(FeatureEffectBase):
         ---
             features (int, str, list): the features to fit.
                 - If set to "all", all the features will be fitted.
-            binning_method (str):
-                - If set to "greedy", the greedy binning method will be used.
-                - If set to "dynamic", the dynamic programming binning method will be used.
-                - If set to "fixed", the fixed binning method will be used.
             centering (bool, str):
                 - If set to False, no centering will be applied.
                 - If set to "zero_integral" or True, the integral of the feature effect will be set to zero.

@@ -69,9 +69,9 @@ class BinBase:
             return True
 
         xs = self.data[:, self.feature]
-        dy_dxs = self.data_effect[:, self.feature]
-        _, effect_1 = utils.filter_points_in_bin(xs, dy_dxs, np.array([start, stop]))
-        valid = effect_1.size >= min_points
+        # dy_dxs = self.data_effect[:, self.feature]
+        filtered_points, _ = utils.filter_points_in_bin(xs, None, np.array([start, stop]))
+        valid = filtered_points.size >= min_points
         return valid
         
     def _none_valid_binning(self):
@@ -84,8 +84,7 @@ class BinBase:
         cond_1 = len(np.unique(self.data[:, self.feature])) == 1
 
         # if there are less than min_points, then it is impossible to create any binning
-        dy_dxs = self.data_effect[:, self.feature]
-        cond_2 = dy_dxs.size < self.method_args["min_points"]
+        cond_2 = self.data[:, self.feature].size < self.method_args["min_points"]
 
         # if either is true, then it is impossible to create any binning
         return cond_1 or cond_2
