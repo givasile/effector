@@ -210,7 +210,7 @@ def pdp_heter(data, model, model_jac, foi, min_points=15):
     # Initialize dpdp
     axis_limits = effector.helpers.axis_limits_from_data(data)
     nof_instances = 100
-    dpdp = pdp.dPDP(data, model, model_jac, axis_limits, nof_instances)
+    dpdp = pdp.DerivativePDP(data, model, model_jac, axis_limits, nof_instances)
    
     # Fit dpdp
     dpdp.fit(features=foi, normalize=False)
@@ -246,7 +246,7 @@ def rhale_heter(data: np.ndarray,
     # heterogeneity is the accumulated std at the end of the curve
     axis_limits = effector.helpers.axis_limits_from_data(data)
     stop = np.array([axis_limits[:, foi][1]])
-    _, z, _ = rhale.eval(feature=foi, x=stop, uncertainty=True)
+    _, z, _ = rhale.eval(feature=foi, xs=stop, uncertainty=True)
     return z.item()
 
 

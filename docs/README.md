@@ -26,6 +26,7 @@ jupyter nbconvert --to markdown ../tutorials/*.ipynb --output-dir docs/tutorials
 
 [https://squidfunk.github.io/mkdocs-material/getting-started/](https://squidfunk.github.io/mkdocs-material/getting-started/)
 [https://mkdocstrings.github.io/](https://mkdocstrings.github.io/)
+https://mkdocstrings.github.io/python/usage/
 
 
 

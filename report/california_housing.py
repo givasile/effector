@@ -57,7 +57,7 @@ def plot_subregions(splits, feat, feat_ram, X_train, model, model_jac, gam, ram)
         # gam
         xx, y_ebm = get_effect_from_ebm(ebm, feat_ram)
         xx = np.array(xx)
-        y_rhale = rhale.eval(feature=feat, x=xx, uncertainty=False, centering="zero_integral")
+        y_rhale = rhale.eval(feature=feat, xs=xx, uncertainty=False, centering="zero_integral")
 
         plt.figure()
         plt.title(title)

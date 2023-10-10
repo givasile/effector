@@ -73,11 +73,11 @@ class TestExample2:
         dale.fit(features="all", binning_method=fixed, centering=True)
 
         x = np.linspace(0, 1, 1000)
-        pred = dale.eval(feature=0, x=x, centering=True)
+        pred = dale.eval(feature=0, xs=x, centering=True)
         gt = self.ale_1(x)
         assert np.allclose(pred, gt, atol=self.atol)
 
-        pred = dale.eval(feature=1, x=x, centering=True)
+        pred = dale.eval(feature=1, xs=x, centering=True)
         gt = self.ale_2(x)
         assert np.allclose(pred, gt, atol=self.atol)
 
@@ -85,11 +85,11 @@ class TestExample2:
         dp = effector.binning_methods.DynamicProgramming(max_nof_bins=20, min_points_per_bin=10, cat_limit=1)
         dale.fit(binning_method=dp, centering=True)
 
-        pred = dale.eval(feature=0, x=x, centering=True)
+        pred = dale.eval(feature=0, xs=x, centering=True)
         gt = self.ale_1(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 
-        pred = dale.eval(feature=1, x=x, centering=True)
+        pred = dale.eval(feature=1, xs=x, centering=True)
         gt = self.ale_2(x)
         assert np.allclose(pred, gt, atol=1.e-2)
 

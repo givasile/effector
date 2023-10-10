@@ -10,36 +10,37 @@ class FeatureEffectBase(ABC):
 
     def __init__(self, axis_limits: np.ndarray) -> None:
         """
-        Initializes FeatureEffectBase.
+        Constructor for the FeatureEffectBase class.
 
-        Parameters
-        ----------
-        axis_limits: [2, D] np.ndarray, axis limits for the FE plot
+        Args:
+            axis_limits: The axis limits defined as start and stop values for each axis, (2, D)
+
         """
-        # setters
         self.axis_limits: np.ndarray = axis_limits
         self.dim = self.axis_limits.shape[1]
 
         # state variable
         self.is_fitted: np.ndarray = np.ones([self.dim]) * False
 
-        # input variables, arguments of fit
+        # parameters used when fitting the feature effect
         self.method_args: typing.Dict = {}
 
-        # output variables, after fit
         # normalization constant per feature for centering the FE plot
         self.norm_const: np.ndarray = np.ones([self.dim]) * self.empty_symbol
-        # dictionary with fe plot details. keys are "feature_s", where s is the index of the feature
+
+        # dictionary with all the information required for plotting or evaluating the feautere effect
         self.feature_effect: typing.Dict = {}
-        # boolean variable for whether a FE plot has been computed
 
     def _eval_unnorm(self,
                      feature: int,
                      x: np.ndarray,
                      uncertainty: bool = False
                      ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
-        """Compute the effect of the s-th feature at x.
+        """
+        Compute the effect of the s-th feature at positions `x`.
+
         If uncertainty is False, returns a [N,] np.ndarray with the evaluation of the plot
+
         If uncertainty is True, returns a tuple (y, sigma, stderr) where:
          - y: is a [N,] np.ndarray with the expected effect
          - sigma: is a [N,] np.ndarray with the std of the expected effect
@@ -59,7 +60,7 @@ class FeatureEffectBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def fit(self, features: typing.Union[int, str, list] = "all"):
+    def fit(self, features: typing.Union[int, str, list] = "all", **kwargs) -> None:
         """Iterates over _fit_feature for all features,
         computes the normalization constant if asked
         and updates self.is_fitted.
@@ -100,23 +101,35 @@ class FeatureEffectBase(ABC):
 
     def eval(self,
              feature: int,
-             x: np.ndarray,
+             xs: np.ndarray,
              uncertainty: bool = False,
              centering: typing.Union[bool, str] = False
-             ) -> typing.Union[np.ndarray, typing.Tuple]:
-        """Evaluate the feature effect method at x positions.
+             ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+        """Evaluate the effect of the s-th feature at positions `xs`.
 
-        Parameters
-        ----------
-        x: np.array (N,)
-        feature: index of feature of interest
-        uncertainty: whether to return the std and the estimator variance
-        centering: whether to centering the plot
+        Notes:
+            This is a common method among all the FE classes.
 
-        Returns
-        -------
-        - np.array (N,), if uncertainty=False
-        - tuple (y, std, estimator_var), if uncertainty=True
+        Parameters:
+            feature: index of feature of interest
+            xs: the points along the s-th axis to evaluate the FE plot, (T)
+            uncertainty: whether to return the uncertainty measures
+            centering: whether to center the plot
+
+        Returns:
+            the mean effect `y`, if `uncertainty=False` (default) or a tuple `(y, std, estimator_var)` otherwise
+
+        Notes:
+            * If `centering` is `False`, the PDP is not centered
+            * If `centering` is `True` or `"zero-integral"`, the PDP is centered by subtracting the mean of the PDP.
+            * If `centering` is `"zero-start"`, the PDP is centered by subtracting the value of the PDP at the first point.
+
+        Notes:
+            * If `uncertainty` is `False`, the PDP returns only the mean effect `y` at the given `xs`.
+            * If `uncertainty` is `True`, the PDP returns `(y, std, estimator_var)` where:
+                * `y` is the mean effect
+                * `std` is the standard deviation of the mean effect
+                * `estimator_var` is the variance of the mean effect estimator
         """
         centering = helpers.prep_centering(centering)
 
@@ -128,11 +141,11 @@ class FeatureEffectBase(ABC):
             arg_list = self.fit.__code__.co_varnames
             self.fit(features=feature, centering=centering) if "centering" in arg_list else self.fit(features=feature)
 
-        # Evaluate the feature with or without uncertainty
-        yy = self._eval_unnorm(feature, x, uncertainty=uncertainty)
+        # Evaluate the feature
+        yy = self._eval_unnorm(feature, xs, uncertainty=uncertainty)
         y, std, estimator_var = yy if uncertainty else (yy, None, None)
 
-        # Center the plot if asked
+        # Center if asked
         y = y - self.norm_const[feature] if self.norm_const[feature] != self.empty_symbol and centering else y
 
         return (y, std, estimator_var) if uncertainty is not False else y

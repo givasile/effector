@@ -3,6 +3,7 @@ import numpy as np
 import copy
 
 BIG_M = 100000000000000.0
+EPS = 1e-8
 
 
 def compute_local_effects(
@@ -48,8 +49,7 @@ def compute_local_effects(
     assert limits[-1] >= np.max(data[:, feature])
 
     # for each point, find the bin-index it belongs to
-    eps = 1e-8
-    limits[-1] += eps
+    limits[-1] += EPS
     ind = np.digitize(data[:, feature], limits)
     assert np.alltrue(ind > 0)
 
@@ -139,9 +139,8 @@ def compute_bin_effect(
     empty_symbol = np.NaN
 
     # find bin-index of points
-    eps = 1e-8
     limits_enh = copy.deepcopy(limits).astype(float)
-    limits_enh[-1] += eps
+    limits_enh[-1] += EPS
     ind = np.digitize(xs, limits_enh)
     # assert np.alltrue(ind > 0)
 
@@ -384,12 +383,9 @@ def compute_ale_params(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray) -
         {'limits': array([1, 3, 4]), 'dx': array([2, 1]), 'points_per_bin': array([3, 1]), 'bin_effect': array([34., 40.]), 'bin_variance': array([6., 6.]), 'bin_estimator_variance': array([2., 2.])}
 
     Args:
-        xs: ndarray, shape: (N, )
-            The s-th feature of the instances
-        df_dxs: ndarray, shape: (N, )
-            The effect wrt the s-th feature for each instance
-        limits: ndarray
-            The bin limits, shape: (k+1,)
+        xs: The values of s-th feature, (N)
+        df_dxs: The effect wrt the s-th feature, (N)
+        limits: The bin limits, (K+1)
 
     Returns:
         parameters: dict
@@ -422,21 +418,20 @@ def compute_ale_params(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray) -
     return parameters
 
 
-def get_feature_types(data: np.ndarray, categorical_limit: int = 10):
+def get_feature_types(data: np.ndarray, categorical_limit: int = 10) -> list[str]:
     """Determine the type of each feature.
 
     Notes:
         A feature is considered as categorical if it has less than `cat_limit` unique values.
 
     Args:
-        data: np.ndarray, shape (N, D)
-            The dataset.
-        categorical_limit: int, default=10
-            The maximum number of unique values for a feature to be considered as categorical.
+        data: The dataset, (N, D)
+        categorical_limit: Maximum unique values for a feature to be considered as categorical
+
 
     Returns:
-        types: list
-            A list of strings, where each string is either "cat" or "cont".
+        types: A list of strings, where each string is either `"cat"` or `"cont"`
+
     """
 
     types = [

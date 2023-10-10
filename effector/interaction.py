@@ -3,7 +3,7 @@ import logging
 import typing
 from effector import helpers
 import effector
-from effector import dPDP, PDP
+from effector import DerivativePDP, PDP
 from effector.pdp import pdp_1d_vectorized, pdp_1d_non_vectorized, pdp_nd_non_vectorized, pdp_nd_vectorized
 import tqdm
 
@@ -115,14 +115,14 @@ class HIndex:
 
     def _pdp_1d(self, feature, x):
         # eval normalized pdp for feature at x
-        yy = pdp_1d_vectorized(self.model, self.data, x, feature, uncertainty=False, is_jac=False)
+        yy = pdp_1d_vectorized(self.model, self.data, x, feature, uncertainty=False, model_returns_jac=False)
         c = np.mean(yy)
         return yy - c
 
     def _pdp_2d(self, feature1, feature2, x1, x2):
         features = [feature1, feature2]
         x = np.stack([x1, x2], axis=-1)
-        yy = pdp_nd_vectorized(self.model, self.data, x, features, uncertainty=False, is_jac=False)
+        yy = pdp_nd_vectorized(self.model, self.data, x, features, uncertainty=False, model_returns_jac=False)
         c = np.mean(yy)
         return yy - c
 
@@ -131,7 +131,7 @@ class HIndex:
         features = [i for i in range(self.nof_features) if i != feature]
         assert len(features) == x.shape[1]
 
-        yy = pdp_nd_vectorized(self.model, self.data, x, features, uncertainty=False, is_jac=False)
+        yy = pdp_nd_vectorized(self.model, self.data, x, features, uncertainty=False, model_returns_jac=False)
         c = np.mean(yy)
         return yy - c
 
@@ -208,7 +208,7 @@ class REPID:
         stop = axis_limits[:, feat][1]
         x = np.linspace(start, stop, 21)
         x = 0.5 * (x[:-1] + x[1:])
-        mu, std, stderr = pdp.eval(feature=feat, x=x, uncertainty=True, centering="zero_start") # "zero_integral")
+        mu, std, stderr = pdp.eval(feature=feat, xs=x, uncertainty=True, centering="zero_start") # "zero_integral")
         interaction = np.mean(std)
 
         # store the interaction index

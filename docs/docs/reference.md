@@ -2,10 +2,40 @@
 
 ## Global Feature Effect Methods
 
-::: effector.pdp.PDP
-    options:
-      members:
-        - plot
+### ::: effector.fe_base.FeatureEffectBase
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+           - eval
 
+### ::: effector.pdp.PDP
+      options:
+        show_root_heading: True
+        show_symbol_type_toc: True
+        members:
+          - __init__
+          - fit
+          - plot
 
-::: effector.utils
+### ::: effector.pdp.DerivativePDP
+      options:
+        show_root_heading: True
+        show_symbol_type_toc: True
+        members:
+          - __init__
+          - fit
+          - plot
+
+### ::: effector.pdp.pdp_1d_vectorized
+      options:
+        show_root_heading: True
+
+### ::: effector.pdp.pdp_1d_non_vectorized
+      options:
+        show_root_heading: True
+
+## Utils
+### ::: effector.utils
+      options:
+        show_root_heading: False
