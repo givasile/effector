@@ -5,7 +5,6 @@
 ::: effector.pdp.PDP
     options:
       members:
-        - fit
         - plot
 
 

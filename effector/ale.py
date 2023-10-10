@@ -71,7 +71,7 @@ class ALE(FeatureEffectBase):
         data_effect = utils.compute_local_effects(data, self.model, bin_est.limits, feature)
 
         # compute the bin effect
-        dale_params = utils.compute_ale_params_from_data(data[:, feature], data_effect, bin_est.limits)
+        dale_params = utils.compute_ale_params(data[:, feature], data_effect, bin_est.limits)
         dale_params["alg_params"] = "fixed"
         return dale_params
 

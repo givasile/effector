@@ -2,8 +2,12 @@ import typing
 import numpy as np
 import copy
 
+BIG_M = 100000000000000.0
 
-def compute_local_effects(data: np.ndarray, model: typing.Callable, limits: np.ndarray, feature: int) -> np.ndarray:
+
+def compute_local_effects(
+    data: np.ndarray, model: typing.Callable, limits: np.ndarray, feature: int
+) -> np.ndarray:
     """Compute the local effects, permuting the feature of interest using the bin limits.
 
     Notes:
@@ -59,8 +63,9 @@ def compute_local_effects(data: np.ndarray, model: typing.Callable, limits: np.n
     return np.squeeze(data_effect) / dx
 
 
-def filter_points_in_bin(xs: np.ndarray, df_dxs: typing.Union[np.ndarray, None], limits: np.ndarray) \
-        -> typing.Tuple[np.ndarray, typing.Union[np.ndarray, None]]:
+def filter_points_in_bin(
+    xs: np.ndarray, df_dxs: typing.Union[np.ndarray, None], limits: np.ndarray
+) -> typing.Tuple[np.ndarray, typing.Union[np.ndarray, None]]:
     """
     Filter the points inside the bin defined by the `limits`.
 
@@ -98,7 +103,9 @@ def filter_points_in_bin(xs: np.ndarray, df_dxs: typing.Union[np.ndarray, None],
     return xs, df_dxs
 
 
-def compute_bin_effect(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray) -> typing.Tuple[np.ndarray, np.ndarray]:
+def compute_bin_effect(
+    xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray
+) -> typing.Tuple[np.ndarray, np.ndarray]:
     """Compute the mean effect in each bin.
 
     Notes:
@@ -133,8 +140,9 @@ def compute_bin_effect(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray) -
 
     # find bin-index of points
     eps = 1e-8
-    limits[-1] += eps
-    ind = np.digitize(xs, limits)
+    limits_enh = copy.deepcopy(limits).astype(float)
+    limits_enh[-1] += eps
+    ind = np.digitize(xs, limits_enh)
     # assert np.alltrue(ind > 0)
 
     # bin effect is the mean of all points that lie in the bin
@@ -152,7 +160,9 @@ def compute_bin_effect(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray) -
     return bin_effect_mean, points_per_bin
 
 
-def compute_bin_variance(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray, bin_effect_mean: np.ndarray) -> typing.Tuple[np.ndarray, np.ndarray]:
+def compute_bin_variance(
+    xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray, bin_effect_mean: np.ndarray
+) -> typing.Tuple[np.ndarray, np.ndarray]:
     """
     Compute the variance of the effect in each bin.
 
@@ -203,8 +213,9 @@ def compute_bin_variance(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray,
 
     # find bin-index of points
     eps = 1e-8
-    limits[-1] += eps
-    ind = np.digitize(xs, limits)
+    limits_enh = copy.deepcopy(limits).astype(float)
+    limits_enh[-1] += eps
+    ind = np.digitize(xs, limits_enh)
     # assert np.alltrue(ind > 0)
 
     # variance of the effect in each bin
@@ -265,11 +276,17 @@ def fill_nans(x: np.ndarray) -> np.ndarray:
     return bin_effect_1
 
 
-def compute_accumulated_effect(x: np.ndarray, limits: np.ndarray, bin_effect: np.ndarray, dx: np.ndarray, square: bool =False) -> np.ndarray:
-    """Compute the accumulated effect.
+def compute_accumulated_effect(
+    x: np.ndarray,
+    limits: np.ndarray,
+    bin_effect: np.ndarray,
+    dx: np.ndarray,
+    square: bool = False,
+) -> np.ndarray:
+    """Compute the accumulated effect at each point `x`.
 
     Notes:
-        The function implements the following formula
+        The function implements the following formula:
 
         $$
         \mathtt{dx}[i] = \mathtt{limits}[i+1] - \mathtt{limits}[i]
@@ -326,29 +343,19 @@ def compute_accumulated_effect(x: np.ndarray, limits: np.ndarray, bin_effect: np
 
 
     """
-    big_m = 100000000000000.0
-
     # find where each point belongs to
     ind = np.digitize(x, limits)
-    # find for each point, the accumulated full-bin effect
-    if square:
-        x_cumsum = (bin_effect * dx**2).cumsum()
-        tmp = np.concatenate([[0, 0], x_cumsum])
-        full_bin_effect = tmp[ind]  # * tmp2[ind] ** 2
-    else:
-        x_cumsum = (bin_effect * dx).cumsum()
-        tmp = np.concatenate([[0, 0], x_cumsum])
-        full_bin_effect = tmp[ind]  # * tmp2[ind]
 
-    # find for each point, the remaining effect
-    tmp = np.concatenate([[limits[0]], limits[:-1], [big_m]])
+    # for each point, find the accumulated full-bin effect
+    x_cumsum = (bin_effect * dx**2).cumsum() if square else (bin_effect * dx).cumsum()
+    tmp = np.concatenate([[0, 0], x_cumsum])
+    full_bin_effect = tmp[ind]
+
+    # for each point, find the remaining effect
+    tmp = np.concatenate([[limits[0]], limits[:-1], [BIG_M]])
     deltas = x - tmp[ind]
-
-    # if xs < left_limit or xs > right_limit, delta = 0
-    deltas[deltas < 0] = 0
-    if square:
-        deltas = deltas**2
-
+    deltas[deltas < 0] = 0  # if xs < left_limit => delta = 0
+    deltas = deltas**2 if square else deltas
     tmp = np.concatenate([[0.0], bin_effect, [bin_effect[-1]]])
     remaining_effect = deltas * tmp[ind]
 
@@ -357,9 +364,24 @@ def compute_accumulated_effect(x: np.ndarray, limits: np.ndarray, bin_effect: np
     return y
 
 
-def compute_ale_params_from_data(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray):
+def compute_ale_params(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray) -> dict:
     """
     Compute all important parameters for the ALE plot.
+
+    Examples:
+        >>> # Example without interpolation
+        >>> xs = np.array([0.5, 1.2, 2, 2.3])
+        >>> df_dxs = np.array([30, 34, 15, 17])
+        >>> limits = np.array([0, 1.5, 3.])
+        >>> compute_ale_params(xs, df_dxs, limits)
+        {'limits': array([0. , 1.5, 3. ]), 'dx': array([1.5, 1.5]), 'points_per_bin': array([2, 2]), 'bin_effect': array([32., 16.]), 'bin_variance': array([4., 1.]), 'bin_estimator_variance': array([2. , 0.5])}
+
+        >>> # Example with interpolation
+        >>> xs = np.array([1, 2, 2.8, 4])
+        >>> df_dxs = np.array([31, 34, 37, 40])
+        >>> limits = np.array([1, 3, 4])
+        >>> compute_ale_params(xs, df_dxs, limits)
+        {'limits': array([1, 3, 4]), 'dx': array([2, 1]), 'points_per_bin': array([3, 1]), 'bin_effect': array([34., 40.]), 'bin_variance': array([6., 6.]), 'bin_estimator_variance': array([2., 2.])}
 
     Args:
         xs: ndarray, shape: (N, )
@@ -400,13 +422,16 @@ def compute_ale_params_from_data(xs: np.ndarray, df_dxs: np.ndarray, limits: np.
     return parameters
 
 
-def get_feature_types(data: np.ndarray, cat_limit: int = 10):
+def get_feature_types(data: np.ndarray, categorical_limit: int = 10):
     """Determine the type of each feature.
+
+    Notes:
+        A feature is considered as categorical if it has less than `cat_limit` unique values.
 
     Args:
         data: np.ndarray, shape (N, D)
             The dataset.
-        cat_limit: int, default=10
+        categorical_limit: int, default=10
             The maximum number of unique values for a feature to be considered as categorical.
 
     Returns:
@@ -414,5 +439,8 @@ def get_feature_types(data: np.ndarray, cat_limit: int = 10):
             A list of strings, where each string is either "cat" or "cont".
     """
 
-    types = ["cat" if len(np.unique(data[:, f])) < cat_limit else "cont" for f in range(data.shape[1])]
+    types = [
+        "cat" if len(np.unique(data[:, f])) < categorical_limit else "cont"
+        for f in range(data.shape[1])
+    ]
     return types

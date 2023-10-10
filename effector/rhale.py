@@ -84,7 +84,7 @@ class RHALE(FeatureEffectBase):
         )
 
         # compute the bin effect
-        dale_params = utils.compute_ale_params_from_data(data[:, feature], data_effect[:, feature], bin_est.limits)
+        dale_params = utils.compute_ale_params(data[:, feature], data_effect[:, feature], bin_est.limits)
         dale_params["alg_params"] = binning_method
         return dale_params
 

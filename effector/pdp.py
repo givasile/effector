@@ -12,14 +12,23 @@ class PDP(FeatureEffectBase):
         data: np.ndarray,
         model: callable,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        max_nof_instances: typing.Union[int, str] = 1000,
+        nof_instances: typing.Union[int, str] = 1000,
     ):
+        """
+        Initializes PDP.
+
+        Args:
+            data: The dataset, shape (N, D)
+            model: The model to be explained, (N, D) -> (N)
+            axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
+            nof_instances: maximum number of instances to be used for PDP. If "all", all instances are used.
+        """
         # assertions
         assert data.ndim == 2
 
         # setters
         self.model = model
-        self.nof_instances, self.indices = helpers.prep_nof_instances(max_nof_instances, data.shape[0])
+        self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
         self.data = data[self.indices, :]
         self.D = data.shape[1]
 
@@ -30,6 +39,18 @@ class PDP(FeatureEffectBase):
             features: typing.Union[int, str, list] = "all",
             centering: typing.Union[bool, str] = False,
             ) -> None:
+        """
+        Fit the PDP plot.
+
+        Args:
+            features: The features to be fitted for explanation. If "all", all features are fitted.
+            centering: Whether to center the PDP plot.
+
+        Notes:
+            * If `centering` is `False`, the PDP is not centered
+            * If `centering` is `True` or `"zero-integral"`, the PDP is centered by subtracting the mean of the PDP.
+            * If `centering` is `"zero-start"`, the PDP is centered by subtracting the value of the PDP at the first point.
+        """
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
         for s in features:
@@ -51,6 +72,25 @@ class PDP(FeatureEffectBase):
              uncertainty: typing.Union[bool, str] = False,
              centering: typing.Union[bool, str] = False,
              nof_points: int = 30) -> None:
+        """Plot the PDP for a single feature.
+
+        Args:
+            feature: index of the plotted feature
+            uncertainty: whether to plot the uncertainty
+            centering: whether to center the PDP
+            nof_points: number of points on the x-axis to evaluate the PDP on
+
+        Notes:
+            * If `centering` is `False`, the PDP is not centered
+            * If `centering` is `True` or `"zero-integral"`, the PDP is centered by subtracting the mean of the PDP.
+            * If `centering` is `"zero-start"`, the PDP is centered by subtracting the value of the PDP at the first point.
+
+        Notes:
+            * If `uncertainty` is `False`, the PDP is plotted without uncertainty (=heterogeneity)
+            * If `uncertainty` is `True` or `"std"`, the PDP is plotted with the standard deviation of the PDP
+            * If `uncertainty` is `"std_err"`, the PDP is plotted with the standard error of the mean of the PDP
+
+        """
         title = "PDP: feature %d" % (feature + 1)
         uncertainty = helpers.prep_uncertainty(uncertainty)
         centering = helpers.prep_centering(centering)
@@ -214,7 +254,7 @@ class PDPwithICE:
         self.data = data[self.indices, :]
         self.axis_limits = (helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits)
 
-        self.y_pdp = PDP(data=self.data, model=model, axis_limits=axis_limits, max_nof_instances="all")
+        self.y_pdp = PDP(data=self.data, model=model, axis_limits=axis_limits, nof_instances="all")
         self.y_ice = [ICE(data=self.data, model=model, axis_limits=axis_limits, instance=i) for i in range(nof_instances)]
 
         # boolean variable for whether a FE plot has been computed

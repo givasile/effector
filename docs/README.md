@@ -10,6 +10,10 @@ jupyter nbconvert --to markdown ../tutorials/*.ipynb --output-dir docs/tutorials
 # mkdocs serve
 ```
 
+```zsh
+mkdocs serve
+```
+
 The docs can be updated to GitHub using:
 
 ```bash
