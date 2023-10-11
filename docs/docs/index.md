@@ -27,10 +27,10 @@ the parameter `uncertainty=True`.
 
 ```python
 # for PDP
-PDP(data=X, model=ml_model).plot(feature=0, uncertainty=True)
+PDP(data=X, model=ml_model).plot(feature=0, confidence_interval=True)
 
 # for ALE
-ALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature=0, uncertainty=True)
+ALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature=0, confidence_interval=True)
 ```
 
 For more details, check out the [global effect tutorial](./tutorials/00_linear_global_effect/).

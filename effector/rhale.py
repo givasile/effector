@@ -160,7 +160,7 @@ class RHALE(FeatureEffectBase):
         scale_y:
         savefig:
         """
-        uncertainty = helpers.prep_uncertainty(uncertainty)
+        uncertainty = helpers.prep_confidence_interval(uncertainty)
         centering = helpers.prep_centering(centering)
 
         # hack to fit the feature if not fitted

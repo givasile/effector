@@ -3,6 +3,7 @@ import numpy as np
 import typing
 from effector import helpers
 
+
 def trans_affine(x, mu, std):
     return x * std + mu
 
@@ -142,34 +143,38 @@ def ale_bins(ax2, bin_effects, bin_variance, limits, dx, error):
     ax2.legend()
 
 
-def plot_1d(x, feature, eval, confidence, centering, title):
-    plt.figure()
-    plt.title(title)
+def plot_pdp(x: np.ndarray, feature: int, eval: callable, confidence_interval: typing.Union[bool, str],
+             centering: typing.Union[bool, str], y_pdp_label: str, title: str):
 
-    assert confidence in [False, "std", "stderr"]
-    if confidence is False:
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+
+    confidence_interval = helpers.prep_confidence_interval(confidence_interval)
+    if confidence_interval is False:
         y = eval(feature, x, uncertainty=False, centering=centering)
-        plt.plot(x, y, "b-", label="avg effect")
-    elif confidence == "std":
-        y, std, var_est = eval(feature, x, uncertainty=True, centering=centering)
-        plt.plot(x, y, "b-", label="avg effect")
-        plt.fill_between(
-            x, y - std, y + std, color="red", alpha=0.4, label="std"
+        ax.plot(x, y, "b-", label=y_pdp_label)
+    elif confidence_interval == "std":
+        y, std, _ = eval(feature, x, uncertainty=True, centering=centering)
+        ax.plot(x, y, "b-", label=y_pdp_label)
+        ax.fill_between(
+            x, y - 2*std, y + 2*std, color="red", alpha=0.4, label="std"
         )
-    elif confidence == "stderr":
-        y, std, std_err = eval(feature, x, uncertainty=True, centering=centering)
-        plt.plot(x, y, "b-", label="avg effect")
-        plt.fill_between(x, y - 2*std_err, y + 2*std_err, color="red", alpha=0.4, label="std err")
-    plt.legend()
-    plt.xlabel("x_%d" % (feature + 1))
-    plt.ylabel("y")
+    elif confidence_interval == "std_err":
+        y, std, var_estimator = eval(feature, x, uncertainty=True, centering=centering)
+        std_err = np.sqrt(var_estimator)
+        ax.plot(x, y, "b-", label=y_pdp_label)
+        ax.fill_between(x, y - 2*std_err, y + 2*std_err, color="red", alpha=0.4, label="std_err")
+    ax.legend()
+    ax.set_xlabel("x_%d" % (feature + 1))
+    ax.set_ylabel("y")
     plt.show(block=False)
+    return fig, ax
 
 
-def plot_pdp_ice(x, feature, y_pdp, y_ice, title, centering, scale_x=None, scale_y=None, savefig=None):
+def plot_pdp_ice(x, feature, y_pdp, y_ice, title, centering, y_pdp_label, y_ice_label, scale_x=None, scale_y=None):
     centering = helpers.prep_centering(centering)
-    plt.figure()
-    plt.title(title)
+    fig, ax = plt.subplots()
+    ax.set_title(title)
     y_ice_outputs = np.array([y_ice[i].eval(feature, x, False, centering) for i in range(len(y_ice))])
     y_pdp_output = y_pdp.eval(feature, x, False, centering)
 
@@ -185,14 +190,13 @@ def plot_pdp_ice(x, feature, y_pdp, y_ice, title, centering, scale_x=None, scale
         else trans_affine(y_ice_outputs, scale_y["mean"], scale_y["std"])
     )
 
-    plt.plot(x, y_ice_outputs[0, :], color="red", alpha=0.1, label="PDP")
-    plt.plot(x, y_ice_outputs.T, color="red", alpha=0.1)
-    plt.plot(x, y_pdp_output, color="blue", label="ICE")
-    plt.xlabel("feature %d" % (feature + 1))
-    plt.ylabel("y")
-    plt.legend()
-    if savefig is not None:
-        plt.savefig(savefig, bbox_inches="tight")
+    ax.plot(x, y_ice_outputs[0, :], color="red", alpha=0.1, label=y_pdp_label)
+    ax.plot(x, y_ice_outputs.T, color="red", alpha=0.1)
+    ax.plot(x, y_pdp_output, color="blue", label=y_ice_label)
+    ax.set_xlabel("feature %d" % (feature + 1))
+    ax.set_ylabel("y")
+    ax.legend()
 
     plt.show(block=False)
+    return fig, ax
 

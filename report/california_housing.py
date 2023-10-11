@@ -41,11 +41,11 @@ def plot_subregions(splits, feat, feat_ram, X_train, model, model_jac, gam, ram)
         rhale_2 = pythia.RHALE(data=X_train[X_train.iloc[:, foc] > position].to_numpy(), model=model, model_jac=model_jac)
 
     rhale.fit(features=feat, binning_method=pythia.binning_methods.Greedy(), centering="zero_integral")
-    rhale.plot(feature=feat, uncertainty=True)
+    rhale.plot(feature=feat, confidence_interval=True)
     rhale_1.fit(features=feat, binning_method=pythia.binning_methods.Greedy(), centering="zero_integral")
-    rhale_1.plot(feature=feat, uncertainty=True)
+    rhale_1.plot(feature=feat, confidence_interval=True)
     rhale_2.fit(features=feat, binning_method=pythia.binning_methods.Greedy(), centering="zero_integral")
-    rhale_2.plot(feature=feat, uncertainty=True)
+    rhale_2.plot(feature=feat, confidence_interval=True)
 
     def get_effect_from_ebm(ebm_model, ii):
         explanation = ebm_model.explain_global()

@@ -22,14 +22,14 @@ def prep_centering(centering):
     return centering
 
 
-def prep_uncertainty(uncertainty):
-    assert type(uncertainty) in [bool, str]
-    if type(uncertainty) is str:
-        assert uncertainty in ["std", "std_err"]
+def prep_confidence_interval(confidence_interval):
+    assert type(confidence_interval) in [bool, str]
+    if type(confidence_interval) is str:
+        assert confidence_interval in ["std", "std_err"]
 
-    if uncertainty is True:
-        uncertainty = "std"
-    return uncertainty
+    if confidence_interval is True:
+        confidence_interval = "std"
+    return confidence_interval
 
 
 def axis_limits_from_data(data: np.ndarray) -> np.ndarray:

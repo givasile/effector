@@ -52,7 +52,7 @@ def plot_subregions_rhale(feat, feature, type, position, X_train, model, model_j
         rhale.fit(features=feat, binning_method=binning_method, centering="zero_integral")
         scale_x = {"mean": x_mean.iloc[feat], "std": x_std.iloc[feat]}
         scale_y = {"mean": 0, "std": y_std}
-        rhale.plot(feature=feat, uncertainty=None, scale_x=scale_x, scale_y=scale_y)
+        rhale.plot(feature=feat, confidence_interval=None, scale_x=scale_x, scale_y=scale_y)
         plt.show()
 
     # plot global and regionals
