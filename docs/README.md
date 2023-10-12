@@ -6,8 +6,6 @@ You can build the docs locally by running the following command from this subfol
 
 ```bash
 jupyter nbconvert --to markdown ../tutorials/*.ipynb --output-dir docs/tutorials/
-# jupyter nbconvert --to markdown ../examples/*.ipynb --output-dir docs/examples/
-# mkdocs serve
 ```
 
 ```zsh

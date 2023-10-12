@@ -345,7 +345,7 @@ class PDPwithICE:
     def plot(
         self,
         feature: int,
-        centering: bool = True,
+        centering: bool = False,
         nof_points: int = 30,
         scale_x=None,
         scale_y=None,
@@ -452,10 +452,10 @@ class DerivativePDPwithICE:
     def plot(
         self,
         feature: int,
-        centering: bool = True,
+        centering: bool = False,
         nof_points: int = 30,
-        scale_x=None,
-        scale_y=None,
+        scale_x = None,
+        scale_y = None,
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot the Derivative-PDP along with the Derivative-ICE plots.

@@ -140,32 +140,28 @@ X_jac = model.jacobian(X)
 
 ```
 
-
 ```python
 dale = effector.RHALE(data=X, model=model.predict, model_jac=model.jacobian, axis_limits=gen_dist.axis_limits)
 dale.fit(features=0, binning_method=effector.binning_methods.Fixed(nof_bins=1000, min_points_per_bin=0))
-dale.plot(feature=0, uncertainty=True)
+dale.plot(feature=0, confidence_interval=True)
 ```
 
 
     
-![png](01_ALE_in_depth_backup_files/01_ALE_in_depth_backup_3_0.png)
-    
-
-
+![png](04_ALE_in_depth_backup_files/04_ALE_in_depth_backup_3_0.png)
 
 ```python
 
 dale = effector.RHALE(data=X, model=model.predict, model_jac=model.jacobian, axis_limits=gen_dist.axis_limits)
 dale.fit(features="all", binning_method=effector.binning_methods.DynamicProgramming(max_nof_bins=40))
-dale.plot(feature=0, uncertainty=True)
+dale.plot(feature=0, confidence_interval=True)
 
 
 ```
 
 
     
-![png](01_ALE_in_depth_backup_files/01_ALE_in_depth_backup_4_0.png)
+![png](04_ALE_in_depth_backup_files/04_ALE_in_depth_backup_4_0.png)
     
 
 

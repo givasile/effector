@@ -126,7 +126,7 @@ class ALE(FeatureEffectBase):
     def plot(
         self,
         feature: int = 0,
-        uncertainty: typing.Union[bool, str] = False,
+        confidence_interval: typing.Union[bool, str] = False,
         centering: typing.Union[bool, str] = False,
         scale_x=None,
         scale_y=None,
@@ -137,13 +137,13 @@ class ALE(FeatureEffectBase):
         Parameters
         ----------
         feature:
-        uncertainty:
+        confidence_interval:
         centering:
         scale_x:
         scale_y:
         savefig:
         """
-        uncertainty = helpers.prep_confidence_interval(uncertainty)
+        confidence_interval = helpers.prep_confidence_interval(confidence_interval)
         centering = helpers.prep_centering(centering)
 
         # hack to fit the feature if not fitted
@@ -154,7 +154,7 @@ class ALE(FeatureEffectBase):
             self.eval,
             feature,
             centering=centering,
-            error=uncertainty,
+            error=confidence_interval,
             scale_x=scale_x,
             scale_y=scale_y,
             savefig=savefig,
