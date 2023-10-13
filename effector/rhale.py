@@ -40,7 +40,9 @@ class RHALE(FeatureEffectBase):
         self.model = model
         self.model_jac = model_jac
         self.data = data
-        axis_limits = (helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits)
+        axis_limits = (
+            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+        )
 
         super(RHALE, self).__init__(axis_limits)
 
@@ -70,7 +72,9 @@ class RHALE(FeatureEffectBase):
         data_effect = self.data_effect[ind, :]
 
         # bin estimation
-        bin_est = bm.find_limits(data, data_effect, feature, self.axis_limits, binning_method)
+        bin_est = bm.find_limits(
+            data, data_effect, feature, self.axis_limits, binning_method
+        )
         bin_name = bin_est.__class__.__name__
 
         # assert bins can be computed else raise error
@@ -84,15 +88,18 @@ class RHALE(FeatureEffectBase):
         )
 
         # compute the bin effect
-        dale_params = utils.compute_ale_params(data[:, feature], data_effect[:, feature], bin_est.limits)
+        dale_params = utils.compute_ale_params(
+            data[:, feature], data_effect[:, feature], bin_est.limits
+        )
         dale_params["alg_params"] = binning_method
         return dale_params
 
-    def fit(self,
-            features: typing.Union[int, str, list] = "all",
-            binning_method="greedy",
-            centering: typing.Union[bool, str] = "zero_integral",
-            ) -> None:
+    def fit(
+        self,
+        features: typing.Union[int, str, list] = "all",
+        binning_method="greedy",
+        centering: typing.Union[bool, str] = "zero_integral",
+    ) -> None:
         """Fit the model.
 
         Args
@@ -112,7 +119,9 @@ class RHALE(FeatureEffectBase):
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
         for s in features:
-            self.feature_effect["feature_" + str(s)] = self._fit_feature(s, binning_method)
+            self.feature_effect["feature_" + str(s)] = self._fit_feature(
+                s, binning_method
+            )
             if centering is not False:
                 self.norm_const[s] = self._compute_norm_const(s, method=centering)
             self.is_fitted[s] = True
@@ -164,7 +173,9 @@ class RHALE(FeatureEffectBase):
         centering = helpers.prep_centering(centering)
 
         # hack to fit the feature if not fitted
-        self.eval(feature, np.array([self.axis_limits[0, feature]]), centering=centering)
+        self.eval(
+            feature, np.array([self.axis_limits[0, feature]]), centering=centering
+        )
 
         vis.ale_plot(
             self.feature_effect["feature_" + str(feature)],

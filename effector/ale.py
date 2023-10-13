@@ -34,12 +34,13 @@ class ALE(FeatureEffectBase):
         # setters
         self.model = model
         self.data = data
-        axis_limits = (helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits)
+        axis_limits = (
+            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+        )
 
         super(ALE, self).__init__(axis_limits)
 
-
-    def _fit_feature(self, feature: int, binning_method) -> typing.Dict:
+    def _fit_feature(self, feature: int, binning_method="fixed") -> typing.Dict:
 
         # drop points outside of limits
         ind = np.logical_and(
@@ -48,12 +49,11 @@ class ALE(FeatureEffectBase):
         )
         data = self.data[ind, :]
 
-        # assert binning_method is either "fixed" or an instance of the class binning_method.Fixed
-        assert isinstance(binning_method, bm.Fixed) or binning_method == "fixed", (
-            "binning_method must be either 'fixed' or an instance of the class binning_method.Fixed"
-        )
+        # assertion
+        assert binning_method == "fixed" or isinstance(
+            binning_method, bm.Fixed
+        ), "Only fixed binning method is supported for now"
 
-        # bin estimation
         bin_est = bm.find_limits(data, None, feature, self.axis_limits, binning_method)
         bin_name = bin_est.__class__.__name__
 
@@ -68,18 +68,23 @@ class ALE(FeatureEffectBase):
         )
 
         # compute data effect on bin limits
-        data_effect = utils.compute_local_effects(data, self.model, bin_est.limits, feature)
+        data_effect = utils.compute_local_effects(
+            data, self.model, bin_est.limits, feature
+        )
 
         # compute the bin effect
-        dale_params = utils.compute_ale_params(data[:, feature], data_effect, bin_est.limits)
+        dale_params = utils.compute_ale_params(
+            data[:, feature], data_effect, bin_est.limits
+        )
         dale_params["alg_params"] = "fixed"
         return dale_params
 
-    def fit(self,
-            features: typing.Union[int, str, list] = "all",
-            binning_method="fixed",
-            centering: typing.Union[bool, str] = "zero_integral",
-            ) -> None:
+    def fit(
+        self,
+        features: typing.Union[int, str, list] = "all",
+        binning_method="fixed",
+        centering: typing.Union[bool, str] = "zero_integral",
+    ) -> None:
         """Fit the model.
 
         Args
@@ -147,7 +152,9 @@ class ALE(FeatureEffectBase):
         centering = helpers.prep_centering(centering)
 
         # hack to fit the feature if not fitted
-        self.eval(feature, np.array([self.axis_limits[0, feature]]), centering=centering)
+        self.eval(
+            feature, np.array([self.axis_limits[0, feature]]), centering=centering
+        )
 
         vis.ale_plot(
             self.feature_effect["feature_" + str(feature)],

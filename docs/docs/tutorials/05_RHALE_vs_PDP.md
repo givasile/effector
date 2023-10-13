@@ -89,17 +89,18 @@ def predict_jac(x):
     return y
 ```
 
+
 ```python
 # RHALE
 ale = effector.RHALE(data=X,
-                     model=predict,
-                     model_jac=predict_jac,
-                     axis_limits=axis_limits)
+                      model=predict,
+                      model_jac=predict_jac,
+                      axis_limits=axis_limits)
 binning = effector.binning_methods.DynamicProgramming(max_nof_bins=20, min_points_per_bin=10)
 ale.fit(features="all", binning_method=binning)
 
 for feat in range(3):
-    ale.plot(feature=feat, confidence_interval="std")
+    ale.plot(feature=feat, uncertainty="std")
 
 
 

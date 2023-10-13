@@ -1,8 +1,11 @@
-# Linear model - Global Feature Effects
+# A very gentle introduction
 
-Hold on! Why to explain a linear model, isn't it explainably by design?
-Well, there is some debate on that, but, for the sake of this tutorial, let's assume it really is.
-So, this is exactly why se selected it; we want to have an intuition of what "_the ideal feature effect would look like_" while demonstrating the various feature effect methods of the `Effector` package.
+This tutorial is a very gentle introduction to [feature effect methods](https://christophm.github.io/interpretable-ml-book/global-methods.html) and the `Effector` package.
+We will explore the different feature effect methods offered by `Effector` and use them to explain a linear model.
+
+Why a linear model? The feature effect of a linear model is trivial to compute, so we can easily understand what an ideal _feature effect_ should look like 
+and then compare it with the output of the various feature effect methods within the `Effector` package.
+
 
 
 ```python
@@ -10,14 +13,20 @@ import numpy as np
 import effector
 ```
 
-## Generate a toy dataset
+---
+## The dataset
 
-We will generate $N=1000$ examples with 3 features each. The features are defined as follows:
+We will generate $N=1000$ examples with $D=3$ features each:
 
-- $x_1$: a linearly spaced feature between $0$ and $1$, i.e., $x_1 \sim \mathcal{U}(0,1)$
-- $x_2$: a normally distributed feature with mean $x_1$ and standard deviation of $0.01$, i.e., $x_2 \sim \mathcal{N}(x_1, 0.01)$
-- $x_3$: a normally distributed feature with mean $0$ and standard deviation of $1$, i.e., $x_3 \sim \mathcal{N}(0, 1)$
+<center>
 
+| Feature | Description | Distribution |
+| --- | --- | --- |
+| $x_1$ | Uniformly distributed between $0$ and $1$ | $x_1 \sim \mathcal{U}(0,1)$ |
+| $x_2$ | Normally distributed around $x_1$ with a small std of $0.01$ | $x_2 \sim \mathcal{N}(x_1, 0.01)$ |
+| $x_3$ | Normally distributed with mean $0$ and standard deviation of $1$ | $x_3 \sim \mathcal{N}(0, 1)$ |
+
+</center>
 
 
 ```python
@@ -29,31 +38,30 @@ def generate_dataset(N, x1_min, x1_max, x2_sigma, x3_sigma):
     x3 = np.random.normal(loc=np.zeros_like(x1), scale=x3_sigma)
     return np.stack((x1, x2, x3), axis=-1)
 
-```
-
-
-```python
+# generate the dataset
 np.random.seed(21)
-
 N = 1000
 x1_min = 0
 x1_max = 1
 x2_sigma = .01
 x3_sigma = 1.
-
 X = generate_dataset(N, x1_min, x1_max, x2_sigma, x3_sigma)
 ```
 
-## Define the model
+---
+## The model
 
-As mentioned above, we will use a linear model to demonstrate the various feature effect methods:
+We will use the following linear model, $y = 7x_1 - 3x_2 + 4x_3$. As mentioned above, it is trivial to compute the effect of each feature; the effect of $x_i$ is simply $\alpha_i x_i$. Furthermore, since there are no interactions between the features, the effect of each feature is independent of the other features, so the heterogeneity is zero.
 
-$$
-y = 7x_1 - 3x_2 + 4x_3
-$$
+<center>
 
-In linear models, it is trivial to compute the ground-truth effect of each feature. The effect of $x_i$ is simply $\alpha_i x_i$, so the effect of $x_1$ is $7x_1$, of $x_2$ is $-3x_2$, and of $x_3$ is $4x_3$.
-Beacuse some methods require the gradient of the model, we will define it as well.
+| Feature | Average Effect | Heterogeneity |
+| --- | --- | --- |
+| $x_1$ | $7x_1$ | 0 |
+| $x_2$ | $-3x_2$ | 0 |
+| $x_3$ | $4x_3$ | 0 |
+
+</center>
 
 
 ```python
@@ -71,39 +79,98 @@ def predict_grad(x):
 ---
 ## Feature Effect methods
 
-Feature effect methods explain the black-box model by estimating the effect of each feature on the model's prediction.
+Feature effect methods explain the black-box model by estimating the effect of each feature on the model's prediction, i.e., they output a 1-1 mapping between the feature of interest $x_s$ and the ouput of the model $y$. `Effector` covers the following feature effect methods:
 
-Let's introduce some basic notation, we will denote: 
+<center>
 
-* $f(x): \mathbb{R}^D \rightarrow \mathbb{R}$, the model's prediction as where $\mathbb{x}$ is the input to the model.
-* $x_s$ the feature(s) of interest, i.e., the feature(s) we want to explain. In the simplest case, $x_s$ is a single feature, but it can also be a set of features.
-* $x_c$ the remaining features, i.e., $\mathbb{x} = (x_s, x_c)$. 
-* $f(x_s, x_c): \mathbb{R}^S \times \mathbb{R}^C \rightarrow \mathbb{R}$, the model's prediction where $x_s$ is the set of features of interest and $x_c$ is the set of features that are not of interest.
+| Method                                  | Description                        | API in `Effector`                                                            | Paper                                                             |
+|-----------------------------------------|------------------------------------|------------------------------------------------------------------------------|-------------------------------------------------------------------|
+| [PDP](#partial-dependence-plot-pdp)     | Partial Dependence Plot            | [PDP]((./../../reference/#effector.pdp.DerivativePDP))                       | [Friedman, 2001](https://statweb.stanford.edu/~jhf/ftp/trebst.pdf) |
+| [d-PDP](#derivative-pdp-d-pdp)          | Derivative PDP                     | [DerivativePDP](./../../reference/#effector.pdp.DerivativePDP)               | [Goldstein et. al, 2013](https://arxiv.org/pdf/1309.6392.pdf)     |
+| [ICE](ICE(#ice-plots))                  | Individual Conditional Expectation | [PDPwithICE](./../../reference/#effector.pdp.PDPwithICE)                     | [Goldstein et. al, 2013](https://arxiv.org/pdf/1309.6392)         |
+| [d-ICE](#derivative-pdp-d-pdp)          | Derivative ICE                     | [DerivativePDPwithICE](./../../reference/#effector.pdp.DerivativePDPwithICE) | [Goldstein et. al, 2013](https://arxiv.org/pdf/1309.6392.pdf)     |
+| [ALE](#accumulated-local-effects-ale)   | Accumulated Local Effect           | [ALE](./../../reference/#effector.ale.ALE)                                   | [Apley et. al, 2016](https://arxiv.org/pdf/1612.08468)            |
+| [RHALE](#accumulated-local-effects-ale) | Robust and Heterogeneity-aware ALE | [RHALE](./../../reference/#effector.ale.RHALE)                               | [Gkolemis et al, 2023](https://arxiv.org/abs/2309.11193)          | 
 
-In the following sections, we will demonstrate the various feature effect methods contained within the `Effector` package:
+</center>
 
-* Partial Dependence Plot (PDP) and Individual Conditional Expectation (ICE)
-* Accumulated Local Effect (ALE) and its variants, like RHALE
+### Notation
+
+Let' s estimate some notation for the rest of the tutorial:
+
+<center>
+
+| Symbol                                                     | Description                                             |
+|------------------------------------------------------------|---------------------------------------------------------|
+| $f(\mathbf{x})$                                            | The black box model                                     |
+| $x_s$                                                      | The feature of interest                                 |
+| $x_c$                                                      | The remaining features, i.e., $\mathbf{x} = (x_s, x_c)$ |
+| $\mathbf{x} = (x_s, x_c) = (x_1, x_2, ..., x_s, ..., x_D)$ | The input features                                      |
+| $\mathbf{x}^{(i)} = (x_s^{(i)}, x_c^{(i)})$                | The $i$-th instance of the dataset                      |
+
+</center>
 
 ---
 ## Partial Dependence Plot (PDP)
 
-The PDP is defined as the average of the model's prediction over the entire dataset, while varying the feature of interest.
-
+The PDP is defined as **_the average of the model's prediction over the entire dataset, while varying the feature of interest._**
 PDP is defined as 
 
 $$ \text{PDP}(x_s) = \mathbb{E}_{x_c}[f(x_s, x_c)] $$ 
 
 and is approximated by 
 
-$$\hat{\text{PDP}}(x_s) = \frac{1}{N} \sum_{j=1}^N f(x_s, x^{(i)}_c)$$
+$$ \hat{\text{PDP}}(x_s) = \frac{1}{N} \sum_{j=1}^N f(x_s, x^{(i)}_c) $$
 
-On a linear model, the PDP is simply the effect of the feature of interest plus a constant: $\text{PDP}(x_s) = \alpha_s x_s + c$.
-Let's check it out using `effector`.
+Let's check it out the PDP effect using `effector`.
 
 
 ```python
 fig, ax = effector.PDP(data=X, model=predict).plot(feature=0)
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=1)
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=2)
+```
+
+
+    
+![png](01_linear_model_files/01_linear_model_8_0.png)
+    
+
+
+
+    
+![png](01_linear_model_files/01_linear_model_8_1.png)
+    
+
+
+
+    
+![png](01_linear_model_files/01_linear_model_8_2.png)
+    
+
+
+### Feature effect interpretation
+
+The effect estimated by PDP matches with the ground truth in all cases; it is a line with gradient $7$ for $x_1$, $-3$ for $x_2$ and $4$ for $x_3$.
+However, it can be confusing the _centering_ of the PDP; In fact, in linear models the PDP plot extracts an $\text{PDP}(x_s) = a_sx_s + c$ where $a_s$ is the gradient of the line and $c$ is an intercept. In our case, the line is $7x_1 - 1.5$ so the intercept is $c \approx - 1.5$. Why this happens? 
+
+$$PDP(x_s) = \mathbb{E}_{x_c}[f(x_s, x_c)] = a_sx_s + \sum_{j \neq s} a_j \mathbb{E}_{x_j}[x_j] = a_sx_s - 3 * 0.5 + 4 * 0 = a_sx_s - 1.5$$
+ 
+`Effector` offers three alternative ways to center the PDP plot (and any feature effect plot) using the `centering` parameter. 
+The first one is the one examined above, i.e. using `centering=False` which is the default:
+
+| `centering`               | Description                            | Formula                                                                 |
+|---------------------------|----------------------------------------|-------------------------------------------------------------------------|
+| `False`                   | Don't enforce any additional centering | -                                                                       |
+| `True` or `zero-integral` | Center around the $y$ axis             | $c = \mathbb{E}_{x_s \sim \mathcal{U(x_{s,min},x_{s, max})}}[PDP(x_s)]$ |
+| `zero-start`              | Center around $y=0$                    | $c = 0$                                                                 |
+
+Let's see how this works for $x_1$.
+
+
+```python
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=True)
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering="zero_start")
 ```
 
 
@@ -112,75 +179,30 @@ fig, ax = effector.PDP(data=X, model=predict).plot(feature=0)
     
 
 
-### Centering issues
-
-The effect estimated by PDP is a line with gradient 7, which confirms with the ground truth. 
-However, there is an issue with the constant $c$. In the plot above, the line is $\approx 7x_1 - 1.5$ so $c \approx - 1.5$.  
-This happens because with the default behaviour:
-
-$$PDP(x_s) = \mathbb{E}_{x_c}[f(x_s, x_c)] = a_sx_s + \sum_{j \neq s} a_j \mathbb{E}_{x_j}[x_j] = a_sx_s - 3 * 0.5 + 4 * 0 = a_sx_s - 1.5$$
- 
-`Effector` offers three alternatives ways to center any feature effect plot, using the `centering` parameter. 
-The first one is the one examined above, i.e. using `centering=False` which is the default. The other two alternatives are:
-
-Setting `centering=True` or `centering="zero-integral"`, where the PDP is centered around the $y$ axis (equal mass below and above the $y$ axis):
-
-$$c = \mathbb{E}_{x_s \sim \mathcal{U(0,1)}}[PDP(x_s)] = \mathbb{E}_{x_s \sim \mathcal{U(0,1)}}[a_sx_s] = 7*0.5 = 3.5$$ 
-
-
-
-```python
-fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=True)
-```
-
 
     
-![png](01_linear_model_files/01_linear_model_13_0.png)
+![png](01_linear_model_files/01_linear_model_10_1.png)
     
 
 
+### Heterogeneity or Uncertainty
 
+Feature effect methods output a 1-1 plot that visualizes the **average** effect of a specific feature on the output.
+The aggregation is done by averaging the instance-level effects. 
+It is important for the end-user to know to what extent the underlying local (instance-level) effects deviate from the average effect.  
+In PDP plots there are two ways to check that, either using the ICE plots or plotting the standard deviation of the instance level effects as $\pm$ interval around the PDP plot. 
 
-The second one is setting `centering="zero-start"`, where the PDP starts at $y=0$, i.e. $c=0$. 
-
-
-```python
-fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering="zero_start")
-```
-
-
-    
-![png](01_linear_model_files/01_linear_model_16_0.png)
-    
-
-
-### Heterogeneity or Uncertainty in PDP
-
-Does the instance-level effects deviate from the average effect?
-
-There are two ways to check that, either using the standard deviation of the instance-level effects or using ICE plots.
-
-#### Standard deviation
-
-
-
-
-```python
-fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=True, confidence_interval="std")
-
-```
-
-
-    
-![png](01_linear_model_files/01_linear_model_19_0.png)
-    
-
-
-
-```python
 #### ICE plots
 
-```
+ICE plots are defined as:
+
+$$\text{ICE}^{(i)}(x_s, x^{(i)}_c) = f(x_s, x^{(i)}_c)$$
+
+and they are plotted on-top of the PDP plot. Practically, the ICE plot shows how each instance $i$ performs if we vary the feature of interest $x_s$.
+Plotting many ICE plots on top of the PDP plot, we can visually observe the heterogeneity of the instance-level effects.
+For example in the plot below, we can see that there so no heterogeneity in the instance-level effects, i.e., all instance-level effects are lines with gradient 7.
+However, be careful that this is more obvious using the argument `centering=True`.
+If we omit centering, the instance-level effects may create the illusion of heterogeneity, although if with a closer look we can see that all ICE plots are lines with gradient 7.
 
 
 ```python
@@ -188,67 +210,199 @@ fig, ax = effector.PDPwithICE(data=X, model=predict).plot(feature=0, centering=T
 ```
 
 
-    
-![png](01_linear_model_files/01_linear_model_21_0.png)
-    
-
-
-
 ```python
 fig, ax = effector.PDPwithICE(data=X, model=predict).plot(feature=0, centering=False)
 ```
 
+#### STD of the residuals
 
-    
-![png](01_linear_model_files/01_linear_model_22_0.png)
-    
+A second way to check for heterogeneity is by plotting the standard deviation of the instance-level effects as $\pm$ interval around the PDP plot.
+This is done can be done by setting `confidence_interbal="std"` in the `plot` method.
+However, as you can see below, it can be tricky. The $\sigma$ of the instance-level effects is computed without centering the PDP and the ICE plots; therefore it erroneously indicates heterogeneity.
+The same issue was encountered above, at the uncentered version of the ICE plots. However, since ICE plots show the **type** of the heterogeneity, we could easily spot that the heterogeneity was only in the intercept and not in the gradient of the instance-level effects. Unfortunately, this is not the case with the standard deviation of the residuals, which in this case lead to a misleading interpretation. This is why we recommend using the centered version of the ICE plots as a measure of heterogeneity.
 
-
-# Derivative-PDP
-
-Same analysis can happen using 
 
 
 ```python
-fig, ax = effector.DerivativePDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0)
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=True, confidence_interval="std")
 ```
 
+### Derivative-PDP (d-PDP)
 
-    
-![png](01_linear_model_files/01_linear_model_24_0.png)
-    
+A similar analysis can be done using the derivative of the model; the name of this approach is Derivative-PDP (d-PDP) and the equivalent of the ICE plots are the Derivative-ICE (d-ICE) plots. The d-PDP and d-ICE are defined as:
 
+$$ \text{d-PDP}(x_s) = \mathbb{E}_{x_c}[\frac{\partial f}{\partial x_s} (x_s, x_c)] \approx \frac{1}{N} \sum_{j=1}^N \frac{\partial f}{\partial x_s} (x_s, x_c^{(i)}) $$
+
+and 
+
+$$ \text{d-ICE}^{(i)}(x_s) = \frac{\partial f}{\partial x_s} (x_s, x^{(i)}_c) $$
+
+We have to mention that:
+ 
+* d-PDP needs the model's gradient, which is not always available.
+* Under normal circumstances, the d-PDP should not be centered because the absolute value of the derivative has a natural meaning for the interpretation.
+* The interpretation is given in the gradient-space, so it should be treated differently. In d-PDP the plots show how much the model's prediction *changes* given a change in the feature of interest. This is different from PDP, where the plots says how much the specific feature *contributes* to the prediction. 
+* d-PDP is the gradient of the PDP, i.e., $\text{d-PDP}(x) = \frac{\partial \text{PDP}}{\partial x_s} (x)$
+* d-ICE is the gradient of the ICE, i.e., $\text{d-ICE}^{(i)}(x) = \frac{\partial \text{ICE}^{(i)}}{\partial x_s} (x)$
+
+As we can see below, the centering problem with the standard deviation of the the ICE plots is not present in the d-ICE plots. 
+Therefore, both heterogeneity measures (d-ICE and $\sigma$ of the residuals) correctly indicate the heterogeneity is zero.
 
 
 ```python
-fig, ax = effector.DerivativePDPwithICE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=False)
+fig, ax = effector.DerivativePDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, confidence_interval=True)
+fig, ax = effector.DerivativePDPwithICE(data=X, model=predict, model_jac=predict_grad).plot(feature=0)
 ```
 
+## Accumulated Local Effects (ALE)
 
-    
-![png](01_linear_model_files/01_linear_model_25_0.png)
-    
-
-
-# Accumulated Local Effects
+Accumulated Local Effects (ALE) is the second big class of feature effect methods.
+Before we delve into the details, let's see how the ALE plot looks like, using the default `Effector` options.
 
 
 ```python
-effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0)
+effector.ALE(data=X, model=predict).plot(feature=0)
+effector.ALE(data=X, model=predict).plot(feature=1)
+effector.ALE(data=X, model=predict).plot(feature=2)
 ```
 
+### Fearure effect interpretation
 
-    
-![png](01_linear_model_files/01_linear_model_27_0.png)
-    
+There are two subplots in each of the figures above. 
+The top subplot is the average feature effect (the typical ALE plot) and the bottom subfigure is the derivative of the effect.
+The top subplot says how much the specific feature _contributes_ to the prediction (like PDP) and the bottom subplot says how much the model's prediction _changes_ given a change in the feature of interest (like d-PDP).
 
+In our example, the top plot shows the feature effect as a line starting at $y=0$ and ending at $y=7$, and the bottom plot confirms that the gradient is constantly $7$.
+`Effector` offers two alternatives for centering the ALE plot.
+
+<center>
+
+| `centering`               | Description                            | Formula                                                               |
+|---------------------------|----------------------------------------|-----------------------------------------------------------------------|
+| `False` or `zero-start`   | Don't enforce any additional centering | c=0                                                                   |
+| `True` or `zero-integral` | Center around the $y$ axis             | c=$\mathbb{E}_{x_s \sim \mathcal{U(x_{s,min},x_{s, max})}}[ALE(x_s)]$ |
+
+</center>
+Let's see how this works for $x_1$:
 
 
 ```python
-
+effector.ALE(data=X, model=predict).plot(feature=0, centering=True)
 ```
 
+### Heterogeneity or Uncertainty
+
+In the world of ALE, the only way to check the heterogeneity of the instance-level effects is by plotting the standard deviation of the instance-level effects as $\pm$ interval around the ALE plot. In `Effector` this can be done by setting `confidence_interbal="std"` in the `plot` method. The plot below informs shows that the heterogeneity is zero, which is correct. However, as we will see in the [RHALE section](#robust-and-heterogeneity-aware-ale-rhale), for measuring the heteroeneity it is better to use the RHALE approximation.
+
 
 ```python
+effector.ALE(data=X, model=predict).plot(feature=0, centering=True, confidence_interval="std")
+```
 
+### Bin-Splitting
+
+ALE has an additional detail that we have to discuss; the bin-splitting. 
+As you probably already noticed at the bottom subplot of the figures above, the $x_1$ axis has been split in $K=20$ bins (intervals) of equal size, each one has the same bin-effect which is $7$. In fact, even the top plot is not a line, but a piecewise linear function, where each _piece_ is a line in the are covered by each bin and gradient equal to the bin-effect.
+However, since the bin-effect is constant, the top plot is a line with gradient $7$. 
+
+For understanding why this happens, we have to go back to the definition and approximation of ALE. ALE is defined as:
+
+$$\text{ALE}(x_s) = \int_{z=0}^{x_s} \mathbb{E}_{x_c|x_s=z}\left [ \frac{\partial f}{\partial x_s} (z, x_c) \right ] \partial z$$
+
+and is approximated by:
+
+$$\hat{\text{ALE}}(x_s) = \Delta x \sum_{k=1}^{k_{x_s}} \frac{1}{ \left | \mathcal{S}_k \right |} \sum_{i: x^{(i)} \in \mathcal{S}_k} \frac{\partial f}{\partial x_s} (x_s^{(i)}, x_c^{(i)})$$
+
+where $k_{x_s}$ the index of the bin such that $z_{k_{x−1}} ≤ x_s < z_{k_x}$, $\mathcal{S}_k$ is the set of the instances lying at the $k$-th bin, i.e., $\mathcal{S}_k = \{ x^{(i)} : z_{k−1} \neq x^{(i)}_s < z_k \}$ and $\Delta x = \frac{x_{s, max} - x_{s, min}}{K}$.
+The above approximation uses a Riemannian sum to approximate the integral. The axis of the $s$-th feature is split in $K$ bins (intervals) of equal size. In each bin, the average effect of the feature of interest is estimated using the instances that fall in the bin. The average effect in each bin is called bin-effect. The default in `Effector` is to use $K=20$ bins but the user can change it using:
+
+
+```python
+ale = effector.ALE(data=X, model=predict)
+
+# using 5 bins
+bm = effector.binning_methods.Fixed(nof_bins=5, min_points_per_bin=0, cat_limit=10)
+ale.fit(features=0, binning_method=bm)
+ale.plot(feature=0)
+
+# using 100 bins
+bm = effector.binning_methods.Fixed(nof_bins=100, min_points_per_bin=0, cat_limit=10)
+ale.fit(features=0, binning_method=bm)
+ale.plot(feature=0)
+```
+
+## Robust and Heterogeneity-aware ALE (RHALE)
+
+Robust and Heterogeneity-aware ALE (RHALE) is a variant of ALE that is more robust to outliers and can handle heterogeneity, proposed by [Gkolemis et. al](https://arxiv.org/abs/2309.11193). In they paper, they showed that RHALE has some advantages: (a) it ensures on-distribution sampling (b) an unbiased estimation of the heterogeneity (heterogeneity-aware) and (c) an optimal trade-off between bias and variance. This is achieved by using a variable-size binning method, instead of the equisized binning method used by ALE. Let's see how it works in practice.
+
+
+```python
+effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True)
+```
+
+### Fearure effect interpretation
+
+The interpretation is exactly the same as with the typical ALE plot, described above; The top subplot is the average feature effect (the typical ALE plot) and the bottom subfigure is the derivative of the effect. 
+The important difference, is that the algorithm automatically _understands_ that it is optimal to create a single bin covering the whole area between $x=0$ and $x=1$. This is because, as we saw above, the gradient of the feature effect is constant and equal to $7$ for all $x_1$ values. Therefore, there is no need to split the $x_1$ axis in multiple bins. In fact, merging all bins into one, reduces the variance of the estimation; the estimation is based on more instances, so the variance is lower. This advantage would be more important in non-linear models, where there is no guarantee that the gradient of the feature effect is constant. (check tutorial [ALE](./ale.ipynb) for more details).
+
+For now, we just enjoy that a single makes the interpreation a little bit clearer.
+
+As with the ALE, there are two alternatives for centering the ALE plot.
+
+| `centering`               | Description                            | Formula                                                               |
+|---------------------------|----------------------------------------|-----------------------------------------------------------------------|
+| `False` or `zero-start`   | Don't enforce any additional centering | c=0                                                                   |
+| `True` or `zero-integral` | Center around the $y$ axis             | c=$\mathbb{E}_{x_s \sim \mathcal{U(x_{s,min},x_{s, max})}}[ALE(x_s)]$ |
+
+Let's see how this works for $x_1$:
+
+
+```python
+effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True)
+```
+
+### Heterogeneity or Uncertainty
+
+As before, the heterogeneity is given by the the standard deviation of the instance-level effects as $\pm$ interval around the ALE plot.
+It is important to notice, that automatic bin-splitting provides a better estimation of the heterogeneity, compared to the equisized binning method used by ALE. (check tutorial [ALE](./ale.ipynb) for more details). 
+The plot below correctly informs shows that the heterogeneity is zero.
+
+
+```python
+effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True, confidence_interval="std")
+```
+
+### Bin-Splitting
+
+So how the automatic bin-splitting works? 
+
+$$\text{ALE}(x_s) = \int_{z=0}^{x_s} \mathbb{E}_{x_c|x_s=z}\left [ \frac{\partial f}{\partial x_s} (z, x_c) \right ] \partial z$$
+
+and is approximated by:
+
+$$\hat{\text{RHALE}}(x_s) = \sum_{k=1}^{k_{x_s}} \frac{1}{ \left | \mathcal{S}_k \right |} \sum_{i: x^{(i)} \in \mathcal{S}_k} \frac{\partial f}{\partial x_s} (x_s^{(i)}, x_c^{(i)})$$
+
+
+
+The above approximation uses a Riemannian sum to approximate the integral. The axis of the $s$-th feature is split in $K$ bins (intervals) of equal size. In each bin, the average effect of the feature of interest is estimated using the instances that fall in the bin. The average effect in each bin is called bin-effect. 
+
+But what we saw above is different. In the figure above, only one bin has been created and covers the whole area between $x=0$ and $x=1$. 
+This is because the default behaviour of `Effector` is to use an automatic bin-splitting method, as it was proposed by [Gkolemis et. al](https://arxiv.org/abs/2309.11193).
+For more details about that, you can check the in-depth [ALE tutorial](./ale.ipynb).
+
+The initial ALE proposal with K equisized bins can be achieved using the following code: 
+
+
+```python
+rhale = effector.RHALE(data=X, model=predict, model_jac=predict_grad)
+binning = effector.binning_methods.Fixed(nof_bins=20, min_points_per_bin=0, cat_limit=10)
+rhale.fit(features=0, binning_method=binning)
+rhale.plot(feature=0)
+```
+
+## Conclusion
+
+
+```python
+# add discussion
 ```

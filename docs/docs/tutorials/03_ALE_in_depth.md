@@ -86,18 +86,19 @@ x = generate_samples(N1, N2, sigma_2=sigma_2, sigma_3=sigma_3)
 
 ```
 
+
 ```python
 # DALE
-for feat in [0]:  # , 1, 2]:
+for feat in [0]: #, 1, 2]:
     xx = np.linspace(-.5, .5, 100)
     # dale with fixed bins, no err
     dale = effector.RHALE(data=x, model=predict, model_jac=predict_grad, axis_limits=axis_limits)
     binning = effector.binning_methods.Fixed(nof_bins=5, min_points_per_bin=0)
     dale.fit([feat], binning_method=binning)
-    dale.plot(feature=feat, confidence_interval="std")
-    #              ground_truth=ale_gt,
-    #              savefig=os.path.join(dirpath, "exp_" + str(exp_i) + "_rhale_5_bins_" + str(feat) + ".pdf"),
-    #              violin=True)
+    dale.plot(feature=feat, uncertainty="std")
+#              ground_truth=ale_gt,
+#              savefig=os.path.join(dirpath, "exp_" + str(exp_i) + "_rhale_5_bins_" + str(feat) + ".pdf"),
+#              violin=True)
     # y = dale.eval(feature=0, x=xx, uncertainty=False)
     # simple_ale_plot(xx, y, xlabel="$x_" + str(feat + 1) + "$", title="ALE",
     #                 savefig=os.path.join(dirpath, "exp_" + str(exp_i) + "_ale_5_bins_" + str(feat) + ".pdf"))
@@ -105,7 +106,7 @@ for feat in [0]:  # , 1, 2]:
     dale = effector.RHALE(data=x, model=predict, model_jac=predict_grad, axis_limits=axis_limits)
     binning = effector.binning_methods.Fixed(nof_bins=10, min_points_per_bin=0)
     dale.fit([feat], binning_method=binning)
-    dale.plot(feature=feat, confidence_interval="std")
+    dale.plot(feature=feat, uncertainty="std")
     #           ylim=[-2, 2],
     #           ground_truth=ale_gt,
     #           savefig=os.path.join(dirpath, "exp_" + str(exp_i) + "_rhale_10_bins_" + str(feat) + ".pdf"),
@@ -117,12 +118,12 @@ for feat in [0]:  # , 1, 2]:
     dale = effector.RHALE(data=x, model=predict, model_jac=predict_grad, axis_limits=axis_limits)
     binning = effector.binning_methods.Fixed(nof_bins=50, min_points_per_bin=0)
     dale.fit([feat], binning_method=binning)
-    dale.plot(feature=feat, confidence_interval="std")
-    # , title)="ALE with heterogeneity - 50 bins",
-    #          ylim=[-2, 2],
-    #          ground_truth=ale_gt,
-    #          savefig=os.path.join(dirpath, "exp_" + str(exp_i) + "_rhale_50_bins_" + str(feat) + ".pdf"),
-    #          violin=True)
+    dale.plot(feature=feat, uncertainty="std")
+     # , title)="ALE with heterogeneity - 50 bins",
+     #          ylim=[-2, 2],
+     #          ground_truth=ale_gt,
+     #          savefig=os.path.join(dirpath, "exp_" + str(exp_i) + "_rhale_50_bins_" + str(feat) + ".pdf"),
+     #          violin=True)
     # y = dale.eval(feature=0, x=xx, uncertainty=False)
     # simple_ale_plot(xx, y, xlabel="$x_" + str(feat + 1) + "$", title="ALE",
     #                 savefig=os.path.join(dirpath, "exp_" + str(exp_i) + "_ale_50_bins_" + str(feat) + ".pdf"))
@@ -131,11 +132,11 @@ for feat in [0]:  # , 1, 2]:
     dale1 = effector.RHALE(data=x, model=predict, model_jac=predict_grad, axis_limits=axis_limits)
     binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=0.1)
     dale1.fit(feat, binning_method=binning)
-    dale1.plot(feature=feat, confidence_interval="std")
-    # , title)="RHALE",
-    #           ylim=[-2, 2],
-    #           ground_truth=ale_gt,
-    #           savefig=os.path.join(dirpath, "exp_" + str(exp_i) + "_rhale_" + str(feat) + ".pdf"), violin=True)
+    dale1.plot(feature=feat, uncertainty="std")
+     # , title)="RHALE",
+     #           ylim=[-2, 2],
+     #           ground_truth=ale_gt,
+     #           savefig=os.path.join(dirpath, "exp_" + str(exp_i) + "_rhale_" + str(feat) + ".pdf"), violin=True)
     # 
     # # pdp with ICE
     # # pdp_ice = pythia.pdp.PDPwithICE(data=x, model=f, axis_limits=axis_limits)

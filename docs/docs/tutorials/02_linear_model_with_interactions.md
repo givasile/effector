@@ -13,11 +13,11 @@ def predict_grad(x):
 
 
 ### PDP and ICE
-effector.PDP(data=X, model=predict).plot(feature=0, centering=True, confidence_interval=True)
-effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, confidence_interval=True)
+effector.PDP(data=X, model=predict).plot(feature=0, centering=True, uncertainty=True)
+effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, uncertainty=True)
 rhale = effector.RHALE(data=X, model=predict, model_jac=predict_grad)
 rhale.fit(features="all")
-rhale.plot(feature=2, centering=True, confidence_interval=True)
+rhale.plot(feature=2, centering=True, uncertainty=True)
 ### ICE
 effector = importlib.reload(effector)
 pdp_ice = effector.PDPwithICE(data=X, model=predict)

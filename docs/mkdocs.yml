@@ -3,6 +3,39 @@ site_name: Effector Documentation
 theme:
   name: material
 
+  font:
+    text: Roboto Flex
+    code: Roboto Mono
+
+  features:
+    - navigation.footer
+    - header.autohide
+  icon:
+    repo: fontawesome/brands/github
+
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+
+
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
 plugins:
   - search
   - mkdocstrings:
@@ -28,3 +61,8 @@ extra_javascript:
 
 watch:
   - ../effector
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/givasile/effector
