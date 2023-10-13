@@ -210,9 +210,21 @@ fig, ax = effector.PDPwithICE(data=X, model=predict).plot(feature=0, centering=T
 ```
 
 
+    
+![png](01_linear_model_files/01_linear_model_13_0.png)
+    
+
+
+
 ```python
 fig, ax = effector.PDPwithICE(data=X, model=predict).plot(feature=0, centering=False)
 ```
+
+
+    
+![png](01_linear_model_files/01_linear_model_14_0.png)
+    
+
 
 #### STD of the residuals
 
@@ -226,6 +238,12 @@ The same issue was encountered above, at the uncentered version of the ICE plots
 ```python
 fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=True, confidence_interval="std")
 ```
+
+
+    
+![png](01_linear_model_files/01_linear_model_16_0.png)
+    
+
 
 ### Derivative-PDP (d-PDP)
 
@@ -254,6 +272,18 @@ fig, ax = effector.DerivativePDP(data=X, model=predict, model_jac=predict_grad).
 fig, ax = effector.DerivativePDPwithICE(data=X, model=predict, model_jac=predict_grad).plot(feature=0)
 ```
 
+
+    
+![png](01_linear_model_files/01_linear_model_18_0.png)
+    
+
+
+
+    
+![png](01_linear_model_files/01_linear_model_18_1.png)
+    
+
+
 ## Accumulated Local Effects (ALE)
 
 Accumulated Local Effects (ALE) is the second big class of feature effect methods.
@@ -265,6 +295,24 @@ effector.ALE(data=X, model=predict).plot(feature=0)
 effector.ALE(data=X, model=predict).plot(feature=1)
 effector.ALE(data=X, model=predict).plot(feature=2)
 ```
+
+
+    
+![png](01_linear_model_files/01_linear_model_20_0.png)
+    
+
+
+
+    
+![png](01_linear_model_files/01_linear_model_20_1.png)
+    
+
+
+
+    
+![png](01_linear_model_files/01_linear_model_20_2.png)
+    
+
 
 ### Fearure effect interpretation
 
@@ -290,6 +338,12 @@ Let's see how this works for $x_1$:
 effector.ALE(data=X, model=predict).plot(feature=0, centering=True)
 ```
 
+
+    
+![png](01_linear_model_files/01_linear_model_22_0.png)
+    
+
+
 ### Heterogeneity or Uncertainty
 
 In the world of ALE, the only way to check the heterogeneity of the instance-level effects is by plotting the standard deviation of the instance-level effects as $\pm$ interval around the ALE plot. In `Effector` this can be done by setting `confidence_interbal="std"` in the `plot` method. The plot below informs shows that the heterogeneity is zero, which is correct. However, as we will see in the [RHALE section](#robust-and-heterogeneity-aware-ale-rhale), for measuring the heteroeneity it is better to use the RHALE approximation.
@@ -298,6 +352,12 @@ In the world of ALE, the only way to check the heterogeneity of the instance-lev
 ```python
 effector.ALE(data=X, model=predict).plot(feature=0, centering=True, confidence_interval="std")
 ```
+
+
+    
+![png](01_linear_model_files/01_linear_model_24_0.png)
+    
+
 
 ### Bin-Splitting
 
@@ -331,6 +391,18 @@ ale.fit(features=0, binning_method=bm)
 ale.plot(feature=0)
 ```
 
+
+    
+![png](01_linear_model_files/01_linear_model_26_0.png)
+    
+
+
+
+    
+![png](01_linear_model_files/01_linear_model_26_1.png)
+    
+
+
 ## Robust and Heterogeneity-aware ALE (RHALE)
 
 Robust and Heterogeneity-aware ALE (RHALE) is a variant of ALE that is more robust to outliers and can handle heterogeneity, proposed by [Gkolemis et. al](https://arxiv.org/abs/2309.11193). In they paper, they showed that RHALE has some advantages: (a) it ensures on-distribution sampling (b) an unbiased estimation of the heterogeneity (heterogeneity-aware) and (c) an optimal trade-off between bias and variance. This is achieved by using a variable-size binning method, instead of the equisized binning method used by ALE. Let's see how it works in practice.
@@ -339,6 +411,12 @@ Robust and Heterogeneity-aware ALE (RHALE) is a variant of ALE that is more robu
 ```python
 effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True)
 ```
+
+
+    
+![png](01_linear_model_files/01_linear_model_28_0.png)
+    
+
 
 ### Fearure effect interpretation
 
@@ -361,6 +439,12 @@ Let's see how this works for $x_1$:
 effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True)
 ```
 
+
+    
+![png](01_linear_model_files/01_linear_model_30_0.png)
+    
+
+
 ### Heterogeneity or Uncertainty
 
 As before, the heterogeneity is given by the the standard deviation of the instance-level effects as $\pm$ interval around the ALE plot.
@@ -371,6 +455,12 @@ The plot below correctly informs shows that the heterogeneity is zero.
 ```python
 effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True, confidence_interval="std")
 ```
+
+
+    
+![png](01_linear_model_files/01_linear_model_32_0.png)
+    
+
 
 ### Bin-Splitting
 
@@ -399,6 +489,12 @@ binning = effector.binning_methods.Fixed(nof_bins=20, min_points_per_bin=0, cat_
 rhale.fit(features=0, binning_method=binning)
 rhale.plot(feature=0)
 ```
+
+
+    
+![png](01_linear_model_files/01_linear_model_34_0.png)
+    
+
 
 ## Conclusion
 
