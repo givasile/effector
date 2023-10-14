@@ -286,8 +286,7 @@ fig, ax = effector.DerivativePDPwithICE(data=X, model=predict, model_jac=predict
 
 ## Accumulated Local Effects (ALE)
 
-Accumulated Local Effects (ALE) is the second big class of feature effect methods.
-Before we delve into the details, let's see how the ALE plot looks like, using the default `Effector` options.
+The next major category of feature effect techniques is [Accumulated Local Effects (ALE)](https://christophm.github.io/interpretable-ml-book/ale.html). Before we go into the specifics, let's apply the ALE plot to our example.
 
 
 ```python
@@ -316,11 +315,9 @@ effector.ALE(data=X, model=predict).plot(feature=2)
 
 ### Fearure effect interpretation
 
-There are two subplots in each of the figures above. 
-The top subplot is the average feature effect (the typical ALE plot) and the bottom subfigure is the derivative of the effect.
-The top subplot says how much the specific feature _contributes_ to the prediction (like PDP) and the bottom subplot says how much the model's prediction _changes_ given a change in the feature of interest (like d-PDP).
-
-In our example, the top plot shows the feature effect as a line starting at $y=0$ and ending at $y=7$, and the bottom plot confirms that the gradient is constantly $7$.
+In each of the figures above, there are two subfigures; the upper subfigure is the average feature effect (the typical ALE plot) and the lower subfigure is the derivative of the effect.
+The upper subfigure shows how much the feature of interest _contributes_ to the prediction (like PDP) while the bottom subplot shows how much a change in the feature of interest _changes_ the prediction (like d-PDP). 
+For example, for $x_1$ the upper subplot shows a linear effect and the lower subplot confirms that the gradient is constantly $7$.
 `Effector` offers two alternatives for centering the ALE plot.
 
 <center>
@@ -331,7 +328,7 @@ In our example, the top plot shows the feature effect as a line starting at $y=0
 | `True` or `zero-integral` | Center around the $y$ axis             | c=$\mathbb{E}_{x_s \sim \mathcal{U(x_{s,min},x_{s, max})}}[ALE(x_s)]$ |
 
 </center>
-Let's see how this works for $x_1$:
+Let's see how centering works for $x_1$:
 
 
 ```python
@@ -346,7 +343,7 @@ effector.ALE(data=X, model=predict).plot(feature=0, centering=True)
 
 ### Heterogeneity or Uncertainty
 
-In the world of ALE, the only way to check the heterogeneity of the instance-level effects is by plotting the standard deviation of the instance-level effects as $\pm$ interval around the ALE plot. In `Effector` this can be done by setting `confidence_interbal="std"` in the `plot` method. The plot below informs shows that the heterogeneity is zero, which is correct. However, as we will see in the [RHALE section](#robust-and-heterogeneity-aware-ale-rhale), for measuring the heteroeneity it is better to use the RHALE approximation.
+In ALE plots, the only way to check the heterogeneity of the instance-level effects is by plotting the standard deviation of the instance-level effects as $\pm$ interval around the ALE plot. In `Effector` this can be done by setting `confidence_interbal="std"`. The plot below informs shows that the heterogeneity is zero, which is correct. However, as we will see below [(RHALE section)](#robust-and-heterogeneity-aware-ale-rhale), ALE's fixed size bin-splitting is not the best way to estimate the heterogeneity. In contrast, the automatic bin-splitting introduced by [RHALE](https://arxiv.org/abs/2309.11193) provides a better estimation of the heterogeneity.
 
 
 ```python
@@ -361,20 +358,21 @@ effector.ALE(data=X, model=predict).plot(feature=0, centering=True, confidence_i
 
 ### Bin-Splitting
 
-ALE has an additional detail that we have to discuss; the bin-splitting. 
-As you probably already noticed at the bottom subplot of the figures above, the $x_1$ axis has been split in $K=20$ bins (intervals) of equal size, each one has the same bin-effect which is $7$. In fact, even the top plot is not a line, but a piecewise linear function, where each _piece_ is a line in the are covered by each bin and gradient equal to the bin-effect.
-However, since the bin-effect is constant, the top plot is a line with gradient $7$. 
+As you may have noticed at the bottom plots of the figures above, $x_1$ axis has been split in $K=20$ bins (intervals) of equal size. The derivative-effect is provided per bin (bin-effect), which in our example is $7$ for all bins. 
 
-For understanding why this happens, we have to go back to the definition and approximation of ALE. ALE is defined as:
+In fact, bin-splitting is apparent also at the top plot; the top plot is not a line, but a piecewise linear function, where each _piece_ is a line in the are covered by each bin and gradient equal to the bin-effect. However, since the bin-effect is the same for all bins, the top plot looks like a line.
+
+To explain the need for bin-splitting we have to go back to the definition of ALE. ALE is defined as: 
 
 $$\text{ALE}(x_s) = \int_{z=0}^{x_s} \mathbb{E}_{x_c|x_s=z}\left [ \frac{\partial f}{\partial x_s} (z, x_c) \right ] \partial z$$
 
-and is approximated by:
+Apley et. al proposed approximating the above integral by:
 
-$$\hat{\text{ALE}}(x_s) = \Delta x \sum_{k=1}^{k_{x_s}} \frac{1}{ \left | \mathcal{S}_k \right |} \sum_{i: x^{(i)} \in \mathcal{S}_k} \frac{\partial f}{\partial x_s} (x_s^{(i)}, x_c^{(i)})$$
+$$\hat{\text{ALE}}(x_s) = \sum_{k=1}^{k_{x_s}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(i)} \in \mathcal{S}_k} \left [ f(z_k, x_c) - f(z_{k-1}, x_c) \right ]$$
 
 where $k_{x_s}$ the index of the bin such that $z_{k_{x−1}} ≤ x_s < z_{k_x}$, $\mathcal{S}_k$ is the set of the instances lying at the $k$-th bin, i.e., $\mathcal{S}_k = \{ x^{(i)} : z_{k−1} \neq x^{(i)}_s < z_k \}$ and $\Delta x = \frac{x_{s, max} - x_{s, min}}{K}$.
-The above approximation uses a Riemannian sum to approximate the integral. The axis of the $s$-th feature is split in $K$ bins (intervals) of equal size. In each bin, the average effect of the feature of interest is estimated using the instances that fall in the bin. The average effect in each bin is called bin-effect. The default in `Effector` is to use $K=20$ bins but the user can change it using:
+
+$\hat{\text{ALE}}(x_s)$ uses a Riemannian sum to approximate the integral of $\text{ALE}(x_s)$. The axis of the $s$-th feature is split in $K$ bins (intervals) of equal size. In each bin, the average effect of the feature of interest is estimated using the instances that fall in the bin. The average effect in each bin is called bin-effect. The default in `Effector` is to use $K=20$ bins but the user can change it using:
 
 
 ```python
@@ -405,7 +403,7 @@ ale.plot(feature=0)
 
 ## Robust and Heterogeneity-aware ALE (RHALE)
 
-Robust and Heterogeneity-aware ALE (RHALE) is a variant of ALE that is more robust to outliers and can handle heterogeneity, proposed by [Gkolemis et. al](https://arxiv.org/abs/2309.11193). In they paper, they showed that RHALE has some advantages: (a) it ensures on-distribution sampling (b) an unbiased estimation of the heterogeneity (heterogeneity-aware) and (c) an optimal trade-off between bias and variance. This is achieved by using a variable-size binning method, instead of the equisized binning method used by ALE. Let's see how it works in practice.
+Robust and Heterogeneity-aware ALE (RHALE) is a variant of ALE, proposed by [Gkolemis et. al](https://arxiv.org/abs/2309.11193). In their paper, they showed that RHALE has specific advantages over ALE: (a) it ensures on-distribution sampling (b) an unbiased estimation of the heterogeneity and (c) an optimal trade-off between bias and variance. These are achieved using an automated variable-size binning splitting approach. Let's see how it works in practice.
 
 
 ```python
@@ -420,17 +418,21 @@ effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, ce
 
 ### Fearure effect interpretation
 
-The interpretation is exactly the same as with the typical ALE plot, described above; The top subplot is the average feature effect (the typical ALE plot) and the bottom subfigure is the derivative of the effect. 
-The important difference, is that the algorithm automatically _understands_ that it is optimal to create a single bin covering the whole area between $x=0$ and $x=1$. This is because, as we saw above, the gradient of the feature effect is constant and equal to $7$ for all $x_1$ values. Therefore, there is no need to split the $x_1$ axis in multiple bins. In fact, merging all bins into one, reduces the variance of the estimation; the estimation is based on more instances, so the variance is lower. This advantage would be more important in non-linear models, where there is no guarantee that the gradient of the feature effect is constant. (check tutorial [ALE](./ale.ipynb) for more details).
+The interpretation is exactly the same as with the typical ALE; The top subplot is the average feature effect and the bottom subfigure is the derivative of the effect. 
+The crucial difference, is that the automatic bin-splitting approach _optimally_ creates a single bin that covers the whole area between $x=0$ and $x=1$. As we saw above, the gradient of the feature effect is constant and equal to $7$ for all $x_1$ values. Therefore, merging all bins into one, reduces the variance of the estimation; the estimation is based on more instances, so the variance is lower. 
 
-For now, we just enjoy that a single makes the interpreation a little bit clearer.
+In our example, this advantage is not that evident. Since there are no interaction terms (linear model) the effect of all instances is always the same; so the variance of the estimation is zero. However in more complex models, the variance of the estimation is not zero and the automatic bin-splitting approach reduces the variance of the estimation (check tutorial [ALE](./ale.ipynb) for more details).
 
 As with the ALE, there are two alternatives for centering the ALE plot.
+
+<center>
 
 | `centering`               | Description                            | Formula                                                               |
 |---------------------------|----------------------------------------|-----------------------------------------------------------------------|
 | `False` or `zero-start`   | Don't enforce any additional centering | c=0                                                                   |
 | `True` or `zero-integral` | Center around the $y$ axis             | c=$\mathbb{E}_{x_s \sim \mathcal{U(x_{s,min},x_{s, max})}}[ALE(x_s)]$ |
+
+</center>
 
 Let's see how this works for $x_1$:
 
@@ -473,7 +475,6 @@ and is approximated by:
 $$\hat{\text{RHALE}}(x_s) = \sum_{k=1}^{k_{x_s}} \frac{1}{ \left | \mathcal{S}_k \right |} \sum_{i: x^{(i)} \in \mathcal{S}_k} \frac{\partial f}{\partial x_s} (x_s^{(i)}, x_c^{(i)})$$
 
 
-
 The above approximation uses a Riemannian sum to approximate the integral. The axis of the $s$-th feature is split in $K$ bins (intervals) of equal size. In each bin, the average effect of the feature of interest is estimated using the instances that fall in the bin. The average effect in each bin is called bin-effect. 
 
 But what we saw above is different. In the figure above, only one bin has been created and covers the whole area between $x=0$ and $x=1$. 
@@ -498,7 +499,22 @@ rhale.plot(feature=0)
 
 ## Conclusion
 
+In this tutorial, we used a linear model to introduce the concept of feature effect methods and explore the different feature effect methods offered by `Effector`. We summarize them in the following table:
+
+<center>
+
+| Method        | How to use                                                                                                     |
+|---------------|----------------------------------------------------------------------------------------------------------------|
+| PDP           | [`effector.PDP(X, model).plot(feature, confidence_interval)`]((./../../reference/#effector.pdp.DerivativePDP)) |
+| d-PDP         | [`effector.DerivativePDP(X, model, model_jac).plot(feature, confidence_interval)`](./../../reference/#effector.pdp.DerivativePDP) |
+| PDPwithICE    | [`effector.PDPwithICE(X, model).plot(feature)`](./../../reference/#effector.pdp.PDPwithICE)                   |
+| d-PDPwithICE  | [`effector.DerivativePDPwithICE(X, model, model_jac).plot(feature)`](./../../reference/#effector.pdp.DerivativePDPwithICE) |
+| ALE           | [`effector.ALE(X, model).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.ALE) |
+| RHALE         | [`effector.RHALE(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.RHALE) |
+
+</center>
+
 
 ```python
-# add discussion
+
 ```
