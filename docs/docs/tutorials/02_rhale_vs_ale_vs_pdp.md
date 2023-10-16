@@ -1,0 +1,361 @@
+# RHALE vs ALE vs PDP
+
+Robust and Heterogeneity-aware ALE (RHALE) is a recently proposed method [(Gkolemis et. al, 2023)](https://arxiv.org/abs/2309.11193) that enhances ALE with (a) quantification of the heterogeneity and (b) automatic bin splitting. The automatic bin splitting is a crucial contribution because it resolves the problem of choosing the number of bins. In this notebook we will go in-depth on how RHALE works and how it compares to ALE, following the example of the paper.
+
+
+```python
+import numpy as np
+import effector
+import matplotlib.pyplot as plt
+```
+
+---
+### Dataset
+
+We will generate $N=60$ examples with $D=3$ features from the following distribution:
+
+| Feature | Description                                                  | Distribution                                                                                     |
+|---------|--------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
+| $x_1$   | $x_1$ lies in $[-0.5, 0.5]$ with most samples in $[-0.5, 0]$ | $x_1 \sim p(x_1) = \frac{5}{6} \mathcal{U}(x_1; -0.5, 0) + \frac{1}{6} \mathcal{U}(x_1; 0, 0.5)$ |
+| $x_2$   | Normally distributed with $\mu = 0$, $\sigma = 2$            | $x_2 \sim p(x_2) = \mathcal{N}(x_2; \mu=0, \sigma = 2)$                                          |
+| $x_3$   | Normally distributed with $\mu = x_1$, $\sigma = 0.01$       | $x_3 \sim p(x_3) = \mathcal{N}(x_3; \mu=x_1, \sigma = 0.01)$                                     |
+
+We should observe that $x_3$ is highly-dependent on $x_1$, i.e., $x_3 \approx x_1$; this will later help us to compute the ground truth ALE effect.
+
+
+```python
+def generate_samples(N1, N2, sigma_2=1, sigma_3=.01):
+    N = N1 + N2
+    x1 = np.concatenate((np.array([-0.5]),
+                         np.random.uniform(-0.5, 0, size=int(N1 - 2)),
+                         np.array([-0.00001]),
+                         np.array([0.]),
+                         np.random.uniform(0, 0.5, size=int(N2 - 2)),
+                         np.array([0.5])))
+    x2 = np.random.normal(0, sigma_2, N)
+    x3 = x1 + np.random.normal(0, sigma_3, N)
+    x = np.stack([x1, x2, x3], -1)
+    return x
+
+
+np.random.seed(seed=21)
+axis_limits = np.array([[-.5, .5], [-5, 5], [-.5, .5]]).T
+sigma_2 = 2
+sigma_3 = .01
+N1 = 50
+N2 = 10
+x = generate_samples(N1, N2, sigma_2=sigma_2, sigma_3=sigma_3)
+```
+
+---
+### Model
+
+The _black-box_ function is:
+
+$$
+f(x) = \sin(2\pi x_1) (\mathbb{1}_{x_1<0} - 2 \mathbb{1}_{x_3<0}) + x_1 x_2 + x_2
+$$
+
+For estimating RHALE we also need the jacobian of $f$:
+
+$$
+\frac{\partial f}{\partial x} = \begin{bmatrix} \frac{\partial f}{\partial x_1} \\ \frac{\partial f}{\partial x_2} \\ \frac{\partial f}{\partial x_3} \end{bmatrix} = \begin{bmatrix} 2\pi x_1 \cos(2\pi x_1) (\mathbb{1}_{x_1<0} - 2 \mathbb{1}_{x_3<0}) + x_2 \\ x_1 + 1 \\ 0 \end{bmatrix}
+$$
+
+
+
+```python
+def f(x):
+    """Evaluate function:
+    y = sin(2*pi*x1)*(if x1<0) - 2*sin(2*pi*x1)*(if x3<0) + x1*x2 + x2
+
+    """
+    y = np.zeros_like(x[:,0])
+
+    ind = np.logical_and(x[:, 0] >= -2, x[:, 0] < 0)
+    y[ind] = np.sin(2 * np.pi * x[ind, 0])
+
+    ind = np.logical_and(x[:, 2] >= -2, x[:, 2] < 0)
+    y[ind] -= 2 * np.sin(2 * np.pi * x[ind, 0])
+
+    y += x[:, 0] * x[:, 1] + x[:, 1]
+    return y
+```
+
+
+```python
+
+def dfdx(x):
+    """Evaluate jacobian of:
+    y = sin(2*pi*x1)*(if x1<0) - 2*sin(2*pi*x1)*(if x3<0) + x1*x2 + x2
+
+    dy/dx1 = 2*pi*x1*cos(2*pi*x1)*(if x1<0) - 4*pi*x1*cos(2*pi*x1)*(if x3<0) + x2
+    dy/dx2 = x1 + 1
+    dy/dx3 = 0
+    """
+
+    dydx = np.zeros_like(x)
+
+    ind = np.logical_and(x[:, 0] >= -2, x[:, 0] <= 0)
+    dydx[ind, 0] = 2 * np.pi * np.cos(2*np.pi * x[ind, 0])
+
+    ind = np.logical_and(x[:, 2] >= -2, x[:, 2] <= 0)
+    dydx[ind, 0] += - 2 * 2 * np.pi * np.cos(2*np.pi * x[ind, 0])
+
+    dydx[:, 0] += x[:, 1]
+
+    dydx[:, 1] = x[:, 0] + 1
+    return dydx
+
+```
+
+## ALE Definition
+
+ALE defines the feature effect as:
+
+$$\text{ALE}(x_s) = \int_{z=0}^{x_s} \mathbb{E}_{x_c|x_s=z}\left [ \frac{\partial f}{\partial x_s} (z, x_c) \right ] \partial z $$
+
+where $x_s$ is the feature of interest and $x_c$ are the other features. In our case, $x_1$ is the feature of interest and $x_2, x_3$ are the other features.
+Taking advantage of $x_3 \approx x_1$, it holds that:
+ 
+$$
+\mathbb{E}_{x_2, x_3|x_1=z} \left [ \frac{\partial f}{\partial x_1} (z, x_2, x_3) \right ] \approx - 2 \pi z \cos(2 \pi z) \mathbb{1}_{z<0}$, 
+$$
+
+the ground-truth ALE effect can be computed in closed-form:
+
+$$\text{ALE}(x_1) = \int_{z=0}^{x_1} \mathbb{E}_{x_2, x_3|x_1=z} \left [ \frac{\partial f}{\partial x_1} (z, x_2, x_3) \right ] \partial z
+\approx - \sin(2\pi x_1) \mathbb{1}_{x_1<0} + c$$
+
+
+```python
+def ale_gt(x):
+    y = np.zeros_like(x)
+    ind = x < 0
+    y[ind] = - np.sin(2 * np.pi * x[ind])
+    c = 0.31
+    return y - c
+```
+
+
+
+
+```python
+plt.figure()
+plt.ylim(-2, 2)
+xx = np.linspace(-0.5, 0.5, 100)
+plt.plot(xx, ale_gt(xx), "--", label="ground truth")
+plt.title("Ground-truth ALE")
+plt.xlabel("$x_1$")
+plt.ylabel("$y$")
+plt.legend()
+plt.show()
+```
+
+
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_11_0.png)
+    
+
+
+## RHALE definition
+
+*RHALE definition* is a simple extension on the ALE definition, with the addition of the heterogeneity term. For visualizing the heterogeneity, RHALE proposes two plots one below the other. The top plot is the ALE effect and the bottom plot is the derivative of the ALE effect. The derivative of the ALE effect is the effect of the feature of interest on the model output. The heterogeneity is the standard deviation of the derivative of the ALE effect.
+
+RHALE quantifies the heterogeneity as the standard deviation of the derivative of the model with respect to the feature of interest:
+
+$$
+\sigma(z) = \sigma_{x_c|x_s=z} \left [ \frac{\partial f}{\partial x_s} (z, x_c) \right ]
+$$
+
+The heterogeneity is visualized on top of the ALE effect in two ways. First, as a shaded $\pm$ area around the ALE plot where the area is given by $\pm \sigma(x_s)*x_s$ (aggregated standard deviation). Second, as a shaded area around the derivative of the ALE plot which is defined as $\pm \sigma(x_s)$. In our example, the heterogeneity is:
+
+$$
+\sigma(x_1) = \sigma_{x_2, x_3|x_1=z} \left [ \frac{\partial f}{\partial x_1} (z, x_2, x_3) \right ] = \sigma_2
+$$
+
+The heterogeneity informs that the instance-level effects are deviating from the average effect by $\pm \sigma_2$.
+
+
+```python
+def rhale_gt(x):
+    y = np.zeros_like(x)
+    ind = x < 0
+    y[ind] = - np.sin(2 * np.pi * x[ind])
+    c = 0.31
+    return y - c, (x + .5) * sigma_2
+
+def rhale_gt_derivative_effect(x):
+    dydx = np.zeros_like(x)
+    ind = x < 0
+    dydx[ind] = - 2 * np.pi * np.cos(2 * np.pi * x[ind])
+    return dydx, sigma_2
+```
+
+
+
+
+```python
+plt.figure()
+plt.ylim(-2, 2)
+xx = np.linspace(-.5, .5, 100)
+plt.plot(xx, rhale_gt(xx)[0], "--", label="ground truth")
+plt.fill_between(xx, rhale_gt(xx)[0] - rhale_gt(xx)[1], rhale_gt(xx)[0] + rhale_gt(xx)[1], alpha=0.2)
+plt.title("Ground-truth RHALE")
+plt.xlabel("$x_1$")
+plt.ylabel("$y$")
+plt.legend()
+plt.show()
+```
+
+
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_15_0.png)
+    
+
+
+
+```python
+plt.figure()
+xx = np.linspace(-0.5, 0.5, 100)
+plt.plot(xx, rhale_gt_derivative_effect(xx)[0], "--", label="ground truth")
+plt.fill_between(xx, rhale_gt_derivative_effect(xx)[0] - rhale_gt_derivative_effect(xx)[1], rhale_gt_derivative_effect(xx)[0] + rhale_gt_derivative_effect(xx)[1], alpha=0.2, label="$\pm$ std")
+plt.title("Ground-truth RHALE derivative effect")
+plt.xlabel("$x_1$")
+plt.ylabel("$y$")
+plt.legend()
+plt.show()
+```
+
+
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_16_0.png)
+    
+
+
+## ALE approximation
+
+Bin splitting is a major limitation of ALE. The user has to choose the number of bins, where different number of bins can lead to very different results. In terms of the main ALE effect, a wrong bin-splitting may lead to unstable results. In terms of the heterogeneity, a wrong bin-splitting may lead to a biased estimation of the heterogeneity. 
+
+In our example, if setting a low number of bins (wide bins), e.g., 5, we get the following approximation:
+
+
+```python
+feat = 0
+xx = np.linspace(-.5, .5, 100)
+
+# ale 5 bins
+nof_bins = 5
+# dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+dale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
+binning = effector.binning_methods.Fixed(nof_bins=nof_bins, min_points_per_bin=0)
+dale.fit([feat], binning_method=binning)
+dale.plot(feature=feat, confidence_interval="std")
+
+```
+
+
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_18_0.png)
+    
+
+
+
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_18_1.png)
+    
+
+
+The approximation with wide bins has two drawbacks:
+
+* the average ale effect is of low resolution; for example the change in the effect at $x_1=0$ is not captured
+* the heterogeneity is biased; for example, the central bin show heterogeneity of $\sigma \approx 4$, where the ground-truth heterogeneity is $\approx 2$.
+
+Let's see what happens with a high number of bins (narrow bins), e.g., 50:
+
+
+```python
+
+
+    # ale 50 bins
+    nof_bins = 50
+    # dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+    dale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
+    binning = effector.binning_methods.Fixed(nof_bins=nof_bins, min_points_per_bin=0)
+    dale.fit([feat], binning_method=binning)
+    dale.plot(feature=feat, confidence_interval="std")
+
+```
+
+
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_20_0.png)
+    
+
+
+The approximation with narrow bins has two drawbacks:
+
+- the average ale effect is noisy; for example, the effect at $x_1>0$ in not zero.
+- the heterogeneity is even more noisy. It has many spikes that are not present in the ground-truth heterogeneity.
+
+In real-world problems, the user has to choose the number of bins without any guidance. This is a major drawback of ALE, because the user does not know which approximation to trust, the one with wide bins or the one with narrow bins. 
+
+
+## RHALE approximation
+
+RHALE proposes an automatic bin-splitting approach to resolve the issue. Let's first see it practice:
+
+
+```python
+# rhale
+feat = 0
+dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+binning = effector.binning_methods.DynamicProgramming(max_nof_bins=20, min_points_per_bin=10, discount=0.5)
+dale.fit([feat], binning_method=binning)
+dale.plot(feature=feat, confidence_interval="std")
+
+```
+
+
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_23_0.png)
+    
+
+
+The approximation is much better, both in terms of the average effect and the heterogeneity. For example, the heterogeneity is almost constant around $2$ and the spikes are gone.
+This happens due to the automatic bin-splitting, which creates bins of different sizes. In the beginning, area $[-0.5, 0]$, the bins are smaller for a good trade-off between bias and variance. In the end, area $[0, 0.5]$, a single bin is created to limit the variance without adding bias.
+
+## More about the automatic bin-splitting
+
+
+```python
+# add
+
+```
+
+First, we have to clarify the deferences between (a) ALE definition, (b) RHALE definition and (c) ALE approximation and (d) RHALE approximation. 
+
+RHALE definition is a very simple extension of ALE definition for quantifying the heterogeneity. The most important contribution of RHALE is its approximation using automatic bin splitting. One of the major drawbacks of ALE is that the user has to choose the number of bins without any guidance. Unfortunately, different number of bins can lead to very different results, which sometimes makes the [ALE approximation unstable](https://slds-lmu.github.io/iml_methods_limitations/ale-misc.html).
+
+RHALE introduces a way to automatically divide the axis of the feauture interest into variable-size bins in an optimal way. But what optimal means in our case? 
+
+RHALE shows that there is a trade-off. If small bins are chosen then the approximation is vulnerable to high-variance, i.e., low number of samples per bin, that leads to high variance. On the other hand, if large bins are chosen then, in the general case, the approximation of ALE definition lowers the resolution of the plot and the approximation of the heterogeneity becomes biased!
+
+ RHALE proposes automatic bin-splitting  
+ 
+is biased. The optimal binning is the one that minimizes the bias-variance trade-off. 
+
+
+and if large bins are chosen then the approximation is biased. The optimal binning is the one that minimizes the bias-variance trade-off.  
+
+
+into bins in a way that the approximation is as close as possible to the definition. This is done by using a dynamic programming algorithm that tries to minimize the difference between the approximation and the definition.
+
+
+which is a very important decision because the number of bins affects the bias-variance trade-off. If the number of bins is too small then the approximation is biased. If the number of bins is too large then the approximation has high variance. The solution to this problem is the automatic binning. The automatic binning is a way to choose the number of bins and the bin limits in a way that the ALE approximation is as close as possible to the ALE definition.
+ 
+This is a very important decision because the number of bins affects the bias-variance trade-off. If the number of bins is too small then the approximation is biased. If the number of bins is too large then the approximation has high variance. The solution to this problem 
+
+ 
+is the automatic binning. The automatic binning is a way to choose the number of bins and the bin limits in a way that the ALE approximation is as close as possible to the ALE definition. 
+

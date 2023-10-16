@@ -6,6 +6,8 @@ We will explore the different feature effect methods offered by `Effector` and u
 Why a linear model? The feature effect of a linear model is trivial to compute, so we can easily understand what an ideal _feature effect_ should look like 
 and then compare it with the output of the various feature effect methods within the `Effector` package.
 
+If you only want to see how to use `Effector` you can skip the next sections and go directly to the table of the [Conclusion](#conclusion) section.
+
 
 
 ```python
@@ -499,18 +501,22 @@ rhale.plot(feature=0)
 
 ## Conclusion
 
-In this tutorial, we used a linear model to introduce the concept of feature effect methods and explore the different feature effect methods offered by `Effector`. We summarize them in the following table:
+In this tutorial, we introduced the various feature effect methods of `Effector` and used them to explain a linear model. 
+
+In summary, given a dataset `X: (N, D)` and a black-box model `model: (N, D) -> (N)`,
+the feature effect plot of the $s$-th feature `feature=s` is given with the table below.
+The argument `confidence_interval=True|False` indicates whether to plot the standard deviation of the instance-level effects as $\pm$ interval around the feature effect plot. Some methods also require the gradient of the model `model_jac: (N, D) -> (N, D)`.
 
 <center>
 
-| Method        | How to use                                                                                                     |
-|---------------|----------------------------------------------------------------------------------------------------------------|
-| PDP           | [`effector.PDP(X, model).plot(feature, confidence_interval)`]((./../../reference/#effector.pdp.DerivativePDP)) |
-| d-PDP         | [`effector.DerivativePDP(X, model, model_jac).plot(feature, confidence_interval)`](./../../reference/#effector.pdp.DerivativePDP) |
-| PDPwithICE    | [`effector.PDPwithICE(X, model).plot(feature)`](./../../reference/#effector.pdp.PDPwithICE)                   |
-| d-PDPwithICE  | [`effector.DerivativePDPwithICE(X, model, model_jac).plot(feature)`](./../../reference/#effector.pdp.DerivativePDPwithICE) |
-| ALE           | [`effector.ALE(X, model).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.ALE) |
-| RHALE         | [`effector.RHALE(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.RHALE) |
+| Method        | How to use                                                                                                                                   |
+|---------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| PDP           | [`effector.PDP(X, model).plot(feature, centering, confidence_interval)`]((./../../reference/#effector.pdp.DerivativePDP))                    |
+| d-PDP         | [`effector.DerivativePDP(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../reference/#effector.pdp.DerivativePDP) |
+| PDPwithICE    | [`effector.PDPwithICE(X, model).plot(feature, centering)`](./../../reference/#effector.pdp.PDPwithICE)                                       |
+| d-PDPwithICE  | [`effector.DerivativePDPwithICE(X, model, model_jac).plot(feature, centering)`](./../../reference/#effector.pdp.DerivativePDPwithICE)        |
+| ALE           | [`effector.ALE(X, model).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.ALE)                                |
+| RHALE         | [`effector.RHALE(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.RHALE)                 |
 
 </center>
 
