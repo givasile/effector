@@ -105,12 +105,11 @@ class BinBase:
         return is_categorical or enough_for_one_bin
 
     def _is_categorical(self, cat_limit):
-        """Check if the feature is categorical, i.e. has less than 10 unique values, and if so, set the limits
+        """Check if the feature is categorical, i.e. has less than cat_limit unique values, and if so, set the limits
 
         Returns:
             Boolean, True if the feature is categorical, False otherwise
         """
-
         # if unique values are leq 10, then it is categorical
         is_cat = len(np.unique(self.data[:, self.feature])) <= cat_limit
         # if only one unique value, then it is categorical and set the limits

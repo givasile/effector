@@ -1,4 +1,4 @@
-# A very gentle introduction
+# A very gentle introduction to Feature Effect methods
 
 This tutorial is a very gentle introduction to [feature effect methods](https://christophm.github.io/interpretable-ml-book/global-methods.html) and the `Effector` package.
 We will explore the different feature effect methods offered by `Effector` and use them to explain a linear model.

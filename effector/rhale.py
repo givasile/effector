@@ -97,7 +97,7 @@ class RHALE(FeatureEffectBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
-        binning_method="greedy",
+        binning_method: typing.Union[str, bm.DynamicProgramming, bm.Greedy, bm.Fixed] = "greedy",
         centering: typing.Union[bool, str] = "zero_integral",
     ) -> None:
         """Fit the model.

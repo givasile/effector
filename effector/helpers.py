@@ -77,7 +77,7 @@ def prep_ale_fit_params(par: dict):
     return par
 
 
-def prep_nof_instances(nof_instances: typing.Union[int, str], N: int) -> int:
+def prep_nof_instances(nof_instances: typing.Union[int, str], N: int) -> tuple[int, np.ndarray]:
     """Prepares the argument nof_instances
 
     Args

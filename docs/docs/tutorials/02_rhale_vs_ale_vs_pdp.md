@@ -275,16 +275,13 @@ Let's see what happens with a high number of bins (narrow bins), e.g., 50:
 
 
 ```python
-
-
-    # ale 50 bins
-    nof_bins = 50
-    # dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
-    dale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
-    binning = effector.binning_methods.Fixed(nof_bins=nof_bins, min_points_per_bin=0)
-    dale.fit([feat], binning_method=binning)
-    dale.plot(feature=feat, confidence_interval="std")
-
+# ale 50 bins
+nof_bins = 50
+# dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+dale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
+binning = effector.binning_methods.Fixed(nof_bins=nof_bins, min_points_per_bin=0)
+dale.fit([feat], binning_method=binning)
+dale.plot(feature=feat, confidence_interval="std")
 ```
 
 
@@ -327,35 +324,162 @@ This happens due to the automatic bin-splitting, which creates bins of different
 
 ## More about the automatic bin-splitting
 
+So, how is the automatic bin-splitting working? 
+Before we delve into the details, intutivelly, a wide bin does not (a) sacrifice resolution of the ALE plot and (b) does not introduce bias in the heterogeneity, only in case the effect is linear inside the bin (or the derivative-effect is constant). In our example, this happens in the area, $[0, 0.5]$. Intuitively, bin splitting algorithms search for such areas (to create a single bin there) and in all other cases they try to minimize the bias-variance trade-off.
+
+In `Effector`, there are two automatic bin-splitting methods:
+
+- `Greedy`: the user has to choose the maximum number of bins and the minimum number of samples per bin
+- `DynamicProgramming`: the user has to choose the maximum number of bins and the minimum number of samples per bin
+
+### Greedy approach
+
+`Greedy` has three parameters; `init_nof_bins`, `min_points_per_bin` and `discount`. `max_nof_bins` is the initial (and maximum) number of bins. The algorithm then tries to merge bins in a greedy way, i.e., it moves along the axis (from left to right) and if merging with the next bin leads to a similar variance then it merges the bins. In fact, discount expresses to what extent the algorithm favors the creation of wider bins. The higher the discount the more the algorithm tries to minimize the variance, sacrificing some bias and vice versa. `min_points_per_bin` is the minimum number of samples each bin should have. 
+
+
 
 ```python
-# add
+# Greedy
+feat = 0
+dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+binning = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=5, discount=0.1)
+dale.fit([feat], binning_method=binning)
+dale.plot(feature=feat, confidence_interval="std")
+```
+
+
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_27_0.png)
+    
+
+
+
+```python
+# Greedy
+feat = 0
+dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+binning = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=5, discount=0.5)
+dale.fit([feat], binning_method=binning)
+dale.plot(feature=feat, confidence_interval="std")
 
 ```
 
-First, we have to clarify the deferences between (a) ALE definition, (b) RHALE definition and (c) ALE approximation and (d) RHALE approximation. 
 
-RHALE definition is a very simple extension of ALE definition for quantifying the heterogeneity. The most important contribution of RHALE is its approximation using automatic bin splitting. One of the major drawbacks of ALE is that the user has to choose the number of bins without any guidance. Unfortunately, different number of bins can lead to very different results, which sometimes makes the [ALE approximation unstable](https://slds-lmu.github.io/iml_methods_limitations/ale-misc.html).
-
-RHALE introduces a way to automatically divide the axis of the feauture interest into variable-size bins in an optimal way. But what optimal means in our case? 
-
-RHALE shows that there is a trade-off. If small bins are chosen then the approximation is vulnerable to high-variance, i.e., low number of samples per bin, that leads to high variance. On the other hand, if large bins are chosen then, in the general case, the approximation of ALE definition lowers the resolution of the plot and the approximation of the heterogeneity becomes biased!
-
- RHALE proposes automatic bin-splitting  
- 
-is biased. The optimal binning is the one that minimizes the bias-variance trade-off. 
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_28_0.png)
+    
 
 
-and if large bins are chosen then the approximation is biased. The optimal binning is the one that minimizes the bias-variance trade-off.  
+
+```python
+# Greedy
+feat = 0
+dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+binning = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=5, discount=7.)
+dale.fit([feat], binning_method=binning)
+dale.plot(feature=feat, confidence_interval="std")
+
+```
 
 
-into bins in a way that the approximation is as close as possible to the definition. This is done by using a dynamic programming algorithm that tries to minimize the difference between the approximation and the definition.
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_29_0.png)
+    
 
 
-which is a very important decision because the number of bins affects the bias-variance trade-off. If the number of bins is too small then the approximation is biased. If the number of bins is too large then the approximation has high variance. The solution to this problem is the automatic binning. The automatic binning is a way to choose the number of bins and the bin limits in a way that the ALE approximation is as close as possible to the ALE definition.
- 
-This is a very important decision because the number of bins affects the bias-variance trade-off. If the number of bins is too small then the approximation is biased. If the number of bins is too large then the approximation has high variance. The solution to this problem 
+### Dynamic Programming approach
 
- 
-is the automatic binning. The automatic binning is a way to choose the number of bins and the bin limits in a way that the ALE approximation is as close as possible to the ALE definition. 
+`DynamicProgramming` has three parameters; `max_nof_bins`, `min_points_per_bin` and `discount`. `max_nof_bins` is the maximum number of bins. The algorithm then tries to find the optimal binning, i.e., the binning that minimizes the bias-variance trade-off. `min_points_per_bin` is the minimum number of samples each bin should have. `discount` is the discount factor of the algorithm. The higher the discount the more the algorithm tries to minimize the variance, sacrificing some bias and vice versa. For more details, we refer the reader to the [RHALE paper](https://arxiv.org/abs/2309.11193).
 
+
+
+
+```python
+# DynamicProgramming
+feat = 0
+dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=0.01)
+dale.fit([feat], binning_method=binning)
+dale.plot(feature=feat, confidence_interval="std")
+```
+
+
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_31_0.png)
+    
+
+
+
+```python
+# DynamicProgramming
+feat = 0
+dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=0.7)
+dale.fit([feat], binning_method=binning)
+dale.plot(feature=feat, confidence_interval="std")
+```
+
+
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_32_0.png)
+    
+
+
+
+```python
+# DynamicProgramming
+feat = 0
+dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=.8)
+dale.fit([feat], binning_method=binning)
+dale.plot(feature=feat, confidence_interval="std")
+```
+
+
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_33_0.png)
+    
+
+
+ In RHALE paper, it is shown that 
+larger bins lead to more robust (lower variance) estimation of the bin-effect, but, they
+they may introduce bias in the approximation of the heterogeneity. 
+On the other hand, smaller bins lead do not introduce bias in the approximation of the heterogeneity, but, 
+they lead to noisy (higher variance) estiamtion of the heterogeneity.
+
+Intuitively, the automatic bin-splitting firstly searches for regions with constant effect, i.e., regions where the derivative of the effect is zero. In our example, the effect is constant in the area $[0, 0.5]$. There, a large bin covering all the interval helps in a low-variance estiamtion of the bin-effect and the bin-heterogeneity, without introducing bias.
+
+Second, in the regions where the effect is not constant, i.e., the derivative of the effect is not zero, the automatic bin-splitting tries to minimizes the bias-variance trade-off. In our example, the effect is not constant in the area $[-0.5, 0]$. There, the automatic bin-splitting searches for a compromise. 
+
+
+
+
+
+## PDP
+
+We have spent much time on ALE and RHALE, trying to find the best way to split the axis of the feature of interest and achive the best 
+approximation of the ALE definition. Does it worth it? For example, PDP-ICE are a very popular method for both the average effect and the heterogeneity. 
+So why not use PDP-ICE instead of trying these sophisticate ALE approximations?
+
+The short is yes, especially in cases where the features are correlated. 
+Both, PDP and ICE make an implicit assumption that the features are independent. 
+In cases where this assumption is highly-violated, PDP and ICE may lead to wrong conclusions.
+In our example, it is clear that $x_3$ is highly-dependent on $x_1$. So let's see what happens with PDP-ICE. 
+
+
+
+
+```python
+fig, ax = effector.PDPwithICE(data=x, model=f, nof_instances=30).plot(feature=0, centering=True)
+```
+
+
+    
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_36_0.png)
+    
+
+
+
+```python
+
+```
