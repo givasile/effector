@@ -2,7 +2,7 @@
 title: Feature Effect Methods
 ---
 
-???+ question "Why we care about feature effect plots?"
+???+ question "Why do we care about feature effect plots?"
      
      Because they are (probably) the simplest way to globally interpret a black-box model.
 
@@ -60,7 +60,7 @@ which can raise some *criticism* and lead to appropriate *actions*.
     Another expert notices that this pattern is meaningful only for the working days.
     During weekends and holidays, it doesn't logically justify having a peak in rentals as early as 7:30 AM.
 
-???+ note "Action 2: Check the fidelity of the explanation"
+???+ success "Action 2: Check the fidelity of the explanation"
 
     To take meaningful action, it is crucial to determine whether this issue originates from the model or the explanation.
     Is the model treating the $hour$ feature uniformly across all days, despite the intuitive understanding that this feature may vary between weekdays and weekends?

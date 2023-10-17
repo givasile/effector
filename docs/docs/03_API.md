@@ -1,6 +1,6 @@
 # API reference
 
-## Global Feature Effect Methods
+## Feature Effect Methods
 
 ### ::: effector.fe_base.FeatureEffectBase
        options:
@@ -8,6 +8,24 @@
          show_symbol_type_toc: True
          members:
            - eval
+
+### ::: effector.ale.ALE
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+           - __init__
+           - fit
+           - plot
+
+### ::: effector.rhale.RHALE
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+           - __init__
+           - fit
+           - plot
 
 ### ::: effector.pdp.PDP
       options:

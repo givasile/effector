@@ -292,9 +292,9 @@ The next major category of feature effect techniques is [Accumulated Local Effec
 
 
 ```python
-effector.ALE(data=X, model=predict).plot(feature=0)
-effector.ALE(data=X, model=predict).plot(feature=1)
-effector.ALE(data=X, model=predict).plot(feature=2)
+fig, ax1, ax2 = effector.ALE(data=X, model=predict).plot(feature=0)
+fig, ax1, ax2 = effector.ALE(data=X, model=predict).plot(feature=1)
+fig, ax1, ax2 = effector.ALE(data=X, model=predict).plot(feature=2)
 ```
 
 
@@ -334,7 +334,7 @@ Let's see how centering works for $x_1$:
 
 
 ```python
-effector.ALE(data=X, model=predict).plot(feature=0, centering=True)
+fig, ax1, ax2 = effector.ALE(data=X, model=predict).plot(feature=0, centering=True)
 ```
 
 
@@ -349,7 +349,7 @@ In ALE plots, the only way to check the heterogeneity of the instance-level effe
 
 
 ```python
-effector.ALE(data=X, model=predict).plot(feature=0, centering=True, confidence_interval="std")
+fig, ax1, ax2 = effector.ALE(data=X, model=predict).plot(feature=0, centering=True, confidence_interval="std")
 ```
 
 
@@ -383,12 +383,12 @@ ale = effector.ALE(data=X, model=predict)
 # using 5 bins
 bm = effector.binning_methods.Fixed(nof_bins=5, min_points_per_bin=0, cat_limit=10)
 ale.fit(features=0, binning_method=bm)
-ale.plot(feature=0)
+fig, ax1, ax2 = ale.plot(feature=0)
 
 # using 100 bins
 bm = effector.binning_methods.Fixed(nof_bins=100, min_points_per_bin=0, cat_limit=10)
 ale.fit(features=0, binning_method=bm)
-ale.plot(feature=0)
+fig, ax1, ax2 = ale.plot(feature=0)
 ```
 
 
@@ -409,7 +409,7 @@ Robust and Heterogeneity-aware ALE (RHALE) is a variant of ALE, proposed by [Gko
 
 
 ```python
-effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True)
+fig, ax1, ax2 = effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True)
 ```
 
 
@@ -440,7 +440,7 @@ Let's see how this works for $x_1$:
 
 
 ```python
-effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True)
+fig, ax1, ax2 = effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True)
 ```
 
 
@@ -457,7 +457,7 @@ The plot below correctly informs shows that the heterogeneity is zero.
 
 
 ```python
-effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True, confidence_interval="std")
+fig, ax1, ax2 = effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True, confidence_interval="std")
 ```
 
 
@@ -490,7 +490,7 @@ The initial ALE proposal with K equisized bins can be achieved using the followi
 rhale = effector.RHALE(data=X, model=predict, model_jac=predict_grad)
 binning = effector.binning_methods.Fixed(nof_bins=20, min_points_per_bin=0, cat_limit=10)
 rhale.fit(features=0, binning_method=binning)
-rhale.plot(feature=0)
+fig, ax1, ax2 = rhale.plot(feature=0)
 ```
 
 

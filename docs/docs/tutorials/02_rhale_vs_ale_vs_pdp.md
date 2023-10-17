@@ -247,22 +247,16 @@ xx = np.linspace(-.5, .5, 100)
 # ale 5 bins
 nof_bins = 5
 # dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
-dale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
+ale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
 binning = effector.binning_methods.Fixed(nof_bins=nof_bins, min_points_per_bin=0)
-dale.fit([feat], binning_method=binning)
-dale.plot(feature=feat, confidence_interval="std")
+ale.fit([feat], binning_method=binning)
+fig, ax1, ax2 = ale.plot(feature=feat, confidence_interval="std")
 
 ```
 
 
     
 ![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_18_0.png)
-    
-
-
-
-    
-![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_18_1.png)
     
 
 
@@ -278,10 +272,10 @@ Let's see what happens with a high number of bins (narrow bins), e.g., 50:
 # ale 50 bins
 nof_bins = 50
 # dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
-dale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
+ale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
 binning = effector.binning_methods.Fixed(nof_bins=nof_bins, min_points_per_bin=0)
-dale.fit([feat], binning_method=binning)
-dale.plot(feature=feat, confidence_interval="std")
+ale.fit([feat], binning_method=binning)
+fig, ax1, ax2 = ale.plot(feature=feat, confidence_interval="std")
 ```
 
 
@@ -306,10 +300,10 @@ RHALE proposes an automatic bin-splitting approach to resolve the issue. Let's f
 ```python
 # rhale
 feat = 0
-dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.DynamicProgramming(max_nof_bins=20, min_points_per_bin=10, discount=0.5)
-dale.fit([feat], binning_method=binning)
-dale.plot(feature=feat, confidence_interval="std")
+rhale.fit([feat], binning_method=binning)
+fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
 
 ```
 
@@ -341,10 +335,10 @@ In `Effector`, there are two automatic bin-splitting methods:
 ```python
 # Greedy
 feat = 0
-dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=5, discount=0.1)
-dale.fit([feat], binning_method=binning)
-dale.plot(feature=feat, confidence_interval="std")
+rhale.fit([feat], binning_method=binning)
+fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
 ```
 
 
@@ -357,11 +351,10 @@ dale.plot(feature=feat, confidence_interval="std")
 ```python
 # Greedy
 feat = 0
-dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=5, discount=0.5)
-dale.fit([feat], binning_method=binning)
-dale.plot(feature=feat, confidence_interval="std")
-
+rhale.fit([feat], binning_method=binning)
+fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
 ```
 
 
@@ -374,10 +367,10 @@ dale.plot(feature=feat, confidence_interval="std")
 ```python
 # Greedy
 feat = 0
-dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=5, discount=7.)
-dale.fit([feat], binning_method=binning)
-dale.plot(feature=feat, confidence_interval="std")
+rhale.fit([feat], binning_method=binning)
+fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
 
 ```
 
@@ -397,10 +390,10 @@ dale.plot(feature=feat, confidence_interval="std")
 ```python
 # DynamicProgramming
 feat = 0
-dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=0.01)
-dale.fit([feat], binning_method=binning)
-dale.plot(feature=feat, confidence_interval="std")
+rhale.fit([feat], binning_method=binning)
+fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
 ```
 
 
@@ -413,10 +406,10 @@ dale.plot(feature=feat, confidence_interval="std")
 ```python
 # DynamicProgramming
 feat = 0
-dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=0.7)
-dale.fit([feat], binning_method=binning)
-dale.plot(feature=feat, confidence_interval="std")
+rhale.fit([feat], binning_method=binning)
+fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
 ```
 
 
@@ -429,10 +422,10 @@ dale.plot(feature=feat, confidence_interval="std")
 ```python
 # DynamicProgramming
 feat = 0
-dale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=.8)
-dale.fit([feat], binning_method=binning)
-dale.plot(feature=feat, confidence_interval="std")
+rhale.fit([feat], binning_method=binning)
+fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
 ```
 
 

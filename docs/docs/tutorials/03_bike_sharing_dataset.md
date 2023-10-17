@@ -15,16 +15,6 @@ import tensorflow as tf
 from tensorflow import keras
 ```
 
-    2023-10-17 13:09:43.963184: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
-    To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-10-17 13:09:44.088048: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory
-    2023-10-17 13:09:44.088064: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
-    2023-10-17 13:09:44.113370: E tensorflow/stream_executor/cuda/cuda_blas.cc:2981] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2023-10-17 13:09:44.693738: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory
-    2023-10-17 13:09:44.693799: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory
-    2023-10-17 13:09:44.693805: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
-
-
 ## Preprocess the data
 
 
@@ -141,61 +131,53 @@ model.evaluate(X_test, Y_test, verbose=1)
 ```
 
     Epoch 1/20
-
-
-    2023-10-17 13:09:45.331592: E tensorflow/stream_executor/cuda/cuda_driver.cc:265] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
-    2023-10-17 13:09:45.331618: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (givasile-ubuntu-XPS-15-9500): /proc/driver/nvidia/version does not exist
-    2023-10-17 13:09:45.331914: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
-    To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-    28/28 [==============================] - 1s 9ms/step - loss: 0.4389 - mae: 0.4817 - root_mean_squared_error: 0.6625
+    28/28 [==============================] - 1s 8ms/step - loss: 0.4500 - mae: 0.4897 - root_mean_squared_error: 0.6708
     Epoch 2/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.3147 - mae: 0.4033 - root_mean_squared_error: 0.5610
+    28/28 [==============================] - 0s 8ms/step - loss: 0.3131 - mae: 0.4006 - root_mean_squared_error: 0.5595
     Epoch 3/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.2549 - mae: 0.3576 - root_mean_squared_error: 0.5049
+    28/28 [==============================] - 0s 8ms/step - loss: 0.2470 - mae: 0.3518 - root_mean_squared_error: 0.4970
     Epoch 4/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.1975 - mae: 0.3115 - root_mean_squared_error: 0.4444
+    28/28 [==============================] - 0s 8ms/step - loss: 0.1986 - mae: 0.3128 - root_mean_squared_error: 0.4456
     Epoch 5/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.1396 - mae: 0.2585 - root_mean_squared_error: 0.3736
+    28/28 [==============================] - 0s 8ms/step - loss: 0.1434 - mae: 0.2615 - root_mean_squared_error: 0.3787
     Epoch 6/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.1080 - mae: 0.2272 - root_mean_squared_error: 0.3287
+    28/28 [==============================] - 0s 8ms/step - loss: 0.1088 - mae: 0.2255 - root_mean_squared_error: 0.3298
     Epoch 7/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0801 - mae: 0.1938 - root_mean_squared_error: 0.2830
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0816 - mae: 0.1953 - root_mean_squared_error: 0.2856
     Epoch 8/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0664 - mae: 0.1797 - root_mean_squared_error: 0.2576
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0781 - mae: 0.1953 - root_mean_squared_error: 0.2794
     Epoch 9/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0657 - mae: 0.1830 - root_mean_squared_error: 0.2563
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0643 - mae: 0.1772 - root_mean_squared_error: 0.2536
     Epoch 10/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0596 - mae: 0.1722 - root_mean_squared_error: 0.2442
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0504 - mae: 0.1541 - root_mean_squared_error: 0.2245
     Epoch 11/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0497 - mae: 0.1515 - root_mean_squared_error: 0.2228
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0464 - mae: 0.1470 - root_mean_squared_error: 0.2155
     Epoch 12/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0487 - mae: 0.1549 - root_mean_squared_error: 0.2207
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0463 - mae: 0.1470 - root_mean_squared_error: 0.2152
     Epoch 13/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0452 - mae: 0.1453 - root_mean_squared_error: 0.2125
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0452 - mae: 0.1467 - root_mean_squared_error: 0.2126
     Epoch 14/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0437 - mae: 0.1464 - root_mean_squared_error: 0.2090
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0386 - mae: 0.1341 - root_mean_squared_error: 0.1965
     Epoch 15/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0413 - mae: 0.1398 - root_mean_squared_error: 0.2033
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0372 - mae: 0.1309 - root_mean_squared_error: 0.1928
     Epoch 16/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0428 - mae: 0.1404 - root_mean_squared_error: 0.2069
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0362 - mae: 0.1284 - root_mean_squared_error: 0.1903
     Epoch 17/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0366 - mae: 0.1294 - root_mean_squared_error: 0.1912
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0354 - mae: 0.1300 - root_mean_squared_error: 0.1882
     Epoch 18/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0357 - mae: 0.1280 - root_mean_squared_error: 0.1890
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0361 - mae: 0.1321 - root_mean_squared_error: 0.1899
     Epoch 19/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0332 - mae: 0.1228 - root_mean_squared_error: 0.1823
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0359 - mae: 0.1324 - root_mean_squared_error: 0.1896
     Epoch 20/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0332 - mae: 0.1241 - root_mean_squared_error: 0.1823
-    435/435 [==============================] - 1s 1ms/step - loss: 0.0322 - mae: 0.1199 - root_mean_squared_error: 0.1794
-    109/109 [==============================] - 0s 2ms/step - loss: 0.2048 - mae: 0.3111 - root_mean_squared_error: 0.4526
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0316 - mae: 0.1202 - root_mean_squared_error: 0.1776
+    435/435 [==============================] - 1s 1ms/step - loss: 0.0333 - mae: 0.1285 - root_mean_squared_error: 0.1825
+    109/109 [==============================] - 0s 1ms/step - loss: 0.2344 - mae: 0.3406 - root_mean_squared_error: 0.4841
 
 
 
 
 
-    [0.20484140515327454, 0.31109121441841125, 0.4525940716266632]
+    [0.23436342179775238, 0.34056356549263, 0.484110951423645]
 
 
 
@@ -228,7 +210,7 @@ scale_y = {"mean": y_mean, "std": y_std}
 rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
 binning_method = effector.binning_methods.Greedy(init_nof_bins=200, min_points_per_bin=30, discount=20, cat_limit=10)
 rhale.fit(features=3, binning_method=binning_method)
-rhale.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y)
+fig, ax1, ax2 = rhale.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y)
 ```
 
 
@@ -239,10 +221,10 @@ rhale.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y)
 
 
 ```python
-ale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
+rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
 binning_method = effector.binning_methods.DynamicProgramming(max_nof_bins=24, min_points_per_bin=30, discount=0.)
-ale.fit(features=3, binning_method=binning_method)
-ale.plot(feature=3)
+rhale.fit(features=3, binning_method=binning_method)
+fig, ax1, ax2 = rhale.plot(feature=3)
 ```
 
 
@@ -253,10 +235,10 @@ ale.plot(feature=3)
 
 
 ```python
-ale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
+rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
 binning_method = effector.binning_methods.Fixed(nof_bins=100, min_points_per_bin=0, cat_limit=10)
-ale.fit(features=3, binning_method=binning_method)
-ale.plot(feature=3, scale_x=scale_x, scale_y=scale_y, centering=True)
+rhale.fit(features=3, binning_method=binning_method)
+fig, ax1, ax2 = rhale.plot(feature=3, scale_x=scale_x, scale_y=scale_y, centering=True)
 ```
 
 
@@ -267,10 +249,10 @@ ale.plot(feature=3, scale_x=scale_x, scale_y=scale_y, centering=True)
 
 
 ```python
-ale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
+rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
 binning_method = effector.binning_methods.Fixed(nof_bins=50, min_points_per_bin=0, cat_limit=10)
-ale.fit(features=3, binning_method=binning_method)
-ale.plot(feature=3, scale_x=scale_x, scale_y=scale_y, centering=True, confidence_interval=True)
+rhale.fit(features=3, binning_method=binning_method)
+fig, ax1, ax2 = rhale.plot(feature=3, scale_x=scale_x, scale_y=scale_y, centering=True, confidence_interval=True)
 ```
 
 
@@ -282,21 +264,13 @@ ale.plot(feature=3, scale_x=scale_x, scale_y=scale_y, centering=True, confidence
 
 ```python
 pdp_ice = effector.PDPwithICE(data=X_train.to_numpy(), model=model_forward)
-pdp_ice.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y)
+fig, ax = pdp_ice.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y)
 ```
 
 
     
 ![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)
     
-
-
-
-
-
-    (<Figure size 432x288 with 1 Axes>,
-     <AxesSubplot:title={'center':'PDP-ICE: feature 4'}, xlabel='feature 4', ylabel='y'>)
-
 
 
 
