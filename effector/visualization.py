@@ -26,7 +26,6 @@ def ale_plot(
     error: typing.Union[None, str] = None,
     scale_x: typing.Union[None, dict] = None,
     scale_y: typing.Union[None, dict] = None,
-    savefig: typing.Union[bool, str] = False,
 ):
     """
 
@@ -93,9 +92,8 @@ def ale_plot(
     ax2.set_xlabel("x_%d" % (feature + 1))
     ax2.set_ylabel("dy/dx_%d" % (feature + 1))
 
-    if savefig:
-        plt.savefig(savefig, bbox_inches="tight")
     plt.show(block=False)
+    return fig, ax1, ax2
 
 
 def ale_curve(ax1, x, y, std_err, std, error=None):

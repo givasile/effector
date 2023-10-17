@@ -11,6 +11,7 @@ setup(
         'pandas',
         'scipy',
         'matplotlib'
+        'tqdm'
         ]
 )
 

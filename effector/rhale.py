@@ -17,19 +17,16 @@ class RHALE(FeatureEffectBase):
         data_effect: typing.Union[None, np.ndarray] = None,
     ):
         """
-        RHALE constructor
+        RHALE constructor.
 
-        Args
-        ---
-            data (numpy.ndarray (N,D)): X matrix.
-            model (Callable (N,D) -> (N,)): the black-box model.
-            model_jac (Callable (N,D) -> (N,) or None): the jacobian of the model. If set to None, the Jacobian will be computed numerically.
-            axis_limits (numpy.ndarray or None): axis limits of the data. If set to None, the axis limits will be auto-computed from the input data.
-            data_effect (numpy.ndarray or None): data jacobian. If set to None, the effect will be computed from the Jacobian matrix.
-
-        Returns
-        -------
-        The function returns an instance of the RHALE class, which can be used to estimate the loss of a given input.
+        Args:
+            data: X matrix (N,D).
+            model: the black-box model (N,D) -> (N,)
+            model_jac: the black-box model Jacobian (N,D) -> (N,D)
+            axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
+            data_effect:
+                - if np.ndarray, the model Jacobian computed on the `data`
+                - if None, the model Jacobian will be computed on the data points using model_jac
 
         """
         # assertions
@@ -102,19 +99,17 @@ class RHALE(FeatureEffectBase):
     ) -> None:
         """Fit the model.
 
-        Args
-        ---
+        Args:
             features (int, str, list): the features to fit.
                 - If set to "all", all the features will be fitted.
             binning_method (str):
-                - If set to "greedy", the greedy binning method will be used.
-                - If set to "dynamic", the dynamic programming binning method will be used.
-                - If set to "fixed", the fixed binning method will be used.
+                - If set to "greedy" or bm.Greedy, the greedy binning method will be used.
+                - If set to "dynamic" or bm.DynamicProgramming, the dynamic programming binning method will be used.
+                - If set to "fixed" or bm.Fixed, the fixed binning method will be used.
             centering (bool, str):
                 - If set to False, no centering will be applied.
                 - If set to "zero_integral" or True, the integral of the feature effect will be set to zero.
                 - If set to "zero_mean", the mean of the feature effect will be set to zero.
-
         """
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
@@ -154,20 +149,30 @@ class RHALE(FeatureEffectBase):
         feature: int = 0,
         confidence_interval: typing.Union[bool, str] = False,
         centering: typing.Union[bool, str] = False,
-        scale_x=None,
-        scale_y=None,
-        savefig=False,
+        scale_x: typing.Union[None, dict] = None,
+        scale_y: typing.Union[None, dict] = None,
     ):
         """
+        Plot the ALE plot for a given feature.
 
-        Parameters
-        ----------
-        feature:
-        confidence_interval:
-        centering:
-        scale_x:
-        scale_y:
-        savefig:
+        Parameters:
+            feature: the feature to plot
+            confidence_interval:
+                - If set to False, no confidence interval will be shown.
+                - If set to "std" or True, the accumulated standard deviation will be shown.
+                - If set to "stderr", the accumulated standard error of the mean will be shown.
+            centering:
+                - If set to False, no centering will be applied.
+                - If set to "zero_integral" or True, the integral of the feature effect will be set to zero.
+                - If set to "zero_mean", the mean of the feature effect will be set to zero.
+            scale_x: None or Dict with keys ['std', 'mean']
+
+                - If set to None, no scaling will be applied.
+                - If set to a dict, the x-axis will be scaled by the standard deviation and the mean.
+            scale_y: None or Dict with keys ['std', 'mean']
+
+                - If set to None, no scaling will be applied.
+                - If set to a dict, the y-axis will be scaled by the standard deviation and the mean.
         """
         confidence_interval = helpers.prep_confidence_interval(confidence_interval)
         centering = helpers.prep_centering(centering)
@@ -177,7 +182,7 @@ class RHALE(FeatureEffectBase):
             feature, np.array([self.axis_limits[0, feature]]), centering=centering
         )
 
-        vis.ale_plot(
+        fig, ax1, ax2 = vis.ale_plot(
             self.feature_effect["feature_" + str(feature)],
             self.eval,
             feature,
@@ -185,5 +190,5 @@ class RHALE(FeatureEffectBase):
             error=confidence_interval,
             scale_x=scale_x,
             scale_y=scale_y,
-            savefig=savefig,
         )
+        return fig, ax1, ax2

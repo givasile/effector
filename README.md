@@ -4,15 +4,13 @@
 
 * Global  Effects:
   - ALE: [Accumulated Local Effects](https://arxiv.org/abs/1612.08468)
-  - RHALE: ALE + heterogeneity
+  - RHALE: [Robust and heterogeneity-aware ALE](https://arxiv.org/abs/2309.11193)
   - PDP: [Partial Dependence Plot](https://christophm.github.io/interpretable-ml-book/pdp.html)
   - ICE: [Individual Conditional Expectation](https://arxiv.org/abs/1309.6392)
 
 * Regional Effects:
-  - REPID: [Regional Effect Plots with implicit Interaction Detection](https://arxiv.org/abs/2202.07254)
-
-* Feature Importance:
-  - PFI: [Permutation Feature Importance](https://arxiv.org/abs/1801.01489)
+  - TODO add REPID: [Regional Effect Plots with implicit Interaction Detection](https://arxiv.org/abs/2202.07254)
+  - TODO add regional RHALE
 
 * Feature Interaction:
   - TODO: add methods
