@@ -8,7 +8,7 @@ title: Feature Effect Methods
 
 
 Imagine you have trained a neural network to predict the expected daily bike rentals,
-like we do in this [tutorial](./tutorials/03_bike_sharing_dataset.md).
+like in this [tutorial](./tutorials/03_bike_sharing_dataset.md).
 The model is delivering satisfactory results, 
 exhibiting an average prediction error of approximately $81$ bike rentals per day.
 
@@ -16,51 +16,61 @@ You want to interpret how the model works.
 With feature effect plots, you can immediately get a graphical representation that illustrates 
 how individual features impact the model's predictions.
 
+```python
+effector.RHALE(X, model, model_jac).plot(feature=3)
+```
+
 ![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_13_0.png)
 
 The plot shows the effect of feature $x_4$ which is the $hour$ of the day on the prediction.
-With this plots, we can get an immediate *interpretation* of the model's inner workings,
+This plot provides an immediate *interpretation* of the model's inner workings,
 which can raise some *criticism* and lead to appropriate *actions*.
 
 ???+ note "Interpretation: Move along the axis and interpret"
      
-    | Interval  | Description                                                              |
-    |-----------|--------------------------------------------------------------------------|
-    | 0-6       | The hour is almost constant and much lower than the average.             |
-    | 6-8.30    | The hour is increasing rapidly and at about 7.30 it is over the average. |
-    | 8.30-9.30 | Drop that moves the rentals close to the average.                        |
-    | 9.30-15   | Small increase.                                                          |
-    | 15-17     | High increase, moves much over the average.                              |
-    | 17-24     | A constant drop; faster in the beginning slower later.                   |
+    | Interval  | Description                                                                              |
+    |-----------|------------------------------------------------------------------------------------------|
+    | 0-6       | Bike rentals are almost constant and much lower than the average, which is $\approx 189$ |
+    | 6-8.30    | Rapid increase; at about 7.00 we are at the average rentals and then even more.          |
+    | 8.30-9.30 | Sudden drop; rentals move back to the average.                                           |
+    | 9.30-15   | Small increase.                                                                          |
+    | 15-17     | High increase; at 17 bike rentals reach the maximum.                                     |
+    | 17-24     | A constant drop; at 19.00 rentals reach the average and keep decreasing.                 |
 
 --- 
 
-???+ note "Criticism 1: Does this makes sense?"
+???+ question "Criticism 1: Does this makes sense?"
 
-    It seems like a normal working day. Most people go to work between 6' and 8'30" o'clock and 
-    come back between 15'00" and 17'00 o'clock. 
-    An expert in city transfers, could raise the concern that the model is slightly shifted early;   
-    He/She may say that the peak of the rentals is at 8'30" and not at 7'30" o'clock.
+     The quick answer is yes. In a typical workday scenario, it's common for people to commute to 
+     work between 6:00 AM and 8:30 AM and return home between 3:00 PM and 5:00 PM.
+     However, an expert in city transportation might point out that the model appears to have a slight time shift. 
+     They could argue that the actual peak in bike rentals occurs at 8:30 AM, rather than the model's prediction 
+     of 7:30 AM.
 
-???+ note "Action 1: Investigate more"    
-     We could investigate whether this a problem of the model or of the data; Does the data confirm 
-     the above statement? If yes, we should improve the model to increase its accuracy. 
+???+ success "Action 1: Check if the data confirm criticism 1"
+     We will investigate whether this issue stems from the model or the data.
+     If the claim is not supported by the data, then it may be the case that the recording system 
+     provokes the time shift or that the expert is wrong.
+     If the claim is supported by the data, then we should improve the model to increase its accuracy.
 
 ---
 
-???+ note "Criticism 2: Is the explanation correct?"
+???+ question "Criticism 2: Is the explanation align with all potential scenarios?"
 
-    Another expert may notice that this behavior is meaningful only for the working days.
-    At weekends and holidays, it does not make sense to have a peak at 8'30" o'clock.
+    Another expert notices that this pattern is meaningful only for the working days.
+    During weekends and holidays, it doesn't logically justify having a peak in rentals as early as 7:30 AM.
 
-???+ note "Action 2: Who to blame? The models or the explanation?"
-    To take action, we should clarify whether this is a problem of the model or of the explanation.
-    If it is a problem of the model, we should improve it to increase its accuracy on the weekends.
-    But how to know if it is a problem of the model or of the explanation?
+???+ note "Action 2: Check the fidelity of the explanation"
+
+    To take meaningful action, it is crucial to determine whether this issue originates from the model or the explanation.
+    Is the model treating the $hour$ feature uniformly across all days, despite the intuitive understanding that this feature may vary between weekdays and weekends?
+    Is it the opposite- the model has learned to differentiate between these two cases, 
+    but it is the explanation that obscures them behind the averaging? 
+    Heterogeneity analysis can help us answer these questions.
 
 ### Heterogeneity shows the fidelity of the explanation
 
-Let's see whether the explanation is consistent with all the data:
+Let's see whether the explanation is consistent with all the dataset instances:
 
 
 ```python
@@ -75,25 +85,34 @@ effector.PDPwithICE(X, model).plot(feature=3)
 
 ![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)
 
+Both methods show that there is high-variance in the instance-level effects;
+this means that the effect of feature $hour$ varies significantly across different instances.
+This is expressed illustration with the $\pm$ shaded area around the average effect, which is the solid line in the plot.
 
-Both methods show that there is high-variance in the instance-level effect.
-This means that although the global explanation is the one analyzed above,
-there are many individual instances that deviate from this explanation.
 
-In fact, PDP-ICE shows the exact type of the different behaviors:
+Moreover, PDP-ICE analysis provides precise insights into the distinct patterns:
 
-- One cluster, the dominant one, which is the working days, behave as we have seen before and in a more edgy way.
-- A second cluster, the weekends, behave differently, with a peak at 12' o'clock and a drop at 18' o'clock.
+- There is one cluster, that behaves as previously described. 
+- There is a second cluster that behaves differently, with a rise starting at 9:00 AM, a peak at 12:00 AM and a decline at 6:00 PM.
 
 ???+ attention "We have an answer"
-    It is not a problem of the model, but that the global explanation hided the two patterns behind the averaging.
+     
+     Great! We have a clear answer. The issue does not lie with the model itself; instead, it's the global 
+     explanation that has concealed the two distinct patterns by averaging them out.
 
-[Regional effect plots](./02_regional_effect_tutorial.md) automate the process of finding such patterns.
+???+ danger "Don't rush to conclusions"
+
+    There is a small piece of the puzzle missing.
+    Although we have identified the two distinct patterns, we still don't know what causes them.
+    Of course, we can guess that the first pattern is related to the working days, and the second pattern is related to the weekends and holidays.
+    But this is simply our intuition, and we need to confirm it with the data. 
+    We need to find the features that are responsible for the two distinct patterns.
+    [Regional effect plots](./02_regional_effect_tutorial.md) are the answer to this question.
 
 ---
 ### Resources for further reading
 
-Below we provide some resources for further reading:
+Below we provide some resources for further reading.
 
 Papers:
 
