@@ -28,8 +28,9 @@ class RegionalRHALE:
             helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
         )
 
-        self.regions = Regions(self.data, self.model, self.model_jac, feature_types, cat_limit)
-
+        self.regions = Regions(
+            self.data, self.model, self.model_jac, feature_types, cat_limit
+        )
 
     # def compile(self):
     #     if self.instance_effects is None:
@@ -37,25 +38,50 @@ class RegionalRHALE:
     #     else:
     #         pass
 
+    def _create_heterogeneity_function(self, foi, binning_method, min_points=10):
+        binning_method = helpers.prep_binning_method(binning_method)
+        def heter(data, instance_effects=None) -> float:
+
+            if data.shape[0] < min_points:
+                return BIG_M
+
+            rhale = RHALE(data, self.model, self.model_jac, None, instance_effects)
+            try:
+                rhale.fit(features=foi, binning_method=binning_method)
+            except:
+                return BIG_M
+
+            # heterogeneity is the accumulated std at the end of the curve
+            axis_limits = helpers.axis_limits_from_data(data)
+            stop = np.array([axis_limits[:, foi][1]])
+            _, z, _ = rhale.eval(feature=foi, xs=stop, uncertainty=True)
+            return z.item()
+
+        return heter
+
     def _fit_feature(
         self,
         feature: int,
         binning_method: typing.Union[
-            None,
+            str,
             binning_methods.Fixed,
             binning_methods.DynamicProgramming,
             binning_methods.Greedy,
         ] = "greedy",
         max_levels: int = 2,
+        min_points: int = 10,
         other_features: typing.Union["str", list] = "all",
         categorical_limit: int = 15,
     ) -> typing.Dict:
         """
         Find the Regional RHALE for a single feature.
         """
+        heter = self._create_heterogeneity_function(feature, binning_method, min_points=min_points)
 
-        self.regions.find_splits_single_feature(feature, max_levels, nof_candidate_splits=10, method="rhale")
-
+        self.regions.find_splits_single_feature(
+            feature, max_levels, nof_candidate_splits=10, method=heter
+        )
+        self.regions.choose_important_splits(features=feature, heter_thres=0.1, pcg=0.1)
 
         # TODO: check how to handle categorical features, maybe skip with a warning
 
@@ -65,18 +91,6 @@ class RegionalRHALE:
         # foi, foc = feature, [i for i in range(self.dim) if i != feature]
         #
         # # define heterogeneity function
-        # def rhale_heter(data, instance_effects):
-        #     rhale = RHALE(data, self.model, None, None, instance_effects)
-        #     try:
-        #         rhale.fit(features=foi, binning_method=binning_method)
-        #     except:
-        #         return BIG_M
-        #
-        #     # heterogeneity is the accumulated std at the end of the curve
-        #     axis_limits = helpers.axis_limits_from_data(data)
-        #     stop = np.array([axis_limits[:, foi][1]])
-        #     _, z, _ = rhale.eval(feature=foi, xs=stop, uncertainty=True)
-        #     return z.item()
         #
         # assert max_levels <= len(
         #     foc
@@ -101,8 +115,10 @@ class RegionalRHALE:
         #
         # return rhale_heter(self.data, self.instance_effects)
 
-    def fit(self, features,
-            binning_method: typing.Union[
+    def fit(
+        self,
+        features,
+        binning_method: typing.Union[
             None,
             binning_methods.Fixed,
             binning_methods.DynamicProgramming,
@@ -110,10 +126,15 @@ class RegionalRHALE:
         ] = "greedy",
         max_levels: int = 2,
         other_features: typing.Union["str", list] = "all",
-        categorical_limit: int = 15):
+        categorical_limit: int = 15,
+    ):
 
-        self.regions.find_splits(nof_levels=max_levels, nof_candidate_splits=10, method="rhale")
-        self.regions.choose_important_splits(heter_thres=.1, pcg=0.1)
+        self.regions.find_splits(
+            nof_levels=max_levels, nof_candidate_splits=10, method="rhale"
+        )
+        self.regions.choose_important_splits(
+            features=features, heter_thres=0.1, pcg=0.1
+        )
 
     def print_splits(self, features, only_important=True):
         features = helpers.prep_features(features, self.dim)
