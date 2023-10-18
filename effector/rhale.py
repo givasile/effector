@@ -121,6 +121,7 @@ class RHALE(FeatureEffectBase):
                 self.norm_const[s] = self._compute_norm_const(s, method=centering)
             self.is_fitted[s] = True
 
+    # TODO: add latex formula and add to documentation
     def _eval_unnorm(self, feature: int, x: np.ndarray, uncertainty: bool = False):
         params = self.feature_effect["feature_" + str(feature)]
         y = utils.compute_accumulated_effect(
@@ -144,6 +145,7 @@ class RHALE(FeatureEffectBase):
         else:
             return y
 
+    # TODO: add latex formula and add to documentation
     def plot(
         self,
         feature: int = 0,

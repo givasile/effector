@@ -2,10 +2,12 @@ import typing
 
 import numpy as np
 import effector.utils as utils
+import effector.helpers as helpers
 import matplotlib.pyplot as plt
 
+
 # global (script-level) variables
-big_M = 1.0e10
+big_M = helpers.BIG_M
 
 
 class BinBase:

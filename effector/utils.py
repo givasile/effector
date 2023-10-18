@@ -1,9 +1,10 @@
 import typing
 import numpy as np
 import copy
+import effector.helpers as helpers
 
-BIG_M = 100000000000000.0
-EPS = 1e-8
+BIG_M = helpers.BIG_M
+EPS = helpers.EPS
 
 
 def compute_local_effects(

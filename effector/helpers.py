@@ -2,6 +2,9 @@ import typing
 import numpy as np
 
 
+BIG_M = 1e8
+EPS = 1e-8
+
 def prep_features(feat: typing.Union[str, list], D) -> list:
     assert type(feat) in [list, str, int]
     if feat == "all":

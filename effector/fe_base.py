@@ -28,7 +28,7 @@ class FeatureEffectBase(ABC):
         # normalization constant per feature for centering the FE plot
         self.norm_const: np.ndarray = np.ones([self.dim]) * self.empty_symbol
 
-        # dictionary with all the information required for plotting or evaluating the feautere effect
+        # dictionary with all the information required for plotting or evaluating the feature effect
         self.feature_effect: typing.Dict = {}
 
     def _eval_unnorm(self,
