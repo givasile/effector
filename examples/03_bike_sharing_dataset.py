@@ -83,16 +83,14 @@ ale.plot(feature=3)
 
 
 regional_rhale = effector.RegionalRHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
-regional_rhale._fit_feature(3, "greedy", 2)
-# regional_rhale.fit(features=3, max_levels=2)
-
-regional_rhale.print_splits(features=3, only_important=False)
+regional_rhale.fit(features=3, max_levels=2)
 regional_rhale.print_splits(features=3, only_important=True)
+regional_rhale.plot_first_level(feature=3)
+
 
 
 # regional_RHALE.describe_subregions()
 # regional_RHALE.subregions[0].plot(feature=3)
-
 # regional_RHALE.plot(feature=3)
 #
 # , features=3, binning_method=binning_method).plot(feature)

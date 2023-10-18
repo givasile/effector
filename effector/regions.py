@@ -66,7 +66,7 @@ class Regions:
         cat_limit,
         heter_before: float,
         min_points: int = 15,
-        criterion=None,
+        heter_func=None,
     ):
         """Find the best split from all features in the list of foc according to the RHALE criterion.
 
@@ -116,7 +116,7 @@ class Regions:
 
                 # sub_heter: list with the heterogeneity after split of foc_i at position j
                 sub_heter = [
-                    criterion(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
+                    heter_func(foi, x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
                 ]
                 # heter_drop: list with the heterogeneity drop after split of foc_i at position j
                 heter_drop = np.array(
@@ -148,7 +148,10 @@ class Regions:
         split_positions = positions[i]
         # how many instances in each dataset after the min split
         x_list_2 = self.flatten_list(
-            [self.split_dataset(x, None, foc[i], position, foc_types[i]) for x in x_list]
+            [
+                self.split_dataset(x, None, foc[i], position, foc_types[i])
+                for x in x_list
+            ]
         )
         x_jac_list_2 = self.flatten_list(
             [
@@ -157,7 +160,7 @@ class Regions:
             ]
         )
         nof_instances = [len(x) for x in x_list_2]
-        sub_heter = [criterion(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)]
+        sub_heter = [heter_func(foi, x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)]
         split = {
             "feature": feature,
             "position": position,
@@ -186,14 +189,14 @@ class Regions:
         model: typing.Callable,
         model_jac: typing.Callable,
         min_points: int = 10,
-        criterion=None,
+        heter_func=None,
     ):
         """Find nof_level best splits for a given feature of interest and a list of features of conditioning"""
 
         assert nof_levels <= len(foc), "nof_levels must be smaller than len(foc)"
 
         # initial heterogeneity
-        heter_init = criterion(data, data_effect)
+        heter_init = heter_func(foi, data, data_effect)
 
         # find optimal split for each level
         x_list = [data]
@@ -227,7 +230,7 @@ class Regions:
                 cat_limit,
                 splits[-1]["heterogeneity"],
                 min_points,
-                criterion,
+                heter_func,
             )
             splits.append(split)
 
@@ -245,7 +248,7 @@ class Regions:
         return splits
 
     def find_splits_single_feature(
-        self, feat, nof_levels, nof_candidate_splits, method
+        self, feat, nof_levels, nof_candidate_splits, method, min_points
     ):
         # if feature is categorical, skip
         if self.feature_types[feat] == "cat":
@@ -268,30 +271,12 @@ class Regions:
                 data_effect=self.data_effect,
                 model=self.model,
                 model_jac=self.model_jac,
-                criterion=method,
+                min_points=min_points,
+                heter_func=method,
             )
 
             self.splits["feat_{}".format(feat)] = splits
             self.splits_found[feat] = True
-
-    def find_splits(
-        self, nof_levels: int, nof_candidate_splits: int = 10, method: str = "rhale"
-    ):
-        assert method in ["pdp", "rhale"]
-
-        # set method args
-        self.method_args["nof_levels"] = nof_levels
-        self.method_args["nof_candidate_splits"] = nof_candidate_splits
-        self.method_args["method"] = method
-
-        # method
-        for feat in tqdm(range(self.dim)):
-            self.find_splits_single_feature(
-                feat, nof_levels, nof_candidate_splits, method
-            )
-
-        # update state
-        self.all_regions_found = True
 
     def choose_important_splits(self, features="all", heter_thres=0.1, pcg=0.2):
         features = helpers.prep_features(features, self.dim)
@@ -409,6 +394,36 @@ class Regions:
             print(
                 "  - Number of instances after split: {}".format(split["nof_instances"])
             )
+
+    def plot_first_level(self, feature):
+        splits = self.important_splits["feat_{}".format(feature)]
+        if len(splits) == 0:
+            print("No important splits found for feature {}".format(feature))
+            return
+
+        # get splits
+        splits = self.important_splits["feat_{}".format(feature)]
+        assert len(splits) > 0, "No splits found for feature {}".format(feature)
+
+        # get foc of first split
+        foc = splits[0]["feature"]
+        position = splits[0]["position"]
+        type_of_split_feature = self.feature_types[foc]
+
+        data_1, data_2 = self.split_dataset(self.data, None, foc, position, type_of_split_feature)
+        data_effect_1, data_effect_2 = self.split_dataset(self.data, self.data_effect, foc, position, type_of_split_feature)
+
+        # get axis limits
+        axis_limits = helpers.axis_limits_from_data(self.data)
+
+        rhale_1 = RHALE(data_1, self.model, self.model_jac, axis_limits, data_effect_1)
+        rhale_2 = RHALE(data_2, self.model, self.model_jac, axis_limits, data_effect_2)
+
+        rhale_1.plot(feature=feature)
+        rhale_2.plot(feature=feature)
+
+
+
 
     def split_dataset(self, x, x_jac, feature, position, feat_type):
         if feat_type == "cat":
@@ -528,11 +543,8 @@ class DataTransformer:
         return self.new_data
 
 
-
 def rename_features():
     pass
-
-
 
 
 # def pdp_heter(data, model, model_jac, foi, min_points=15):
