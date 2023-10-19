@@ -91,7 +91,7 @@ Y = model.predict(X)
 
 
 # Our method
-reg = pythia.regions.Regions(data=X, model=model.predict, model_jac=model.jacobian, cat_limit=25)
+reg = pythia.regions.Regions(data=X, model=model.predict, model_jac=model.jacobian, categorical_limit=25)
 reg.find_splits(nof_levels=2, nof_candidate_splits=20, method="rhale")
 opt_splits = reg.choose_important_splits(0.2)
 

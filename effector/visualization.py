@@ -26,6 +26,7 @@ def ale_plot(
     error: typing.Union[None, str] = None,
     scale_x: typing.Union[None, dict] = None,
     scale_y: typing.Union[None, dict] = None,
+    title: typing.Union[None, str] = None,
 ):
     """
 
@@ -80,7 +81,10 @@ def ale_plot(
 
     # PLOT
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
-    ax1.set_title("ALE plot for: $x_{" + str(feature + 1) + "}$")
+    if title is None:
+        ax1.set_title("ALE plot for: $x_{" + str(feature + 1) + "}$")
+    else:
+        ax1.set_title(title)
 
     # first subplot
     ale_curve(ax1, x, y, std_err, std, error=error)

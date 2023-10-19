@@ -153,6 +153,7 @@ class RHALE(FeatureEffectBase):
         centering: typing.Union[bool, str] = False,
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
+        title: typing.Union[None, str] = None,
     ):
         """
         Plot the ALE plot for a given feature.
@@ -175,6 +176,11 @@ class RHALE(FeatureEffectBase):
 
                 - If set to None, no scaling will be applied.
                 - If set to a dict, the y-axis will be scaled by the standard deviation and the mean.
+
+            title: None or str
+
+                - If set to None, the default title will be shown.
+                - If set to a str, the title will be shown.
         """
         confidence_interval = helpers.prep_confidence_interval(confidence_interval)
         centering = helpers.prep_centering(centering)
@@ -192,5 +198,6 @@ class RHALE(FeatureEffectBase):
             error=confidence_interval,
             scale_x=scale_x,
             scale_y=scale_y,
+            title=title,
         )
         return fig, ax1, ax2

@@ -15,6 +15,16 @@ import tensorflow as tf
 from tensorflow import keras
 ```
 
+    2023-10-19 14:42:56.026054: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+    To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-10-19 14:42:56.190201: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory
+    2023-10-19 14:42:56.190219: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+    2023-10-19 14:42:56.219898: E tensorflow/stream_executor/cuda/cuda_blas.cc:2981] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2023-10-19 14:42:56.869564: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory
+    2023-10-19 14:42:56.869623: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory
+    2023-10-19 14:42:56.869630: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+
+
 ## Preprocess the data
 
 
@@ -131,53 +141,61 @@ model.evaluate(X_test, Y_test, verbose=1)
 ```
 
     Epoch 1/20
-    28/28 [==============================] - 1s 8ms/step - loss: 0.4500 - mae: 0.4897 - root_mean_squared_error: 0.6708
+
+
+    2023-10-19 14:42:57.615092: E tensorflow/stream_executor/cuda/cuda_driver.cc:265] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
+    2023-10-19 14:42:57.615115: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (givasile-ubuntu-XPS-15-9500): /proc/driver/nvidia/version does not exist
+    2023-10-19 14:42:57.615360: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+    To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+
+
+    28/28 [==============================] - 1s 9ms/step - loss: 0.4572 - mae: 0.4918 - root_mean_squared_error: 0.6762
     Epoch 2/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.3131 - mae: 0.4006 - root_mean_squared_error: 0.5595
+    28/28 [==============================] - 0s 8ms/step - loss: 0.3185 - mae: 0.4041 - root_mean_squared_error: 0.5644
     Epoch 3/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.2470 - mae: 0.3518 - root_mean_squared_error: 0.4970
+    28/28 [==============================] - 0s 8ms/step - loss: 0.2496 - mae: 0.3529 - root_mean_squared_error: 0.4996
     Epoch 4/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.1986 - mae: 0.3128 - root_mean_squared_error: 0.4456
+    28/28 [==============================] - 0s 10ms/step - loss: 0.1986 - mae: 0.3125 - root_mean_squared_error: 0.4457
     Epoch 5/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.1434 - mae: 0.2615 - root_mean_squared_error: 0.3787
+    28/28 [==============================] - 0s 9ms/step - loss: 0.1424 - mae: 0.2617 - root_mean_squared_error: 0.3773
     Epoch 6/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.1088 - mae: 0.2255 - root_mean_squared_error: 0.3298
+    28/28 [==============================] - 0s 8ms/step - loss: 0.1000 - mae: 0.2161 - root_mean_squared_error: 0.3162
     Epoch 7/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0816 - mae: 0.1953 - root_mean_squared_error: 0.2856
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0775 - mae: 0.1903 - root_mean_squared_error: 0.2784
     Epoch 8/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0781 - mae: 0.1953 - root_mean_squared_error: 0.2794
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0731 - mae: 0.1877 - root_mean_squared_error: 0.2703
     Epoch 9/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0643 - mae: 0.1772 - root_mean_squared_error: 0.2536
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0620 - mae: 0.1725 - root_mean_squared_error: 0.2490
     Epoch 10/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0504 - mae: 0.1541 - root_mean_squared_error: 0.2245
+    28/28 [==============================] - 0s 8ms/step - loss: 0.0634 - mae: 0.1800 - root_mean_squared_error: 0.2518
     Epoch 11/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0464 - mae: 0.1470 - root_mean_squared_error: 0.2155
+    28/28 [==============================] - 0s 9ms/step - loss: 0.0566 - mae: 0.1640 - root_mean_squared_error: 0.2379
     Epoch 12/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0463 - mae: 0.1470 - root_mean_squared_error: 0.2152
+    28/28 [==============================] - 0s 12ms/step - loss: 0.0487 - mae: 0.1540 - root_mean_squared_error: 0.2206
     Epoch 13/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0452 - mae: 0.1467 - root_mean_squared_error: 0.2126
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0411 - mae: 0.1375 - root_mean_squared_error: 0.2026
     Epoch 14/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0386 - mae: 0.1341 - root_mean_squared_error: 0.1965
+    28/28 [==============================] - 0s 9ms/step - loss: 0.0401 - mae: 0.1367 - root_mean_squared_error: 0.2003
     Epoch 15/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0372 - mae: 0.1309 - root_mean_squared_error: 0.1928
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0402 - mae: 0.1386 - root_mean_squared_error: 0.2006
     Epoch 16/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0362 - mae: 0.1284 - root_mean_squared_error: 0.1903
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0390 - mae: 0.1334 - root_mean_squared_error: 0.1975
     Epoch 17/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0354 - mae: 0.1300 - root_mean_squared_error: 0.1882
+    28/28 [==============================] - 0s 9ms/step - loss: 0.0363 - mae: 0.1287 - root_mean_squared_error: 0.1905
     Epoch 18/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0361 - mae: 0.1321 - root_mean_squared_error: 0.1899
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0352 - mae: 0.1277 - root_mean_squared_error: 0.1876
     Epoch 19/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0359 - mae: 0.1324 - root_mean_squared_error: 0.1896
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0367 - mae: 0.1332 - root_mean_squared_error: 0.1915
     Epoch 20/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0316 - mae: 0.1202 - root_mean_squared_error: 0.1776
-    435/435 [==============================] - 1s 1ms/step - loss: 0.0333 - mae: 0.1285 - root_mean_squared_error: 0.1825
-    109/109 [==============================] - 0s 1ms/step - loss: 0.2344 - mae: 0.3406 - root_mean_squared_error: 0.4841
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0342 - mae: 0.1274 - root_mean_squared_error: 0.1850
+    435/435 [==============================] - 1s 1ms/step - loss: 0.0350 - mae: 0.1265 - root_mean_squared_error: 0.1870
+    109/109 [==============================] - 0s 1ms/step - loss: 0.1852 - mae: 0.2996 - root_mean_squared_error: 0.4304
 
 
 
 
 
-    [0.23436342179775238, 0.34056356549263, 0.484110951423645]
+    [0.18520371615886688, 0.2996417284011841, 0.4303530156612396]
 
 
 
@@ -202,6 +220,8 @@ def model_forward(x):
 ```python
 scale_x = {"mean": x_mean[3], "std": x_std[3]}
 scale_y = {"mean": y_mean, "std": y_std}
+scale_x_list =[{"mean": x_mean[i], "std": x_std[i]} for i in range(len(x_mean))]
+col_names = X_df.columns.to_list()
 ```
 
 
@@ -270,6 +290,90 @@ fig, ax = pdp_ice.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale
 
     
 ![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)
+    
+
+
+# Regional Effects
+
+
+```python
+rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac).plot(feature=3, centering=True, confidence_interval=True, scale_x=scale_x, scale_y=scale_y)
+```
+
+    /home/givasile/miniconda3/envs/effector/lib/python3.9/site-packages/numpy/core/fromnumeric.py:3757: RuntimeWarning: Degrees of freedom <= 0 for slice
+      return _methods._var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+    /home/givasile/miniconda3/envs/effector/lib/python3.9/site-packages/numpy/core/_methods.py:222: RuntimeWarning: invalid value encountered in true_divide
+      arrmean = um.true_divide(arrmean, div, out=arrmean, casting='unsafe',
+    /home/givasile/miniconda3/envs/effector/lib/python3.9/site-packages/numpy/core/_methods.py:256: RuntimeWarning: invalid value encountered in true_divide
+      ret = ret.dtype.type(ret / rcount)
+
+
+
+    
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_19_1.png)
+    
+
+
+
+
+
+```python
+regional_rhale = effector.RegionalRHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac,
+                                        cat_limit=10,
+                                        feature_names=col_names)
+regional_rhale.print_splits(features=3, only_important=True, scale_x=scale_x_list)
+
+```
+
+    Important splits for feature hr
+    - On feature workingday (cat)
+      - Candidate split positions: 0.00, 1.00
+      - Position of split: 0.00
+      - Heterogeneity before split: 5.47
+      - Heterogeneity after split: 3.39
+      - Heterogeneity drop: 2.08 (61.31 %)
+      - Number of instances before split: 13903
+      - Number of instances after split: [4387, 9516]
+    - On feature temp (cont)
+      - Candidate split positions: 0.04, 0.09, 0.14, 0.19, 0.24, 0.29, 0.34, 0.39, 0.44, 0.49, 0.53, 0.58, 0.63, 0.68, 0.73, 0.78, 0.83, 0.88, 0.93, 0.98
+      - Position of split: 0.44
+      - Heterogeneity before split: 3.39
+      - Heterogeneity after split: 2.89
+      - Heterogeneity drop: 0.50 (17.25 %)
+      - Number of instances before split: [4387, 9516]
+      - Number of instances after split: [1943, 2444, 3542, 5974]
+
+
+
+```python
+regional_rhale.plot_first_level(feature=3, confidence_interval=True, centering=True, scale_x=scale_x_list, scale_y=scale_y)
+```
+
+    /home/givasile/miniconda3/envs/effector/lib/python3.9/site-packages/numpy/core/fromnumeric.py:3757: RuntimeWarning: Degrees of freedom <= 0 for slice
+      return _methods._var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+    /home/givasile/miniconda3/envs/effector/lib/python3.9/site-packages/numpy/core/_methods.py:222: RuntimeWarning: invalid value encountered in true_divide
+      arrmean = um.true_divide(arrmean, div, out=arrmean, casting='unsafe',
+    /home/givasile/miniconda3/envs/effector/lib/python3.9/site-packages/numpy/core/_methods.py:256: RuntimeWarning: invalid value encountered in true_divide
+      ret = ret.dtype.type(ret / rcount)
+
+
+
+    
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_22_1.png)
+    
+
+
+    /home/givasile/miniconda3/envs/effector/lib/python3.9/site-packages/numpy/core/fromnumeric.py:3757: RuntimeWarning: Degrees of freedom <= 0 for slice
+      return _methods._var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+    /home/givasile/miniconda3/envs/effector/lib/python3.9/site-packages/numpy/core/_methods.py:222: RuntimeWarning: invalid value encountered in true_divide
+      arrmean = um.true_divide(arrmean, div, out=arrmean, casting='unsafe',
+    /home/givasile/miniconda3/envs/effector/lib/python3.9/site-packages/numpy/core/_methods.py:256: RuntimeWarning: invalid value encountered in true_divide
+      ret = ret.dtype.type(ret / rcount)
+
+
+
+    
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_22_3.png)
     
 
 

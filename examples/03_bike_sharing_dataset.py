@@ -36,7 +36,7 @@ def preprocess(df):
 
 # shuffle and standarize all features
 X_df, Y_df, x_mean, x_std, y_mean, y_std = preprocess(df)
-
+col_names = X_df.columns.to_list()
 
 def split(X_df, Y_df):
     # data split
@@ -75,17 +75,28 @@ def model_jac(x):
 def model_forward(x):
     return model(x).numpy().squeeze()
 
+scale_x = {"mean": x_mean[3], "std": x_std[3]}
+scale_y = {"mean": y_mean, "std": y_std}
+
+scale_x_list =[{"mean": x_mean[i], "std": x_std[i]} for i in range(len(x_mean))]
 
 ale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
 binning_method = effector.binning_methods.Fixed(nof_bins=100, min_points_per_bin=0, cat_limit=10)
 ale.fit(features=3, binning_method=binning_method)
-ale.plot(feature=3)
+ale.plot(feature=3, confidence_interval=True, centering=True, scale_x=scale_x, scale_y=scale_y)
 
 
-regional_rhale = effector.RegionalRHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
-regional_rhale.fit(features=3, max_levels=2)
-regional_rhale.print_splits(features=3, only_important=True)
-regional_rhale.plot_first_level(feature=3)
+regional_rhale = effector.RegionalRHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac,
+                                        cat_limit=10,
+                                        feature_names=col_names)
+# regional_rhale.fit(features=3,
+#                    binning_method="greedy",
+#                    max_split_levels=2,
+#                    nof_candidate_splits_for_numerical=20,
+#                    min_points_per_subregion=10,
+#                    candidate_conditioning_features="all")
+regional_rhale.print_splits(features=3, only_important=True, scale_x=scale_x_list)
+regional_rhale.plot_first_level(feature=3, confidence_interval=True, centering=True, scale_x=scale_x_list, scale_y=scale_y)
 
 
 

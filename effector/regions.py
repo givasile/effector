@@ -1,42 +1,58 @@
 import typing
 import numpy as np
 import itertools
-from effector import pdp, helpers, utils
-from effector.rhale import RHALE
-from effector import binning_methods
-from tqdm import tqdm
+from effector import helpers, utils
 
 
 BIG_M = helpers.BIG_M
 
-foc = [0, 2]
-foi = 1
-nof_splits = 10
 
-
+# TODO: check if I can remove model, model_jac, data, data_effect
 class Regions:
     def __init__(
         self,
+        feature: int,
         data: np.ndarray,
         model: callable,
         model_jac: typing.Union[callable, None],
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: int = 10,
+        heter_func: callable,
         data_effect: typing.Union[None, np.ndarray] = None,
+        feature_types: typing.Union[list, None] = None,
+        categorical_limit: int = 10,
+        candidate_conditioning_features: typing.Union[None, list] = None,
+        min_points_per_subregion: int = 10,
+        nof_candidate_splits_for_numerical=20,
+        max_split_levels=2,
+        heter_pcg_drop_thres=0.1,
     ):
         # setters
+        self.feature = feature
         self.data = data
         self.dim = self.data.shape[1]
         self.model = model
         self.model_jac = model_jac
-        self.cat_limit = cat_limit
+        self.cat_limit = categorical_limit
         self.data_effect = data_effect if data_effect is not None else model_jac(data)
+        self.min_points = min_points_per_subregion
+        self.heter_func = heter_func
+        self.nof_candidate_splits_for_numerical = nof_candidate_splits_for_numerical
+        self.max_split_levels = max_split_levels
+        self.heter_pcg_drop_thres = heter_pcg_drop_thres
+
+        self.foi = self.feature
+        self.foc = (
+            [i for i in range(self.dim) if i != self.feature]
+            if candidate_conditioning_features == "all"
+            else candidate_conditioning_features
+        )
 
         # on-init
-        if feature_types is None:
-            self.feature_types = utils.get_feature_types(data, cat_limit)
-        else:
-            self.feature_types = feature_types
+        self.feature_types = (
+            utils.get_feature_types(data, categorical_limit)
+            if feature_types is None
+            else feature_types
+        )
+        self.foc_types = [self.feature_types[i] for i in self.foc]
 
         # init method args
         self.method_args = {}
@@ -46,35 +62,80 @@ class Regions:
         self.important_splits = {}
 
         # state variable
-        self.splits_found: np.ndarray = np.ones([self.dim]) < 0
-        self.important_splits_selected: np.ndarray = np.ones([self.dim]) < 0
+        self.split_found: bool = False
+        self.important_splits_selected: bool = False
 
-        # state variables
-        self.all_regions_found = False
+    def search_all_splits(self):
+        """
+        Iterate over all features of conditioning and choose the best split for each level in a greedy fashion.
+        """
+        # TODO: add parameter for that
+        if self.feature_types[self.feature] == "cat":
+            self.splits = []
+        else:
+            assert self.max_split_levels <= len(
+                self.foc
+            ), "nof_levels must be smaller than len(foc)"
 
-    def split_rhale(
+            # initial heterogeneity
+            heter_init = self.heter_func(self.data, self.data_effect)
+
+            # initialize x_list, x_jac_list, splits
+            x_list = [self.data]
+            x_jac_list = [self.data_effect]
+            splits = [
+                {
+                    "heterogeneity": [heter_init],
+                    "weighted_heter": heter_init,
+                    "nof_instances": [len(self.data)],
+                    "split_i": -1,
+                    "split_j": -1,
+                    "foc": self.foc,
+                }
+            ]
+            for lev in range(self.max_split_levels):
+                # if any subregion has less than min_points, stop
+                if any([len(x) < self.min_points for x in x_list]):
+                    break
+
+                # find optimal split
+                split = self.single_level_splits(
+                    x_list, x_jac_list, splits[-1]["heterogeneity"]
+                )
+                splits.append(split)
+
+                # split data and data_effect based on the optimal split found above
+                feat, pos, typ = split["feature"], split["position"], split["type"]
+                x_jac_list = self.flatten_list(
+                    [
+                        self.split_dataset(x, x_jac, feat, pos, typ)
+                        for x, x_jac in zip(x_list, x_jac_list)
+                    ]
+                )
+                x_list = self.flatten_list(
+                    [self.split_dataset(x, None, feat, pos, typ) for x in x_list]
+                )
+                self.splits = splits
+
+        # update state
+        self.split_found = True
+        return self.splits
+
+    def single_level_splits(
         self,
-        model: callable,
-        model_jac: callable,
-        data: np.ndarray,
         x_list: list,
         x_jac_list: list,
-        foi: int,
-        foc_types: list,
-        foc: list,
-        nof_splits: int,
-        cat_limit,
-        heter_before: float,
-        min_points: int = 15,
-        heter_func=None,
+        heter_before: list,
     ):
-        """Find the best split from all features in the list of foc according to the RHALE criterion.
+        """Find all splits for a single level."""
+        foc_types = self.foc_types
+        foc = self.foc
+        nof_splits = self.nof_candidate_splits_for_numerical
+        heter_func = self.heter_func
+        cat_limit = self.cat_limit
 
-        Return
-        ------
-        split: dict, All information about the best split.
-            Dictionary with keys: feature, position, candidate_split_positions, nof_instances, type, heterogeneity, split_i, split_j, foc, weighted_heter_drop, weighted_heter
-        """
+        data = self.data
+
         big_M = -BIG_M
 
         # weighted_heter_drop[i,j] (i index of foc and j index of split position) is
@@ -85,12 +146,9 @@ class Regions:
         # the accumulated heterogeneity if I split foc[i] at index j
         weighted_heter = np.ones([len(foc), max(nof_splits, cat_limit)]) * big_M
 
-        # limits of the feature of interest for each dataset in x_list
-        # lims = np.array([effector.helpers.axis_limits_from_data(xx)[:,foi] for xx in x_list])
-
         # list with len(foc) elements
         # each element is a list with the split positions for the corresponding feature of conditioning
-        positions = [
+        candidate_split_positions = [
             self.find_positions_cat(data, foc_i)
             if foc_types[i] == "cat"
             else self.find_positions_cont(data, foc_i, nof_splits)
@@ -99,7 +157,7 @@ class Regions:
 
         # exhaustive search on all split positions
         for i, foc_i in enumerate(foc):
-            for j, position in enumerate(positions[i]):
+            for j, position in enumerate(candidate_split_positions[i]):
                 # split datasets
                 x_list_2 = self.flatten_list(
                     [
@@ -116,7 +174,7 @@ class Regions:
 
                 # sub_heter: list with the heterogeneity after split of foc_i at position j
                 sub_heter = [
-                    heter_func(foi, x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
+                    heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
                 ]
                 # heter_drop: list with the heterogeneity drop after split of foc_i at position j
                 heter_drop = np.array(
@@ -144,8 +202,8 @@ class Regions:
             np.argmax(weighted_heter_drop, axis=None), weighted_heter_drop.shape
         )
         feature = foc[i]
-        position = positions[i][j]
-        split_positions = positions[i]
+        position = candidate_split_positions[i][j]
+        split_positions = candidate_split_positions[i]
         # how many instances in each dataset after the min split
         x_list_2 = self.flatten_list(
             [
@@ -160,7 +218,7 @@ class Regions:
             ]
         )
         nof_instances = [len(x) for x in x_list_2]
-        sub_heter = [heter_func(foi, x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)]
+        sub_heter = [heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)]
         split = {
             "feature": feature,
             "position": position,
@@ -176,253 +234,46 @@ class Regions:
         }
         return split
 
-    def find_feature_splits(
-        self,
-        nof_levels: int,
-        nof_splits: int,
-        foi: int,
-        foc: list,
-        foc_types: list,
-        cat_limit: int,
-        data: np.ndarray,
-        data_effect: np.ndarray,
-        model: typing.Callable,
-        model_jac: typing.Callable,
-        min_points: int = 10,
-        heter_func=None,
-    ):
-        """Find nof_level best splits for a given feature of interest and a list of features of conditioning"""
+    def choose_important_splits(self, heter_thres=0.1):
+        assert self.split_found, "No splits found for feature {}".format(self.feature)
 
-        assert nof_levels <= len(foc), "nof_levels must be smaller than len(foc)"
-
-        # initial heterogeneity
-        heter_init = heter_func(foi, data, data_effect)
-
-        # find optimal split for each level
-        x_list = [data]
-        x_jac_list = [data_effect]
-        splits = [
-            {
-                "heterogeneity": [heter_init],
-                "weighted_heter": heter_init,
-                "nof_instances": [len(data)],
-                "split_i": -1,
-                "split_j": -1,
-                "foc": foc,
-            }
-        ]
-        for lev in range(nof_levels):
-            # if any x in x_list is empty then stop
-            if any([len(x) == 0 for x in x_list]):
-                break
-
-            # find split
-            split = self.split_rhale(
-                model,
-                model_jac,
-                data,
-                x_list,
-                x_jac_list,
-                foi,
-                foc_types,
-                foc,
-                nof_splits,
-                cat_limit,
-                splits[-1]["heterogeneity"],
-                min_points,
-                heter_func,
-            )
-            splits.append(split)
-
-            # split data and data_effect based on the optimal split found above
-            feat, pos, typ = split["feature"], split["position"], split["type"]
-            x_jac_list = self.flatten_list(
-                [
-                    self.split_dataset(x, x_jac, feat, pos, typ)
-                    for x, x_jac in zip(x_list, x_jac_list)
-                ]
-            )
-            x_list = self.flatten_list(
-                [self.split_dataset(x, None, feat, pos, typ) for x in x_list]
-            )
-        return splits
-
-    def find_splits_single_feature(
-        self, feat, nof_levels, nof_candidate_splits, method, min_points
-    ):
-        # if feature is categorical, skip
-        if self.feature_types[feat] == "cat":
-            self.splits["feat_{}".format(feat)] = []
+        # if split is empy, skip
+        if len(self.splits) == 0:
+            optimal_splits = {}
+        # if initial heterogeneity is BIG_M, skip
+        elif self.splits[0]["weighted_heter"] == BIG_M:
+            optimal_splits = {}
+        # if initial heterogeneity is small right from the beginning, skip
+        elif self.splits[0]["weighted_heter"] < heter_thres:
+            optimal_splits = {}
         else:
-            foi, foc = feat, [i for i in range(self.dim) if i != feat]
+            splits = self.splits
 
-            # get feature types
-            foc_types = [self.feature_types[i] for i in foc]
-
-            # get splits
-            splits = self.find_feature_splits(
-                nof_levels=nof_levels,
-                nof_splits=nof_candidate_splits,
-                foi=foi,
-                foc=foc,
-                foc_types=foc_types,
-                cat_limit=self.cat_limit,
-                data=self.data,
-                data_effect=self.data_effect,
-                model=self.model,
-                model_jac=self.model_jac,
-                min_points=min_points,
-                heter_func=method,
-            )
-
-            self.splits["feat_{}".format(feat)] = splits
-            self.splits_found[feat] = True
-
-    def choose_important_splits(self, features="all", heter_thres=0.1, pcg=0.2):
-        features = helpers.prep_features(features, self.dim)
-        for feat in features:
-            assert self.splits_found[feat], "No splits found for feature {}".format(
-                feat
-            )
-
-        optimal_splits = {}
-        for feat in features:
-            self.important_splits_selected[feat] = self.splits_found[feat]
-
-            # if split is empy, skip
-            if len(self.splits["feat_{}".format(feat)]) == 0:
-                optimal_splits["feat_{}".format(feat)] = {}
-                continue
-
-            # if initial heterogeneity is BIG_M, skip
-            if self.splits["feat_{}".format(feat)][0]["weighted_heter"] == BIG_M:
-                optimal_splits["feat_{}".format(feat)] = {}
-                continue
-
-            # if initial heterogeneity is small right from the beginning, skip
-            if self.splits["feat_{}".format(feat)][0]["weighted_heter"] < heter_thres:
-                optimal_splits["feat_{}".format(feat)] = {}
-                continue
-
-            feat_splits = self.splits["feat_{}".format(feat)]
             # accept split if heterogeneity drops over 20%
-            heter = np.array(
-                [feat_splits[i]["weighted_heter"] for i in range(len(feat_splits))]
-            )
+            heter = np.array([splits[i]["weighted_heter"] for i in range(len(splits))])
             heter_drop = (heter[:-1] - heter[1:]) / heter[:-1]
-            split_valid = heter_drop > pcg
+            split_valid = heter_drop > self.heter_pcg_drop_thres
 
             # if all are negative, return nothing
             if np.sum(split_valid) == 0:
-                optimal_splits["feat_{}".format(feat)] = {}
-                continue
-
+                optimal_splits = {}
             # if all are positive, return all
-            if np.sum(split_valid) == len(split_valid):
-                optimal_splits["feat_{}".format(feat)] = feat_splits[1:]
-                continue
-
-            # find first negative split
-            first_negative = np.where(split_valid == False)[0][0]
-
-            # if first negative is the first split, return nothing
-            if first_negative == 0:
-                optimal_splits["feat_{}".format(feat)] = {}
-                continue
+            elif np.sum(split_valid) == len(split_valid):
+                optimal_splits = splits[1:]
             else:
-                optimal_splits["feat_{}".format(feat)] = feat_splits[
-                    1 : first_negative + 1
-                ]
+                # find first negative split
+                first_negative = np.where(split_valid == False)[0][0]
 
+                # if first negative is the first split, return nothing
+                if first_negative == 0:
+                    optimal_splits = {}
+                else:
+                    optimal_splits = splits[1: first_negative + 1]
+
+        # update state variable
+        self.important_splits_selected = True
         self.important_splits = optimal_splits
         return optimal_splits
-
-    def print_split(self, feature, only_importants=True):
-        if only_importants:
-            assert self.important_splits_selected[
-                feature
-            ], "No important splits found for feature {}".format(feature)
-        else:
-            assert self.splits_found[feature], "No splits found for feature {}".format(
-                feature
-            )
-
-        if only_importants:
-            splits = self.important_splits["feat_{}".format(feature)]
-            print("Important splits for feature {}".format(feature))
-        else:
-            splits = self.splits["feat_{}".format(feature)][1:]
-            print("All splits for feature {}".format(feature))
-
-        for i, split in enumerate(splits):
-            type_of_split_feature = self.feature_types[split["feature"]]
-            print(
-                "- On feature {} ({})".format(split["feature"], type_of_split_feature)
-            )
-
-            candidate_splits_formatted = ", ".join(
-                ["{:.2f}".format(x) for x in split["candidate_split_positions"]]
-            )
-            print(
-                "  - Candidate split positions: {}".format(candidate_splits_formatted)
-            )
-            print("  - Position of split: {:.2f}".format(split["position"]))
-
-            print(
-                "  - Heterogeneity before split: {:.2f}".format(
-                    split["weighted_heter"] + split["weighted_heter_drop"]
-                )
-            )
-            print(
-                "  - Heterogeneity after split: {:.2f}".format(split["weighted_heter"])
-            )
-            print(
-                "  - Heterogeneity drop: {:.2f} ({:.2f} %)".format(
-                    split["weighted_heter_drop"],
-                    (split["weighted_heter_drop"] / split["weighted_heter"] * 100),
-                )
-            )
-
-            nof_instances_before = (
-                sum(split["nof_instances"])
-                if i == 0
-                else splits[i - 1]["nof_instances"]
-            )
-            print(
-                "  - Number of instances before split: {}".format(nof_instances_before)
-            )
-            print(
-                "  - Number of instances after split: {}".format(split["nof_instances"])
-            )
-
-    def plot_first_level(self, feature):
-        splits = self.important_splits["feat_{}".format(feature)]
-        if len(splits) == 0:
-            print("No important splits found for feature {}".format(feature))
-            return
-
-        # get splits
-        splits = self.important_splits["feat_{}".format(feature)]
-        assert len(splits) > 0, "No splits found for feature {}".format(feature)
-
-        # get foc of first split
-        foc = splits[0]["feature"]
-        position = splits[0]["position"]
-        type_of_split_feature = self.feature_types[foc]
-
-        data_1, data_2 = self.split_dataset(self.data, None, foc, position, type_of_split_feature)
-        data_effect_1, data_effect_2 = self.split_dataset(self.data, self.data_effect, foc, position, type_of_split_feature)
-
-        # get axis limits
-        axis_limits = helpers.axis_limits_from_data(self.data)
-
-        rhale_1 = RHALE(data_1, self.model, self.model_jac, axis_limits, data_effect_1)
-        rhale_2 = RHALE(data_2, self.model, self.model_jac, axis_limits, data_effect_2)
-
-        rhale_1.plot(feature=feature)
-        rhale_2.plot(feature=feature)
-
-
 
 
     def split_dataset(self, x, x_jac, feature, position, feat_type):
@@ -466,7 +317,7 @@ class DataTransformer:
             else:
                 feat_mapping.append(2 ** len(split))
 
-        # the enhaned data, without masking
+        # the enhanced data, without masking
         new_data = []
         for i in range(X.shape[1]):
             new_data.append(np.repeat(X[:, i, np.newaxis], feat_mapping[i], axis=-1))
