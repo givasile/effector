@@ -96,7 +96,7 @@ class PDP(GlobalEffect):
         centering: typing.Union[bool, str] = False,
         nof_points: int = 30,
         scale_x: typing.Union[None, dict] = None,
-        scale_y: typing.Union[None, dict] = None
+        scale_y: typing.Union[None, dict] = None,
     ) -> tuple[plt.Figure, plt.Axes]:
         """Plot the PDP for a single feature.
 
@@ -232,7 +232,7 @@ class DerivativePDP(GlobalEffect):
         centering: typing.Union[bool, str] = False,
         nof_points: int = 30,
         scale_x: typing.Union[None, dict] = None,
-        scale_y: typing.Union[None, dict] = None
+        scale_y: typing.Union[None, dict] = None,
     ) -> tuple[plt.Figure, plt.Axes]:
         """Plot the d-PDP for a single feature.
 
@@ -267,7 +267,7 @@ class DerivativePDP(GlobalEffect):
             y_pdp_label="d-PDP",
             title="d-PDP for feature %d" % (feature + 1),
             scale_x=scale_x,
-            scale_y=scale_y
+            scale_y=scale_y,
         )
         return fig, ax
 
@@ -309,24 +309,47 @@ class PDPwithICE:
         self.nof_instances, self.indices = helpers.prep_nof_instances(
             nof_instances, data.shape[0]
         )
+        # TODO: check if I want to keep all data for the PDP
+        # TODO: and the limited data for the ICE plot
         self.data = data[self.indices, :]
         self.axis_limits = (
             helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
         )
 
-        self.y_pdp = PDP(
-            data=self.data,
-            model=model,
-            axis_limits=self.axis_limits,
-            nof_instances="all",
-        )
-        self.y_ice = [
-            PDP(data=self.data[i, None, :], model=model, axis_limits=self.axis_limits)
-            for i in range(nof_instances)
-        ]
+        # self.y_pdp = PDP(
+        #     data=self.data,
+        #     model=model,
+        #     axis_limits=self.axis_limits,
+        #     nof_instances="all",
+        # )
+        # self.y_ice = [
+        #     PDP(data=self.data[i, None, :], model=model, axis_limits=self.axis_limits)
+        #     for i in range(nof_instances)
+        # ]
+
+        self.feature_effect: typing.Dict = {}
 
         # boolean variable for whether a FE plot has been computed
         self.is_fitted: np.ndarray = np.ones([self.dim]) * False
+
+    def _fit_feature(
+        self,
+        feature: int,
+        centering: typing.Union[bool, str],
+        nof_points_centering: int,
+    ) -> typing.Dict:
+        # create one XX matrix with all the points that we want to evaluate for all ICEs
+        xx = np.linspace(
+            self.axis_limits[0, feature],
+            self.axis_limits[1, feature],
+            nof_points_centering,
+        )
+        y = pdp_1d_vectorized(self.model, self.data, xx, feature, False, False, True)
+
+        # compute the normalization constant per ice
+        norm_const = np.mean(y, axis=0)
+
+        return {"norm_const": norm_const}
 
     def fit(
         self,
@@ -345,6 +368,7 @@ class PDPwithICE:
         Args:
             features: The features to be fitted for explanation. If `"all"`, all features are fitted.
             centering: Whether to center the PDP and the ICE plots.
+            nof_points_centering: number of points on the x-axis to evaluate the PDP and the ICE plots on for computing the normalization constant
 
         Notes:
             * If `centering` is `False`, the PDP and ICE plots are not centered
@@ -352,15 +376,23 @@ class PDPwithICE:
             * If `centering` is `"zero-start"`, the PDP and the ICE plots start from `y=0`.
         """
         centering = helpers.prep_centering(centering)
-        self.y_pdp.fit(features, centering, nof_points_centering)
-        [self.y_ice[i].fit(features, centering, nof_points_centering) for i in range(len(self.y_ice))]
+        features = helpers.prep_features(features, self.dim)
 
-    def eval(self,
-             feature: int,
-             xs: np.ndarray,
-             uncertainty: bool = False,
-             centering: typing.Union[bool, str] = False
-             ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+        # new implementation
+        for s in features:
+            self.feature_effect["feature_" + str(s)] = self._fit_feature(
+                s, centering, nof_points_centering
+            )
+            self.is_fitted[s] = True
+
+    def eval(
+        self,
+        feature: int,
+        xs: np.ndarray,
+        uncertainty: bool = False,
+        centering: typing.Union[bool, str] = False,
+        return_all: bool = False
+    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
 
         Notes:
@@ -374,6 +406,7 @@ class PDPwithICE:
             xs: the points along the s-th axis to evaluate the FE plot, (T)
             uncertainty: whether to return the uncertainty measures
             centering: whether to center the plot
+            return_all: whether to return all; PDP and ICE plots evaluated at `xs`
 
         Returns:
             the mean effect `y`, if `uncertainty=False` (default) or a tuple `(y, std, estimator_var)` otherwise
@@ -391,22 +424,31 @@ class PDPwithICE:
                 * `estimator_var` is the variance of the mean effect estimator
         """
         centering = helpers.prep_centering(centering)
+        if not self.is_fitted[feature]:
+            self.fit(features=feature, centering=centering)
 
         # Check if the lower bound is less than the upper bound
         assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
 
-        # Evaluate the feature
-        y_pdp = self.y_pdp.eval(feature, xs, uncertainty=False, centering=centering)
-        y_pdp = np.expand_dims(y_pdp, axis=0)
+        # new implementation
+        yy = pdp_1d_vectorized(self.model, self.data, xs, feature, False, False, True)
 
-        # Evaluate all the ICE plots
-        y_ice = np.array([self.y_ice[i].eval(feature, xs, uncertainty=False, centering=centering) for i in range(self.nof_instances)])
+        if centering:
+            norm_consts = np.expand_dims(self.feature_effect["feature_3"]["norm_const"], axis=0)
+            yy = yy - norm_consts
 
-        # Compute the variance of the estimator
-        std = np.sqrt(np.sum((y_pdp - y_ice)**2, axis=0)) / self.nof_instances
-        estimator_var = np.sum((y_pdp - y_ice)**2, axis=0) / self.nof_instances
+        y_pdp = np.mean(yy, axis=1)
 
-        return (y_pdp, std, estimator_var) if uncertainty is not False else y_pdp
+        if return_all:
+            return yy
+
+        if uncertainty:
+            std = np.std(yy, axis=1)
+            estimator_var = np.var(yy, axis=1)
+            return y_pdp, std, estimator_var
+        else:
+            return y_pdp
+
 
     def plot(
         self,
@@ -433,14 +475,14 @@ class PDPwithICE:
         x = np.linspace(
             self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
         )
+
+        yy = self.eval(feature, x, uncertainty=False, centering=centering, return_all=True)
         title = "PDP-ICE: feature %d" % (feature + 1)
-        fig, ax = vis.plot_pdp_ice(
+        fig, ax = vis.plot_pdp_ice_2(
             x,
             feature,
-            self.y_pdp,
-            self.y_ice,
+            yy=yy,
             title=title,
-            centering=centering,
             y_pdp_label="PDP",
             y_ice_label="ICE",
             scale_x=scale_x,
@@ -520,8 +562,8 @@ class DerivativePDPwithICE:
         feature: int,
         centering: bool = False,
         nof_points: int = 30,
-        scale_x = None,
-        scale_y = None,
+        scale_x=None,
+        scale_y=None,
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot the Derivative-PDP along with the Derivative-ICE plots.
@@ -620,6 +662,7 @@ def pdp_1d_vectorized(
     feature: int,
     uncertainty: bool,
     model_returns_jac: bool,
+    return_all: bool = False,
 ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Computes the unnormalized 1-dimensional PDP, in a vectorized way.
 
@@ -647,6 +690,7 @@ def pdp_1d_vectorized(
         feature: index of the feature of interest
         uncertainty: whether to also compute the uncertainty of the PDP
         model_returns_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
+        return_all (bool): whether to return all the predictions or only the mean (and std and stderr)
 
     Returns:
         The PDP values `y` that correspond to `x`, if uncertainty is False, `(y, std, stderr)` otherwise
@@ -662,6 +706,9 @@ def pdp_1d_vectorized(
     y = model(x_new)[:, feature] if model_returns_jac else model(x_new)
     y = np.reshape(y, (x.shape[0], nof_instances))
     mean_pdp = np.mean(y, axis=1)
+    if return_all:
+        return y
+
     if uncertainty:
         std = np.std(y, axis=1)
         sigma_pdp = std

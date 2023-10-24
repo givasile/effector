@@ -233,3 +233,47 @@ def plot_pdp_ice(
 
     plt.show(block=False)
     return fig, ax
+
+
+def plot_pdp_ice_2(
+    x,
+    feature,
+    yy,
+    title,
+    y_pdp_label,
+    y_ice_label,
+    scale_x=None,
+    scale_y=None,
+):
+
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+
+    y_pdp_output = np.mean(yy, axis=1)
+    y_ice_outputs = yy
+    # y_ice_outputs = np.array(
+    #     [y_ice[i].eval(feature, x, False, centering) for i in range(len(y_ice))]
+    # )
+    # y_pdp_output = y_pdp.eval(feature, x, False, centering)
+
+    x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
+    y_pdp_output = (
+        y_pdp_output
+        if scale_y is None
+        else trans_affine(y_pdp_output, scale_y["mean"], scale_y["std"])
+    )
+    y_ice_outputs = (
+        y_ice_outputs
+        if scale_y is None
+        else trans_affine(y_ice_outputs, scale_y["mean"], scale_y["std"])
+    )
+
+    ax.plot(x, y_ice_outputs[:, 0], color="red", alpha=0.1, label=y_ice_label)
+    ax.plot(x, y_ice_outputs, color="red", alpha=0.1)
+    ax.plot(x, y_pdp_output, color="blue", label=y_pdp_label)
+    ax.set_xlabel("feature %d" % (feature + 1))
+    ax.set_ylabel("y")
+    ax.legend()
+
+    plt.show(block=False)
+    return fig, ax

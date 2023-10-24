@@ -79,6 +79,13 @@ class RegionalEffect:
                 )
                 print("- On feature {} ({})".format(foc_name, type_of_split_feature))
 
+                x_start, x_stop = split["range"][0], split["range"][1]
+                if scale_x is not None:
+                    x_start = x_start * scale_x[split["feature"]]["std"] + scale_x[split["feature"]]["mean"]
+                    x_stop = x_stop * scale_x[split["feature"]]["std"] + scale_x[split["feature"]]["mean"]
+                range_formatted = "[{:.2f}, {:.2f}]".format(x_start, x_stop)
+                print("  - Range: {}".format(range_formatted))
+
                 candidate_splits_formatted = (
                     ", ".join(
                         ["{:.2f}".format(x) for x in split["candidate_split_positions"]]
@@ -520,6 +527,7 @@ class RegionalPDPwithICE(RegionalEffect):
         feature_types: typing.Union[list, None] = None,
         cat_limit: typing.Union[int, None] = 10,
         feature_names: typing.Union[list, None] = None,
+        nof_instances: int = 100,
     ):
         """
         Regional PDP constructor.
@@ -531,10 +539,12 @@ class RegionalPDPwithICE(RegionalEffect):
             feature_types: list of feature types (categorical or numerical)
             cat_limit: the minimum number of unique values for a feature to be considered categorical
             feature_names: list of feature names
+            nof_instances: number of instances to use for the ICE curves
         """
         self.dim = data.shape[1]
         self.data = data
         self.model = model
+        self.nof_instances = nof_instances
 
         axis_limits = helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
         feature_types = utils.get_feature_types(data, cat_limit) if feature_types is None else feature_types
@@ -549,7 +559,7 @@ class RegionalPDPwithICE(RegionalEffect):
             if data.shape[0] < min_points:
                 return BIG_M
 
-            pdp_ice = PDPwithICE(data, self.model, nof_instances=100)
+            pdp_ice = PDPwithICE(data, self.model, nof_instances=self.nof_instances)
             try:
                 pdp_ice.fit(features=foi, centering=True, nof_points_centering=10)
             except:
@@ -558,7 +568,7 @@ class RegionalPDPwithICE(RegionalEffect):
             # heterogeneity is the mean heterogeneity over the curve
             axis_limits = helpers.axis_limits_from_data(data)
 
-            xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
+            xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 30)
             try:
                 _, z, _ = pdp_ice.eval(feature=foi, xs=xx, uncertainty=True)
             except:

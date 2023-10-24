@@ -245,6 +245,7 @@ class Regions:
         split = {
             "feature": feature,
             "position": position,
+            "range": [np.min(data[:, feature]), np.max(data[:, feature])],
             "candidate_split_positions": split_positions,
             "nof_instances": nof_instances,
             "type": foc_types[i],

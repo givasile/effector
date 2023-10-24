@@ -3,6 +3,7 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
+import time
 
 # ## Preprocess the data
 # load dataset
@@ -99,61 +100,55 @@ scale_y = {"mean": y_mean, "std": y_std}
 scale_x_list = [{"mean": x_mean[i], "std": x_std[i]} for i in range(len(x_mean))]
 
 
-# Regional RHALE
-regional_rhale = effector.RegionalRHALE(
-    data=X_train.to_numpy(),
-    model=model_forward,
-    model_jac=model_jac,
-    cat_limit=10,
-    feature_names=col_names,
-)
+# pdp with ICE
+pdp_ice = effector.PDPwithICE(data=X_train.to_numpy(), model=model_forward, nof_instances=110)
+start = time.time()
+pdp_ice.fit(features=3, centering=False)
+stop = time.time()
+print("Execution time: {:.4f}".format(stop - start))
 
-regional_rhale.fit(
-    features="all",
-    heter_small_enough=0.1,
-    heter_pcg_drop_thres=0.1,
-    binning_method="greedy",
-    max_split_levels=2,
-    nof_candidate_splits_for_numerical=5,
-    min_points_per_subregion=10,
-    candidate_conditioning_features="all",
-    split_categorical_features=True,
-)
-regional_rhale.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
-# regional_rhale.plot_first_level(feature=3, confidence_interval=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y)
+start = time.time()
+y, std, stderr = pdp_ice.eval(feature=3, xs=np.linspace(-3, 3, 1000), uncertainty=True, centering=False)
+stop = time.time()
+print("Execution time: {:.4f}".format(stop - start))
+
+pdp_ice.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y)
 
 
-
-# Regional PDP
-regional_pdp = effector.RegionalPDP(
-    data=X_train.to_numpy(),
-    model=model_forward,
-    cat_limit=10,
-    feature_names=col_names,
-)
-
-regional_pdp.fit(
-    features="all",
-    heter_small_enough=0.1,
-    heter_pcg_drop_thres=0.1,
-    max_split_levels=2,
-    nof_candidate_splits_for_numerical=5,
-    min_points_per_subregion=10,
-    candidate_conditioning_features="all",
-    split_categorical_features=True,
-)
-
-regional_pdp.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
-
-# RegionalPDPwithICE
-regional_pdp_ice = effector.RegionalPDPwithICE(
-    data=X_train.to_numpy(),
-    model=model_forward,
-    cat_limit=10,
-    feature_names=col_names
-)
-
-# regional_pdp_ice.fit(
+# # Regional RHALE
+# regional_rhale = effector.RegionalRHALE(
+#     data=X_train.to_numpy(),
+#     model=model_forward,
+#     model_jac=model_jac,
+#     cat_limit=10,
+#     feature_names=col_names,
+# )
+#
+# regional_rhale.fit(
+#     features="all",
+#     heter_small_enough=0.1,
+#     heter_pcg_drop_thres=0.1,
+#     binning_method="greedy",
+#     max_split_levels=2,
+#     nof_candidate_splits_for_numerical=5,
+#     min_points_per_subregion=10,
+#     candidate_conditioning_features="all",
+#     split_categorical_features=True,
+# )
+# regional_rhale.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
+# # regional_rhale.plot_first_level(feature=3, confidence_interval=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y)
+#
+#
+#
+# # Regional PDP
+# regional_pdp = effector.RegionalPDP(
+#     data=X_train.to_numpy(),
+#     model=model_forward,
+#     cat_limit=10,
+#     feature_names=col_names,
+# )
+#
+# regional_pdp.fit(
 #     features="all",
 #     heter_small_enough=0.1,
 #     heter_pcg_drop_thres=0.1,
@@ -163,3 +158,27 @@ regional_pdp_ice = effector.RegionalPDPwithICE(
 #     candidate_conditioning_features="all",
 #     split_categorical_features=True,
 # )
+#
+# regional_pdp.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
+#
+# RegionalPDPwithICE
+regional_pdp_ice = effector.RegionalPDPwithICE(
+    data=X_train.to_numpy(),
+    model=model_forward,
+    cat_limit=10,
+    feature_names=col_names,
+    nof_instances=500
+)
+
+regional_pdp_ice.fit(
+    features=3,
+    heter_small_enough=0.1,
+    heter_pcg_drop_thres=0.01,
+    max_split_levels=2,
+    nof_candidate_splits_for_numerical=10,
+    min_points_per_subregion=10,
+    candidate_conditioning_features="all",
+    split_categorical_features=True,
+)
+
+regional_pdp_ice.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
