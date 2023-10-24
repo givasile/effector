@@ -31,7 +31,7 @@ def integrate_1d_linspace(func, start, stop):
     return z
 
 
-def mean_1d_linspace(func, start, stop):
+def mean_1d_linspace(func, start, stop, nof_points=100):
     """Computes \int_{start}^{stop} func(x) dx
     func(x) -> y: gets 1D np.array and return 1D np.array
 
@@ -39,7 +39,7 @@ def mean_1d_linspace(func, start, stop):
     :returns:
 
     """
-    x = np.linspace(start, stop, 1000)
+    x = np.linspace(start, stop, nof_points)
     x = 0.5 * (x[:-1] + x[1:])
     z = np.mean(func(x))
     return z

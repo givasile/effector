@@ -316,17 +316,12 @@ rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=m
 
     
 ![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_21_1.png)
-    
-
-
-
-
 
 ```python
 regional_rhale = effector.RegionalRHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac,
                                         cat_limit=10,
                                         feature_names=col_names)
-regional_rhale.print_splits(features=3, only_important=True, scale_x=scale_x_list)
+regional_rhale.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
 
 ```
 

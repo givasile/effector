@@ -2,7 +2,7 @@ import effector
 import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
-
+import numpy as np
 
 # ## Preprocess the data
 # load dataset
@@ -98,58 +98,40 @@ scale_x = {"mean": x_mean[3], "std": x_std[3]}
 scale_y = {"mean": y_mean, "std": y_std}
 scale_x_list = [{"mean": x_mean[i], "std": x_std[i]} for i in range(len(x_mean))]
 
-ale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
-binning_method = effector.binning_methods.Fixed(
-    nof_bins=100, min_points_per_bin=0, cat_limit=10
-)
-ale.fit(features=3, binning_method=binning_method)
-ale.plot(
-    feature=3,
-    confidence_interval=True,
-    centering=True,
-    scale_x=scale_x,
-    scale_y=scale_y,
+
+# Regional RHALE
+regional_rhale = effector.RegionalRHALE(
+    data=X_train.to_numpy(),
+    model=model_forward,
+    model_jac=model_jac,
+    cat_limit=10,
+    feature_names=col_names,
 )
 
-# effector.PDP(data=X_train.to_numpy(), model=model_forward).plot(feature=3, confidence_interval=True, centering=True, scale_x=scale_x, scale_y=scale_y)
-
-# regional_rhale = effector.RegionalRHALE(
-#     data=X_train.to_numpy(),
-#     model=model_forward,
-#     model_jac=model_jac,
-#     cat_limit=10,
-#     feature_names=col_names,
-# )
-# regional_rhale.fit(
-#     features="all",
-#     heter_small_enough=0.1,
-#     heter_pcg_drop_thres=0.1,
-#     binning_method="greedy",
-#     max_split_levels=2,
-#     nof_candidate_splits_for_numerical=5,
-#     min_points_per_subregion=10,
-#     candidate_conditioning_features="all",
-#     split_categorical_features=True,
-# )
-
-# regional_rhale.print_splits(features=3, only_important=True, scale_x=scale_x_list)
+regional_rhale.fit(
+    features="all",
+    heter_small_enough=0.1,
+    heter_pcg_drop_thres=0.1,
+    binning_method="greedy",
+    max_split_levels=2,
+    nof_candidate_splits_for_numerical=5,
+    min_points_per_subregion=10,
+    candidate_conditioning_features="all",
+    split_categorical_features=True,
+)
+regional_rhale.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
 # regional_rhale.plot_first_level(feature=3, confidence_interval=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y)
 
-# regional_rhale.fit(features="all",
-#                    heter_small_enough=0,
-#                    heter_pcg_drop_thres=0.99)
-
-# regional_rhale.splits_per_feature_full_depth
-#
-# regional_rhale.print_splits(features=3, only_important=True, scale_x=scale_x_list)
 
 
+# Regional PDP
 regional_pdp = effector.RegionalPDP(
     data=X_train.to_numpy(),
     model=model_forward,
     cat_limit=10,
     feature_names=col_names,
 )
+
 regional_pdp.fit(
     features="all",
     heter_small_enough=0.1,
@@ -161,10 +143,23 @@ regional_pdp.fit(
     split_categorical_features=True,
 )
 
-regional_pdp.print_splits(features=3, only_important=True, scale_x=scale_x_list)
+regional_pdp.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
 
-# regional_RHALE.describe_subregions()
-# regional_RHALE.subregions[0].plot(feature=3)
-# regional_RHALE.plot(feature=3)
-#
-# , features=3, binning_method=binning_method).plot(feature)
+# RegionalPDPwithICE
+regional_pdp_ice = effector.RegionalPDPwithICE(
+    data=X_train.to_numpy(),
+    model=model_forward,
+    cat_limit=10,
+    feature_names=col_names
+)
+
+# regional_pdp_ice.fit(
+#     features="all",
+#     heter_small_enough=0.1,
+#     heter_pcg_drop_thres=0.1,
+#     max_split_levels=2,
+#     nof_candidate_splits_for_numerical=5,
+#     min_points_per_subregion=10,
+#     candidate_conditioning_features="all",
+#     split_categorical_features=True,
+# )

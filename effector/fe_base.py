@@ -82,7 +82,7 @@ class FeatureEffectBase(ABC):
         """
         raise NotImplementedError
 
-    def _compute_norm_const(self, feature: int, method: str = "zero_integral") -> float:
+    def _compute_norm_const(self, feature: int, method: str = "zero_integral", nof_points: int = 100) -> float:
         """Compute the normalization constant.
         """
         assert method in ["zero_integral", "zero_start"]
@@ -94,7 +94,7 @@ class FeatureEffectBase(ABC):
         stop = self.axis_limits[1, feature]
 
         if method == "zero_integral":
-            z = utils_integrate.mean_1d_linspace(partial_eval, start, stop)
+            z = utils_integrate.mean_1d_linspace(partial_eval, start, stop, nof_points)
         else:
             z = partial_eval(np.array([start])).item()
         return z

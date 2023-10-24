@@ -112,10 +112,6 @@ class Regions:
                 # split data and data_effect based on the optimal split found above
                 feat, pos, typ = split["feature"], split["position"], split["type"]
 
-                x_list = self.flatten_list(
-                    [self.split_dataset(x, None, feat, pos, typ) for x in x_list]
-                )
-
                 if x_jac_list is not None:
                     x_jac_list = self.flatten_list(
                         [
@@ -123,6 +119,11 @@ class Regions:
                             for x, x_jac in zip(x_list, x_jac_list)
                         ]
                     )
+
+                x_list = self.flatten_list(
+                    [self.split_dataset(x, None, feat, pos, typ) for x in x_list]
+                )
+
                 self.splits = splits
 
         # update state
@@ -217,6 +218,7 @@ class Regions:
         feature = foc[i]
         position = candidate_split_positions[i][j]
         split_positions = candidate_split_positions[i]
+
         # how many instances in each dataset after the min split
         x_list_2 = self.flatten_list(
             [

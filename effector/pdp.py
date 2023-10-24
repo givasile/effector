@@ -50,6 +50,7 @@ class PDP(FeatureEffectBase):
         self,
         features: typing.Union[int, str, list] = "all",
         centering: typing.Union[bool, str] = False,
+        nof_points_centering: int = 100,
     ) -> None:
         """
         Fit the PDP plot.
@@ -61,6 +62,7 @@ class PDP(FeatureEffectBase):
         Args:
             features: The features to be fitted for explanation. If `"all"`, all features are fitted.
             centering: Whether to center the PDP plot.
+            nof_points_centering: number of points on the x-axis to evaluate the PDP on for computing the normalization constant
 
         Notes:
             * If `centering` is `False`, the PDP is not centered
@@ -71,7 +73,7 @@ class PDP(FeatureEffectBase):
         centering = helpers.prep_centering(centering)
         for s in features:
             self.norm_const[s] = (
-                self._compute_norm_const(s, centering)
+                self._compute_norm_const(s, centering, nof_points_centering)
                 if centering is not False
                 else self.norm_const[s]
             )
@@ -330,6 +332,7 @@ class PDPwithICE:
         self,
         features: typing.Union[int, str, list],
         centering: typing.Union[bool, str] = True,
+        nof_points_centering: int = 100,
     ):
         """
         Fit the PDP and the ICE plots.
@@ -349,8 +352,61 @@ class PDPwithICE:
             * If `centering` is `"zero-start"`, the PDP and the ICE plots start from `y=0`.
         """
         centering = helpers.prep_centering(centering)
-        self.y_pdp.fit(features, centering)
-        [self.y_ice[i].fit(features, centering) for i in range(len(self.y_ice))]
+        self.y_pdp.fit(features, centering, nof_points_centering)
+        [self.y_ice[i].fit(features, centering, nof_points_centering) for i in range(len(self.y_ice))]
+
+    def eval(self,
+             feature: int,
+             xs: np.ndarray,
+             uncertainty: bool = False,
+             centering: typing.Union[bool, str] = False
+             ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+        """Evaluate the effect of the s-th feature at positions `xs`.
+
+        Notes:
+            The standard deviation of the PDP is computed as:
+            $$
+            todo
+            $$
+
+        Parameters:
+            feature: index of feature of interest
+            xs: the points along the s-th axis to evaluate the FE plot, (T)
+            uncertainty: whether to return the uncertainty measures
+            centering: whether to center the plot
+
+        Returns:
+            the mean effect `y`, if `uncertainty=False` (default) or a tuple `(y, std, estimator_var)` otherwise
+
+        Notes:
+            * If `centering` is `False`, the PDP is not centered
+            * If `centering` is `True` or `"zero-integral"`, the PDP is centered by subtracting the mean of the PDP.
+            * If `centering` is `"zero-start"`, the PDP is centered by subtracting the value of the PDP at the first point.
+
+        Notes:
+            * If `uncertainty` is `False`, the PDP returns only the mean effect `y` at the given `xs`.
+            * If `uncertainty` is `True`, the PDP returns `(y, std, estimator_var)` where:
+                * `y` is the mean effect
+                * `std` is the standard deviation of the mean effect
+                * `estimator_var` is the variance of the mean effect estimator
+        """
+        centering = helpers.prep_centering(centering)
+
+        # Check if the lower bound is less than the upper bound
+        assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
+
+        # Evaluate the feature
+        y_pdp = self.y_pdp.eval(feature, xs, uncertainty=False, centering=centering)
+        y_pdp = np.expand_dims(y_pdp, axis=0)
+
+        # Evaluate all the ICE plots
+        y_ice = np.array([self.y_ice[i].eval(feature, xs, uncertainty=False, centering=centering) for i in range(self.nof_instances)])
+
+        # Compute the variance of the estimator
+        std = np.sqrt(np.sum((y_pdp - y_ice)**2, axis=0)) / self.nof_instances
+        estimator_var = np.sum((y_pdp - y_ice)**2, axis=0) / self.nof_instances
+
+        return (y_pdp, std, estimator_var) if uncertainty is not False else y_pdp
 
     def plot(
         self,

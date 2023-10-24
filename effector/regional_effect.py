@@ -4,7 +4,7 @@ import effector.helpers as helpers
 import effector.utils as utils
 from effector.regions import Regions
 from effector.rhale import RHALE
-from effector.pdp import PDP, DerivativePDP
+from effector.pdp import PDP, PDPwithICE
 import typing
 from tqdm import tqdm
 
@@ -45,7 +45,7 @@ class RegionalEffect:
     def plot_first_level(self, *args, **kwargs):
         raise NotImplementedError
 
-    def print_splits(
+    def describe_subregions(
         self,
         features,
         only_important=True,
@@ -418,6 +418,149 @@ class RegionalPDP(RegionalEffect):
             xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
             try:
                 _, z, _ = pdp.eval(feature=foi, xs=xx, uncertainty=True)
+            except:
+                return BIG_M
+            return np.mean(z)
+
+        return heter
+
+    def _fit_feature(
+        self,
+        feature: int,
+        heter_pcg_drop_thres=0.1,
+        heter_small_enough=0.1,
+        max_split_levels: int = 2,
+        nof_candidate_splits_for_numerical: int = 20,
+        min_points_per_subregion: int = 10,
+        candidate_conditioning_features: typing.Union["str", list] = "all",
+        split_categorical_features: bool = False,
+    ):
+        """
+        Find the Regional RHALE for a single feature.
+        """
+        heter = self._create_heterogeneity_function(
+            feature, min_points_per_subregion
+        )
+
+        # init Region Extractor
+        regions = Regions(
+            feature,
+            heter,
+            self.data,
+            None,
+            self.feature_types,
+            self.cat_limit,
+            candidate_conditioning_features,
+            min_points_per_subregion,
+            nof_candidate_splits_for_numerical,
+            max_split_levels,
+            heter_pcg_drop_thres,
+            heter_small_enough,
+            split_categorical_features,
+        )
+
+        self.regions["feature_{}".format(feature)] = regions
+        splits = regions.search_all_splits()
+
+        self.splits_per_feature_full_depth["feature_{}".format(feature)] = splits
+        self.splits_per_feature_full_depth_found[feature] = True
+
+        important_splits = regions.choose_important_splits()
+        self.splts_per_feature_only_important[
+            "feature_{}".format(feature)
+        ] = important_splits
+        self.splits_per_feature_only_import_found[feature] = True
+
+    def fit(
+        self,
+        features: typing.Union[int, str, list],
+        heter_pcg_drop_thres: float = 0.1,
+        heter_small_enough: float = 0.1,
+        max_split_levels: int = 2,
+        nof_candidate_splits_for_numerical: int = 20,
+        min_points_per_subregion: int = 10,
+        candidate_conditioning_features: typing.Union["str", list] = "all",
+        split_categorical_features: bool = False,
+    ):
+        """
+        Find the Regional PDP for a list of features.
+
+        Args:
+            features: list of features to fit
+            heter_pcg_drop_thres: heterogeneity drop threshold for a split to be considered important
+            heter_small_enough: heterogeneity threshold for a region to be considered homogeneous (splitting stops)
+            max_split_levels: maximum number of splits to perform (depth of the tree)
+            nof_candidate_splits_for_numerical: number of candidate splits to consider for numerical features
+            min_points_per_subregion: minimum allowed number of points in a subregion (otherwise the split is not considered as valid)
+            candidate_conditioning_features: list of features to consider as conditioning features for the candidate splits
+            split_categorical_features
+        """
+
+        assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
+        features = helpers.prep_features(features, self.dim)
+        for feat in tqdm(features):
+            self._fit_feature(
+                feat,
+                heter_pcg_drop_thres,
+                heter_small_enough,
+                max_split_levels,
+                nof_candidate_splits_for_numerical,
+                min_points_per_subregion,
+                candidate_conditioning_features,
+                split_categorical_features,
+            )
+
+
+class RegionalPDPwithICE(RegionalEffect):
+    def __init__(
+        self,
+        data: np.ndarray,
+        model: callable,
+        axis_limits: typing.Union[None, np.ndarray] = None,
+        feature_types: typing.Union[list, None] = None,
+        cat_limit: typing.Union[int, None] = 10,
+        feature_names: typing.Union[list, None] = None,
+    ):
+        """
+        Regional PDP constructor.
+
+        Args:
+            data: X matrix (N,D).
+            model: the black-box model (N,D) -> (N, )
+            axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
+            feature_types: list of feature types (categorical or numerical)
+            cat_limit: the minimum number of unique values for a feature to be considered categorical
+            feature_names: list of feature names
+        """
+        self.dim = data.shape[1]
+        self.data = data
+        self.model = model
+
+        axis_limits = helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+        feature_types = utils.get_feature_types(data, cat_limit) if feature_types is None else feature_types
+        feature_names = helpers.get_feature_names(self.dim) if feature_names is None else feature_names
+
+        self.cat_limit = cat_limit
+        super(RegionalPDPwithICE, self).__init__(axis_limits, feature_types, feature_names)
+
+    def _create_heterogeneity_function(self, foi, min_points=10):
+
+        def heter(data) -> float:
+            if data.shape[0] < min_points:
+                return BIG_M
+
+            pdp_ice = PDPwithICE(data, self.model, nof_instances=100)
+            try:
+                pdp_ice.fit(features=foi, centering=True, nof_points_centering=10)
+            except:
+                return BIG_M
+
+            # heterogeneity is the mean heterogeneity over the curve
+            axis_limits = helpers.axis_limits_from_data(data)
+
+            xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
+            try:
+                _, z, _ = pdp_ice.eval(feature=foi, xs=xx, uncertainty=True)
             except:
                 return BIG_M
             return np.mean(z)
