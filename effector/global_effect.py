@@ -5,7 +5,7 @@ from effector import utils_integrate
 from abc import ABC, abstractmethod
 
 
-class FeatureEffectBase(ABC):
+class GlobalEffect(ABC):
     empty_symbol = helpers.EMPTY_SYMBOL
 
     def __init__(self, axis_limits: np.ndarray) -> None:

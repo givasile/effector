@@ -1,5 +1,5 @@
 ---
-title: Feature Effect Methods
+title: Global effect intro
 ---
 
 ???+ question "Why do we care about feature effect plots?"

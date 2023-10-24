@@ -2,14 +2,14 @@
 
 ## Feature Effect Methods
 
-### ::: effector.fe_base.FeatureEffectBase
+### ::: effector.global_effect.GlobalEffect
        options:
          show_root_heading: True
          show_symbol_type_toc: True
          members:
            - eval
 
-### ::: effector.ale.ALE
+### ::: effector.global_effect_ale.ALE
        options:
          show_root_heading: True
          show_symbol_type_toc: True
@@ -18,7 +18,7 @@
            - fit
            - plot
 
-### ::: effector.rhale.RHALE
+### ::: effector.global_effect_rhale.RHALE
        options:
          show_root_heading: True
          show_symbol_type_toc: True
@@ -27,7 +27,7 @@
            - fit
            - plot
 
-### ::: effector.pdp.PDP
+### ::: effector.global_effect_pdp.PDP
       options:
         show_root_heading: True
         show_symbol_type_toc: True
@@ -36,7 +36,7 @@
           - fit
           - plot
 
-### ::: effector.pdp.DerivativePDP
+### ::: effector.global_effect_pdp.DerivativePDP
       options:
         show_root_heading: True
         show_symbol_type_toc: True
@@ -45,7 +45,7 @@
           - fit
           - plot
 
-### ::: effector.pdp.PDPwithICE
+### ::: effector.global_effect_pdp.PDPwithICE
       options:
         show_root_heading: True
         show_symbol_type_toc: True
@@ -54,7 +54,7 @@
           - fit
           - plot
 
-### ::: effector.pdp.DerivativePDPwithICE
+### ::: effector.global_effect_pdp.DerivativePDPwithICE
       options:
         show_root_heading: True
         show_symbol_type_toc: True
@@ -63,11 +63,11 @@
           - fit
           - plot
 
-### ::: effector.pdp.pdp_1d_vectorized
+### ::: effector.global_effect_pdp.pdp_1d_vectorized
       options:
         show_root_heading: True
 
-### ::: effector.pdp.pdp_1d_non_vectorized
+### ::: effector.global_effect_pdp.pdp_1d_non_vectorized
       options:
         show_root_heading: True
 

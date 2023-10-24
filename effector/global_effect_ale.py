@@ -3,11 +3,11 @@ import effector.utils as utils
 import effector.visualization as vis
 import effector.binning_methods as bm
 import effector.helpers as helpers
-from effector.fe_base import FeatureEffectBase
+from effector.global_effect import GlobalEffect
 import numpy as np
 
 
-class ALE(FeatureEffectBase):
+class ALE(GlobalEffect):
     def __init__(
         self,
         data: np.ndarray,

@@ -3,11 +3,11 @@ import copy
 import numpy as np
 import effector.visualization as vis
 import effector.helpers as helpers
-from effector.fe_base import FeatureEffectBase
+from effector.global_effect import GlobalEffect
 import matplotlib.pyplot as plt
 
 
-class PDP(FeatureEffectBase):
+class PDP(GlobalEffect):
     def __init__(
         self,
         data: np.ndarray,
@@ -140,7 +140,7 @@ class PDP(FeatureEffectBase):
 
 
 # TODO: expand the class to work even without passing the model_jac
-class DerivativePDP(FeatureEffectBase):
+class DerivativePDP(GlobalEffect):
     def __init__(
         self,
         data: np.ndarray,

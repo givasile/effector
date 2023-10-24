@@ -1,7 +1,6 @@
 * create more examples with real datasets:
   * Risk Factors for Cervical Cancer (Classification)
 * add new methods:
-  * REPID :heavy_check_mark:
   * PFI
 
 Backlog:

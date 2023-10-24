@@ -1,4 +1,4 @@
-# Regional Effects Tutorial
+# Regional effect intro
 
 
 ![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_16_0.png)

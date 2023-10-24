@@ -3,8 +3,8 @@ import effector.binning_methods as binning_methods
 import effector.helpers as helpers
 import effector.utils as utils
 from effector.regions import Regions
-from effector.rhale import RHALE
-from effector.pdp import PDP, PDPwithICE
+from effector.global_effect_rhale import RHALE
+from effector.global_effect_pdp import PDP, PDPwithICE
 import typing
 from tqdm import tqdm
 
