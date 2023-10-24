@@ -141,3 +141,4 @@ Werkzeug==2.2.2
 widgetsnbextension==3.6.0
 wrapt==1.14.1
 zipp==3.7.0
+tqdm
