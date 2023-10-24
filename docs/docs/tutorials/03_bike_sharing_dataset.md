@@ -15,16 +15,6 @@ import tensorflow as tf
 from tensorflow import keras
 ```
 
-    2023-10-19 14:42:56.026054: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
-    To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-10-19 14:42:56.190201: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory
-    2023-10-19 14:42:56.190219: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
-    2023-10-19 14:42:56.219898: E tensorflow/stream_executor/cuda/cuda_blas.cc:2981] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2023-10-19 14:42:56.869564: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory
-    2023-10-19 14:42:56.869623: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory
-    2023-10-19 14:42:56.869630: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
-
-
 ## Preprocess the data
 
 
@@ -141,61 +131,53 @@ model.evaluate(X_test, Y_test, verbose=1)
 ```
 
     Epoch 1/20
-
-
-    2023-10-19 14:42:57.615092: E tensorflow/stream_executor/cuda/cuda_driver.cc:265] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
-    2023-10-19 14:42:57.615115: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (givasile-ubuntu-XPS-15-9500): /proc/driver/nvidia/version does not exist
-    2023-10-19 14:42:57.615360: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
-    To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-    28/28 [==============================] - 1s 9ms/step - loss: 0.4572 - mae: 0.4918 - root_mean_squared_error: 0.6762
+    28/28 [==============================] - 1s 10ms/step - loss: 0.4494 - mae: 0.4866 - root_mean_squared_error: 0.6703
     Epoch 2/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.3185 - mae: 0.4041 - root_mean_squared_error: 0.5644
+    28/28 [==============================] - 0s 11ms/step - loss: 0.3126 - mae: 0.4035 - root_mean_squared_error: 0.5591
     Epoch 3/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.2496 - mae: 0.3529 - root_mean_squared_error: 0.4996
+    28/28 [==============================] - 0s 10ms/step - loss: 0.2481 - mae: 0.3521 - root_mean_squared_error: 0.4981
     Epoch 4/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.1986 - mae: 0.3125 - root_mean_squared_error: 0.4457
+    28/28 [==============================] - 0s 11ms/step - loss: 0.1790 - mae: 0.2945 - root_mean_squared_error: 0.4231
     Epoch 5/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.1424 - mae: 0.2617 - root_mean_squared_error: 0.3773
+    28/28 [==============================] - 0s 14ms/step - loss: 0.1272 - mae: 0.2474 - root_mean_squared_error: 0.3566
     Epoch 6/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.1000 - mae: 0.2161 - root_mean_squared_error: 0.3162
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0951 - mae: 0.2139 - root_mean_squared_error: 0.3084
     Epoch 7/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0775 - mae: 0.1903 - root_mean_squared_error: 0.2784
+    28/28 [==============================] - 0s 9ms/step - loss: 0.0838 - mae: 0.2060 - root_mean_squared_error: 0.2895
     Epoch 8/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0731 - mae: 0.1877 - root_mean_squared_error: 0.2703
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0644 - mae: 0.1754 - root_mean_squared_error: 0.2538
     Epoch 9/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.0620 - mae: 0.1725 - root_mean_squared_error: 0.2490
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0605 - mae: 0.1712 - root_mean_squared_error: 0.2459
     Epoch 10/20
-    28/28 [==============================] - 0s 8ms/step - loss: 0.0634 - mae: 0.1800 - root_mean_squared_error: 0.2518
+    28/28 [==============================] - 0s 9ms/step - loss: 0.0518 - mae: 0.1571 - root_mean_squared_error: 0.2275
     Epoch 11/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0566 - mae: 0.1640 - root_mean_squared_error: 0.2379
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0500 - mae: 0.1544 - root_mean_squared_error: 0.2237
     Epoch 12/20
-    28/28 [==============================] - 0s 12ms/step - loss: 0.0487 - mae: 0.1540 - root_mean_squared_error: 0.2206
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0426 - mae: 0.1398 - root_mean_squared_error: 0.2063
     Epoch 13/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0411 - mae: 0.1375 - root_mean_squared_error: 0.2026
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0403 - mae: 0.1379 - root_mean_squared_error: 0.2007
     Epoch 14/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0401 - mae: 0.1367 - root_mean_squared_error: 0.2003
+    28/28 [==============================] - 0s 9ms/step - loss: 0.0373 - mae: 0.1306 - root_mean_squared_error: 0.1931
     Epoch 15/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0402 - mae: 0.1386 - root_mean_squared_error: 0.2006
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0422 - mae: 0.1425 - root_mean_squared_error: 0.2055
     Epoch 16/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0390 - mae: 0.1334 - root_mean_squared_error: 0.1975
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0426 - mae: 0.1367 - root_mean_squared_error: 0.2064
     Epoch 17/20
-    28/28 [==============================] - 0s 9ms/step - loss: 0.0363 - mae: 0.1287 - root_mean_squared_error: 0.1905
+    28/28 [==============================] - 0s 9ms/step - loss: 0.0412 - mae: 0.1383 - root_mean_squared_error: 0.2030
     Epoch 18/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.0352 - mae: 0.1277 - root_mean_squared_error: 0.1876
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0368 - mae: 0.1349 - root_mean_squared_error: 0.1917
     Epoch 19/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0367 - mae: 0.1332 - root_mean_squared_error: 0.1915
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0348 - mae: 0.1280 - root_mean_squared_error: 0.1865
     Epoch 20/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.0342 - mae: 0.1274 - root_mean_squared_error: 0.1850
-    435/435 [==============================] - 1s 1ms/step - loss: 0.0350 - mae: 0.1265 - root_mean_squared_error: 0.1870
-    109/109 [==============================] - 0s 1ms/step - loss: 0.1852 - mae: 0.2996 - root_mean_squared_error: 0.4304
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0345 - mae: 0.1292 - root_mean_squared_error: 0.1857
+    435/435 [==============================] - 1s 2ms/step - loss: 0.0320 - mae: 0.1220 - root_mean_squared_error: 0.1789
+    109/109 [==============================] - 0s 2ms/step - loss: 0.2260 - mae: 0.3306 - root_mean_squared_error: 0.4754
 
 
 
 
 
-    [0.18520371615886688, 0.2996417284011841, 0.4303530156612396]
+    [0.22601395845413208, 0.33061447739601135, 0.47540923953056335]
 
 
 
@@ -226,7 +208,18 @@ col_names = X_df.columns.to_list()
 
 
 ```python
+pdp = effector.PDP(data=X_train.to_numpy(), model=model_forward)
+fig, ax = pdp.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y)
+```
 
+
+    
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_13_0.png)
+    
+
+
+
+```python
 rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac)
 binning_method = effector.binning_methods.Greedy(init_nof_bins=200, min_points_per_bin=30, discount=20, cat_limit=10)
 rhale.fit(features=3, binning_method=binning_method)
@@ -235,7 +228,7 @@ fig, ax1, ax2 = rhale.plot(feature=3, centering=True, scale_x=scale_x, scale_y=s
 
 
     
-![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_13_0.png)
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_14_0.png)
     
 
 
@@ -249,7 +242,7 @@ fig, ax1, ax2 = rhale.plot(feature=3)
 
 
     
-![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_14_0.png)
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_15_0.png)
     
 
 
@@ -263,7 +256,19 @@ fig, ax1, ax2 = rhale.plot(feature=3, scale_x=scale_x, scale_y=scale_y, centerin
 
 
     
-![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_15_0.png)
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_16_0.png)
+    
+
+
+
+```python
+pdp = effector.PDP(data=X_train.to_numpy(), model=model_forward)
+fig, ax = pdp.plot(feature=3, centering=True, confidence_interval=True, scale_x=scale_x, scale_y=scale_y)
+```
+
+
+    
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)
     
 
 
@@ -277,7 +282,7 @@ fig, ax1, ax2 = rhale.plot(feature=3, scale_x=scale_x, scale_y=scale_y, centerin
 
 
     
-![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_16_0.png)
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_18_0.png)
     
 
 
@@ -289,7 +294,7 @@ fig, ax = pdp_ice.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale
 
 
     
-![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_19_0.png)
     
 
 
@@ -310,7 +315,7 @@ rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=m
 
 
     
-![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_19_1.png)
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_21_1.png)
     
 
 
@@ -329,24 +334,23 @@ regional_rhale.print_splits(features=3, only_important=True, scale_x=scale_x_lis
     - On feature workingday (cat)
       - Candidate split positions: 0.00, 1.00
       - Position of split: 0.00
-      - Heterogeneity before split: 5.47
-      - Heterogeneity after split: 3.39
-      - Heterogeneity drop: 2.08 (61.31 %)
+      - Heterogeneity before split: 5.23
+      - Heterogeneity after split: 3.52
+      - Heterogeneity drop: 1.71 (48.39 %)
       - Number of instances before split: 13903
       - Number of instances after split: [4387, 9516]
     - On feature temp (cont)
       - Candidate split positions: 0.04, 0.09, 0.14, 0.19, 0.24, 0.29, 0.34, 0.39, 0.44, 0.49, 0.53, 0.58, 0.63, 0.68, 0.73, 0.78, 0.83, 0.88, 0.93, 0.98
       - Position of split: 0.44
-      - Heterogeneity before split: 3.39
-      - Heterogeneity after split: 2.89
-      - Heterogeneity drop: 0.50 (17.25 %)
+      - Heterogeneity before split: 3.52
+      - Heterogeneity after split: 2.97
+      - Heterogeneity drop: 0.55 (18.66 %)
       - Number of instances before split: [4387, 9516]
       - Number of instances after split: [1943, 2444, 3542, 5974]
 
-
-
 ```python
-regional_rhale.plot_first_level(feature=3, confidence_interval=True, centering=True, scale_x=scale_x_list, scale_y=scale_y)
+regional_rhale.plot_first_level(feature=3, confidence_interval=True, centering=True, scale_x_per_feature=scale_x_list,
+                                scale_y=scale_y)
 ```
 
     /home/givasile/miniconda3/envs/effector/lib/python3.9/site-packages/numpy/core/fromnumeric.py:3757: RuntimeWarning: Degrees of freedom <= 0 for slice
@@ -359,7 +363,7 @@ regional_rhale.plot_first_level(feature=3, confidence_interval=True, centering=T
 
 
     
-![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_22_1.png)
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_24_1.png)
     
 
 
@@ -373,7 +377,7 @@ regional_rhale.plot_first_level(feature=3, confidence_interval=True, centering=T
 
 
     
-![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_22_3.png)
+![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_24_3.png)
     
 
 

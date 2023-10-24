@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 
 class FeatureEffectBase(ABC):
-    empty_symbol = 1e8
+    empty_symbol = helpers.EMPTY_SYMBOL
 
     def __init__(self, axis_limits: np.ndarray) -> None:
         """
@@ -20,7 +20,7 @@ class FeatureEffectBase(ABC):
         self.dim = self.axis_limits.shape[1]
 
         # state variable
-        self.is_fitted: np.ndarray = np.ones([self.dim]) * False
+        self.is_fitted: np.ndarray = np.ones([self.dim]) < 1
 
         # parameters used when fitting the feature effect
         self.method_args: typing.Dict = {}

@@ -93,6 +93,8 @@ class PDP(FeatureEffectBase):
         confidence_interval: typing.Union[bool, str] = False,
         centering: typing.Union[bool, str] = False,
         nof_points: int = 30,
+        scale_x: typing.Union[None, dict] = None,
+        scale_y: typing.Union[None, dict] = None
     ) -> tuple[plt.Figure, plt.Axes]:
         """Plot the PDP for a single feature.
 
@@ -101,6 +103,8 @@ class PDP(FeatureEffectBase):
             confidence_interval: whether to plot the uncertainty
             centering: whether to center the PDP
             nof_points: number of points on the x-axis to evaluate the PDP on
+            scale_x: dictionary with keys "mean" and "std" for scaling the x-axis
+            scale_y: dictionary with keys "mean" and "std" for scaling the y-axis
 
         Notes:
             * If `centering` is `False`, the PDP is not centered
@@ -127,6 +131,8 @@ class PDP(FeatureEffectBase):
             centering=centering,
             y_pdp_label="PDP",
             title="PDP: feature %d" % (feature + 1),
+            scale_x=scale_x,
+            scale_y=scale_y,
         )
         return fig, ax
 
@@ -223,6 +229,8 @@ class DerivativePDP(FeatureEffectBase):
         confidence_interval: typing.Union[bool, str] = False,
         centering: typing.Union[bool, str] = False,
         nof_points: int = 30,
+        scale_x: typing.Union[None, dict] = None,
+        scale_y: typing.Union[None, dict] = None
     ) -> tuple[plt.Figure, plt.Axes]:
         """Plot the d-PDP for a single feature.
 
@@ -256,6 +264,8 @@ class DerivativePDP(FeatureEffectBase):
             centering=centering,
             y_pdp_label="d-PDP",
             title="d-PDP for feature %d" % (feature + 1),
+            scale_x=scale_x,
+            scale_y=scale_y
         )
         return fig, ax
 

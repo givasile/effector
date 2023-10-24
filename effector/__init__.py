@@ -1,4 +1,4 @@
-from effector.regional_effect import RegionalRHALE
+from effector.regional_effect import RegionalRHALE, RegionalPDP
 from effector.rhale import RHALE
 from effector.ale import ALE
 from effector.pdp import PDP, DerivativePDP, DerivativePDPwithICE, PDPwithICE

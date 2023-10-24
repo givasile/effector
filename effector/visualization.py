@@ -145,8 +145,17 @@ def ale_bins(ax2, bin_effects, bin_variance, limits, dx, error):
     ax2.legend()
 
 
-def plot_pdp(x: np.ndarray, feature: int, eval: callable, confidence_interval: typing.Union[bool, str],
-             centering: typing.Union[bool, str], y_pdp_label: str, title: str):
+def plot_pdp(
+    x: np.ndarray,
+    feature: int,
+    eval: callable,
+    confidence_interval: typing.Union[bool, str],
+    centering: typing.Union[bool, str],
+    y_pdp_label: str,
+    title: str,
+    scale_x: typing.Union[None, dict] = None,
+    scale_y: typing.Union[None, dict] = None,
+):
 
     fig, ax = plt.subplots()
     ax.set_title(title)
@@ -154,18 +163,28 @@ def plot_pdp(x: np.ndarray, feature: int, eval: callable, confidence_interval: t
     confidence_interval = helpers.prep_confidence_interval(confidence_interval)
     if confidence_interval is False:
         y = eval(feature, x, uncertainty=False, centering=centering)
+        x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
+        y = y if scale_y is None else trans_affine(y, scale_y["mean"], scale_y["std"])
         ax.plot(x, y, "b-", label=y_pdp_label)
     elif confidence_interval == "std":
         y, std, _ = eval(feature, x, uncertainty=True, centering=centering)
+        x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
+        y = y if scale_y is None else trans_affine(y, scale_y["mean"], scale_y["std"])
+        std = std if scale_y is None else trans_scale(std, scale_y["std"])
         ax.plot(x, y, "b-", label=y_pdp_label)
         ax.fill_between(
-            x, y - 2*std, y + 2*std, color="red", alpha=0.4, label="std"
+            x, y - 2 * std, y + 2 * std, color="red", alpha=0.4, label="std"
         )
     elif confidence_interval == "std_err":
         y, std, var_estimator = eval(feature, x, uncertainty=True, centering=centering)
+        x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
+        y = y if scale_y is None else trans_affine(y, scale_y["mean"], scale_y["std"])
         std_err = np.sqrt(var_estimator)
+        std_err = std_err if scale_y is None else trans_scale(std_err, scale_y["std"])
         ax.plot(x, y, "b-", label=y_pdp_label)
-        ax.fill_between(x, y - 2*std_err, y + 2*std_err, color="red", alpha=0.4, label="std_err")
+        ax.fill_between(
+            x, y - 2 * std_err, y + 2 * std_err, color="red", alpha=0.4, label="std_err"
+        )
     ax.legend()
     ax.set_xlabel("x_%d" % (feature + 1))
     ax.set_ylabel("y")
@@ -173,11 +192,24 @@ def plot_pdp(x: np.ndarray, feature: int, eval: callable, confidence_interval: t
     return fig, ax
 
 
-def plot_pdp_ice(x, feature, y_pdp, y_ice, title, centering, y_pdp_label, y_ice_label, scale_x=None, scale_y=None):
+def plot_pdp_ice(
+    x,
+    feature,
+    y_pdp,
+    y_ice,
+    title,
+    centering,
+    y_pdp_label,
+    y_ice_label,
+    scale_x=None,
+    scale_y=None,
+):
     centering = helpers.prep_centering(centering)
     fig, ax = plt.subplots()
     ax.set_title(title)
-    y_ice_outputs = np.array([y_ice[i].eval(feature, x, False, centering) for i in range(len(y_ice))])
+    y_ice_outputs = np.array(
+        [y_ice[i].eval(feature, x, False, centering) for i in range(len(y_ice))]
+    )
     y_pdp_output = y_pdp.eval(feature, x, False, centering)
 
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
@@ -201,4 +233,3 @@ def plot_pdp_ice(x, feature, y_pdp, y_ice, title, centering, y_pdp_label, y_ice_
 
     plt.show(block=False)
     return fig, ax
-

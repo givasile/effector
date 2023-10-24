@@ -71,6 +71,20 @@
       options:
         show_root_heading: True
 
+## Regional Effect Methods
+
+### ::: effector.regional_effect.RegionalRHALE
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+            - __init__
+            - fit
+            - eval
+            - plot_first_level
+            - print_splits
+
+
 ## Utils
 ### ::: effector.utils
       options:

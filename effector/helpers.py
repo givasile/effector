@@ -5,6 +5,7 @@ from effector import binning_methods as bm
 
 BIG_M = 1e8
 EPS = 1e-8
+EMPTY_SYMBOL = 1e8
 
 
 def prep_features(feat: typing.Union[str, list], D) -> list:
@@ -118,3 +119,8 @@ def prep_binning_method(method):
         return bm.Fixed()
     else:
         return method
+
+
+def get_feature_names(dim: int) -> list:
+    """Returns the feature names for the given dimensionality"""
+    return [i for i in range(dim)]

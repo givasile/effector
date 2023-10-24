@@ -21,7 +21,7 @@ class RHALE(FeatureEffectBase):
 
         Args:
             data: X matrix (N,D).
-            model: the black-box model (N,D) -> (N,)
+            model: the black-box model (N,D) -> (N, )
             model_jac: the black-box model Jacobian (N,D) -> (N,D)
             axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
             data_effect:

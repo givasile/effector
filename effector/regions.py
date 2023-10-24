@@ -7,15 +7,12 @@ from effector import helpers, utils
 BIG_M = helpers.BIG_M
 
 
-# TODO: check if I can remove model, model_jac, data, data_effect
 class Regions:
     def __init__(
         self,
         feature: int,
-        data: np.ndarray,
-        model: callable,
-        model_jac: typing.Union[callable, None],
         heter_func: callable,
+        data: np.ndarray,
         data_effect: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
         categorical_limit: int = 10,
@@ -24,20 +21,22 @@ class Regions:
         nof_candidate_splits_for_numerical=20,
         max_split_levels=2,
         heter_pcg_drop_thres=0.1,
+        heter_small_enough=0.1,
+        split_categorical_features=False,
     ):
         # setters
         self.feature = feature
         self.data = data
         self.dim = self.data.shape[1]
-        self.model = model
-        self.model_jac = model_jac
         self.cat_limit = categorical_limit
-        self.data_effect = data_effect if data_effect is not None else model_jac(data)
+        self.data_effect = data_effect
         self.min_points = min_points_per_subregion
         self.heter_func = heter_func
         self.nof_candidate_splits_for_numerical = nof_candidate_splits_for_numerical
         self.max_split_levels = max_split_levels
         self.heter_pcg_drop_thres = heter_pcg_drop_thres
+        self.heter_small_enough = heter_small_enough
+        self.split_categorical_features = split_categorical_features
 
         self.foi = self.feature
         self.foc = (
@@ -69,20 +68,26 @@ class Regions:
         """
         Iterate over all features of conditioning and choose the best split for each level in a greedy fashion.
         """
-        # TODO: add parameter for that
-        if self.feature_types[self.feature] == "cat":
+        if (
+            self.feature_types[self.feature] == "cat"
+            and not self.split_categorical_features
+        ):
             self.splits = []
         else:
             assert self.max_split_levels <= len(
                 self.foc
             ), "nof_levels must be smaller than len(foc)"
 
-            # initial heterogeneity
-            heter_init = self.heter_func(self.data, self.data_effect)
+            # initialize heterogeneity
+            heter_init = (
+                self.heter_func(self.data, self.data_effect)
+                if self.data_effect is not None
+                else self.heter_func(self.data)
+            )
 
             # initialize x_list, x_jac_list, splits
             x_list = [self.data]
-            x_jac_list = [self.data_effect]
+            x_jac_list = [self.data_effect] if self.data_effect is not None else None
             splits = [
                 {
                     "heterogeneity": [heter_init],
@@ -106,15 +111,18 @@ class Regions:
 
                 # split data and data_effect based on the optimal split found above
                 feat, pos, typ = split["feature"], split["position"], split["type"]
-                x_jac_list = self.flatten_list(
-                    [
-                        self.split_dataset(x, x_jac, feat, pos, typ)
-                        for x, x_jac in zip(x_list, x_jac_list)
-                    ]
-                )
+
                 x_list = self.flatten_list(
                     [self.split_dataset(x, None, feat, pos, typ) for x in x_list]
                 )
+
+                if x_jac_list is not None:
+                    x_jac_list = self.flatten_list(
+                        [
+                            self.split_dataset(x, x_jac, feat, pos, typ)
+                            for x, x_jac in zip(x_list, x_jac_list)
+                        ]
+                    )
                 self.splits = splits
 
         # update state
@@ -124,7 +132,7 @@ class Regions:
     def single_level_splits(
         self,
         x_list: list,
-        x_jac_list: list,
+        x_jac_list: typing.Union[list, None],
         heter_before: list,
     ):
         """Find all splits for a single level."""
@@ -165,17 +173,22 @@ class Regions:
                         for x in x_list
                     ]
                 )
-                x_jac_list_2 = self.flatten_list(
-                    [
-                        self.split_dataset(x, x_jac, foc_i, position, foc_types[i])
-                        for x, x_jac in zip(x_list, x_jac_list)
-                    ]
-                )
+                if x_jac_list is not None:
+                    x_jac_list_2 = self.flatten_list(
+                        [
+                            self.split_dataset(x, x_jac, foc_i, position, foc_types[i])
+                            for x, x_jac in zip(x_list, x_jac_list)
+                        ]
+                    )
 
                 # sub_heter: list with the heterogeneity after split of foc_i at position j
-                sub_heter = [
-                    heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
-                ]
+                if x_jac_list is None:
+                    sub_heter = [heter_func(x) for x in x_list_2]
+                else:
+                    sub_heter = [
+                        heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
+                    ]
+
                 # heter_drop: list with the heterogeneity drop after split of foc_i at position j
                 heter_drop = np.array(
                     self.flatten_list(
@@ -211,14 +224,22 @@ class Regions:
                 for x in x_list
             ]
         )
-        x_jac_list_2 = self.flatten_list(
-            [
-                self.split_dataset(x, x_jac, foc[i], position, foc_types[i])
-                for x, x_jac in zip(x_list, x_jac_list)
-            ]
-        )
+
         nof_instances = [len(x) for x in x_list_2]
-        sub_heter = [heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)]
+        if x_jac_list is None:
+            sub_heter = [heter_func(x) for x in x_list_2]
+        else:
+            x_jac_list_2 = self.flatten_list(
+                [
+                    self.split_dataset(x, x_jac, foc[i], position, foc_types[i])
+                    for x, x_jac in zip(x_list, x_jac_list)
+                ]
+            )
+
+            sub_heter = [
+                heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
+            ]
+
         split = {
             "feature": feature,
             "position": position,
@@ -234,7 +255,7 @@ class Regions:
         }
         return split
 
-    def choose_important_splits(self, heter_thres=0.1):
+    def choose_important_splits(self):
         assert self.split_found, "No splits found for feature {}".format(self.feature)
 
         # if split is empy, skip
@@ -244,7 +265,7 @@ class Regions:
         elif self.splits[0]["weighted_heter"] == BIG_M:
             optimal_splits = {}
         # if initial heterogeneity is small right from the beginning, skip
-        elif self.splits[0]["weighted_heter"] < heter_thres:
+        elif self.splits[0]["weighted_heter"] < self.heter_small_enough:
             optimal_splits = {}
         else:
             splits = self.splits
@@ -268,13 +289,12 @@ class Regions:
                 if first_negative == 0:
                     optimal_splits = {}
                 else:
-                    optimal_splits = splits[1: first_negative + 1]
+                    optimal_splits = splits[1 : first_negative + 1]
 
         # update state variable
         self.important_splits_selected = True
         self.important_splits = optimal_splits
         return optimal_splits
-
 
     def split_dataset(self, x, x_jac, feature, position, feat_type):
         if feat_type == "cat":

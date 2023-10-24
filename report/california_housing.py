@@ -194,4 +194,4 @@ title = "\nGAM (with interactions)"
 gam_int = ExplainableBoostingRegressor()
 fit_eval_gam(title, gam_int, X_train, Y_train, X_test, Y_test)
 
-plot_subregions(splits=reg.important_splits, feat=0, feat_ram=[0, 1], X_train=X_train, model=model, model_jac=model_jac, gam=gam_no_int, ram=ram_no_int)
+plot_subregions(splits=reg.splts_per_feature_only_important, feat=0, feat_ram=[0, 1], X_train=X_train, model=model, model_jac=model_jac, gam=gam_no_int, ram=ram_no_int)
