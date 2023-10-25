@@ -457,13 +457,10 @@ So why not use PDP-ICE instead of trying these sophisticate ALE approximations?
 The short is yes, especially in cases where the features are correlated. 
 Both, PDP and ICE make an implicit assumption that the features are independent. 
 In cases where this assumption is highly-violated, PDP and ICE may lead to wrong conclusions.
-In our example, it is clear that $x_3$ is highly-dependent on $x_1$. So let's see what happens with PDP-ICE. 
-
-
-
+In our example, it is clear that $x_3$ is highly-dependent on $x_1$. So let's see what happens with PDP-ICE.
 
 ```python
-fig, ax = effector.PDPwithICE(data=x, model=f, nof_instances=30).plot(feature=0, centering=True)
+fig, ax = effector.PDP(data=x, model=f, nof_instances=30).plot(feature=0, centering=True)
 ```
 
 

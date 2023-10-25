@@ -206,20 +206,16 @@ For example in the plot below, we can see that there so no heterogeneity in the 
 However, be careful that this is more obvious using the argument `centering=True`.
 If we omit centering, the instance-level effects may create the illusion of heterogeneity, although if with a closer look we can see that all ICE plots are lines with gradient 7.
 
-
 ```python
-fig, ax = effector.PDPwithICE(data=X, model=predict).plot(feature=0, centering=True)
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=True)
 ```
 
 
     
 ![png](01_linear_model_files/01_linear_model_13_0.png)
-    
-
-
 
 ```python
-fig, ax = effector.PDPwithICE(data=X, model=predict).plot(feature=0, centering=False)
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=False)
 ```
 
 

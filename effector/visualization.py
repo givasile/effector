@@ -110,27 +110,27 @@ def ale_curve(ax1, x, y, std_err, std, error=None, avg_output=None):
     if avg_output is not None:
         ax1.axhline(y=avg_output, color="black", linestyle="--", label="avg output")
 
-    if error == "std":
-        ax1.fill_between(x, y - std, y + std, color="red", alpha=0.2, label="std")
-    elif error == "stderr":
-        ax1.fill_between(
-            x,
-            y - 2 * std_err,
-            y + 2 * std_err,
-            color="red",
-            alpha=0.6,
-            label="standard error",
-        )
-    elif error == "both":
-        ax1.fill_between(x, y - std, y + std, color="red", alpha=0.2, label="std")
-        ax1.fill_between(
-            x,
-            y - np.sqrt(std_err),
-            y + np.sqrt(std_err),
-            color="red",
-            alpha=0.6,
-            label="standard error",
-        )
+    # if error == "std":
+    #     ax1.fill_between(x, y - std, y + std, color="red", alpha=0.2, label="std")
+    # elif error == "stderr":
+    #     ax1.fill_between(
+    #         x,
+    #         y - std_err,
+    #         y + std_err,
+    #         color="red",
+    #         alpha=0.6,
+    #         label="standard error",
+    #     )
+    # elif error == "both":
+    #     ax1.fill_between(x, y - std, y + std, color="red", alpha=0.2, label="std")
+    #     ax1.fill_between(
+    #         x,
+    #         y - np.sqrt(std_err),
+    #         y + np.sqrt(std_err),
+    #         color="red",
+    #         alpha=0.6,
+    #         label="standard error",
+    #     )
     ax1.legend()
 
 
@@ -150,146 +150,95 @@ def ale_bins(ax2, bin_effects, bin_variance, limits, dx, error):
     ax2.legend()
 
 
-def plot_pdp(
-    x: np.ndarray,
-    feature: int,
-    eval: callable,
-    confidence_interval: typing.Union[bool, str],
-    centering: typing.Union[bool, str],
-    y_pdp_label: str,
-    title: str,
-    scale_x: typing.Union[None, dict] = None,
-    scale_y: typing.Union[None, dict] = None,
-    feature_names: typing.Union[None, list] = None,
-    target_name: typing.Union[None, str] = None,
-    avg_output: typing.Union[None, float] = None,
-):
-
-    fig, ax = plt.subplots()
-    ax.set_title(title)
-
-    confidence_interval = helpers.prep_confidence_interval(confidence_interval)
-    if confidence_interval is False:
-        y = eval(feature, x, uncertainty=False, centering=centering)
-        x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
-        y = y if scale_y is None else trans_affine(y, scale_y["mean"], scale_y["std"])
-        ax.plot(x, y, "b-", label=y_pdp_label)
-    elif confidence_interval == "std":
-        y, std, _ = eval(feature, x, uncertainty=True, centering=centering)
-        x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
-        y = y if scale_y is None else trans_affine(y, scale_y["mean"], scale_y["std"])
-        std = std if scale_y is None else trans_scale(std, scale_y["std"])
-        ax.plot(x, y, "b-", label=y_pdp_label)
-        ax.fill_between(
-            x, y - 2 * std, y + 2 * std, color="red", alpha=0.4, label="std"
-        )
-    elif confidence_interval == "std_err":
-        y, std, var_estimator = eval(feature, x, uncertainty=True, centering=centering)
-        x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
-        y = y if scale_y is None else trans_affine(y, scale_y["mean"], scale_y["std"])
-        std_err = np.sqrt(var_estimator)
-        std_err = std_err if scale_y is None else trans_scale(std_err, scale_y["std"])
-        ax.plot(x, y, "b-", label=y_pdp_label)
-        ax.fill_between(
-            x, y - 2 * std_err, y + 2 * std_err, color="red", alpha=0.4, label="std_err"
-        )
-
-    if avg_output is not None:
-        ax.axhline(y=avg_output, color="black", linestyle="--", label="avg output")
-
-    ax.legend()
-    ax.set_xlabel("x_%d" % (feature + 1)) if feature_names is None else ax.set_xlabel(
-        feature_names[feature]
-    )
-    ax.set_ylabel("y") if target_name is None else ax.set_ylabel(target_name)
-    plt.show(block=False)
-    return fig, ax
-
-
-def plot_pdp_ice(
-    x,
-    feature,
-    y_pdp,
-    y_ice,
-    title,
-    centering,
-    y_pdp_label,
-    y_ice_label,
-    scale_x=None,
-    scale_y=None,
-):
-    centering = helpers.prep_centering(centering)
-    fig, ax = plt.subplots()
-    ax.set_title(title)
-    y_ice_outputs = np.array(
-        [y_ice[i].eval(feature, x, False, centering) for i in range(len(y_ice))]
-    )
-    y_pdp_output = y_pdp.eval(feature, x, False, centering)
-
-    x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
-    y_pdp_output = (
-        y_pdp_output
-        if scale_y is None
-        else trans_affine(y_pdp_output, scale_y["mean"], scale_y["std"])
-    )
-    y_ice_outputs = (
-        y_ice_outputs
-        if scale_y is None
-        else trans_affine(y_ice_outputs, scale_y["mean"], scale_y["std"])
-    )
-
-    ax.plot(x, y_ice_outputs[0, :], color="red", alpha=0.1, label=y_pdp_label)
-    ax.plot(x, y_ice_outputs.T, color="red", alpha=0.1)
-    ax.plot(x, y_pdp_output, color="blue", label=y_ice_label)
-    ax.set_xlabel("feature %d" % (feature + 1))
-    ax.set_ylabel("y")
-    ax.legend()
-
-    plt.show(block=False)
-    return fig, ax
-
-
 def plot_pdp_ice_2(
     x,
     feature,
     yy,
     title,
+    confidence_interval,
     y_pdp_label,
     y_ice_label,
-    scale_x=None,
-    scale_y=None,
-    avg_output=None,
+    scale_x: typing.Union[None, dict] = None,
+    scale_y: typing.Union[None, dict] = None,
+    avg_output: typing.Union[None, float] = None,
     feature_names: typing.Union[None, list] = None,
     target_name: typing.Union[None, str] = None,
+    is_derivative: bool = False,
+    nof_ice: typing.Union[str, int] = "all",
 ):
 
     fig, ax = plt.subplots()
     ax.set_title(title)
 
     y_pdp_output = np.mean(yy, axis=1)
+
+    # choose nof_ice randomly
+    if nof_ice is not "all":
+        if nof_ice > yy.shape[1]:
+            nof_ice = yy.shape[1]
+
     y_ice_outputs = yy
+    std = np.std(y_ice_outputs, axis=1)
+    std_err = np.sqrt(np.var(y_ice_outputs, axis=1))
 
+    # scale x-axis
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
-    y_pdp_output = (
-        y_pdp_output
-        if scale_y is None
-        else trans_affine(y_pdp_output, scale_y["mean"], scale_y["std"])
-    )
-    y_ice_outputs = (
-        y_ice_outputs
-        if scale_y is None
-        else trans_affine(y_ice_outputs, scale_y["mean"], scale_y["std"])
-    )
 
-    ax.plot(x, y_ice_outputs[:, 0], color="red", alpha=0.1, label=y_ice_label)
-    ax.plot(x, y_ice_outputs, color="red", alpha=0.1)
-    ax.plot(x, y_pdp_output, color="blue", label=y_pdp_label)
+    # scale y-axis
+    if scale_y is not None:
+        std = trans_scale(std, scale_y["std"], square=False)
+        std_err = trans_scale(std_err, scale_y["std"], square=False)
+        if is_derivative:
+            y_pdp_output = trans_scale(y_pdp_output, scale_y["std"], square=False)
+            y_ice_outputs = trans_scale(y_ice_outputs, scale_y["std"], square=False)
+        elif not is_derivative:
+            y_pdp_output = trans_affine(y_pdp_output, scale_y["mean"], scale_y["std"])
+            y_ice_outputs = trans_affine(y_ice_outputs, scale_y["mean"], scale_y["std"])
+
+    if avg_output is not None and scale_y is not None:
+        if not is_derivative:
+            avg_output = trans_affine(avg_output, scale_y["mean"], scale_y["std"])
+        elif is_derivative:
+            avg_output = trans_scale(avg_output, scale_y["std"], square=False)
+
+    # plot
+    if confidence_interval == "std":
+        std = np.std(y_ice_outputs, axis=1)
+        ax.fill_between(
+            x,
+            y_pdp_output - std,
+            y_pdp_output + std,
+            color="red",
+            alpha=0.4,
+            label="std",
+        )
+    elif confidence_interval == "std_err":
+        ax.fill_between(
+            x,
+            y_pdp_output - std_err,
+            y_pdp_output + std_err,
+            color="red",
+            alpha=0.4,
+            label="std_err",
+        )
+    elif confidence_interval == "ice":
+        y_ice_outputs = y_ice_outputs if nof_ice == "all" else y_ice_outputs[:, np.random.choice(range(y_ice_outputs.shape[1]), size=nof_ice, replace=False)]
+        ax.plot(x, y_ice_outputs[:, 0], color="red", alpha=0.1, label=y_ice_label)
+        ax.plot(x, y_ice_outputs, color="red", alpha=0.1)
+
+    ax.plot(x, y_pdp_output, "b-", label=y_pdp_label)
+
     if avg_output is not None:
         ax.axhline(y=avg_output, color="black", linestyle="--", label="avg output")
 
-    feature_name = "x_%d" % (feature + 1) if feature_names is None else feature_names[feature]
+    feature_name = (
+        "x_%d" % (feature + 1) if feature_names is None else feature_names[feature]
+    )
     ax.set_xlabel(feature_name)
-    ax.set_ylabel("y") if target_name is None else ax.set_ylabel(target_name)
+    if is_derivative:
+        ax.set_ylabel("dy/dx")
+    else:
+        ax.set_ylabel("y") if target_name is None else ax.set_ylabel(target_name)
     ax.legend()
 
     plt.show(block=False)

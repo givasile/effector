@@ -185,9 +185,8 @@ rhale.fit(features=3, binning_method=binning_method)
 fig, ax1, ax2 = rhale.plot(feature=3, scale_x=scale_x, scale_y=scale_y, centering=True, confidence_interval=True)
 ```
 
-
 ```python
-pdp_ice = effector.PDPwithICE(data=X_train.to_numpy(), model=model_forward)
+pdp_ice = effector.PDP(data=X_train.to_numpy(), model=model_forward)
 fig, ax = pdp_ice.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y)
 ```
 
