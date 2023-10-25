@@ -13,6 +13,9 @@ class ALE(GlobalEffect):
         data: np.ndarray,
         model: callable,
         axis_limits: typing.Union[None, np.ndarray] = None,
+        avg_output: typing.Union[None, float] = None,
+        feature_names: typing.Union[None, list] = None,
+        target_name: typing.Union[None, str] = None
     ):
         """
         ALE constructor.
@@ -33,7 +36,7 @@ class ALE(GlobalEffect):
             helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
         )
 
-        super(ALE, self).__init__(axis_limits)
+        super(ALE, self).__init__(data, model, axis_limits, avg_output, feature_names, target_name)
 
     def _fit_feature(self, feature: int, binning_method="fixed") -> typing.Dict:
 

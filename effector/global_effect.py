@@ -8,7 +8,15 @@ from abc import ABC, abstractmethod
 class GlobalEffect(ABC):
     empty_symbol = helpers.EMPTY_SYMBOL
 
-    def __init__(self, axis_limits: np.ndarray) -> None:
+    def __init__(
+        self,
+        data: np.ndarray,
+        model: typing.Callable,
+        axis_limits: np.ndarray,
+        avg_output: typing.Union[None, float] = None,
+        feature_names: typing.Union[None, list] = None,
+        target_name: typing.Union[None, str] = None,
+    ) -> None:
         """
         Constructor for the FeatureEffectBase class.
 
@@ -16,8 +24,24 @@ class GlobalEffect(ABC):
             axis_limits: The axis limits defined as start and stop values for each axis, (2, D)
 
         """
+        assert data.ndim == 2
+        self.data: np.ndarray = data
+        self.dim = self.data.shape[1]
+
+        self.model: typing.Callable = model
+
+        # TODO: find more elegant way if self.data is very large
+        self.avg_output = (
+            avg_output if avg_output is not None else np.mean(self.model(self.data))
+        )
+
+        axis_limits = (
+            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+        )
         self.axis_limits: np.ndarray = axis_limits
-        self.dim = self.axis_limits.shape[1]
+
+        self.feature_names: typing.Union[None, list] = feature_names
+        self.target_name: typing.Union[None, str] = target_name
 
         # state variable
         self.is_fitted: np.ndarray = np.ones([self.dim]) < 1
@@ -31,11 +55,9 @@ class GlobalEffect(ABC):
         # dictionary with all the information required for plotting or evaluating the feature effect
         self.feature_effect: typing.Dict = {}
 
-    def _eval_unnorm(self,
-                     feature: int,
-                     x: np.ndarray,
-                     uncertainty: bool = False
-                     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    def _eval_unnorm(
+        self, feature: int, x: np.ndarray, uncertainty: bool = False
+    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """
         Compute the effect of the s-th feature at positions `x`.
 
@@ -82,13 +104,15 @@ class GlobalEffect(ABC):
         """
         raise NotImplementedError
 
-    def _compute_norm_const(self, feature: int, method: str = "zero_integral", nof_points: int = 100) -> float:
-        """Compute the normalization constant.
-        """
+    def _compute_norm_const(
+        self, feature: int, method: str = "zero_integral", nof_points: int = 100
+    ) -> float:
+        """Compute the normalization constant."""
         assert method in ["zero_integral", "zero_start"]
 
         def create_partial_eval(feature):
             return lambda x: self._eval_unnorm(feature, x, uncertainty=False)
+
         partial_eval = create_partial_eval(feature)
         start = self.axis_limits[0, feature]
         stop = self.axis_limits[1, feature]
@@ -99,12 +123,13 @@ class GlobalEffect(ABC):
             z = partial_eval(np.array([start])).item()
         return z
 
-    def eval(self,
-             feature: int,
-             xs: np.ndarray,
-             uncertainty: bool = False,
-             centering: typing.Union[bool, str] = False
-             ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    def eval(
+        self,
+        feature: int,
+        xs: np.ndarray,
+        uncertainty: bool = False,
+        centering: typing.Union[bool, str] = False,
+    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
 
         Notes:
@@ -139,13 +164,19 @@ class GlobalEffect(ABC):
         # Fit the feature if not already fitted
         if not self.is_fitted[feature]:
             arg_list = self.fit.__code__.co_varnames
-            self.fit(features=feature, centering=centering) if "centering" in arg_list else self.fit(features=feature)
+            self.fit(
+                features=feature, centering=centering
+            ) if "centering" in arg_list else self.fit(features=feature)
 
         # Evaluate the feature
         yy = self._eval_unnorm(feature, xs, uncertainty=uncertainty)
         y, std, estimator_var = yy if uncertainty else (yy, None, None)
 
         # Center if asked
-        y = y - self.norm_const[feature] if self.norm_const[feature] != self.empty_symbol and centering else y
+        y = (
+            y - self.norm_const[feature]
+            if self.norm_const[feature] != self.empty_symbol and centering
+            else y
+        )
 
         return (y, std, estimator_var) if uncertainty is not False else y

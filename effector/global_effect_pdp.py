@@ -7,13 +7,18 @@ from effector.global_effect import GlobalEffect
 import matplotlib.pyplot as plt
 
 
+# TODO: think if I want to merge PDP with PDP-ICE
+# TODO: fix documentation
 class PDP(GlobalEffect):
     def __init__(
         self,
         data: np.ndarray,
         model: callable,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        nof_instances: typing.Union[int, str] = 1000,
+        avg_output: typing.Union[None, float] = None,
+        feature_names: typing.Union[None, list] = None,
+        target_name: typing.Union[None, str] = None,
+        nof_instances: typing.Union[int, str] = "all",
     ):
         """
         Initializes the PDP class.
@@ -34,17 +39,13 @@ class PDP(GlobalEffect):
         assert data.ndim == 2
 
         # setters
-        self.model = model
         self.nof_instances, self.indices = helpers.prep_nof_instances(
             nof_instances, data.shape[0]
         )
-        self.data = data[self.indices, :]
-        self.D = data.shape[1]
-
-        axis_limits = (
-            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+        data = data[self.indices, :]
+        super(PDP, self).__init__(
+            data, model, axis_limits, avg_output, feature_names, target_name
         )
-        super(PDP, self).__init__(axis_limits)
 
     def fit(
         self,
@@ -97,6 +98,7 @@ class PDP(GlobalEffect):
         nof_points: int = 30,
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
+        show_avg_output: bool = True,
     ) -> tuple[plt.Figure, plt.Axes]:
         """Plot the PDP for a single feature.
 
@@ -107,6 +109,7 @@ class PDP(GlobalEffect):
             nof_points: number of points on the x-axis to evaluate the PDP on
             scale_x: dictionary with keys "mean" and "std" for scaling the x-axis
             scale_y: dictionary with keys "mean" and "std" for scaling the y-axis
+            show_avg_output: whether to show the average output of the model
 
         Notes:
             * If `centering` is `False`, the PDP is not centered
@@ -125,21 +128,40 @@ class PDP(GlobalEffect):
             self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
         )
         func = self.eval
+
+        if show_avg_output:
+            avg_output = (
+                self.avg_output
+                if self.avg_output is not None
+                else np.mean(self.model(self.data))
+            )
+            avg_output = (
+                avg_output * scale_y["std"] + scale_y["mean"]
+                if scale_y is not None
+                else avg_output
+            )
+        else:
+            avg_output = None
+
         fig, ax = vis.plot_pdp(
             x,
             feature,
             func,
             confidence_interval=confidence_interval,
             centering=centering,
-            y_pdp_label="PDP",
-            title="PDP: feature %d" % (feature + 1),
+            y_pdp_label="global effect",
+            title="PDPlot",
             scale_x=scale_x,
             scale_y=scale_y,
+            feature_names=self.feature_names,
+            target_name=self.target_name,
+            avg_output=avg_output,
         )
         return fig, ax
 
 
 # TODO: expand the class to work even without passing the model_jac
+# TODO: add naming conventions (feature_names, target_name)
 class DerivativePDP(GlobalEffect):
     def __init__(
         self,
@@ -147,6 +169,8 @@ class DerivativePDP(GlobalEffect):
         model: callable,
         model_jac: callable,
         axis_limits: typing.Union[None, np.ndarray] = None,
+        feature_names: typing.Union[None, list] = None,
+        target_name: typing.Union[None, str] = None,
         nof_instances: typing.Union[int, str] = "all",
     ):
         """
@@ -182,7 +206,9 @@ class DerivativePDP(GlobalEffect):
             if axis_limits is None
             else axis_limits
         )
-        super(DerivativePDP, self).__init__(axis_limits)
+        super(DerivativePDP, self).__init__(
+            data, model, axis_limits, 0, feature_names, target_name
+        )
 
     def fit(
         self,
@@ -272,6 +298,9 @@ class DerivativePDP(GlobalEffect):
         return fig, ax
 
 
+# TODO: add naming conventions (feature_names, target_name)
+# TODO: add avg_output
+# TODO: think if I want to merge PDP with PDP-ICE
 class PDPwithICE:
     def __init__(
         self,
@@ -279,6 +308,9 @@ class PDPwithICE:
         model: callable,
         axis_limits: typing.Union[None, np.ndarray] = None,
         nof_instances: typing.Union[int, str] = 100,
+        avg_output: typing.Union[None, float] = None,
+        feature_names: typing.Union[None, list] = None,
+        target_name: typing.Union[None, str] = None,
     ):
         """
         Initializes the PDPwithICE class.
@@ -316,16 +348,11 @@ class PDPwithICE:
             helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
         )
 
-        # self.y_pdp = PDP(
-        #     data=self.data,
-        #     model=model,
-        #     axis_limits=self.axis_limits,
-        #     nof_instances="all",
-        # )
-        # self.y_ice = [
-        #     PDP(data=self.data[i, None, :], model=model, axis_limits=self.axis_limits)
-        #     for i in range(nof_instances)
-        # ]
+        self.feature_names: typing.Union[None, list] = feature_names
+        self.target_name: typing.Union[None, str] = target_name
+        self.avg_output = (
+            avg_output if avg_output is not None else np.mean(self.model(self.data))
+        )
 
         self.feature_effect: typing.Dict = {}
 
@@ -391,7 +418,7 @@ class PDPwithICE:
         xs: np.ndarray,
         uncertainty: bool = False,
         centering: typing.Union[bool, str] = False,
-        return_all: bool = False
+        return_all: bool = False,
     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
 
@@ -434,7 +461,9 @@ class PDPwithICE:
         yy = pdp_1d_vectorized(self.model, self.data, xs, feature, False, False, True)
 
         if centering:
-            norm_consts = np.expand_dims(self.feature_effect["feature_3"]["norm_const"], axis=0)
+            norm_consts = np.expand_dims(
+                self.feature_effect["feature_3"]["norm_const"], axis=0
+            )
             yy = yy - norm_consts
 
         y_pdp = np.mean(yy, axis=1)
@@ -448,7 +477,6 @@ class PDPwithICE:
             return y_pdp, std, estimator_var
         else:
             return y_pdp
-
 
     def plot(
         self,
@@ -476,8 +504,10 @@ class PDPwithICE:
             self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
         )
 
-        yy = self.eval(feature, x, uncertainty=False, centering=centering, return_all=True)
-        title = "PDP-ICE: feature %d" % (feature + 1)
+        yy = self.eval(
+            feature, x, uncertainty=False, centering=centering, return_all=True
+        )
+        title = "PDP-ICE Plot"
         fig, ax = vis.plot_pdp_ice_2(
             x,
             feature,
@@ -491,6 +521,8 @@ class PDPwithICE:
         return fig, ax
 
 
+# TODO: add naming conventions (feature_names, target_name)
+# TODO: think if I want to merge DerivativePDP with DerivativePDP-ICE
 class DerivativePDPwithICE:
     def __init__(
         self,
@@ -498,6 +530,8 @@ class DerivativePDPwithICE:
         model: callable,
         model_jac: callable,
         axis_limits: typing.Union[None, np.ndarray] = None,
+        feature_names: typing.Union[None, list] = None,
+        target_name: typing.Union[None, str] = None,
         nof_instances: typing.Union[int, str] = 100,
     ):
         # assertions
@@ -519,6 +553,8 @@ class DerivativePDPwithICE:
             model=model,
             model_jac=model_jac,
             axis_limits=self.axis_limits,
+            feature_names=feature_names,
+            target_name=target_name,
             nof_instances="all",
         )
         self.y_dice = [
@@ -527,6 +563,8 @@ class DerivativePDPwithICE:
                 model=model,
                 model_jac=model_jac,
                 axis_limits=self.axis_limits,
+                feature_names=feature_names,
+                target_name=target_name,
             )
             for i in range(nof_instances)
         ]
@@ -595,6 +633,7 @@ class DerivativePDPwithICE:
             y_ice_label="d-ICE",
             scale_x=scale_x,
             scale_y=scale_y,
+
         )
         return fig, ax
 

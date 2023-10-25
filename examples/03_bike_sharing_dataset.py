@@ -46,7 +46,7 @@ def preprocess(df):
 # shuffle and standarize all features
 X_df, Y_df, x_mean, x_std, y_mean, y_std = preprocess(df)
 col_names = X_df.columns.to_list()
-
+target_name = "bike-rentals"
 
 def split(X_df, Y_df):
     # data split

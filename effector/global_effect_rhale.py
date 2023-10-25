@@ -7,6 +7,7 @@ from effector.global_effect import GlobalEffect
 import numpy as np
 
 
+# TODO: add naming convention for plot (feature_names, target_name, etc.)
 class RHALE(GlobalEffect):
     def __init__(
         self,
@@ -15,6 +16,9 @@ class RHALE(GlobalEffect):
         model_jac: typing.Union[None, callable],
         axis_limits: typing.Union[None, np.ndarray] = None,
         data_effect: typing.Union[None, np.ndarray] = None,
+        avg_output: typing.Union[None, float] = None,
+        feature_names: typing.Union[None, list] = None,
+        target_name: typing.Union[None, str] = None,
     ):
         """
         RHALE constructor.
@@ -29,22 +33,15 @@ class RHALE(GlobalEffect):
                 - if None, the model Jacobian will be computed on the data points using model_jac
 
         """
-        # assertions
-        assert data.ndim == 2
         assert (model_jac is not None) or (data_effect is not None)
-
-        # setters
-        self.model = model
         self.model_jac = model_jac
-        self.data = data
-        axis_limits = (
-            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
-        )
-
-        super(RHALE, self).__init__(axis_limits)
 
         # if data_effect is None, it will be computed after compile
         self.data_effect = data_effect
+
+        super(RHALE, self).__init__(
+            data, model, axis_limits, avg_output, feature_names, target_name
+        )
 
     def compile(self):
         """Prepare everything for fitting, i.e., compute the gradients on data points.
@@ -94,7 +91,9 @@ class RHALE(GlobalEffect):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
-        binning_method: typing.Union[str, bm.DynamicProgramming, bm.Greedy, bm.Fixed] = "greedy",
+        binning_method: typing.Union[
+            str, bm.DynamicProgramming, bm.Greedy, bm.Fixed
+        ] = "greedy",
         centering: typing.Union[bool, str] = "zero_integral",
     ) -> None:
         """Fit the model.
@@ -153,7 +152,7 @@ class RHALE(GlobalEffect):
         centering: typing.Union[bool, str] = False,
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
-        title: typing.Union[None, str] = None,
+        show_avg_output: bool = True,
     ):
         """
         Plot the ALE plot for a given feature.
@@ -178,7 +177,6 @@ class RHALE(GlobalEffect):
                 - If set to a dict, the y-axis will be scaled by the standard deviation and the mean.
 
             title: None or str
-
                 - If set to None, the default title will be shown.
                 - If set to a str, the title will be shown.
         """
@@ -190,6 +188,8 @@ class RHALE(GlobalEffect):
             feature, np.array([self.axis_limits[0, feature]]), centering=centering
         )
 
+        avg_output = helpers.prep_avg_output(self.data, self.model, show_avg_output, self.avg_output, scale_y)
+
         fig, ax1, ax2 = vis.ale_plot(
             self.feature_effect["feature_" + str(feature)],
             self.eval,
@@ -198,6 +198,9 @@ class RHALE(GlobalEffect):
             error=confidence_interval,
             scale_x=scale_x,
             scale_y=scale_y,
-            title=title,
+            title="RHALE Plot",
+            avg_output=avg_output,
+            feature_names=self.feature_names,
+            target_name=self.target_name
         )
         return fig, ax1, ax2

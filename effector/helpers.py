@@ -124,3 +124,12 @@ def prep_binning_method(method):
 def get_feature_names(dim: int) -> list:
     """Returns the feature names for the given dimensionality"""
     return [i for i in range(dim)]
+
+
+def prep_avg_output(data, model, show_avg_output, avg_output, scale_y) -> float:
+    if show_avg_output:
+        avg_output = avg_output if avg_output is not None else np.mean(model(data))
+        avg_output = avg_output * scale_y["std"] + scale_y["mean"] if scale_y is not None else avg_output
+    else:
+        avg_output = None
+    return avg_output

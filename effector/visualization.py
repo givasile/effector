@@ -27,6 +27,9 @@ def ale_plot(
     scale_x: typing.Union[None, dict] = None,
     scale_y: typing.Union[None, dict] = None,
     title: typing.Union[None, str] = None,
+    avg_output: typing.Union[None, float] = None,
+    feature_names: typing.Union[None, list] = None,
+    target_name: typing.Union[None, str] = None,
 ):
     """
 
@@ -82,31 +85,33 @@ def ale_plot(
     # PLOT
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
     if title is None:
-        ax1.set_title("ALE plot for: $x_{" + str(feature + 1) + "}$")
+        ax1.set_title("ALE plot")
     else:
         ax1.set_title(title)
 
     # first subplot
-    ale_curve(ax1, x, y, std_err, std, error=error)
+    ale_curve(ax1, x, y, std_err, std, error=error, avg_output=avg_output)
 
     # second subplot
     ale_bins(ax2, bin_effect, bin_variance, limits, dx, error)
 
-    ax1.set_ylabel("y")
-    ax2.set_xlabel("x_%d" % (feature + 1))
-    ax2.set_ylabel("dy/dx_%d" % (feature + 1))
+    ax1.set_ylabel("y") if target_name is None else ax1.set_ylabel(target_name)
+
+    x_name = "x_%d" % (feature + 1) if feature_names is None else feature_names[feature]
+    ax2.set_xlabel(x_name)
+    ax2.set_ylabel("dy/dx")
 
     plt.show(block=False)
     return fig, ax1, ax2
 
 
-def ale_curve(ax1, x, y, std_err, std, error=None):
-    ax1.plot(x, y, "b--", label="$\hat{f}_{\mu}$")
+def ale_curve(ax1, x, y, std_err, std, error=None, avg_output=None):
+    ax1.plot(x, y, "b--", label="global effect")
+    if avg_output is not None:
+        ax1.axhline(y=avg_output, color="black", linestyle="--", label="avg output")
 
     if error == "std":
-        ax1.fill_between(
-            x, y - std, y + std, color="red", alpha=0.2, label="$\hat{f}_{\sigma}$"
-        )
+        ax1.fill_between(x, y - std, y + std, color="red", alpha=0.2, label="std")
     elif error == "stderr":
         ax1.fill_between(
             x,
@@ -140,7 +145,7 @@ def ale_bins(ax2, bin_effects, bin_variance, limits, dx, error):
         edgecolor="blue",
         yerr=yerr,
         ecolor="red",
-        label="$\hat{\mu}_k$",
+        label="dy_dx",
     )
     ax2.legend()
 
@@ -155,6 +160,9 @@ def plot_pdp(
     title: str,
     scale_x: typing.Union[None, dict] = None,
     scale_y: typing.Union[None, dict] = None,
+    feature_names: typing.Union[None, list] = None,
+    target_name: typing.Union[None, str] = None,
+    avg_output: typing.Union[None, float] = None,
 ):
 
     fig, ax = plt.subplots()
@@ -185,9 +193,15 @@ def plot_pdp(
         ax.fill_between(
             x, y - 2 * std_err, y + 2 * std_err, color="red", alpha=0.4, label="std_err"
         )
+
+    if avg_output is not None:
+        ax.axhline(y=avg_output, color="black", linestyle="--", label="avg output")
+
     ax.legend()
-    ax.set_xlabel("x_%d" % (feature + 1))
-    ax.set_ylabel("y")
+    ax.set_xlabel("x_%d" % (feature + 1)) if feature_names is None else ax.set_xlabel(
+        feature_names[feature]
+    )
+    ax.set_ylabel("y") if target_name is None else ax.set_ylabel(target_name)
     plt.show(block=False)
     return fig, ax
 
@@ -244,6 +258,9 @@ def plot_pdp_ice_2(
     y_ice_label,
     scale_x=None,
     scale_y=None,
+    avg_output=None,
+    feature_names: typing.Union[None, list] = None,
+    target_name: typing.Union[None, str] = None,
 ):
 
     fig, ax = plt.subplots()
@@ -251,10 +268,6 @@ def plot_pdp_ice_2(
 
     y_pdp_output = np.mean(yy, axis=1)
     y_ice_outputs = yy
-    # y_ice_outputs = np.array(
-    #     [y_ice[i].eval(feature, x, False, centering) for i in range(len(y_ice))]
-    # )
-    # y_pdp_output = y_pdp.eval(feature, x, False, centering)
 
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
     y_pdp_output = (
@@ -271,8 +284,12 @@ def plot_pdp_ice_2(
     ax.plot(x, y_ice_outputs[:, 0], color="red", alpha=0.1, label=y_ice_label)
     ax.plot(x, y_ice_outputs, color="red", alpha=0.1)
     ax.plot(x, y_pdp_output, color="blue", label=y_pdp_label)
-    ax.set_xlabel("feature %d" % (feature + 1))
-    ax.set_ylabel("y")
+    if avg_output is not None:
+        ax.axhline(y=avg_output, color="black", linestyle="--", label="avg output")
+
+    feature_name = "x_%d" % (feature + 1) if feature_names is None else feature_names[feature]
+    ax.set_xlabel(feature_name)
+    ax.set_ylabel("y") if target_name is None else ax.set_ylabel(target_name)
     ax.legend()
 
     plt.show(block=False)
