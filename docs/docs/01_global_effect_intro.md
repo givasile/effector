@@ -1,11 +1,10 @@
 ---
-title: Global effect intro
+title: Global Feature Effect
 ---
 
-???+ question "Why do we care about feature effect plots?"
+???+ question "Why do we care about (global) feature effect plots?"
      
      Because they are (probably) the simplest way to globally interpret a black-box model.
-
 
 Imagine you have trained a neural network to predict the expected daily bike rentals,
 like in this [tutorial](./tutorials/03_bike_sharing_dataset.md).
@@ -13,18 +12,26 @@ The model is delivering satisfactory results,
 exhibiting an average prediction error of approximately $81$ bike rentals per day.
 
 You want to interpret how the model works. 
-With feature effect plots, you can immediately get a graphical representation that illustrates 
-how individual features impact the model's predictions.
+Using feature effect plots, you can immediately get a graphical representation that illustrates 
+how individual features impact the model's predictions:
 
 ```python
 effector.RHALE(X, model, model_jac).plot(feature=3)
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_13_0.png)
+![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_19_0.png)
 
-The plot shows the effect of feature $x_4$ which is the $hour$ of the day on the prediction.
-This plot provides an immediate *interpretation* of the model's inner workings,
-which can raise some *criticism* and lead to appropriate *actions*.
+```python
+effector.PDP(X, model).plot(feature=3)
+```
+
+![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_15_0.png)
+
+
+Both plots show the effect of feature $\mathtt{hour}$ on the daily $\mathtt{bike-rentals}$;
+there is an abrupt increase in the number of bike rentals at about 8:00 AM (beginning of the workday)
+and at about 5:00 PM (end of the workday). 
+The following table provides a more detailed interpretation of the plot: 
 
 ???+ note "Interpretation: Move along the axis and interpret"
      
@@ -38,6 +45,10 @@ which can raise some *criticism* and lead to appropriate *actions*.
     | 17-24     | A constant drop; at 19.00 rentals reach the average and keep decreasing.                 |
 
 --- 
+
+Global feature effect plots provide an immediate *interpretation* of the model's inner workings,
+which can raise some *criticism* and lead to appropriate *actions*.
+
 
 ???+ question "Criticism 1: Does this makes sense?"
 
@@ -70,14 +81,15 @@ which can raise some *criticism* and lead to appropriate *actions*.
 
 ### Heterogeneity shows the fidelity of the explanation
 
-Let's see whether the explanation is consistent with all the dataset instances:
+Based on Criticism 2, we want to check whether the explanation is holds for all the instances of the dataset.
+We can do this by analyzing the heterogeneity, i.e., the deviation of the instance-level effects from the average effect. 
 
 
 ```python
 effector.RHALE(X, model, model_jac).plot(feature=3, confidence_interval=True)
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_16_0.png)
+![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_20_0.png)
 
 ```python
 effector.PDP(X, model).plot(feature=3)
@@ -86,18 +98,17 @@ effector.PDP(X, model).plot(feature=3)
 ![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)
 
 Both methods show that there is high-variance in the instance-level effects;
-this means that the effect of feature $hour$ varies significantly across different instances.
-This is expressed illustration with the $\pm$ shaded area around the average effect, which is the solid line in the plot.
-
+this means that the effect of feature $\mathtt{hour}$ varies significantly across different instances.
 
 Moreover, PDP-ICE analysis provides precise insights into the distinct patterns:
 
-- There is one cluster, that behaves as previously described. 
+- There is one cluster, that behaves as described above. 
 - There is a second cluster that behaves differently, with a rise starting at 9:00 AM, a peak at 12:00 AM and a decline at 6:00 PM.
 
 ???+ attention "We have an answer"
      
-     Great! We have a clear answer. The issue does not lie with the model itself; instead, it's the global 
+     Great! We have a clear answer on the question raised by Action 2. 
+     The issue does not lie with the model itself; instead, it's the global 
      explanation that has concealed the two distinct patterns by averaging them out.
 
 ???+ danger "Don't rush to conclusions"

@@ -45,23 +45,6 @@
           - fit
           - plot
 
-### ::: effector.global_effect_pdp.PDPwithICE
-      options:
-        show_root_heading: True
-        show_symbol_type_toc: True
-        members:
-          - __init__
-          - fit
-          - plot
-
-### ::: effector.global_effect_pdp.DerivativePDPwithICE
-      options:
-        show_root_heading: True
-        show_symbol_type_toc: True
-        members:
-          - __init__
-          - fit
-          - plot
 
 ### ::: effector.global_effect_pdp.pdp_1d_vectorized
       options:
