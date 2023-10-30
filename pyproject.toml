@@ -13,5 +13,6 @@ dependencies = [
     "numdifftools",
     "numpy",
     "scipy",
-    "pandas"
+    "pandas",
+    "tqdm"
 ]
