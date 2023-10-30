@@ -327,7 +327,6 @@ regional_rhale.fit(
 
 
 ```python
-
 regional_rhale.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
 ```
 

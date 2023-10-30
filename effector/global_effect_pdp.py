@@ -153,7 +153,7 @@ class PDP(GlobalEffect):
 
         if centering:
             norm_consts = np.expand_dims(
-                self.feature_effect["feature_3"]["norm_const"], axis=0
+                self.feature_effect["feature_" + str(feature)]["norm_const"], axis=0
             )
             yy = yy - norm_consts
 

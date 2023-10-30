@@ -235,7 +235,7 @@ plt.show()
 
 ## ALE approximation
 
-Bin splitting is a major limitation of ALE. The user has to choose the number of bins, where different number of bins can lead to very different results. In terms of the main ALE effect, a wrong bin-splitting may lead to unstable results. In terms of the heterogeneity, a wrong bin-splitting may lead to a biased estimation of the heterogeneity. 
+Bin splitting is a major limitation of ALE. The user has to choose the number of bins, where different number of bins can lead to very different results. In terms of the main ALE effect, a wrong bin-splitting may lead to unstable results. In terms of the heterogeneity, a wrong bin-splitting may lead to a biased estimation of the heterogeneity. More information can be found at the [RHALE paper](https://arxiv.org/abs/2309.11193).
 
 In our example, if setting a low number of bins (wide bins), e.g., 5, we get the following approximation:
 
@@ -250,7 +250,7 @@ nof_bins = 5
 ale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
 binning = effector.binning_methods.Fixed(nof_bins=nof_bins, min_points_per_bin=0)
 ale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = ale.plot(feature=feat, confidence_interval="std")
+fig, ax1, ax2 = ale.plot(feature=feat, confidence_interval=True)
 
 ```
 
@@ -303,7 +303,7 @@ feat = 0
 rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.DynamicProgramming(max_nof_bins=20, min_points_per_bin=10, discount=0.5)
 rhale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
+fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
 
 ```
 
@@ -336,47 +336,14 @@ In `Effector`, there are two automatic bin-splitting methods:
 # Greedy
 feat = 0
 rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
-binning = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=5, discount=0.1)
+binning = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=10, discount=0.2)
 rhale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
+fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
 ```
 
 
     
 ![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_27_0.png)
-    
-
-
-
-```python
-# Greedy
-feat = 0
-rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
-binning = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=5, discount=0.5)
-rhale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
-```
-
-
-    
-![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_28_0.png)
-    
-
-
-
-```python
-# Greedy
-feat = 0
-rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
-binning = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=5, discount=7.)
-rhale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
-
-```
-
-
-    
-![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_29_0.png)
     
 
 
@@ -391,61 +358,15 @@ fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
 # DynamicProgramming
 feat = 0
 rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
-binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=0.01)
+binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=0.2)
 rhale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
+fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
 ```
 
 
     
-![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_31_0.png)
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_29_0.png)
     
-
-
-
-```python
-# DynamicProgramming
-feat = 0
-rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
-binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=0.7)
-rhale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
-```
-
-
-    
-![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_32_0.png)
-    
-
-
-
-```python
-# DynamicProgramming
-feat = 0
-rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
-binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=.8)
-rhale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std")
-```
-
-
-    
-![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_33_0.png)
-    
-
-
- In RHALE paper, it is shown that 
-larger bins lead to more robust (lower variance) estimation of the bin-effect, but, they
-they may introduce bias in the approximation of the heterogeneity. 
-On the other hand, smaller bins lead do not introduce bias in the approximation of the heterogeneity, but, 
-they lead to noisy (higher variance) estiamtion of the heterogeneity.
-
-Intuitively, the automatic bin-splitting firstly searches for regions with constant effect, i.e., regions where the derivative of the effect is zero. In our example, the effect is constant in the area $[0, 0.5]$. There, a large bin covering all the interval helps in a low-variance estiamtion of the bin-effect and the bin-heterogeneity, without introducing bias.
-
-Second, in the regions where the effect is not constant, i.e., the derivative of the effect is not zero, the automatic bin-splitting tries to minimizes the bias-variance trade-off. In our example, the effect is not constant in the area $[-0.5, 0]$. There, the automatic bin-splitting searches for a compromise. 
-
-
-
 
 
 ## PDP
@@ -463,16 +384,11 @@ In our example, it is clear that $x_3$ is highly-dependent on $x_1$. So let's se
 
 
 ```python
-fig, ax = effector.PDPwithICE(data=x, model=f, nof_instances=30).plot(feature=0, centering=True)
+fig, ax = effector.PDP(data=x, model=f, nof_instances=30).plot(feature=0, centering=True, confidence_interval="ice")
 ```
 
 
     
-![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_36_0.png)
+![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_31_0.png)
     
 
-
-
-```python
-
-```

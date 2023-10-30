@@ -21,7 +21,7 @@ the user can get the effect plot of feature `feature` by simply calling:
 PDP(data=X, model=ml_model).plot(feature)
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_13_0.png)
+![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_15_0.png)
 
 
 ```python
@@ -29,7 +29,7 @@ PDP(data=X, model=ml_model).plot(feature)
 ALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature)
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_14_0.png)
+![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_19_0.png)
 
 
 --- 
@@ -38,22 +38,22 @@ ALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature)
 
 `Effector` gives emphasis to the heterogeneity of the effect, i.e., how much the
 instance-level effects deviate from the global effect. For all methods, 
-plotting the heterogeneity can be done by setting `confidence_interval=True`.
+plotting the heterogeneity can be done by setting the `confidence_interval` parameter.
 
 ```python
 # for ALE
 ALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature, confidence_interval=True)
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_18_0.png)
+![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_20_0.png)
 
 
 ```python
 # for PDP-ICE
-PDPwithICE(data=X, model=ml_model).plot(feature)
+PDPwithICE(data=X, model=ml_model).plot(feature, confidence_interval="ice")
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_19_0.png)
+![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)
 
 
 
@@ -66,13 +66,13 @@ For more details, check the [global effect tutorial](./tutorials/00_linear_globa
 `Effector` provides a simple API for regional effect plots. 
 In cases with high-heterogeneity, the regional effect plots, i.e.,
 the effect plots for a subset of the data, can be more informative than the
-global effect plots. For example, the effect of feature `hr` is highly-heterogeneous:
+global effect plots. For example, the effect of feature `\mathtt{hour}` is highly-heterogeneous:
 
 <center>
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_21_1.png)
+![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_20_0.png)
 </center>
 
-But, if we look at the effect of `hr` for the subset of the workingdays (`workingday=1`) and non-workingdays (`workingday=0`),
+But, if we look at the effect of `\mathtt{hr}` for the subset of the workingdays (`workingday=1`) and non-workingdays (`workingday=0`),
 we can see that the effect is much more homogeneous. 
 `Effector` can find such subsets automatically and plot the regional effect plots in a single line of code:
 
@@ -80,8 +80,8 @@ we can see that the effect is much more homogeneous.
 RegionalRHALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature=0, confidence_interval=True)
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_22_1.png)
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_22_3.png)
+![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_25_1.png)
+![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_25_2.png)
 
 
 ---
@@ -91,22 +91,21 @@ RegionalRHALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature=0, co
 ### Global Effect Plots
 
 
-| Method        | How to use                                                                                                                                   |
-|---------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| PDP           | [`effector.PDP(X, model).plot(feature, centering, confidence_interval)`]((./../../reference/#effector.pdp.DerivativePDP))                    |
-| d-PDP         | [`effector.DerivativePDP(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../reference/#effector.pdp.DerivativePDP) |
-| PDPwithICE    | [`effector.PDPwithICE(X, model).plot(feature, centering)`](./../../reference/#effector.pdp.PDPwithICE)                                       |
-| d-PDPwithICE  | [`effector.DerivativePDPwithICE(X, model, model_jac).plot(feature, centering)`](./../../reference/#effector.pdp.DerivativePDPwithICE)        |
-| ALE           | [`effector.ALE(X, model).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.ALE)                                |
-| RHALE         | [`effector.RHALE(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.RHALE)                 |
+| Method        | How to use                                                                                                                                              |
+|---------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| PDP           | [`effector.PDP(X, model).plot(feature, centering, confidence_interval)`](./../../03_API/#effector.global_effect_pdp.PDP)                                |
+| d-PDP         | [`effector.DerivativePDP(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../03_API/#effector.global_effect_pdp.DerivativePDP) |
+| ALE           | [`effector.ALE(X, model).plot(feature, centering, confidence_interval)`](./../../03_API/#effector.global_effect_ale.ALE)                                |
+| RHALE         | [`effector.RHALE(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../03_API/#effector.global_effect_rhale.RHALE)               |
 
 
 ### Regional Effect Plots
 
 
-| Method        | How to use                                                                                                                                   |
-|---------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| RegionalRHALE | [`effector.ALE(X, model).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.ALE)                                |
+| Method        | How to use                                                                                          |
+|---------------|-----------------------------------------------------------------------------------------------------|
+| RegionalRHALE | [`effector.ALE(X, model).plot(feature, centering, confidence_interval)`](./../../03_API/#effector.global_effect_ale.ALE)|
+| RegionalPDP   | [`effector.PDP(X, model).plot(feature, centering, confidence_interval)`](./../../03_API/#effector.global_effect_ale.ALE) |
 
 
 

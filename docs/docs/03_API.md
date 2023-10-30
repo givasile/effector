@@ -46,15 +46,16 @@
           - plot
 
 
-### ::: effector.global_effect_pdp.pdp_1d_vectorized
-      options:
-        show_root_heading: True
-
-### ::: effector.global_effect_pdp.pdp_1d_non_vectorized
-      options:
-        show_root_heading: True
-
 ## Regional Effect Methods
+
+### ::: effector.regional_effect.RegionalEffect
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+           - __init__
+           - describe_regions
+
 
 ### ::: effector.regional_effect.RegionalRHALE
        options:
@@ -63,9 +64,16 @@
          members:
             - __init__
             - fit
-            - eval
             - plot_first_level
-            - print_splits
+
+### ::: effector.regional_effect.RegionalPDP
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+            - __init__
+            - fit
+            - plot_first_level
 
 
 ## Utils

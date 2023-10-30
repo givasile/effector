@@ -4,7 +4,7 @@ title: Global Feature Effect
 
 ???+ question "Why do we care about (global) feature effect plots?"
      
-     Because they are (probably) the simplest way to globally interpret a black-box model.
+     Because they are one of the simplest ways to globally interpret a black-box model.
 
 Imagine you have trained a neural network to predict the expected daily bike rentals,
 like in this [tutorial](./tutorials/03_bike_sharing_dataset.md).
@@ -74,7 +74,7 @@ which can raise some *criticism* and lead to appropriate *actions*.
 ???+ success "Action 2: Check the fidelity of the explanation"
 
     To take meaningful action, it is crucial to determine whether this issue originates from the model or the explanation.
-    Is the model treating the $hour$ feature uniformly across all days, despite the intuitive understanding that this feature may vary between weekdays and weekends?
+    Is the model treating the feature $\mathtt{hour}$ uniformly across all days, despite the intuitive understanding that this feature may vary between weekdays and weekends?
     Is it the opposite- the model has learned to differentiate between these two cases, 
     but it is the explanation that obscures them behind the averaging? 
     Heterogeneity analysis can help us answer these questions.
@@ -83,6 +83,9 @@ which can raise some *criticism* and lead to appropriate *actions*.
 
 Based on Criticism 2, we want to check whether the explanation is holds for all the instances of the dataset.
 We can do this by analyzing the heterogeneity, i.e., the deviation of the instance-level effects from the average effect. 
+In `Effector`, we can do this by simply setting the `confidence_interval` parameter an appropriate value:
+
+```python
 
 
 ```python
@@ -92,7 +95,7 @@ effector.RHALE(X, model, model_jac).plot(feature=3, confidence_interval=True)
 ![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_20_0.png)
 
 ```python
-effector.PDP(X, model).plot(feature=3)
+effector.PDP(X, model).plot(feature=3, confidence_interval="ice")
 ```
 
 ![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)

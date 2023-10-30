@@ -1,41 +1,12 @@
 # Effector
 
-# Methods supported
+# Installation instructions (for internal testing)
 
-* Global  Effects:
-  - ALE: [Accumulated Local Effects](https://arxiv.org/abs/1612.08468)
-  - RHALE: [Robust and heterogeneity-aware ALE](https://arxiv.org/abs/2309.11193)
-  - PDP: [Partial Dependence Plot](https://christophm.github.io/interpretable-ml-book/pdp.html)
-  - ICE: [Individual Conditional Expectation](https://arxiv.org/abs/1309.6392)
+1. Clone the repository `git clone https://github.com/givasile/effector.git`
+2. Install the package `pip install -e effector`
+3. Install the dependencies `pip install -r effector/requirements.txt`
 
-* Regional Effects:
-  - TODO add REPID: [Regional Effect Plots with implicit Interaction Detection](https://arxiv.org/abs/2202.07254)
-  - TODO add regional RHALE
+For the documentation: 
 
-* Feature Interaction:
-  - TODO: add methods
-
-# Repo Structure
-
-* https://docs.python-guide.org/writing/structure/
-* https://packaging.python.org/en/latest/tutorials/packaging-projects/
-
-# Packaging
-
-* toml: https://realpython.com/python-toml/
-
-# Testing
-
-with pytest https://docs.pytest.org/en/6.2.x/contents.html
-
-* for running all tests `pytest tests` from inside the root directory `./`
-
-# Documentation
-
-with Sphinx: https://www.sphinx-doc.org/en/master/index.html
-
-* for building html documentation `sphinx-build -b html docs/source/ docs/build/html` (or from inside `./docs` -> `make html`)  
-* for building html documentation `sphinx-build -b latex docs/source/ docs/build/latex` (or from inside `./docs` -> `make latex`)
-
-# CI-CD
-* github actions
+1. Install `mkdocs` and `mkdocs-material` with `pip install mkdocs mkdocs-material`
+2. from the docs folder, i.e. `cd docs`, run `mkdocs serve` to start the server

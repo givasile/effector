@@ -208,7 +208,7 @@ If we omit centering, the instance-level effects may create the illusion of hete
 
 
 ```python
-fig, ax = effector.PDPwithICE(data=X, model=predict).plot(feature=0, centering=True)
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=True, confidence_interval="ice")
 ```
 
 
@@ -219,7 +219,7 @@ fig, ax = effector.PDPwithICE(data=X, model=predict).plot(feature=0, centering=T
 
 
 ```python
-fig, ax = effector.PDPwithICE(data=X, model=predict).plot(feature=0, centering=False)
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=False, confidence_interval="ice")
 ```
 
 
@@ -232,8 +232,9 @@ fig, ax = effector.PDPwithICE(data=X, model=predict).plot(feature=0, centering=F
 
 A second way to check for heterogeneity is by plotting the standard deviation of the instance-level effects as $\pm$ interval around the PDP plot.
 This is done can be done by setting `confidence_interbal="std"` in the `plot` method.
-However, as you can see below, it can be tricky. The $\sigma$ of the instance-level effects is computed without centering the PDP and the ICE plots; therefore it erroneously indicates heterogeneity.
-The same issue was encountered above, at the uncentered version of the ICE plots. However, since ICE plots show the **type** of the heterogeneity, we could easily spot that the heterogeneity was only in the intercept and not in the gradient of the instance-level effects. Unfortunately, this is not the case with the standard deviation of the residuals, which in this case lead to a misleading interpretation. This is why we recommend using the centered version of the ICE plots as a measure of heterogeneity.
+However, as you can see below, it can be tricky. If the $\sigma$ of the instance-level effects is computed without centering the PDP and the ICE plots, it can erroneously indicate heterogeneity. The same issue was encountered above, at the uncentered version of the ICE plots. However, since ICE plots show the **type** of the heterogeneity, we could easily spot that the heterogeneity was only in the intercept and not in the gradient of the instance-level effects. Unfortunately, this is not the case with the standard deviation of the residuals, which in this case lead to a misleading interpretation. 
+
+Therefore, we recommend to **always** use the centered version of the ICE, when measuring the heterogeneity with ICE plots.
 
 
 
@@ -244,6 +245,18 @@ fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=True, co
 
     
 ![png](01_linear_model_files/01_linear_model_16_0.png)
+    
+
+
+
+```python
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=False, confidence_interval="std")
+
+```
+
+
+    
+![png](01_linear_model_files/01_linear_model_17_0.png)
     
 
 
@@ -271,18 +284,18 @@ Therefore, both heterogeneity measures (d-ICE and $\sigma$ of the residuals) cor
 
 ```python
 fig, ax = effector.DerivativePDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, confidence_interval=True)
-fig, ax = effector.DerivativePDPwithICE(data=X, model=predict, model_jac=predict_grad).plot(feature=0)
+fig, ax = effector.DerivativePDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, confidence_interval="ice")
 ```
 
 
     
-![png](01_linear_model_files/01_linear_model_18_0.png)
+![png](01_linear_model_files/01_linear_model_19_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_18_1.png)
+![png](01_linear_model_files/01_linear_model_19_1.png)
     
 
 
@@ -299,19 +312,19 @@ fig, ax1, ax2 = effector.ALE(data=X, model=predict).plot(feature=2)
 
 
     
-![png](01_linear_model_files/01_linear_model_20_0.png)
+![png](01_linear_model_files/01_linear_model_21_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_20_1.png)
+![png](01_linear_model_files/01_linear_model_21_1.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_20_2.png)
+![png](01_linear_model_files/01_linear_model_21_2.png)
     
 
 
@@ -339,7 +352,7 @@ fig, ax1, ax2 = effector.ALE(data=X, model=predict).plot(feature=0, centering=Tr
 
 
     
-![png](01_linear_model_files/01_linear_model_22_0.png)
+![png](01_linear_model_files/01_linear_model_23_0.png)
     
 
 
@@ -354,7 +367,7 @@ fig, ax1, ax2 = effector.ALE(data=X, model=predict).plot(feature=0, centering=Tr
 
 
     
-![png](01_linear_model_files/01_linear_model_24_0.png)
+![png](01_linear_model_files/01_linear_model_25_0.png)
     
 
 
@@ -393,13 +406,13 @@ fig, ax1, ax2 = ale.plot(feature=0)
 
 
     
-![png](01_linear_model_files/01_linear_model_26_0.png)
+![png](01_linear_model_files/01_linear_model_27_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_26_1.png)
+![png](01_linear_model_files/01_linear_model_27_1.png)
     
 
 
@@ -409,12 +422,12 @@ Robust and Heterogeneity-aware ALE (RHALE) is a variant of ALE, proposed by [Gko
 
 
 ```python
-fig, ax1, ax2 = effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True)
+fig, ax1, ax2 = effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=False, show_avg_output=False)
 ```
 
 
     
-![png](01_linear_model_files/01_linear_model_28_0.png)
+![png](01_linear_model_files/01_linear_model_29_0.png)
     
 
 
@@ -440,12 +453,12 @@ Let's see how this works for $x_1$:
 
 
 ```python
-fig, ax1, ax2 = effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True)
+fig, ax1, ax2 = effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True, show_avg_output=False)
 ```
 
 
     
-![png](01_linear_model_files/01_linear_model_30_0.png)
+![png](01_linear_model_files/01_linear_model_31_0.png)
     
 
 
@@ -457,12 +470,12 @@ The plot below correctly informs shows that the heterogeneity is zero.
 
 
 ```python
-fig, ax1, ax2 = effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True, confidence_interval="std")
+fig, ax1, ax2 = effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True, confidence_interval="std", show_avg_output=False)
 ```
 
 
     
-![png](01_linear_model_files/01_linear_model_32_0.png)
+![png](01_linear_model_files/01_linear_model_33_0.png)
     
 
 
@@ -495,7 +508,7 @@ fig, ax1, ax2 = rhale.plot(feature=0)
 
 
     
-![png](01_linear_model_files/01_linear_model_34_0.png)
+![png](01_linear_model_files/01_linear_model_35_0.png)
     
 
 
@@ -511,10 +524,8 @@ The argument `confidence_interval=True|False` indicates whether to plot the stan
 
 | Method        | How to use                                                                                                                                   |
 |---------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| PDP           | [`effector.PDP(X, model).plot(feature, centering, confidence_interval)`]((./../../reference/#effector.pdp.DerivativePDP))                    |
+| PDP           | [`effector.PDP(X, model).plot(feature, centering, confidence_interval)`]((./../../reference/#effector.pdp.PDP))                    |
 | d-PDP         | [`effector.DerivativePDP(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../reference/#effector.pdp.DerivativePDP) |
-| PDPwithICE    | [`effector.PDPwithICE(X, model).plot(feature, centering)`](./../../reference/#effector.pdp.PDPwithICE)                                       |
-| d-PDPwithICE  | [`effector.DerivativePDPwithICE(X, model, model_jac).plot(feature, centering)`](./../../reference/#effector.pdp.DerivativePDPwithICE)        |
 | ALE           | [`effector.ALE(X, model).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.ALE)                                |
 | RHALE         | [`effector.RHALE(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.RHALE)                 |
 
