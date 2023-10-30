@@ -8,5 +8,4 @@
 
 For the documentation: 
 
-1. Install `mkdocs` and `mkdocs-material` with `pip install mkdocs mkdocs-material`
-2. from the docs folder, i.e. `cd docs`, run `mkdocs serve` to start the server
+- from the docs folder, i.e. `cd docs`, run `mkdocs serve` to start the server
