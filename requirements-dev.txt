@@ -6,3 +6,5 @@ pandas
 tqdm
 jupyter
 keras
+tensorflow
+pytest
