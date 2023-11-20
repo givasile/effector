@@ -7,6 +7,8 @@ from effector.global_effect import GlobalEffect
 import matplotlib.pyplot as plt
 
 
+# TODO: add not_show argument, while plot the functions
+
 class PDP(GlobalEffect):
     def __init__(
         self,
@@ -19,7 +21,7 @@ class PDP(GlobalEffect):
         target_name: typing.Union[None, str] = None,
     ):
         """
-        Initializes the PDPwithICE class.
+        Initializes the PDP class.
 
         Notes:
             PDP implements the following feature effect method:
@@ -36,7 +38,7 @@ class PDP(GlobalEffect):
         Args:
             data: The dataset, shape (N, D)
             model: The model to be explained, (N, D) -> (N)
-            axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
+            axis_limits: The axis limits for the FE plot (ndarray with shape (2,D)). If None, the axis limits will be computed from the dataset.
             nof_instances: maximum number of instances to be used for PDP. If "all", all instances are used.
         """
         self.nof_instances, self.indices = helpers.prep_nof_instances(
@@ -56,18 +58,19 @@ class PDP(GlobalEffect):
         centering: typing.Union[bool, str],
         nof_points_centering: int,
     ) -> typing.Dict:
-        # create one XX matrix with all the points that we want to evaluate for all ICEs
-        xx = np.linspace(
-            self.axis_limits[0, feature],
-            self.axis_limits[1, feature],
-            nof_points_centering,
-        )
-        y = pdp_1d_vectorized(self.model, self.data, xx, feature, False, False, True)
 
-        # compute the normalization constant per ice
-        norm_const = np.mean(y, axis=0)
-
-        return {"norm_const": norm_const}
+        if centering is True or centering == "zero_integral":
+            xx = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points_centering)
+            y = pdp_1d_vectorized(self.model, self.data, xx, feature, False, False, True)
+            norm_const = np.mean(y, axis=0)
+            fe = {"norm_const": norm_const}
+        elif centering == "zero_start":
+            xx = self.axis_limits[0, feature, np.newaxis]
+            y = pdp_1d_vectorized(self.model, self.data, xx, feature, False, False, True)
+            fe = {"norm_const": y[0]}
+        else:
+            fe = {}
+        return fe
 
     def fit(
         self,
@@ -79,7 +82,7 @@ class PDP(GlobalEffect):
         Fit the PDP and the ICE plots.
 
         Notes:
-            Practically, the only thing that `.fit` does is to compute the normalization constant for centering the
+            The only thing that `.fit` does is to compute the normalization constant for centering the
             PDP and the ICE plots, if `centering` is not `False`.
             This will be automatically done when calling `eval` or `plot`, so there is no need to call `fit` explicitly.
 
@@ -90,9 +93,10 @@ class PDP(GlobalEffect):
 
         Notes:
             * If `centering` is `False`, the PDP and ICE plots are not centered
-            * If `centering` is `True` or `"zero-integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
-            * If `centering` is `"zero-start"`, the PDP and the ICE plots start from `y=0`.
+            * If `centering` is `True` or `"zero_integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
+            * If `centering` is `"zero_start"`, the PDP and the ICE plots start from `y=0`.
         """
+        assert centering in [True, "zero_integral", "zero_start"], "`centering` must be True, 'zero_integral' or 'zero_start'. It is meaningless to use the .fit() method with centering=False, because it will do nothing. If you don't want any centering, use immediately `.plot()` or `.eval()` with centering=False."
         centering = helpers.prep_centering(centering)
         features = helpers.prep_features(features, self.dim)
 
@@ -131,8 +135,8 @@ class PDP(GlobalEffect):
 
         Notes:
             * If `centering` is `False`, the PDP is not centered
-            * If `centering` is `True` or `"zero-integral"`, the PDP is centered by subtracting the mean of the PDP.
-            * If `centering` is `"zero-start"`, the PDP is centered by subtracting the value of the PDP at the first point.
+            * If `centering` is `True` or `"zero_integral"`, the PDP is centered by subtracting the mean of the PDP.
+            * If `centering` is `"zero_start"`, the PDP is centered by subtracting the value of the PDP at the first point.
 
         Notes:
             * If `uncertainty` is `False`, the PDP returns only the mean effect `y` at the given `xs`.
@@ -142,7 +146,7 @@ class PDP(GlobalEffect):
                 * `estimator_var` is the variance of the mean effect estimator
         """
         centering = helpers.prep_centering(centering)
-        if not self.is_fitted[feature]:
+        if not self.is_fitted[feature] and centering is not False:
             self.fit(features=feature, centering=centering)
 
         # Check if the lower bound is less than the upper bound
@@ -173,7 +177,7 @@ class PDP(GlobalEffect):
         self,
         feature: int,
         confidence_interval: typing.Union[bool, str] = False,
-        centering: bool = False,
+        centering: typing.Union[bool, str] = False,
         nof_points: int = 30,
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
@@ -185,15 +189,23 @@ class PDP(GlobalEffect):
 
         Args:
             feature: index of the plotted feature
+            confidence_interval: whether to plot the confidence interval
             centering: whether to center the PDP
-            nof_points: number of points on the x-axis to evaluate the PDP and the ICE plots
+            nof_points: number of points on the x-axis to evaluate the PDP plot
             scale_x: dictionary with keys "mean" and "std" for scaling the x-axis
             scale_y: dictionary with keys "mean" and "std" for scaling the y-axis
+            nof_ice: number of ICE plots to show on top of the PDP plot
+            show_avg_output: whether to show the average output of the model
+
+        Notes:
+            * if `confidence_interval` is `False`, no confidence interval is plotted
+            * if `confidence_interval` is `True` or `"std"`, the standard deviation of the ICE plots is plotted
+            * if `confidence_interval` is `ice`, the ICE plots are plotted
 
         Notes:
             * If `centering` is `False`, the PDP and ICE plots are not centered
-            * If `centering` is `True` or `"zero-integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
-            * If `centering` is `"zero-start"`, the PDP and the ICE plots start from `y=0`.
+            * If `centering` is `True` or `"zero_integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
+            * If `centering` is `"zero_start"`, the PDP and the ICE plots start from `y=0`.
 
         """
         confidence_interval = helpers.prep_confidence_interval(confidence_interval)
@@ -206,7 +218,7 @@ class PDP(GlobalEffect):
         )
 
         avg_output = None if not show_avg_output else self.avg_output
-        title = "PDP-ICE Plot"
+        title = "PDP Plot"
         fig, ax = vis.plot_pdp_ice_2(
             x,
             feature,
@@ -238,7 +250,7 @@ class DerivativePDP(GlobalEffect):
         target_name: typing.Union[None, str] = None,
     ):
         """
-        Initializes the PDPwithICE class.
+        Initializes the DerivativePDP class.
 
         Notes:
             PDP implements the following feature effect method:
@@ -310,8 +322,8 @@ class DerivativePDP(GlobalEffect):
 
         Notes:
             * If `centering` is `False`, the PDP and ICE plots are not centered
-            * If `centering` is `True` or `"zero-integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
-            * If `centering` is `"zero-start"`, the PDP and the ICE plots start from `y=0`.
+            * If `centering` is `True` or `"zero_integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
+            * If `centering` is `"zero_start"`, the PDP and the ICE plots start from `y=0`.
         """
         centering = helpers.prep_centering(centering)
         features = helpers.prep_features(features, self.dim)
@@ -351,8 +363,8 @@ class DerivativePDP(GlobalEffect):
 
         Notes:
             * If `centering` is `False`, the PDP is not centered
-            * If `centering` is `True` or `"zero-integral"`, the PDP is centered by subtracting the mean of the PDP.
-            * If `centering` is `"zero-start"`, the PDP is centered by subtracting the value of the PDP at the first point.
+            * If `centering` is `True` or `"zero_integral"`, the PDP is centered by subtracting the mean of the PDP.
+            * If `centering` is `"zero_start"`, the PDP is centered by subtracting the value of the PDP at the first point.
 
         Notes:
             * If `uncertainty` is `False`, the PDP returns only the mean effect `y` at the given `xs`.
@@ -413,8 +425,8 @@ class DerivativePDP(GlobalEffect):
 
         Notes:
             * If `centering` is `False`, the PDP and ICE plots are not centered
-            * If `centering` is `True` or `"zero-integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
-            * If `centering` is `"zero-start"`, the PDP and the ICE plots start from `y=0`.
+            * If `centering` is `True` or `"zero_integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
+            * If `centering` is `"zero_start"`, the PDP and the ICE plots start from `y=0`.
 
         """
         confidence_interval = helpers.prep_confidence_interval(confidence_interval)

@@ -30,6 +30,7 @@ def ale_plot(
     avg_output: typing.Union[None, float] = None,
     feature_names: typing.Union[None, list] = None,
     target_name: typing.Union[None, str] = None,
+    not_show: bool = False,
 ):
     """
 
@@ -100,8 +101,8 @@ def ale_plot(
     x_name = "x_%d" % (feature + 1) if feature_names is None else feature_names[feature]
     ax2.set_xlabel(x_name)
     ax2.set_ylabel("dy/dx")
-
-    plt.show(block=False)
+    if not not_show:
+        plt.show(block=False)
     return fig, ax1, ax2
 
 
@@ -173,7 +174,7 @@ def plot_pdp_ice_2(
     y_pdp_output = np.mean(yy, axis=1)
 
     # choose nof_ice randomly
-    if nof_ice is not "all":
+    if nof_ice != "all":
         if nof_ice > yy.shape[1]:
             nof_ice = yy.shape[1]
 

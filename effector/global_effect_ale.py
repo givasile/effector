@@ -15,7 +15,7 @@ class ALE(GlobalEffect):
         axis_limits: typing.Union[None, np.ndarray] = None,
         avg_output: typing.Union[None, float] = None,
         feature_names: typing.Union[None, list] = None,
-        target_name: typing.Union[None, str] = None
+        target_name: typing.Union[None, str] = None,
     ):
         """
         ALE constructor.
@@ -36,7 +36,9 @@ class ALE(GlobalEffect):
             helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
         )
 
-        super(ALE, self).__init__(data, model, axis_limits, avg_output, feature_names, target_name)
+        super(ALE, self).__init__(
+            data, model, axis_limits, avg_output, feature_names, target_name
+        )
 
     def _fit_feature(self, feature: int, binning_method="fixed") -> typing.Dict:
 
@@ -98,7 +100,9 @@ class ALE(GlobalEffect):
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
         for s in features:
-            self.feature_effect["feature_" + str(s)] = self._fit_feature(s, binning_method)
+            self.feature_effect["feature_" + str(s)] = self._fit_feature(
+                s, binning_method
+            )
             if centering is not False:
                 self.norm_const[s] = self._compute_norm_const(s, method=centering)
             self.is_fitted[s] = True
@@ -135,6 +139,8 @@ class ALE(GlobalEffect):
         centering: typing.Union[bool, str] = False,
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
+        show_avg_output: bool = True,
+        not_show: bool = False,
     ):
         """
         Plot the ALE plot for a given feature.
@@ -157,6 +163,8 @@ class ALE(GlobalEffect):
 
                 - If set to None, no scaling will be applied.
                 - If set to a dict, the y-axis will be scaled by the standard deviation and the mean.
+            show_avg_output: if True, the average output will be shown as a horizontal line.
+            not_show: if True, the plot will not be shown, but returned as a matplotlib object instead.
         """
         confidence_interval = helpers.prep_confidence_interval(confidence_interval)
         centering = helpers.prep_centering(centering)
@@ -164,6 +172,10 @@ class ALE(GlobalEffect):
         # hack to fit the feature if not fitted
         self.eval(
             feature, np.array([self.axis_limits[0, feature]]), centering=centering
+        )
+
+        avg_output = helpers.prep_avg_output(
+            self.data, self.model, show_avg_output, self.avg_output, scale_y
         )
 
         fig, ax1, ax2 = vis.ale_plot(
@@ -174,5 +186,11 @@ class ALE(GlobalEffect):
             error=confidence_interval,
             scale_x=scale_x,
             scale_y=scale_y,
+            title="ALE plot",
+            avg_output=avg_output,
+            feature_names=self.feature_names,
+            target_name=self.target_name,
+            not_show=not_show,
         )
-        return fig, ax1, ax2
+        if not_show:
+            return fig, ax1, ax2

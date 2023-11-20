@@ -30,7 +30,7 @@ class RHALE(GlobalEffect):
             axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
             data_effect:
                 - if np.ndarray, the model Jacobian computed on the `data`
-                - if None, the model Jacobian will be computed on the data points using model_jac
+                - if None, the Jacobian will be computed using model_jac
 
         """
         assert (model_jac is not None) or (data_effect is not None)
@@ -153,6 +153,7 @@ class RHALE(GlobalEffect):
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
         show_avg_output: bool = True,
+        not_show: bool = False
     ):
         """
         Plot the ALE plot for a given feature.
@@ -175,10 +176,8 @@ class RHALE(GlobalEffect):
 
                 - If set to None, no scaling will be applied.
                 - If set to a dict, the y-axis will be scaled by the standard deviation and the mean.
-
-            title: None or str
-                - If set to None, the default title will be shown.
-                - If set to a str, the title will be shown.
+            show_avg_output: bool, if True, the average output is shown
+            not_show: bool, if True, the plot is not shown, but returned as a matplotlib object
         """
         confidence_interval = helpers.prep_confidence_interval(confidence_interval)
         centering = helpers.prep_centering(centering)
@@ -201,6 +200,8 @@ class RHALE(GlobalEffect):
             title="RHALE Plot",
             avg_output=avg_output,
             feature_names=self.feature_names,
-            target_name=self.target_name
+            target_name=self.target_name,
+            not_show=not_show
         )
-        return fig, ax1, ax2
+        if not_show:
+            return fig, ax1, ax2
