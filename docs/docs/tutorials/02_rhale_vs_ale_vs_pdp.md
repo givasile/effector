@@ -18,7 +18,7 @@ We will generate $N=60$ examples with $D=3$ features from the following distribu
 |---------|--------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
 | $x_1$   | $x_1$ lies in $[-0.5, 0.5]$ with most samples in $[-0.5, 0]$ | $x_1 \sim p(x_1) = \frac{5}{6} \mathcal{U}(x_1; -0.5, 0) + \frac{1}{6} \mathcal{U}(x_1; 0, 0.5)$ |
 | $x_2$   | Normally distributed with $\mu = 0$, $\sigma = 2$            | $x_2 \sim p(x_2) = \mathcal{N}(x_2; \mu=0, \sigma = 2)$                                          |
-| $x_3$   | Normally distributed with $\mu = x_1$, $\sigma = 0.01$       | $x_3 \sim p(x_3) = \mathcal{N}(x_3; \mu=x_1, \sigma = 0.01)$                                     |
+| $x_3$   | Normally distributed around $\mu = x_1$ with $\sigma = 0.01$ | $x_3 \sim p(x_3) = \mathcal{N}(x_3; \mu=x_1, \sigma = 0.01)$                                     |
 
 We should observe that $x_3$ is highly-dependent on $x_1$, i.e., $x_3 \approx x_1$; this will later help us to compute the ground truth ALE effect.
 
@@ -203,7 +203,7 @@ plt.plot(xx, rhale_gt(xx)[0], "--", label="ground truth")
 plt.fill_between(xx, rhale_gt(xx)[0] - rhale_gt(xx)[1], rhale_gt(xx)[0] + rhale_gt(xx)[1], alpha=0.2)
 plt.title("Ground-truth RHALE")
 plt.xlabel("$x_1$")
-plt.ylabel("$y$")
+plt.ylabel("dy_dx1")
 plt.legend()
 plt.show()
 ```
@@ -250,7 +250,7 @@ nof_bins = 5
 ale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
 binning = effector.binning_methods.Fixed(nof_bins=nof_bins, min_points_per_bin=0)
 ale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = ale.plot(feature=feat, confidence_interval=True)
+ale.plot(feature=feat, confidence_interval=True)
 
 ```
 
@@ -275,7 +275,7 @@ nof_bins = 50
 ale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
 binning = effector.binning_methods.Fixed(nof_bins=nof_bins, min_points_per_bin=0)
 ale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = ale.plot(feature=feat, confidence_interval="std")
+ale.plot(feature=feat, confidence_interval="std")
 ```
 
 
@@ -303,7 +303,7 @@ feat = 0
 rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.DynamicProgramming(max_nof_bins=20, min_points_per_bin=10, discount=0.5)
 rhale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
+rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
 
 ```
 
@@ -338,7 +338,7 @@ feat = 0
 rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=10, discount=0.2)
 rhale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
+rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
 ```
 
 
@@ -360,7 +360,7 @@ feat = 0
 rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=0.2)
 rhale.fit([feat], binning_method=binning)
-fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
+rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
 ```
 
 
@@ -371,15 +371,11 @@ fig, ax1, ax2 = rhale.plot(feature=feat, confidence_interval="std", show_avg_out
 
 ## PDP
 
-We have spent much time on ALE and RHALE, trying to find the best way to split the axis of the feature of interest and achive the best 
-approximation of the ALE definition. Does it worth it? For example, PDP-ICE are a very popular method for both the average effect and the heterogeneity. 
-So why not use PDP-ICE instead of trying these sophisticate ALE approximations?
+We have invested a significant amount of time in exploring ALE and RHALE, attempting to achieve the most accurate approximation of the ALE definition. Is it worthwhile? For instance, PDP-ICE is a widely used method for both average effect and heterogeneity. So, why not opt for PDP-ICE instead of delving into these sophisticated ALE approximations?
 
-The short is yes, especially in cases where the features are correlated. 
-Both, PDP and ICE make an implicit assumption that the features are independent. 
-In cases where this assumption is highly-violated, PDP and ICE may lead to wrong conclusions.
-In our example, it is clear that $x_3$ is highly-dependent on $x_1$. So let's see what happens with PDP-ICE. 
+In short, yes, especially in scenarios where the features exhibit correlation. Both PDP and ICE operate under the implicit assumption of feature independence. In cases where this assumption is substantially violated, relying on PDP and ICE may result in erroneous conclusions, stemming from extrapolation into unobserved regions.
 
+In our example, it is evident that $x_3$ is highly dependent on $x_1$. Therefore, let's examine the implications of employing PDP-ICE.
 
 
 
@@ -392,3 +388,10 @@ fig, ax = effector.PDP(data=x, model=f, nof_instances=30).plot(feature=0, center
 ![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_31_0.png)
     
 
+
+It is crucial to recognize that heterogeneity arises from extrapolation into regions with low density. For instance, considering the data-generating distribution, it is highly improbable to observe a scenario where x_1<0 and x_3>0. However, PDP-ICE disrupts this correlation, leading some individual conditional expectations (ICEs) to trace $-\sin(2\pi x_1)$ within the interval $[-0.5, 0]$.
+
+
+```python
+
+```
