@@ -1,15 +1,19 @@
-# An introduction into Regional Feature Effects
+# Regional Effects Introduction
 
-This tutorial is a gentle introduction to Regional feature effects and the `Effector` package. Regional feature effects bridge the gap between local and global feature effects. The [REPID](https://proceedings.mlr.press/v151/herbinger22a/herbinger22a.pdf) method was recently introduced to find regions within the feature space which minimizes feature interactions (interaction-related heterogeneity) based on ICE curves and PDPs for one feature of interest. This approach was extended to ALE and SHAP Dependence Plots for multiple features of interest by [GADGET](https://arxiv.org/pdf/2306.00541.pdf) (with REPID being a special case of GADGET). Here, we illustrate the advantages of GADGET-PD and GADGET-ALE (RHALE) compared to their global alternatives in the presence of feature interactions. We also illustrate the advantage of GADGET-ALE compared to GADGET-PD in the presence of high correlations in the feature space.
-GADGET-PD and GADGET-ALE are both provided in the `Effector` package. We showcase its userfriendly applicability in the following simulation example.
+This guide provides a gentle overview of Regional Effect methods and introduces the `Effector` package. Regional Effects serve as a bridge between local and global feature effects. Recently, [REPID](https://proceedings.mlr.press/v151/herbinger22a/herbinger22a.pdf) introduced a method to identify regions within the feature space that minimize feature interactions. Their approach focused on minimizing the interaction-related heterogeneity using ICE curves for a singular feature of interest. This methodology has been expanded to encompass ALE and SHAP Dependence Plots for multiple features of interest through [GADGET](https://arxiv.org/pdf/2306.00541.pdf).
 
-The tutorial is structured as follows:
- - Introduction of the simulation example: We consider a simple linear setting with subgroup-specific feature interactions, which will be defined with independent features and with dependent features.
- - Modeling: We fit a neural network on the two data sets (uncorrelated vs. correlated)
- - PDP - Influence of feature interactions and feature correlations
- - RHALE - Influence of feature interactions and feature correlations
- - Regional Effects: GADGET-PD and GADGET-ALE
- 
+In this tutorial, we demonstrate how to leverage `Effector` to pinpoint regions that minimize feature interactions. First, we show how to identify these regions based on ICE curves, as in [REPID](https://proceedings.mlr.press/v151/herbinger22a/herbinger22a.pdf). Then, we illustrate the same procedure based on the heterogeneity of (RH)ALE plots. The former is achieved using the `RegionalPDP` class, while the latter with the `RegionalRHALE` class.
+
+Future releases of `Effector` will include support for `RegionalSHAP` and expand the algorithms for multiple features of interest, as demonstrated in [GADGET](https://arxiv.org/pdf/2306.00541.pdf).
+
+The tutorial is organized as follows:
+
+- Introduction of the simulation example: We explore a simple linear scenario with subgroup-specific feature interactions, defined with both independent and dependent features.
+- Modeling: We train a neural network on two datasets, one uncorrelated and the other correlated.
+- PDP: Examining the influence of feature interactions and correlations.
+- RHALE: Analyzing the impact of feature interactions and correlations.
+- Regional Effects: Delving into RegionalPDP and RegionalALE.
+
 
 
 
@@ -18,22 +22,25 @@ import numpy as np
 import effector
 import keras
 import tensorflow as tf
+
+np.random.seed(12345)
+tf.random.set_seed(12345)
 ```
 
----
-## Introduction of the simulation example
+## Simulation example
 
 We will generate $N=500$ examples with $D=3$ features, which are in the uncorrelated setting all uniformly distributed as follows:
 
 <center>
 
-| Feature | Description | Distribution                 |
-| --- | --- |------------------------------|
-| $x_1$ | Uniformly distributed between $-1$ and $1$ | $x_1 \sim \mathcal{U}(-1,1)$ |
-| $x_2$ | Uniformly distributed between $-1$ and $1$ | $x_2 \sim \mathcal{U}(-1,1)$ |
-| $x_3$ | Uniformly distributed between $-1$ and $1$ | $x_3 \sim \mathcal{U}(-1,1)$ |
+| Feature | Description                                | Distribution                 |
+|-------|------------------------------------------|------------------------------|
+| $x_1$   | Uniformly distributed between $-1$ and $1$ | $x_1 \sim \mathcal{U}(-1,1)$ |
+| $x_2$   | Uniformly distributed between $-1$ and $1$ | $x_2 \sim \mathcal{U}(-1,1)$ |
+| $x_3$   | Uniformly distributed between $-1$ and $1$ | $x_3 \sim \mathcal{U}(-1,1)$ |
 
 </center>
+
 For the correlated setting we keep the distributional assumptions for $x_2$ and $x_3$ but define $x_1$ such that it is highly correlated with $x_3$ by: $x_1 = x_3 + \delta$ with $\delta \sim \mathcal{N}(0,0.0625)$.
 
 
@@ -51,17 +58,12 @@ def generate_dataset_correlated(N):
     return np.stack((x1, x2, x3), axis=-1)
 
 # generate the dataset for the uncorrelated and correlated setting
-np.random.seed(123)
 N = 500
-X_uncor = X_uncor_train = generate_dataset_uncorrelated(N)
+X_uncor_train = generate_dataset_uncorrelated(N)
 X_uncor_test = generate_dataset_uncorrelated(10000)
-X_cor = X_cor_train = generate_dataset_correlated(N)
+X_cor_train = generate_dataset_correlated(N)
 X_cor_test = generate_dataset_correlated(10000)
-
 ```
-
----
-## Modeling
 
 We will use the following linear model with a subgroup-specific interaction term, $y = 3x_1I_{x_3>0} - 3x_1I_{x_3\leq0} + x_3 + \epsilon$ with $\epsilon \sim \mathcal{N}(0, 0.09)$. On a global level, there is a high heterogeneity for the features $x_1$ and $x_3$ due to their interaction with each other. However, this heterogeneity vanishes to 0 if the feature space is separated into two regions with respect to $x_3 = 0$. In this case only main effects remain in the two regions: 
 
@@ -88,22 +90,19 @@ def generate_target(X):
     return(Y)
 
 # generate target for uncorrelated and correlated setting
-np.random.seed(123)
 Y_uncor_train = generate_target(X_uncor_train)
 Y_uncor_test = generate_target(X_uncor_test)
 Y_cor_train = generate_target(X_cor_train)
 Y_cor_test = generate_target(X_cor_test)      
 ```
 
-#### Fit a Neural Network
+## Fit a Neural Network
 
-We train a single-layer feedforward Neural Network of size 10, a weight decay of 0.001 and a maximum number of iterations of 1000 (HPO was done by Herbinger et. al (2023) for this example) on the uncorrelated and the correlated setting.
+We create a two-layer feedforward Neural Network, a weight decay of 0.01 for 100 epochs. We train two instances of this NN, one on the uncorrelated and one on the correlated setting. In both cases, the NN achieves a Mean Squared Error of about $0.17$ units.
 
 
 ```python
 # Train - Evaluate - Explain a neural network
-np.random.seed(123)
-
 model_uncor = keras.Sequential([
     keras.layers.Dense(10, activation="relu", input_shape=(3,)),
     keras.layers.Dense(10, activation="relu", input_shape=(3,)),
@@ -112,97 +111,217 @@ model_uncor = keras.Sequential([
 
 optimizer = keras.optimizers.Adam(learning_rate=0.01)
 model_uncor.compile(optimizer=optimizer, loss="mse")
-model_uncor.fit(X_uncor_train, Y_uncor_train, epochs=40)
+model_uncor.fit(X_uncor_train, Y_uncor_train, epochs=100)
 model_uncor.evaluate(X_uncor_test, Y_uncor_test)
 ```
 
-    Epoch 1/40
-    16/16 [==============================] - 0s 830us/step - loss: 3.4189
-    Epoch 2/40
-    16/16 [==============================] - 0s 790us/step - loss: 3.0758
-    Epoch 3/40
-    16/16 [==============================] - 0s 830us/step - loss: 2.3582
-    Epoch 4/40
-    16/16 [==============================] - 0s 817us/step - loss: 1.5259
-    Epoch 5/40
-    16/16 [==============================] - 0s 776us/step - loss: 1.0501
-    Epoch 6/40
-    16/16 [==============================] - 0s 893us/step - loss: 0.8431
-    Epoch 7/40
-    16/16 [==============================] - 0s 780us/step - loss: 0.6829
-    Epoch 8/40
-    16/16 [==============================] - 0s 755us/step - loss: 0.5768
-    Epoch 9/40
-    16/16 [==============================] - 0s 784us/step - loss: 0.4912
-    Epoch 10/40
-    16/16 [==============================] - 0s 852us/step - loss: 0.4555
-    Epoch 11/40
-    16/16 [==============================] - 0s 767us/step - loss: 0.4083
-    Epoch 12/40
-    16/16 [==============================] - 0s 765us/step - loss: 0.3820
-    Epoch 13/40
-    16/16 [==============================] - 0s 762us/step - loss: 0.3439
-    Epoch 14/40
-    16/16 [==============================] - 0s 775us/step - loss: 0.3406
-    Epoch 15/40
-    16/16 [==============================] - 0s 884us/step - loss: 0.3211
-    Epoch 16/40
-    16/16 [==============================] - 0s 771us/step - loss: 0.3098
-    Epoch 17/40
-    16/16 [==============================] - 0s 822us/step - loss: 0.2892
-    Epoch 18/40
-    16/16 [==============================] - 0s 743us/step - loss: 0.2598
-    Epoch 19/40
-    16/16 [==============================] - 0s 719us/step - loss: 0.2494
-    Epoch 20/40
-    16/16 [==============================] - 0s 767us/step - loss: 0.2663
-    Epoch 21/40
-    16/16 [==============================] - 0s 737us/step - loss: 0.2536
-    Epoch 22/40
-    16/16 [==============================] - 0s 698us/step - loss: 0.2230
-    Epoch 23/40
-    16/16 [==============================] - 0s 761us/step - loss: 0.2281
-    Epoch 24/40
-    16/16 [==============================] - 0s 735us/step - loss: 0.2143
-    Epoch 25/40
-    16/16 [==============================] - 0s 736us/step - loss: 0.2039
-    Epoch 26/40
-    16/16 [==============================] - 0s 769us/step - loss: 0.2036
-    Epoch 27/40
-    16/16 [==============================] - 0s 747us/step - loss: 0.1979
-    Epoch 28/40
-    16/16 [==============================] - 0s 739us/step - loss: 0.2157
-    Epoch 29/40
-    16/16 [==============================] - 0s 791us/step - loss: 0.1998
-    Epoch 30/40
-    16/16 [==============================] - 0s 774us/step - loss: 0.2208
-    Epoch 31/40
-    16/16 [==============================] - 0s 784us/step - loss: 0.2367
-    Epoch 32/40
-    16/16 [==============================] - 0s 760us/step - loss: 0.1999
-    Epoch 33/40
-    16/16 [==============================] - 0s 781us/step - loss: 0.1901
-    Epoch 34/40
-    16/16 [==============================] - 0s 785us/step - loss: 0.1903
-    Epoch 35/40
-    16/16 [==============================] - 0s 753us/step - loss: 0.1871
-    Epoch 36/40
-    16/16 [==============================] - 0s 823us/step - loss: 0.2021
-    Epoch 37/40
-    16/16 [==============================] - 0s 814us/step - loss: 0.1823
-    Epoch 38/40
-    16/16 [==============================] - 0s 805us/step - loss: 0.1743
-    Epoch 39/40
-    16/16 [==============================] - 0s 781us/step - loss: 0.1741
-    Epoch 40/40
-    16/16 [==============================] - 0s 762us/step - loss: 0.1751
-    313/313 [==============================] - 0s 594us/step - loss: 0.2125
+    Epoch 1/100
+    16/16 [==============================] - 0s 1ms/step - loss: 2.9372
+    Epoch 2/100
+    16/16 [==============================] - 0s 1ms/step - loss: 2.3084
+    Epoch 3/100
+    16/16 [==============================] - 0s 1ms/step - loss: 1.7351
+    Epoch 4/100
+    16/16 [==============================] - 0s 1ms/step - loss: 1.3192
+    Epoch 5/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.7878
+    Epoch 6/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.5386
+    Epoch 7/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.4682
+    Epoch 8/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.4128
+    Epoch 9/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.3915
+    Epoch 10/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.3513
+    Epoch 11/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.3463
+    Epoch 12/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.3264
+    Epoch 13/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.3297
+    Epoch 14/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2918
+    Epoch 15/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2713
+    Epoch 16/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2618
+    Epoch 17/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2893
+    Epoch 18/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.2777
+    Epoch 19/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2449
+    Epoch 20/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2541
+    Epoch 21/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2334
+    Epoch 22/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2347
+    Epoch 23/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2685
+    Epoch 24/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2437
+    Epoch 25/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2225
+    Epoch 26/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2179
+    Epoch 27/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2207
+    Epoch 28/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2268
+    Epoch 29/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2237
+    Epoch 30/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.2085
+    Epoch 31/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2195
+    Epoch 32/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1922
+    Epoch 33/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1958
+    Epoch 34/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1972
+    Epoch 35/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2029
+    Epoch 36/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2065
+    Epoch 37/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2295
+    Epoch 38/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2148
+    Epoch 39/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2006
+    Epoch 40/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2182
+    Epoch 41/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1999
+    Epoch 42/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1930
+    Epoch 43/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1766
+    Epoch 44/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1825
+    Epoch 45/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1931
+    Epoch 46/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1876
+    Epoch 47/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1931
+    Epoch 48/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1772
+    Epoch 49/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1670
+    Epoch 50/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1662
+    Epoch 51/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1582
+    Epoch 52/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1597
+    Epoch 53/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1574
+    Epoch 54/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1701
+    Epoch 55/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1684
+    Epoch 56/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1575
+    Epoch 57/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1512
+    Epoch 58/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1576
+    Epoch 59/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1692
+    Epoch 60/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1570
+    Epoch 61/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1556
+    Epoch 62/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1545
+    Epoch 63/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1441
+    Epoch 64/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1393
+    Epoch 65/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1488
+    Epoch 66/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1455
+    Epoch 67/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1374
+    Epoch 68/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1446
+    Epoch 69/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1458
+    Epoch 70/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1567
+    Epoch 71/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1476
+    Epoch 72/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1325
+    Epoch 73/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1285
+    Epoch 74/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1324
+    Epoch 75/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1329
+    Epoch 76/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1354
+    Epoch 77/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1308
+    Epoch 78/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1253
+    Epoch 79/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1418
+    Epoch 80/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1401
+    Epoch 81/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1294
+    Epoch 82/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1308
+    Epoch 83/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1646
+    Epoch 84/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1534
+    Epoch 85/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1341
+    Epoch 86/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1245
+    Epoch 87/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1174
+    Epoch 88/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1221
+    Epoch 89/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1303
+    Epoch 90/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1305
+    Epoch 91/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1235
+    Epoch 92/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1150
+    Epoch 93/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1198
+    Epoch 94/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1380
+    Epoch 95/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1500
+    Epoch 96/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1349
+    Epoch 97/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1399
+    Epoch 98/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1203
+    Epoch 99/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1163
+    Epoch 100/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1121
+    313/313 [==============================] - 0s 826us/step - loss: 0.1724
 
 
 
 
 
-    0.2125217467546463
+    0.17241638898849487
 
 
 
@@ -216,97 +335,217 @@ model_cor = keras.Sequential([
 
 optimizer = keras.optimizers.Adam(learning_rate=0.01)
 model_cor.compile(optimizer=optimizer, loss="mse")
-model_cor.fit(X_cor_train, Y_cor_train, epochs=40)
+model_cor.fit(X_cor_train, Y_cor_train, epochs=100)
 model_cor.evaluate(X_cor_test, Y_cor_test)
 ```
 
-    Epoch 1/40
-    16/16 [==============================] - 0s 807us/step - loss: 3.1813
-    Epoch 2/40
-    16/16 [==============================] - 0s 746us/step - loss: 1.4841
-    Epoch 3/40
-    16/16 [==============================] - 0s 818us/step - loss: 0.8389
-    Epoch 4/40
-    16/16 [==============================] - 0s 815us/step - loss: 0.5696
-    Epoch 5/40
-    16/16 [==============================] - 0s 842us/step - loss: 0.3757
-    Epoch 6/40
-    16/16 [==============================] - 0s 821us/step - loss: 0.2766
-    Epoch 7/40
-    16/16 [==============================] - 0s 796us/step - loss: 0.2243
-    Epoch 8/40
-    16/16 [==============================] - 0s 863us/step - loss: 0.1953
-    Epoch 9/40
-    16/16 [==============================] - 0s 881us/step - loss: 0.1722
-    Epoch 10/40
-    16/16 [==============================] - 0s 787us/step - loss: 0.1589
-    Epoch 11/40
-    16/16 [==============================] - 0s 787us/step - loss: 0.1502
-    Epoch 12/40
-    16/16 [==============================] - 0s 749us/step - loss: 0.1409
-    Epoch 13/40
-    16/16 [==============================] - 0s 746us/step - loss: 0.1364
-    Epoch 14/40
-    16/16 [==============================] - 0s 770us/step - loss: 0.1367
-    Epoch 15/40
-    16/16 [==============================] - 0s 747us/step - loss: 0.1335
-    Epoch 16/40
-    16/16 [==============================] - 0s 822us/step - loss: 0.1291
-    Epoch 17/40
-    16/16 [==============================] - 0s 766us/step - loss: 0.1264
-    Epoch 18/40
-    16/16 [==============================] - 0s 777us/step - loss: 0.1300
-    Epoch 19/40
-    16/16 [==============================] - 0s 770us/step - loss: 0.1264
-    Epoch 20/40
-    16/16 [==============================] - 0s 771us/step - loss: 0.1279
-    Epoch 21/40
-    16/16 [==============================] - 0s 766us/step - loss: 0.1369
-    Epoch 22/40
-    16/16 [==============================] - 0s 803us/step - loss: 0.1243
-    Epoch 23/40
-    16/16 [==============================] - 0s 829us/step - loss: 0.1206
-    Epoch 24/40
-    16/16 [==============================] - 0s 802us/step - loss: 0.1171
-    Epoch 25/40
-    16/16 [==============================] - 0s 822us/step - loss: 0.1177
-    Epoch 26/40
-    16/16 [==============================] - 0s 853us/step - loss: 0.1191
-    Epoch 27/40
-    16/16 [==============================] - 0s 761us/step - loss: 0.1187
-    Epoch 28/40
-    16/16 [==============================] - 0s 767us/step - loss: 0.1177
-    Epoch 29/40
-    16/16 [==============================] - 0s 785us/step - loss: 0.1228
-    Epoch 30/40
-    16/16 [==============================] - 0s 828us/step - loss: 0.1240
-    Epoch 31/40
-    16/16 [==============================] - 0s 790us/step - loss: 0.1200
-    Epoch 32/40
-    16/16 [==============================] - 0s 788us/step - loss: 0.1172
-    Epoch 33/40
-    16/16 [==============================] - 0s 869us/step - loss: 0.1133
-    Epoch 34/40
-    16/16 [==============================] - 0s 755us/step - loss: 0.1128
-    Epoch 35/40
-    16/16 [==============================] - 0s 761us/step - loss: 0.1204
-    Epoch 36/40
-    16/16 [==============================] - 0s 768us/step - loss: 0.1160
-    Epoch 37/40
-    16/16 [==============================] - 0s 883us/step - loss: 0.1109
-    Epoch 38/40
-    16/16 [==============================] - 0s 812us/step - loss: 0.1247
-    Epoch 39/40
-    16/16 [==============================] - 0s 780us/step - loss: 0.1154
-    Epoch 40/40
-    16/16 [==============================] - 0s 799us/step - loss: 0.1139
-    313/313 [==============================] - 0s 596us/step - loss: 0.1369
+    Epoch 1/100
+    16/16 [==============================] - 0s 1ms/step - loss: 2.7965
+    Epoch 2/100
+    16/16 [==============================] - 0s 2ms/step - loss: 1.1350
+    Epoch 3/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.6351
+    Epoch 4/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.4017
+    Epoch 5/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2877
+    Epoch 6/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2465
+    Epoch 7/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2263
+    Epoch 8/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2145
+    Epoch 9/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2059
+    Epoch 10/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.2012
+    Epoch 11/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1984
+    Epoch 12/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1933
+    Epoch 13/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1944
+    Epoch 14/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1892
+    Epoch 15/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1882
+    Epoch 16/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1868
+    Epoch 17/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1858
+    Epoch 18/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1846
+    Epoch 19/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1846
+    Epoch 20/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1834
+    Epoch 21/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1855
+    Epoch 22/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1867
+    Epoch 23/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1830
+    Epoch 24/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1810
+    Epoch 25/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1822
+    Epoch 26/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1818
+    Epoch 27/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1864
+    Epoch 28/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1850
+    Epoch 29/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1844
+    Epoch 30/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1810
+    Epoch 31/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1796
+    Epoch 32/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1803
+    Epoch 33/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1831
+    Epoch 34/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1824
+    Epoch 35/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1805
+    Epoch 36/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1768
+    Epoch 37/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1811
+    Epoch 38/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1802
+    Epoch 39/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1880
+    Epoch 40/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1889
+    Epoch 41/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1846
+    Epoch 42/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1822
+    Epoch 43/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1780
+    Epoch 44/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1935
+    Epoch 45/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1770
+    Epoch 46/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1791
+    Epoch 47/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1746
+    Epoch 48/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1781
+    Epoch 49/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1820
+    Epoch 50/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1760
+    Epoch 51/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1799
+    Epoch 52/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1798
+    Epoch 53/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1805
+    Epoch 54/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1751
+    Epoch 55/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1753
+    Epoch 56/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1783
+    Epoch 57/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1809
+    Epoch 58/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1777
+    Epoch 59/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1751
+    Epoch 60/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1786
+    Epoch 61/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1708
+    Epoch 62/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1683
+    Epoch 63/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1703
+    Epoch 64/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1711
+    Epoch 65/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1757
+    Epoch 66/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1714
+    Epoch 67/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1721
+    Epoch 68/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1768
+    Epoch 69/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1723
+    Epoch 70/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1719
+    Epoch 71/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1680
+    Epoch 72/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1689
+    Epoch 73/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1684
+    Epoch 74/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1887
+    Epoch 75/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1745
+    Epoch 76/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1656
+    Epoch 77/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1658
+    Epoch 78/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1683
+    Epoch 79/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1656
+    Epoch 80/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1668
+    Epoch 81/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1712
+    Epoch 82/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1645
+    Epoch 83/100
+    16/16 [==============================] - 0s 1ms/step - loss: 0.1700
+    Epoch 84/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1699
+    Epoch 85/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1763
+    Epoch 86/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1711
+    Epoch 87/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1670
+    Epoch 88/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1682
+    Epoch 89/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1739
+    Epoch 90/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1633
+    Epoch 91/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1654
+    Epoch 92/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1602
+    Epoch 93/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1576
+    Epoch 94/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1570
+    Epoch 95/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1518
+    Epoch 96/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1524
+    Epoch 97/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1483
+    Epoch 98/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1511
+    Epoch 99/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1486
+    Epoch 100/100
+    16/16 [==============================] - 0s 2ms/step - loss: 0.1387
+    313/313 [==============================] - 0s 872us/step - loss: 0.1709
 
 
 
 
 
-    0.13692966103553772
+    0.17093370854854584
 
 
 
@@ -342,6 +581,8 @@ Let's check it out the PDP effect using `effector`.
 
 ### Uncorrelated setting
 
+#### Global PDP
+
 
 ```python
 pdp = effector.PDP(data=X_uncor_train, model=model_uncor, feature_names=['x1','x2','x3'], target_name="Y")
@@ -352,30 +593,37 @@ fig, ax = pdp.plot(feature=2, centering=True, show_avg_output=False, confidence_
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_11_0.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_12_0.png)
     
 
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_11_1.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_12_1.png)
     
 
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_11_2.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_12_2.png)
     
 
 
-In the uncorrelated setting $x_1$ has - as expected - an average global feature effect of $0$ while the heteroeneous ICE curves indicate the underlying feature interactions with $x_3$. Also $x_3$ demonstrates a high heterogeneity of local effects while the average global effect represents the underlying main effect of $x_3$. $x_2$ varies as expected around $0$ with small heterogeneity (note the difference in the scale of the y-axis).
+In the uncorrelated setting $x_1$ has - as expected - an average global feature effect of $0$ while the heteroeneous ICE curves indicate the underlying feature interactions with $x_3$. Also $x_3$ demonstrates a high heterogeneity of local effects due to the interactions with $x_1$ while the average global effect is $x_3$. $x_2$ varies as expected around $0$ with almost zero heterogeneity (note the difference in the scale of the y-axis).
 
-#### GADGET-PD
+The above are as expected:
 
-GADGET creates interpretable and distinct regions within the feature space such that the interaction-related heterogeneity is minimized within the regions. Thus, we aim to receive main effects of the features within the regions. 
+* For $x_1$, we have two opposite linear effects that cancel out
+  * when $x_3>0$ it is $3x_1$ 
+  * when $x_3 \leq 0$, it is $-3x_1$
+* For $x_2$ the effect is zero with almost zero heterogeneity (ice curves that deviate are due to bad fitting of the NN)
+* For $x_3$, there is a change in the offset:
+  * when $x_1>0$ the line is $x_3 - 3x_1^i$ when $x_3 \leq 0$ and $x_3 + 3x_1^i$ when $x_3 > 0$
+  * when $x_1<0$ the line is $x_3 + 3x_1^i$ when $x_3 \leq 0$ and $x_3 - 3x_1^i$ when $x_3 > 0$
 
+#### RegionalPDP
 
-In the case of PDPs and ICE this means, that we minimize the heterogeneity of mean-centered ICE curves. This means that we group ICE curves with a similar shape, i.e., we find regions in which the instances within this regions show a similar influence on the prediction for the feature of interests, while this influence differs for other regions.
+Regional PDP will search for interpretable and distinct regions within the feature space such that the interaction-related heterogeneity is minimized within the regions. In the case of PDPs and ICE this means, that we minimize the heterogeneity of mean-centered ICE curves. This means that we group ICE curves with a similar shape, i.e., we find regions in which the instances within this regions show a similar influence on the prediction for the feature of interests, while this influence differs for other regions.
 
 
 ```python
@@ -393,7 +641,7 @@ regional_pdp.fit(
 )
 ```
 
-    100%|██████████| 3/3 [00:00<00:00,  3.64it/s]
+    100%|███████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:01<00:00,  2.62it/s]
 
 
 
@@ -403,14 +651,14 @@ regional_pdp.describe_subregions(features=0, only_important=True)
 
     Important splits for feature x1
     - On feature x3 (cont)
-      - Range: [-1.00, 1.00]
-      - Candidate split positions: -0.80, -0.40, -0.00, 0.40, 0.80
-      - Position of split: -0.00
-      - Heterogeneity before split: 1.76
-      - Heterogeneity after split: 0.39
-      - Heterogeneity drop: 1.38 (355.35 %)
+      - Range: [-0.99, 1.00]
+      - Candidate split positions: -0.79, -0.39, 0.00, 0.40, 0.80
+      - Position of split: 0.00
+      - Heterogeneity before split: 1.67
+      - Heterogeneity after split: 0.45
+      - Heterogeneity drop: 1.22 (267.75 %)
       - Number of instances before split: 500
-      - Number of instances after split: [255, 245]
+      - Number of instances after split: [242, 258]
 
 
 
@@ -445,14 +693,14 @@ regional_pdp.describe_subregions(features=2, only_important=True)
 
     Important splits for feature x3
     - On feature x1 (cont)
-      - Range: [-1.00, 1.00]
-      - Candidate split positions: -0.80, -0.40, -0.00, 0.40, 0.80
-      - Position of split: -0.00
-      - Heterogeneity before split: 1.73
-      - Heterogeneity after split: 0.87
-      - Heterogeneity drop: 0.86 (99.31 %)
+      - Range: [-0.99, 1.00]
+      - Candidate split positions: -0.79, -0.40, 0.00, 0.40, 0.80
+      - Position of split: 0.00
+      - Heterogeneity before split: 1.70
+      - Heterogeneity after split: 0.82
+      - Heterogeneity drop: 0.88 (108.30 %)
       - Number of instances before split: 500
-      - Number of instances after split: [257, 243]
+      - Number of instances after split: [262, 238]
 
 
 
@@ -472,13 +720,27 @@ regional_pdp.plot_first_level(feature=2, confidence_interval="ice", centering=Tr
     
 
 
+As expected:
+
+* The subregions of both $x_1$ and $x_3$ are meaningful and $x_2$ should not be split.
+* For $x_1$, we have two opposite gradients ($3x_1$ vs $-3x_1$)
+* For $x_3$, there is a change in the offset:
+  * when $x_1>0$ the line is $x_3 - 3x_1^i$ in the first half and $x_3 + 3x_1^i$ later
+  * when $x_1<0$ the line is $x_3 + 3x_1^i$ in the first half and $x_3 - 3x_1^i$ later
+
 ### Correlated setting
 
-GADGET creates interpretable and distinct regions within the feature space such that the interaction-related heterogeneity is minimized within the regions. Thus, we aim to receive main effects of the features within the regions. 
-Since the PDP assumes feature independence, we can observe in the highly correlated setting the following artifact: $x_1$ and $x_3$ are highly positively correlated, therefore, the combination of small (high) $x_1$ and high (small) $x_3$ feature values is not avaiable and thus has not been seen by the model during the training process. However, ICE curves and PDPs are visualized for the entire feature range of the feature of interest (e.g., $x_1$). Thus, we extrapolate with our model (here NN) into unseen or sparse regions of the feature space. This might lead to an osciliating behavior depending on the underlying chosen ML model. Therefore, we might receive heterogeneity of local effects (ICE curves) which are not caused by feature interactions but by extrapolation due to feature correlations. This behavior is especially visible for feature $x_1$ in our example.   
+Since the PDP assumes feature independence, we can observe in the highly correlated setting the following artifact: $x_1$ and $x_3$ are highly positively correlated, therefore, the combination of small (high) $x_1$ and high (small) $x_3$ feature values is not avaiable and thus has not been seen by the model during the training process. However, ICE curves and PDPs are visualized for the entire feature range of the feature of interest (e.g., $x_1$). Thus, we extrapolate with our model (here NN) into unseen or sparse regions of the feature space. This might lead to an osciliating behavior depending on the underlying chosen ML model. Therefore, we might receive heterogeneity of local effects (ICE curves) which are not caused by feature interactions but by extrapolation due to feature correlations. This behavior is especially visible for feature $x_1$ in our example.
 
+In this setup, due to $x_3$ being close to $x_1$, we expect:
 
+   * the effect of $x_1$ will be $-3x_1$ when $x_1 \leq 0$ and $3x_1$ when $x_1 >0$
+   * the effect of $x_2$ remains zero
+   * the effect of $x_3$ will be $x_3$
+   
+However, we should mention that this is just a hypothesis. Since the NN learns everything from the data and given that $x_3 \approx x_1$, the NN can learn the mapping $y = 3x_1I_{x_3>0} - 3x_1I_{x_3\leq 0} + x_3 + \epsilon = 3x_1I_{x_1>0} - 3x_1I_{x_1\leq 0} + x_1 + \epsilon$, which attributes all the effect of the mapping to $x_1$.
 
+#### Global PDP
 
 
 ```python
@@ -490,23 +752,34 @@ fig, ax = pdp.plot(feature=2, centering=True, show_avg_output=False, confidence_
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_22_0.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_25_0.png)
     
 
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_22_1.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_25_1.png)
     
 
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_22_2.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_25_2.png)
     
 
 
-#### GADEGT-PD
+We observed that the global effects are as expected:
+
+   * the effect of $x_1$ will be $-3x_1$ when $x_1 \leq 0$ and $3x_1$ when $x_1 >0$
+   * the effect of $x_2$ remains zero
+   * the effect of $x_3$ will be $x_3$
+   
+However, we should notice that there is some heterogeneity, erroneously introduced by extrapolation to unobserved regions:
+
+   * the ICE effects of $x_1$ have different offsets ($\pm$ in the $y$ axis) and different changing points between $-3x_1$ and $3x_1$ (the change does not always happens at $x_1=0$)
+   * the ICE effects of $x_3$ create two different groups; one with positive and one with negative gradient
+
+#### Regional-PDP
 
 
 ```python
@@ -519,7 +792,7 @@ regional_pdp = effector.RegionalPDP(
 regional_pdp.fit(
     features="all",
     heter_small_enough=0.1,
-    heter_pcg_drop_thres=0.3,
+    heter_pcg_drop_thres=0.5,
     max_split_levels=2,
     nof_candidate_splits_for_numerical=5,
     min_points_per_subregion=10,
@@ -528,7 +801,7 @@ regional_pdp.fit(
 )
 ```
 
-    100%|██████████| 3/3 [00:00<00:00,  3.69it/s]
+    100%|███████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00,  3.12it/s]
 
 
 
@@ -541,11 +814,11 @@ regional_pdp.describe_subregions(features=0, only_important=True)
       - Range: [-1.00, 1.00]
       - Candidate split positions: -0.80, -0.40, -0.00, 0.40, 0.80
       - Position of split: -0.00
-      - Heterogeneity before split: 1.52
-      - Heterogeneity after split: 0.41
-      - Heterogeneity drop: 1.10 (266.53 %)
+      - Heterogeneity before split: 0.92
+      - Heterogeneity after split: 0.35
+      - Heterogeneity drop: 0.57 (162.03 %)
       - Number of instances before split: 500
-      - Number of instances after split: [255, 245]
+      - Number of instances after split: [252, 248]
 
 
 
@@ -555,13 +828,13 @@ regional_pdp.plot_first_level(feature=0, confidence_interval="ice")
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_26_0.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_30_0.png)
     
 
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_26_1.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_30_1.png)
     
 
 
@@ -570,73 +843,18 @@ regional_pdp.plot_first_level(feature=0, confidence_interval="ice")
 regional_pdp.describe_subregions(features=1, only_important=True)
 ```
 
-    Important splits for feature x2
-    - On feature x1 (cont)
-      - Range: [-1.79, 1.37]
-      - Candidate split positions: -1.47, -0.84, -0.21, 0.42, 1.05
-      - Position of split: 0.42
-      - Heterogeneity before split: 1.39
-      - Heterogeneity after split: 0.85
-      - Heterogeneity drop: 0.53 (62.51 %)
-      - Number of instances before split: 500
-      - Number of instances after split: [360, 140]
+    No important splits found for feature 1
 
-
-
-```python
-regional_pdp.plot_first_level(feature=1, confidence_interval="ice", centering=True)
-```
-
-
-    
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_28_0.png)
-    
-
-
-
-    
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_28_1.png)
-    
-
-
-
-```python
-
-```
 
 
 ```python
 regional_pdp.describe_subregions(features=2, only_important=True)
 ```
 
-    Important splits for feature x3
-    - On feature x1 (cont)
-      - Range: [-1.79, 1.37]
-      - Candidate split positions: -1.47, -0.84, -0.21, 0.42, 1.05
-      - Position of split: -0.21
-      - Heterogeneity before split: 1.27
-      - Heterogeneity after split: 0.79
-      - Heterogeneity drop: 0.48 (61.30 %)
-      - Number of instances before split: 500
-      - Number of instances after split: [192, 308]
+    No important splits found for feature 2
 
 
-
-```python
-regional_pdp.plot_first_level(feature=2, confidence_interval="ice", centering=True)
-```
-
-
-    
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_31_0.png)
-    
-
-
-
-    
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_31_1.png)
-    
-
+Add some comments
 
 ## ALE - Influence of feature interactions and feature correlations
 
@@ -666,31 +884,33 @@ def model_cor_jac(x):
 ```python
 rhale = effector.RHALE(data=X_uncor_train, model=model_uncor, model_jac=model_uncor_jac, feature_names=['x1','x2','x3'], target_name="Y")
 
-binning_method = effector.binning_methods.Fixed(10, min_points_per_bin=10)
+binning_method = effector.binning_methods.Fixed(15, min_points_per_bin=0)
 rhale.fit(features="all", binning_method=binning_method, centering=True)
 
-rhale.plot(feature=0, centering=True, show_avg_output=False)
-rhale.plot(feature=1, centering=True, show_avg_output=False)
-rhale.plot(feature=2, centering=True, show_avg_output=False)
+rhale.plot(feature=0, centering=True, confidence_interval="std", show_avg_output=False)
+rhale.plot(feature=1, centering=True, confidence_interval="std", show_avg_output=False)
+rhale.plot(feature=2, centering=True, confidence_interval="std", show_avg_output=False)
 ```
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_34_0.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_36_0.png)
     
 
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_34_1.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_36_1.png)
     
 
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_34_2.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_36_2.png)
     
 
+
+Add some comments
 
 
 ```python
@@ -701,7 +921,7 @@ regional_rhale = effector.RegionalRHALE(
     feature_names=['x1', 'x2', 'x3'],
     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
 
-binning_method = effector.binning_methods.Fixed(10, min_points_per_bin=10)
+binning_method = effector.binning_methods.Fixed(10, min_points_per_bin=0)
 regional_rhale.fit(
     features="all",
     heter_small_enough=0.1,
@@ -716,7 +936,7 @@ regional_rhale.fit(
 
 ```
 
-    100%|██████████| 3/3 [00:00<00:00,  9.74it/s]
+    100%|███████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00,  6.01it/s]
 
 
 
@@ -726,14 +946,14 @@ regional_rhale.describe_subregions(features=0, only_important=True)
 
     Important splits for feature x1
     - On feature x3 (cont)
-      - Range: [-1.00, 1.00]
-      - Candidate split positions: -0.80, -0.40, -0.00, 0.40, 0.80
-      - Position of split: -0.00
-      - Heterogeneity before split: 5.87
-      - Heterogeneity after split: 1.36
-      - Heterogeneity drop: 4.51 (332.64 %)
+      - Range: [-0.99, 1.00]
+      - Candidate split positions: -0.79, -0.39, 0.00, 0.40, 0.80
+      - Position of split: 0.00
+      - Heterogeneity before split: 5.65
+      - Heterogeneity after split: 1.23
+      - Heterogeneity drop: 4.42 (360.67 %)
       - Number of instances before split: 500
-      - Number of instances after split: [255, 245]
+      - Number of instances after split: [242, 258]
 
 
 
@@ -746,13 +966,13 @@ regional_rhale.plot_first_level(
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_37_0.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_40_0.png)
     
 
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_37_1.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_40_1.png)
     
 
 
@@ -772,46 +992,48 @@ regional_rhale.describe_subregions(features=2, only_important=True)
     No important splits found for feature 2
 
 
+add comments: Eveything makes sense! 
+
 ## Correlated setting
 
 
 ```python
 rhale = effector.RHALE(data=X_cor_train, model=model_cor, model_jac=model_cor_jac, feature_names=['x1','x2','x3'], target_name="Y")
 
-binning_method = effector.binning_methods.Fixed(10, min_points_per_bin=0)
+binning_method = effector.binning_methods.Fixed(20, min_points_per_bin=0)
 rhale.fit(features="all", binning_method=binning_method, centering=True)
 ```
 
 
 ```python
-rhale.plot(feature=0, centering=True, show_avg_output=False)
+rhale.plot(feature=0, centering=True, show_avg_output=False, confidence_interval="std")
 ```
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_42_0.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_46_0.png)
     
 
 
 
 ```python
-rhale.plot(feature=1, centering=True, show_avg_output=False)
+rhale.plot(feature=1, centering=True, show_avg_output=False, confidence_interval="std")
 ```
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_43_0.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_47_0.png)
     
 
 
 
 ```python
-rhale.plot(feature=2, centering=True, show_avg_output=False)
+rhale.plot(feature=2, centering=True, show_avg_output=False, confidence_interval="std")
 ```
 
 
     
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_44_0.png)
+![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_48_0.png)
     
 
 
@@ -841,7 +1063,7 @@ regional_rhale.fit(
 )
 ```
 
-    100%|██████████| 3/3 [00:01<00:00,  2.64it/s]
+    100%|███████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:01<00:00,  2.26it/s]
 
 
 
@@ -849,16 +1071,7 @@ regional_rhale.fit(
 regional_rhale.describe_subregions(features=0, only_important=True)
 ```
 
-    Important splits for feature x1
-    - On feature x3 (cont)
-      - Range: [-1.00, 1.00]
-      - Candidate split positions: -0.80, -0.40, -0.00, 0.40, 0.80
-      - Position of split: -0.00
-      - Heterogeneity before split: 1.88
-      - Heterogeneity after split: 1.04
-      - Heterogeneity drop: 0.84 (80.92 %)
-      - Number of instances before split: 500
-      - Number of instances after split: [255, 245]
+    No important splits found for feature 0
 
 
 
@@ -869,16 +1082,7 @@ regional_rhale.plot_first_level(
     binning_method=binning_method)
 ```
 
-
-    
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_48_0.png)
-    
-
-
-
-    
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_48_1.png)
-    
+    No important splits found for feature 0
 
 
 
@@ -894,16 +1098,7 @@ regional_rhale.describe_subregions(features=1, only_important=True)
 regional_rhale.describe_subregions(features=2, only_important=True)
 ```
 
-    Important splits for feature x3
-    - On feature x1 (cont)
-      - Range: [-1.79, 1.37]
-      - Candidate split positions: -1.47, -0.84, -0.21, 0.42, 1.05
-      - Position of split: -0.21
-      - Heterogeneity before split: 1.66
-      - Heterogeneity after split: 1.11
-      - Heterogeneity drop: 0.56 (50.60 %)
-      - Number of instances before split: 500
-      - Number of instances after split: [192, 308]
+    No important splits found for feature 2
 
 
 
@@ -914,16 +1109,7 @@ regional_rhale.plot_first_level(
     binning_method=binning_method)
 ```
 
-
-    
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_51_0.png)
-    
-
-
-
-    
-![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_51_1.png)
-    
+    No important splits found for feature 2
 
 
 
