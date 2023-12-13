@@ -14,11 +14,11 @@ import matplotlib.pyplot as plt
 
 We will generate $N=60$ examples with $D=3$ features from the following distribution:
 
-| Feature | Description                                                  | Distribution                                                                                     |
-|---------|--------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
-| $x_1$   | $x_1$ lies in $[-0.5, 0.5]$ with most samples in $[-0.5, 0]$ | $x_1 \sim p(x_1) = \frac{5}{6} \mathcal{U}(x_1; -0.5, 0) + \frac{1}{6} \mathcal{U}(x_1; 0, 0.5)$ |
-| $x_2$   | Normally distributed with $\mu = 0$, $\sigma = 2$            | $x_2 \sim p(x_2) = \mathcal{N}(x_2; \mu=0, \sigma = 2)$                                          |
-| $x_3$   | Normally distributed around $\mu = x_1$ with $\sigma = 0.01$ | $x_3 \sim p(x_3) = \mathcal{N}(x_3; \mu=x_1, \sigma = 0.01)$                                     |
+| Feature | Description                                                           | Distribution                                                                                    |
+|---------|-----------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| $x_1$   | $x_1$ lies in $[-0.5, 0.5]$ with most samples in $[-0.5, 0]$          | $x_1 \sim p(x_1) = \frac{5}{6} \mathcal{U}(x_1; -0.5, 0) + \frac{1}{6} \mathcal{U}(x_1; 0, 0.5)$ |
+| $x_2$   | Normally distributed with $\mu = 0$, $\sigma = 2$                     | $x_2 \sim p(x_2) = \mathcal{N}(x_2; \mu=0, \sigma = 2)$                                         |
+| $x_3$   | $x_3 = x_1 + \delta$, where $\delta \sim \mathcal{N}(0, \sigma=0.01)$ | $x_3 = x_1 + \delta$                                                                            |
 
 We should observe that $x_3$ is highly-dependent on $x_1$, i.e., $x_3 \approx x_1$; this will later help us to compute the ground truth ALE effect.
 

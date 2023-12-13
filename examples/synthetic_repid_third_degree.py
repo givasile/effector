@@ -6,7 +6,7 @@ import pandas as pd
 sys.path.append(os.path.dirname(os.getcwd()))
 import numpy as np
 import effector
-import effector.regions as regions
+import effector.partitioning as regions
 import effector.interaction as interaction
 import matplotlib.pyplot as plt
 from nodegam.sklearn import NodeGAMClassifier, NodeGAMRegressor

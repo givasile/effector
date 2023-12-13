@@ -2,7 +2,7 @@ import numpy as np
 import effector.binning_methods as binning_methods
 import effector.helpers as helpers
 import effector.utils as utils
-from effector.regions import Regions
+from effector.partitioning import Regions
 from effector.global_effect_rhale import RHALE
 from effector.global_effect_pdp import PDP
 import typing
@@ -14,12 +14,13 @@ BIG_M = helpers.BIG_M
 
 # base method for all regional effect methods
 class RegionalEffect:
-    def __init__(self,
-                 axis_limits: np.ndarray,
-                 feature_types: list[str],
-                 feature_names: typing.Union[list, None] = None,
-                 target_name: typing.Union[str, None] = None
-                 ) -> None:
+    def __init__(
+        self,
+        axis_limits: np.ndarray,
+        feature_types: list[str],
+        feature_names: typing.Union[list, None] = None,
+        target_name: typing.Union[str, None] = None,
+    ) -> None:
         """
         Constructor for the RegionalEffect class.
 
@@ -34,7 +35,7 @@ class RegionalEffect:
         # state variables
         self.regions: typing.Dict[str, Regions] = {}
         self.splits_per_feature_full_depth: typing.Dict[str, list[dict]] = {}
-        self.splts_per_feature_only_important: typing.Dict[str, list[dict]] = {}
+        self.splits_per_feature_only_important: typing.Dict[str, list[dict]] = {}
         self.splits_per_feature_full_depth_found: np.ndarray = np.ones([self.dim]) < 0
         self.splits_per_feature_only_import_found: np.ndarray = np.ones([self.dim]) < 0
 
@@ -51,7 +52,7 @@ class RegionalEffect:
         self,
         features,
         only_important=True,
-        scale_x: typing.Union[None, list[dict]] = None
+        scale_x: typing.Union[None, list[dict]] = None,
     ):
         features = helpers.prep_features(features, self.dim)
         for feature in features:
@@ -62,15 +63,19 @@ class RegionalEffect:
                 self.feature_names[feature] if self.feature_names else feature
             )
             if only_important:
-                print("Important splits for feature {}".format(feature_name))
-                splits = self.splts_per_feature_only_important[
+                splits = self.splits_per_feature_only_important[
                     "feature_{}".format(feature)
                 ]
+                if len(splits) == 0:
+                    print("No important splits found for feature {}".format(feature))
+                    continue
+                else:
+                    print("Important splits for feature {}".format(feature_name))
             else:
                 print("All splits for feature {}".format(feature_name))
                 splits = self.splits_per_feature_full_depth[
                     "feature_{}".format(feature)
-                ]
+                ][1:]
 
             for i, split in enumerate(splits):
                 type_of_split_feature = self.feature_types[split["feature"]]
@@ -83,8 +88,14 @@ class RegionalEffect:
 
                 x_start, x_stop = split["range"][0], split["range"][1]
                 if scale_x is not None:
-                    x_start = x_start * scale_x[split["feature"]]["std"] + scale_x[split["feature"]]["mean"]
-                    x_stop = x_stop * scale_x[split["feature"]]["std"] + scale_x[split["feature"]]["mean"]
+                    x_start = (
+                        x_start * scale_x[split["feature"]]["std"]
+                        + scale_x[split["feature"]]["mean"]
+                    )
+                    x_stop = (
+                        x_stop * scale_x[split["feature"]]["std"]
+                        + scale_x[split["feature"]]["mean"]
+                    )
                 range_formatted = "[{:.2f}, {:.2f}]".format(x_start, x_stop)
                 print("  - Range: {}".format(range_formatted))
 
@@ -179,14 +190,26 @@ class RegionalRHALE(RegionalEffect):
         self.data = data
         self.model = model
         self.model_jac = model_jac
-        axis_limits = helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
-        feature_types = utils.get_feature_types(data, cat_limit) if feature_types is None else feature_types
-        feature_names = helpers.get_feature_names(self.dim) if feature_names is None else feature_names
+        axis_limits = (
+            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+        )
+        feature_types = (
+            utils.get_feature_types(data, cat_limit)
+            if feature_types is None
+            else feature_types
+        )
+        feature_names = (
+            helpers.get_feature_names(self.dim)
+            if feature_names is None
+            else feature_names
+        )
 
         self.cat_limit = cat_limit
         self.instance_effects = self.model_jac(self.data)
 
-        super(RegionalRHALE, self).__init__(axis_limits, feature_types, feature_names, target_name)
+        super(RegionalRHALE, self).__init__(
+            axis_limits, feature_types, feature_names, target_name
+        )
 
     def _create_heterogeneity_function(self, foi, binning_method, min_points=10):
         binning_method = helpers.prep_binning_method(binning_method)
@@ -257,7 +280,7 @@ class RegionalRHALE(RegionalEffect):
         self.splits_per_feature_full_depth_found[feature] = True
 
         important_splits = regions.choose_important_splits()
-        self.splts_per_feature_only_important[
+        self.splits_per_feature_only_important[
             "feature_{}".format(feature)
         ] = important_splits
         self.splits_per_feature_only_import_found[feature] = True
@@ -313,6 +336,12 @@ class RegionalRHALE(RegionalEffect):
         feature: int = 0,
         confidence_interval: typing.Union[bool, str] = False,
         centering: typing.Union[bool, str] = False,
+        binning_method: typing.Union[
+            str,
+            binning_methods.Fixed,
+            binning_methods.DynamicProgramming,
+            binning_methods.Greedy,
+        ] = "greedy",
         scale_x_per_feature: typing.Union[None, list[dict[str, float]]] = None,
         scale_y: typing.Union[None, dict] = None,
     ):
@@ -321,7 +350,7 @@ class RegionalRHALE(RegionalEffect):
             self._fit_feature(feature)
 
         regions = self.regions["feature_{}".format(feature)]
-        splits = self.splts_per_feature_only_important["feature_{}".format(feature)]
+        splits = self.splits_per_feature_only_important["feature_{}".format(feature)]
 
         if len(splits) == 0:
             print("No important splits found for feature {}".format(feature))
@@ -339,13 +368,17 @@ class RegionalRHALE(RegionalEffect):
         )
         axis_limits = helpers.axis_limits_from_data(self.data)
 
-
         # plot the two RHALE objects
         foc_name = self.feature_names[foc]
         foi_name = self.feature_names[feature]
 
         # feature_names
-        position = scale_x_per_feature[foc]["mean"] + scale_x_per_feature[foc]["std"]*position if scale_x_per_feature is not None else position
+        position = (
+            scale_x_per_feature[foc]["mean"]
+            + scale_x_per_feature[foc]["std"] * position
+            if scale_x_per_feature is not None
+            else position
+        )
         if type_of_split_feature != "cat":
             feature_name_1 = "{} given {}<={:.2f}".format(foi_name, foc_name, position)
             feature_name_2 = "{} given {}>{:.2f}".format(foi_name, foc_name, position)
@@ -359,24 +392,40 @@ class RegionalRHALE(RegionalEffect):
         feature_names_2[feature] = feature_name_2
 
         # create two RHALE objects and plot
-        rhale_1 = RHALE(data_1, self.model, self.model_jac, axis_limits, data_effect_1, feature_names=feature_names_1, target_name=self.target_name)
-        rhale_1.fit(features=feature, binning_method="greedy")
-        rhale_2 = RHALE(data_2, self.model, self.model_jac, axis_limits, data_effect_2, feature_names=feature_names_2, target_name=self.target_name)
-        rhale_2.fit(features=feature, binning_method="greedy")
+        rhale_1 = RHALE(
+            data_1,
+            self.model,
+            self.model_jac,
+            axis_limits,
+            data_effect_1,
+            feature_names=feature_names_1,
+            target_name=self.target_name,
+        )
+        rhale_1.fit(features=feature, binning_method=binning_method)
+        rhale_2 = RHALE(
+            data_2,
+            self.model,
+            self.model_jac,
+            axis_limits,
+            data_effect_2,
+            feature_names=feature_names_2,
+            target_name=self.target_name,
+        )
+        rhale_2.fit(features=feature, binning_method=binning_method)
 
         rhale_1.plot(
             feature,
             confidence_interval,
             centering,
-            scale_x_per_feature[feature],
-            scale_y,
+            scale_x_per_feature[feature] if scale_x_per_feature is not None else None,
+            scale_y if scale_y is not None else None,
         )
         rhale_2.plot(
             feature,
             confidence_interval,
             centering,
-            scale_x_per_feature[feature],
-            scale_y,
+            scale_x_per_feature[feature] if scale_x_per_feature is not None else None,
+            scale_y if scale_y is not None else None,
         )
 
 
@@ -405,15 +454,24 @@ class RegionalPDP(RegionalEffect):
         self.data = data
         self.model = model
 
-        axis_limits = helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
-        feature_types = utils.get_feature_types(data, cat_limit) if feature_types is None else feature_types
-        feature_names = helpers.get_feature_names(self.dim) if feature_names is None else feature_names
+        axis_limits = (
+            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+        )
+        feature_types = (
+            utils.get_feature_types(data, cat_limit)
+            if feature_types is None
+            else feature_types
+        )
+        feature_names = (
+            helpers.get_feature_names(self.dim)
+            if feature_names is None
+            else feature_names
+        )
 
         self.cat_limit = cat_limit
         super(RegionalPDP, self).__init__(axis_limits, feature_types, feature_names)
 
     def _create_heterogeneity_function(self, foi, min_points=10):
-
         def heter(data) -> float:
             if data.shape[0] < min_points:
                 return BIG_M
@@ -450,9 +508,7 @@ class RegionalPDP(RegionalEffect):
         """
         Find the Regional RHALE for a single feature.
         """
-        heter = self._create_heterogeneity_function(
-            feature, min_points_per_subregion
-        )
+        heter = self._create_heterogeneity_function(feature, min_points_per_subregion)
 
         # init Region Extractor
         regions = Regions(
@@ -478,7 +534,7 @@ class RegionalPDP(RegionalEffect):
         self.splits_per_feature_full_depth_found[feature] = True
 
         important_splits = regions.choose_important_splits()
-        self.splts_per_feature_only_important[
+        self.splits_per_feature_only_important[
             "feature_{}".format(feature)
         ] = important_splits
         self.splits_per_feature_only_import_found[feature] = True
@@ -526,7 +582,7 @@ class RegionalPDP(RegionalEffect):
         self,
         feature: int = 0,
         confidence_interval: typing.Union[bool, str] = False,
-        centering: typing.Union[bool, str] = False,
+        centering: typing.Union[bool, str] = True,
         scale_x_per_feature: typing.Union[None, list[dict[str, float]]] = None,
         scale_y: typing.Union[None, dict] = None,
     ):
@@ -535,7 +591,7 @@ class RegionalPDP(RegionalEffect):
             self._fit_feature(feature)
 
         regions = self.regions["feature_{}".format(feature)]
-        splits = self.splts_per_feature_only_important["feature_{}".format(feature)]
+        splits = self.splits_per_feature_only_important["feature_{}".format(feature)]
 
         if len(splits) == 0:
             print("No important splits found for feature {}".format(feature))
@@ -555,7 +611,12 @@ class RegionalPDP(RegionalEffect):
         foi_name = self.feature_names[feature]
 
         # feature_names
-        position = scale_x_per_feature[foc]["mean"] + scale_x_per_feature[foc]["std"]*position if scale_x_per_feature is not None else position
+        position = (
+            scale_x_per_feature[foc]["mean"]
+            + scale_x_per_feature[foc]["std"] * position
+            if scale_x_per_feature is not None
+            else position
+        )
         if type_of_split_feature != "cat":
             feature_name_1 = "{} given {}<={:.2f}".format(foi_name, foc_name, position)
             feature_name_2 = "{} given {}>{:.2f}".format(foi_name, foc_name, position)
@@ -569,20 +630,38 @@ class RegionalPDP(RegionalEffect):
         feature_names_2[feature] = feature_name_2
 
         # create two RHALE objects and plot
-        pdp_1 = PDP(data_1, self.model, axis_limits, feature_names=feature_names_1, target_name=self.target_name)
-        pdp_2 = PDP(data_2, self.model, axis_limits, feature_names=feature_names_2, target_name=self.target_name)
+        pdp_1 = PDP(
+            data_1,
+            self.model,
+            axis_limits,
+            feature_names=feature_names_1,
+            target_name=self.target_name,
+        )
+        pdp_2 = PDP(
+            data_2,
+            self.model,
+            axis_limits,
+            feature_names=feature_names_2,
+            target_name=self.target_name,
+        )
 
         pdp_1.plot(
             feature,
             confidence_interval="ice",
             nof_ice=100,
-            scale_x=scale_x_per_feature[feature],
-            scale_y=scale_y,
+            scale_x=scale_x_per_feature[feature]
+            if scale_x_per_feature is not None
+            else None,
+            scale_y=scale_y if scale_y is not None else None,
+            centering=centering
         )
         pdp_2.plot(
             feature,
             confidence_interval="ice",
             nof_ice=100,
-            scale_x=scale_x_per_feature[feature],
-            scale_y=scale_y,
+            scale_x=scale_x_per_feature[feature]
+            if scale_x_per_feature is not None
+            else None,
+            scale_y=scale_y if scale_y is not None else None,
+            centering=centering
         )

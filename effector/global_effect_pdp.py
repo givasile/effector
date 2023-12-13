@@ -7,8 +7,6 @@ from effector.global_effect import GlobalEffect
 import matplotlib.pyplot as plt
 
 
-# TODO: add not_show argument, while plot the functions
-
 class PDP(GlobalEffect):
     def __init__(
         self,
@@ -40,6 +38,9 @@ class PDP(GlobalEffect):
             model: The model to be explained, (N, D) -> (N)
             axis_limits: The axis limits for the FE plot (ndarray with shape (2,D)). If None, the axis limits will be computed from the dataset.
             nof_instances: maximum number of instances to be used for PDP. If "all", all instances are used.
+            avg_output: average output of the model. If None, it is computed as the mean of the model output on the dataset.
+            feature_names: names of the features
+            target_name: name of the target
         """
         self.nof_instances, self.indices = helpers.prep_nof_instances(
             nof_instances, data.shape[0]
@@ -60,13 +61,21 @@ class PDP(GlobalEffect):
     ) -> typing.Dict:
 
         if centering is True or centering == "zero_integral":
-            xx = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points_centering)
-            y = pdp_1d_vectorized(self.model, self.data, xx, feature, False, False, True)
+            xx = np.linspace(
+                self.axis_limits[0, feature],
+                self.axis_limits[1, feature],
+                nof_points_centering,
+            )
+            y = pdp_1d_vectorized(
+                self.model, self.data, xx, feature, False, False, True
+            )
             norm_const = np.mean(y, axis=0)
             fe = {"norm_const": norm_const}
         elif centering == "zero_start":
             xx = self.axis_limits[0, feature, np.newaxis]
-            y = pdp_1d_vectorized(self.model, self.data, xx, feature, False, False, True)
+            y = pdp_1d_vectorized(
+                self.model, self.data, xx, feature, False, False, True
+            )
             fe = {"norm_const": y[0]}
         else:
             fe = {}
@@ -96,7 +105,11 @@ class PDP(GlobalEffect):
             * If `centering` is `True` or `"zero_integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
             * If `centering` is `"zero_start"`, the PDP and the ICE plots start from `y=0`.
         """
-        assert centering in [True, "zero_integral", "zero_start"], "`centering` must be True, 'zero_integral' or 'zero_start'. It is meaningless to use the .fit() method with centering=False, because it will do nothing. If you don't want any centering, use immediately `.plot()` or `.eval()` with centering=False."
+        assert centering in [
+            True,
+            "zero_integral",
+            "zero_start",
+        ], "`centering` must be True, 'zero_integral' or 'zero_start'. It is meaningless to use the .fit() method with centering=False, because it will do nothing. If you don't want to apply any centering, use immediately `.plot()` or `.eval()` with centering=False."
         centering = helpers.prep_centering(centering)
         features = helpers.prep_features(features, self.dim)
 
@@ -242,7 +255,7 @@ class DerivativePDP(GlobalEffect):
         self,
         data: np.ndarray,
         model: callable,
-        model_jac: callable,
+        model_jac: typing.Union[None, callable] = None,
         axis_limits: typing.Union[None, np.ndarray] = None,
         nof_instances: typing.Union[int, str] = 100,
         avg_output: typing.Union[None, float] = None,
@@ -294,7 +307,10 @@ class DerivativePDP(GlobalEffect):
             self.axis_limits[1, feature],
             nof_points_centering,
         )
-        y = pdp_1d_vectorized(self.model_jac, self.data, xx, feature, False, True, True)
+        if self.model_jac is not None:
+            y = pdp_1d_vectorized(self.model_jac, self.data, xx, feature, False, True, True)
+        else:
+            y = pdp_1d_vectorized(self.model, self.data, xx, feature, False, False, True, True)
 
         # compute the normalization constant per ice
         norm_const = np.mean(y, axis=0)
@@ -380,10 +396,16 @@ class DerivativePDP(GlobalEffect):
         # Check if the lower bound is less than the upper bound
         assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
 
-        # new implementation
-        yy = pdp_1d_vectorized(
-            self.model_jac, self.data, xs, feature, False, True, True
-        )
+
+        if self.model_jac is not None:
+            yy = pdp_1d_vectorized(self.model_jac, self.data, xs, feature, False, True, True)
+        else:
+            yy = pdp_1d_vectorized(self.model, self.data, xs, feature, False, False, True, True)
+
+        # # new implementation
+        # yy = pdp_1d_vectorized(
+        #     self.model_jac, self.data, xs, feature, False, True, True
+        # )
 
         if centering:
             norm_consts = np.expand_dims(
@@ -411,7 +433,7 @@ class DerivativePDP(GlobalEffect):
         nof_points: int = 30,
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
-        nof_ice: typing.Union[int, str] = "all"
+        nof_ice: typing.Union[int, str] = "all",
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot the PDP along with the ICE plots
@@ -522,6 +544,7 @@ def pdp_1d_vectorized(
     uncertainty: bool,
     model_returns_jac: bool,
     return_all: bool = False,
+    ask_for_derivatives: bool = False,
 ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Computes the unnormalized 1-dimensional PDP, in a vectorized way.
 
@@ -549,6 +572,7 @@ def pdp_1d_vectorized(
         feature: index of the feature of interest
         uncertainty: whether to also compute the uncertainty of the PDP
         model_returns_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
+        ask_for_derivatives (bool): whether to ask the model to return the derivatives wrt the input
         return_all (bool): whether to return all the predictions or only the mean (and std and stderr)
 
     Returns:
@@ -560,10 +584,30 @@ def pdp_1d_vectorized(
     x_new = copy.deepcopy(data)
     x_new = np.expand_dims(x_new, axis=0)
     x_new = np.repeat(x_new, x.shape[0], axis=0)
-    x_new[:, :, feature] = np.expand_dims(x, axis=-1)
-    x_new = np.reshape(x_new, (x_new.shape[0] * x_new.shape[1], x_new.shape[2]))
-    y = model(x_new)[:, feature] if model_returns_jac else model(x_new)
-    y = np.reshape(y, (x.shape[0], nof_instances))
+
+    if ask_for_derivatives and not model_returns_jac:
+        x_new_1 = copy.deepcopy(x_new)
+        x_new_1[:, :, feature] = np.expand_dims(x, axis=-1) + 1e-6
+        x_new_1 = np.reshape(
+            x_new_1, (x_new_1.shape[0] * x_new_1.shape[1], x_new_1.shape[2])
+        )
+
+        x_new_2 = copy.deepcopy(x_new)
+        x_new_2[:, :, feature] = np.expand_dims(x, axis=-1) - 1e-6
+        x_new_2 = np.reshape(
+            x_new_2, (x_new_2.shape[0] * x_new_2.shape[1], x_new_2.shape[2])
+        )
+
+        y_1 = model(x_new_1)
+        y_2 = model(x_new_2)
+        y = (y_1 - y_2) / (2 * 1e-6)
+        y = np.reshape(y, (x.shape[0], nof_instances))
+    else:
+        x_new[:, :, feature] = np.expand_dims(x, axis=-1)
+        x_new = np.reshape(x_new, (x_new.shape[0] * x_new.shape[1], x_new.shape[2]))
+        y = model(x_new)[:, feature] if model_returns_jac else model(x_new)
+        y = np.reshape(y, (x.shape[0], nof_instances))
+
     mean_pdp = np.mean(y, axis=1)
     if return_all:
         return y

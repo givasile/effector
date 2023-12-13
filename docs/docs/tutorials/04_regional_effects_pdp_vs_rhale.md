@@ -1063,23 +1063,12 @@ regional_rhale.fit(
 )
 ```
 
-    100%|███████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:01<00:00,  2.26it/s]
+    100%|███████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:01<00:00,  2.50it/s]
 
 
 
 ```python
 regional_rhale.describe_subregions(features=0, only_important=True)
-```
-
-    No important splits found for feature 0
-
-
-
-```python
-regional_rhale.plot_first_level(
-    feature=0, 
-    confidence_interval=True, 
-    binning_method=binning_method)
 ```
 
     No important splits found for feature 0
@@ -1101,16 +1090,7 @@ regional_rhale.describe_subregions(features=2, only_important=True)
     No important splits found for feature 2
 
 
-
-```python
-regional_rhale.plot_first_level(
-    feature=2, 
-    confidence_interval=True, 
-    binning_method=binning_method)
-```
-
-    No important splits found for feature 2
-
+add comment, I think the absence of subregions is meaningful 
 
 
 ```python

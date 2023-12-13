@@ -139,7 +139,7 @@ class ALE(GlobalEffect):
         centering: typing.Union[bool, str] = False,
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
-        show_avg_output: bool = True,
+        show_avg_output: bool = False,
         not_show: bool = False,
     ):
         """

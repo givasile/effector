@@ -12,7 +12,7 @@ class GlobalEffect(ABC):
         self,
         data: np.ndarray,
         model: typing.Callable,
-        axis_limits: np.ndarray,
+        axis_limits: typing.Union[None, np.ndarray] = None,
         avg_output: typing.Union[None, float] = None,
         feature_names: typing.Union[None, list] = None,
         target_name: typing.Union[None, str] = None,
@@ -145,13 +145,13 @@ class GlobalEffect(ABC):
             the mean effect `y`, if `uncertainty=False` (default) or a tuple `(y, std, estimator_var)` otherwise
 
         Notes:
-            * If `centering` is `False`, the PDP is not centered
-            * If `centering` is `True` or `"zero-integral"`, the PDP is centered by subtracting the mean of the PDP.
-            * If `centering` is `"zero-start"`, the PDP is centered by subtracting the value of the PDP at the first point.
+            * If `centering` is `False`, the plot is not centered
+            * If `centering` is `True` or `"zero_integral"`, the plot is centered by subtracting its mean.
+            * If `centering` is `"zero_start"`, the plot starts from zero.
 
         Notes:
-            * If `uncertainty` is `False`, the PDP returns only the mean effect `y` at the given `xs`.
-            * If `uncertainty` is `True`, the PDP returns `(y, std, estimator_var)` where:
+            * If `uncertainty` is `False`, the plot returns only the mean effect `y` at the given `xs`.
+            * If `uncertainty` is `True`, the plot returns `(y, std, estimator_var)` where:
                 * `y` is the mean effect
                 * `std` is the standard deviation of the mean effect
                 * `estimator_var` is the variance of the mean effect estimator
