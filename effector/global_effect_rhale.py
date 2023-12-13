@@ -1,4 +1,5 @@
 import typing
+import copy
 import effector.utils as utils
 import effector.visualization as vis
 import effector.binning_methods as bm
@@ -13,7 +14,7 @@ class RHALE(GlobalEffect):
         self,
         data: np.ndarray,
         model: callable,
-        model_jac: typing.Union[None, callable],
+        model_jac: typing.Union[None, callable] = None,
         axis_limits: typing.Union[None, np.ndarray] = None,
         data_effect: typing.Union[None, np.ndarray] = None,
         avg_output: typing.Union[None, float] = None,
@@ -33,7 +34,6 @@ class RHALE(GlobalEffect):
                 - if None, the Jacobian will be computed using model_jac
 
         """
-        assert (model_jac is not None) or (data_effect is not None)
         self.model_jac = model_jac
 
         # if data_effect is None, it will be computed after compile
@@ -45,13 +45,22 @@ class RHALE(GlobalEffect):
 
     def compile(self):
         """Prepare everything for fitting, i.e., compute the gradients on data points.
-        TODO add numerical approximation
         """
-        if self.data_effect is None:
+        if self.data_effect is None and self.model_jac is not None:
             self.data_effect = self.model_jac(self.data)
-        else:
-            # TODO add numerical approximation
-            pass
+        elif self.data_effect is None and self.model_jac is None:
+            self.data_effect = np.zeros_like(self.data)
+
+            # use finite difference
+            for i in range(self.data.shape[1]):
+                data_1 = copy.deepcopy(self.data)
+                data_2 = copy.deepcopy(self.data)
+
+                data_1[:, i] = data_1[:, i] + 1e-6
+                data_2[:, i] = data_2[:, i] - 1e-6
+                self.data_effect[:, i] = (
+                    self.model(data_1) - self.model(data_2)
+                ) / 2e-6
 
     def _fit_feature(self, feature: int, binning_method) -> typing.Dict:
         if self.data_effect is None:
@@ -153,7 +162,7 @@ class RHALE(GlobalEffect):
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
         show_avg_output: bool = False,
-        not_show: bool = False
+        not_show: bool = False,
     ):
         """
         Plot the ALE plot for a given feature.
@@ -187,7 +196,9 @@ class RHALE(GlobalEffect):
             feature, np.array([self.axis_limits[0, feature]]), centering=centering
         )
 
-        avg_output = helpers.prep_avg_output(self.data, self.model, show_avg_output, self.avg_output, scale_y)
+        avg_output = helpers.prep_avg_output(
+            self.data, self.model, show_avg_output, self.avg_output, scale_y
+        )
 
         fig, ax1, ax2 = vis.ale_plot(
             self.feature_effect["feature_" + str(feature)],
@@ -201,7 +212,7 @@ class RHALE(GlobalEffect):
             avg_output=avg_output,
             feature_names=self.feature_names,
             target_name=self.target_name,
-            not_show=not_show
+            not_show=not_show,
         )
         if not_show:
             return fig, ax1, ax2
