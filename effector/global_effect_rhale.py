@@ -8,7 +8,6 @@ from effector.global_effect import GlobalEffect
 import numpy as np
 
 
-# TODO: add naming convention for plot (feature_names, target_name, etc.)
 class RHALE(GlobalEffect):
     def __init__(
         self,

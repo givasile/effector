@@ -295,6 +295,7 @@ class DerivativePDP(GlobalEffect):
             data, model, axis_limits, avg_output, feature_names, target_name
         )
 
+    # TODO: fix so that centering will not be always zero mean
     def _fit_feature(
         self,
         feature: int,
@@ -409,7 +410,7 @@ class DerivativePDP(GlobalEffect):
 
         if centering:
             norm_consts = np.expand_dims(
-                self.feature_effect["feature_3"]["norm_const"], axis=0
+                self.feature_effect["feature_" + str(feature)]["norm_const"], axis=0
             )
             yy = yy - norm_consts
 
