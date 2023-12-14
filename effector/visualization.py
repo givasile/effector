@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import typing
+
+import scipy.interpolate
+
 from effector import helpers
 
 
@@ -247,20 +250,19 @@ def plot_pdp_ice(
 
 
 def plot_shap(
-    x,
-    y,
-    xx,
-    yy,
+    x: np.ndarray,
+    y: np.ndarray,
+    xx: np.ndarray,
+    yy: np.ndarray,
     y_std,
-    feature,
-    confidence_interval,
+    feature: int,
+    confidence_interval: str,
     scale_x: typing.Union[None, dict] = None,
     scale_y: typing.Union[None, dict] = None,
     avg_output: typing.Union[None, float] = None,
     feature_names: typing.Union[None, list] = None,
     target_name: typing.Union[None, str] = None,
-    is_derivative: bool = False,
-    nof_shap_values: typing.Union[str, int] = "all",
+    y_limits: typing.Union[None, tuple] = None
 ):
 
     fig, ax = plt.subplots()
@@ -301,10 +303,8 @@ def plot_shap(
         "x_%d" % (feature + 1) if feature_names is None else feature_names[feature]
     )
     ax.set_xlabel(feature_name)
-    if is_derivative:
-        ax.set_ylabel("dy/dx")
-    else:
-        ax.set_ylabel("y") if target_name is None else ax.set_ylabel(target_name)
+    ax.set_ylabel("y") if target_name is None else ax.set_ylabel(target_name)
     ax.legend()
-
+    if y_limits is not None:
+        ax.set_ylim(y_limits[0], y_limits[1])
     plt.show(block=False)

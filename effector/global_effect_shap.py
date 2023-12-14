@@ -1,9 +1,7 @@
 import typing
-import copy
-import effector.utils as utils
 import effector.visualization as vis
-import effector.binning_methods as bm
 import effector.helpers as helpers
+import effector.utils as utils
 from effector.global_effect import GlobalEffect
 import numpy as np
 import shap
@@ -22,7 +20,7 @@ class SHAPDependence(GlobalEffect):
         target_name: typing.Union[None, str] = None,
     ):
         """
-        RHALE constructor.
+        SHAP constructor.
 
         Args:
             data: X matrix (N,D).
@@ -38,18 +36,18 @@ class SHAPDependence(GlobalEffect):
             data, model, axis_limits, avg_output, feature_names, target_name
         )
 
-    # TODO fix so that centering and points_used_for_centering are used
     def _fit_feature(
-        self, feature: int, centering, points_used_for_centering
+        self,
+        feature: int,
+        centering: typing.Union[bool, str] = False,
+        points_used_for_centering: int = 100,
     ) -> typing.Dict:
 
         # drop points outside of limits
-        ind = np.logical_and(
-            self.data[:, feature] >= self.axis_limits[0, feature],
-            self.data[:, feature] <= self.axis_limits[1, feature],
-        )
-        data = self.data[ind, :]
+        data = self.data[self.data[:, feature] >= self.axis_limits[0, feature]]
 
+        # compute shap values
+        # TODO: check other options for the shap explainer
         shap_explainer = shap.Explainer(self.model, data)
         explanation = shap_explainer(data)
 
@@ -61,29 +59,37 @@ class SHAPDependence(GlobalEffect):
         idx = np.argsort(xx)
         xx = xx[idx]
         yy = yy[idx]
-        spline = UnivariateSpline(xx, yy)
 
-        # fit spline to the std
-        yy_std = np.abs(yy - spline(xx))
+        # fit spline_mean to xx, yy pairs
+        spline_mean = UnivariateSpline(xx, yy)
+
+        # fit spline_mean to the sqrt of the residuals
+        yy_std = np.abs(yy - spline_mean(xx))
         spline_std = UnivariateSpline(xx, yy_std)
 
         # compute norm constant
-        x_norm = np.linspace(xx[0], xx[-1], 1000)
-        y_norm = spline(x_norm)
-        norm_const = np.trapz(y_norm, x_norm) / (xx[-1] - xx[0])
+        if centering == "zero_integral":
+            x_norm = np.linspace(xx[0], xx[-1], points_used_for_centering)
+            y_norm = spline_mean(x_norm)
+            norm_const = np.trapz(y_norm, x_norm) / (xx[-1] - xx[0])
+        elif centering == "zero_start":
+            norm_const = spline_mean(xx[0])
+        else:
+            norm_const = helpers.EMPTY_SYMBOL
 
-        return {
-            "spline": spline,
+        ret_dict = {
+            "spline_mean": spline_mean,
             "spline_std": spline_std,
             "xx": xx,
             "yy": yy,
             "norm_const": norm_const,
         }
+        return ret_dict
 
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
-        centering: typing.Union[bool, str] = "zero_integral",
+        centering: typing.Union[bool, str] = False,
         points_used_for_centering: int = 100,
     ) -> None:
         """Fit the model.
@@ -91,14 +97,11 @@ class SHAPDependence(GlobalEffect):
         Args:
             features (int, str, list): the features to fit.
                 - If set to "all", all the features will be fitted.
-            binning_method (str):
-                - If set to "greedy" or bm.Greedy, the greedy binning method will be used.
-                - If set to "dynamic" or bm.DynamicProgramming, the dynamic programming binning method will be used.
-                - If set to "fixed" or bm.Fixed, the fixed binning method will be used.
             centering (bool, str):
                 - If set to False, no centering will be applied.
                 - If set to "zero_integral" or True, the integral of the feature effect will be set to zero.
                 - If set to "zero_mean", the mean of the feature effect will be set to zero.
+            points_used_for_centering (int): number of linspaced points along the feature axis used for centering.
         """
         centering = helpers.prep_centering(centering)
         features = helpers.prep_features(features, self.dim)
@@ -147,15 +150,19 @@ class SHAPDependence(GlobalEffect):
                 * `estimator_var` is the variance of the mean effect estimator
         """
         centering = helpers.prep_centering(centering)
-        if not self.is_fitted[feature]:
+        if (
+            not self.is_fitted[feature]
+            or self.feature_effect["feature_" + str(feature)]["norm_const"] == helpers.EMPTY_SYMBOL
+            and centering is not False
+        ):
             self.fit(features=feature, centering=centering)
 
         # Check if the lower bound is less than the upper bound
         assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
 
-        yy = self.feature_effect["feature_" + str(feature)]["spline"](xs)
+        yy = self.feature_effect["feature_" + str(feature)]["spline_mean"](xs)
 
-        if centering:
+        if centering is not False:
             norm_const = self.feature_effect["feature_" + str(feature)]["norm_const"]
             yy = yy - norm_const
 
@@ -165,7 +172,6 @@ class SHAPDependence(GlobalEffect):
         else:
             return yy
 
-    # TODO: implement
     def plot(
         self,
         feature: int,
@@ -176,7 +182,8 @@ class SHAPDependence(GlobalEffect):
         scale_y: typing.Union[None, dict] = None,
         nof_shap_values: typing.Union[int, str] = "all",
         show_avg_output: bool = False,
-    ) -> tuple[plt.Figure, plt.Axes]:
+        y_limits: typing.Union[None, list] = None,
+    ) -> None:
         """
         Plot the PDP along with the ICE plots
 
@@ -189,6 +196,7 @@ class SHAPDependence(GlobalEffect):
             scale_y: dictionary with keys "mean" and "std" for scaling the y-axis
             nof_shap_values: number of shap values to show on top of the SHAP curve
             show_avg_output: whether to show the average output of the model
+            y_limits: limits of the y-axis
 
         Notes:
             * if `confidence_interval` is `False`, no confidence interval is plotted
@@ -217,7 +225,6 @@ class SHAPDependence(GlobalEffect):
         )
 
         # get some SHAP values
-        # TODO: restrict to nof_scatter_points
         yy = (
             self.feature_effect["feature_" + str(feature)]["yy"]
             if confidence_interval == "shap_values"
@@ -228,6 +235,11 @@ class SHAPDependence(GlobalEffect):
             if confidence_interval == "shap_values"
             else None
         )
+
+        if nof_shap_values != "all" and nof_shap_values < len(xx):
+            idx = np.random.choice(len(xx), nof_shap_values, replace=False)
+            xx = xx[idx]
+            yy = yy[idx]
 
         avg_output = None if not show_avg_output else self.avg_output
 
@@ -244,5 +256,5 @@ class SHAPDependence(GlobalEffect):
             avg_output=avg_output,
             feature_names=self.feature_names,
             target_name=self.target_name,
-            nof_shap_values=nof_shap_values,
+            y_limits=y_limits
         )

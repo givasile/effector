@@ -133,3 +133,10 @@ def prep_avg_output(data, model, show_avg_output, avg_output, scale_y) -> float:
     else:
         avg_output = None
     return avg_output
+
+
+def drop_points_outside_axis_limits(data: np.ndarray, axis_limits: np.ndarray, feature: int) -> np.ndarray:
+    """Drop points outside the axis limits"""
+    data = data[data[:, feature] >= axis_limits[0, feature]]
+    data = data[data[:, feature] <= axis_limits[1, feature]]
+    return data

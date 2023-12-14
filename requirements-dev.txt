@@ -8,3 +8,4 @@ jupyter
 keras
 tensorflow
 pytest
+shap

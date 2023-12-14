@@ -60,6 +60,9 @@ class PDP(GlobalEffect):
         nof_points_centering: int,
     ) -> typing.Dict:
 
+        # drop points outside of limits
+        data = self.data[self.data[:, feature] >= self.axis_limits[0, feature]]
+
         if centering is True or centering == "zero_integral":
             xx = np.linspace(
                 self.axis_limits[0, feature],
@@ -67,14 +70,14 @@ class PDP(GlobalEffect):
                 nof_points_centering,
             )
             y = pdp_1d_vectorized(
-                self.model, self.data, xx, feature, False, False, True
+                self.model, data, xx, feature, False, False, True
             )
             norm_const = np.mean(y, axis=0)
             fe = {"norm_const": norm_const}
         elif centering == "zero_start":
             xx = self.axis_limits[0, feature, np.newaxis]
             y = pdp_1d_vectorized(
-                self.model, self.data, xx, feature, False, False, True
+                self.model, data, xx, feature, False, False, True
             )
             fe = {"norm_const": y[0]}
         else:
@@ -191,7 +194,7 @@ class PDP(GlobalEffect):
         feature: int,
         confidence_interval: typing.Union[bool, str] = False,
         centering: typing.Union[bool, str] = False,
-        nof_points: int = 30,
+        nof_axis_points: int = 30,
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
         nof_ice: typing.Union[int, str] = "all",
@@ -204,7 +207,7 @@ class PDP(GlobalEffect):
             feature: index of the plotted feature
             confidence_interval: whether to plot the confidence interval
             centering: whether to center the PDP
-            nof_points: number of points on the x-axis to evaluate the PDP plot
+            nof_axis_points: number of points on the x-axis to evaluate the PDP plot
             scale_x: dictionary with keys "mean" and "std" for scaling the x-axis
             scale_y: dictionary with keys "mean" and "std" for scaling the y-axis
             nof_ice: number of ICE plots to show on top of the PDP plot
@@ -223,7 +226,7 @@ class PDP(GlobalEffect):
         """
         confidence_interval = helpers.prep_confidence_interval(confidence_interval)
         x = np.linspace(
-            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
+            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_axis_points
         )
 
         yy = self.eval(
@@ -431,7 +434,7 @@ class DerivativePDP(GlobalEffect):
         feature: int,
         confidence_interval: typing.Union[bool, str] = False,
         centering: bool = False,
-        nof_points: int = 30,
+        nof_axis_points: int = 30,
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
         nof_ice: typing.Union[int, str] = "all",
@@ -442,7 +445,7 @@ class DerivativePDP(GlobalEffect):
         Args:
             feature: index of the plotted feature
             centering: whether to center the PDP
-            nof_points: number of points on the x-axis to evaluate the PDP and the ICE plots
+            nof_axis_points: number of points on the x-axis to evaluate the PDP and the ICE plots
             scale_x: dictionary with keys "mean" and "std" for scaling the x-axis
             scale_y: dictionary with keys "mean" and "std" for scaling the y-axis
 
@@ -455,7 +458,7 @@ class DerivativePDP(GlobalEffect):
         confidence_interval = helpers.prep_confidence_interval(confidence_interval)
 
         x = np.linspace(
-            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
+            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_axis_points
         )
 
         yy = self.eval(
