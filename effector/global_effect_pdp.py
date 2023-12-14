@@ -232,7 +232,7 @@ class PDP(GlobalEffect):
 
         avg_output = None if not show_avg_output else self.avg_output
         title = "PDP Plot"
-        fig, ax = vis.plot_pdp_ice_2(
+        fig, ax = vis.plot_pdp_ice(
             x,
             feature,
             yy=yy,
@@ -462,7 +462,7 @@ class DerivativePDP(GlobalEffect):
             feature, x, uncertainty=False, centering=centering, return_all=True
         )
         title = "Derivative PDP-ICE Plot"
-        fig, ax = vis.plot_pdp_ice_2(
+        fig, ax = vis.plot_pdp_ice(
             x,
             feature,
             yy=yy,

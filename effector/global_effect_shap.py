@@ -8,6 +8,7 @@ from effector.global_effect import GlobalEffect
 import numpy as np
 import shap
 from scipy.interpolate import UnivariateSpline
+import matplotlib.pyplot as plt
 
 
 class SHAPDependence(GlobalEffect):
@@ -38,7 +39,9 @@ class SHAPDependence(GlobalEffect):
         )
 
     # TODO fix so that centering and points_used_for_centering are used
-    def _fit_feature(self, feature: int, centering, points_used_for_centering) -> typing.Dict:
+    def _fit_feature(
+        self, feature: int, centering, points_used_for_centering
+    ) -> typing.Dict:
 
         # drop points outside of limits
         ind = np.logical_and(
@@ -69,8 +72,13 @@ class SHAPDependence(GlobalEffect):
         y_norm = spline(x_norm)
         norm_const = np.trapz(y_norm, x_norm) / (xx[-1] - xx[0])
 
-        return {"spline": spline, "spline_std": spline_std,
-                "xx": xx, "yy": yy, "norm_const": norm_const}
+        return {
+            "spline": spline,
+            "spline_std": spline_std,
+            "xx": xx,
+            "yy": yy,
+            "norm_const": norm_const,
+        }
 
     def fit(
         self,
@@ -158,5 +166,83 @@ class SHAPDependence(GlobalEffect):
             return yy
 
     # TODO: implement
-    def plot():
-        pass
+    def plot(
+        self,
+        feature: int,
+        confidence_interval: typing.Union[bool, str] = False,
+        centering: typing.Union[bool, str] = False,
+        nof_axis_points: int = 30,
+        scale_x: typing.Union[None, dict] = None,
+        scale_y: typing.Union[None, dict] = None,
+        nof_shap_values: typing.Union[int, str] = "all",
+        show_avg_output: bool = False,
+    ) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Plot the PDP along with the ICE plots
+
+        Args:
+            feature: index of the plotted feature
+            confidence_interval: whether to plot the confidence interval
+            centering: whether to center the PDP
+            nof_axis_points: number of points on the x-axis to evaluate the PDP plot
+            scale_x: dictionary with keys "mean" and "std" for scaling the x-axis
+            scale_y: dictionary with keys "mean" and "std" for scaling the y-axis
+            nof_shap_values: number of shap values to show on top of the SHAP curve
+            show_avg_output: whether to show the average output of the model
+
+        Notes:
+            * if `confidence_interval` is `False`, no confidence interval is plotted
+            * if `confidence_interval` is `True` or `"std"`, the standard deviation of the shap values is plotted
+            * if `confidence_interval` is `shap_values`, the shap values are plotted
+
+        Notes:
+            * If `centering` is `False`, the PDP and ICE plots are not centered
+            * If `centering` is `True` or `"zero_integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
+            * If `centering` is `"zero_start"`, the PDP and the ICE plots start from `y=0`.
+
+        """
+        confidence_interval = helpers.prep_confidence_interval(confidence_interval)
+        x = np.linspace(
+            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_axis_points
+        )
+
+        # get the SHAP curve
+        y = self.eval(feature, x, uncertainty=False, centering=centering)
+
+        # get the std of the SHAP curve
+        y_std = (
+            self.feature_effect["feature_" + str(feature)]["spline_std"](x)
+            if confidence_interval == "std"
+            else None
+        )
+
+        # get some SHAP values
+        # TODO: restrict to nof_scatter_points
+        yy = (
+            self.feature_effect["feature_" + str(feature)]["yy"]
+            if confidence_interval == "shap_values"
+            else None
+        )
+        xx = (
+            self.feature_effect["feature_" + str(feature)]["xx"]
+            if confidence_interval == "shap_values"
+            else None
+        )
+
+        avg_output = None if not show_avg_output else self.avg_output
+
+        vis.plot_shap(
+            x,
+            y,
+            xx,
+            yy,
+            y_std,
+            feature,
+            confidence_interval=confidence_interval,
+            scale_x=scale_x,
+            scale_y=scale_y,
+            avg_output=avg_output,
+            feature_names=self.feature_names,
+            target_name=self.target_name,
+            nof_shap_values=nof_shap_values,
+        )

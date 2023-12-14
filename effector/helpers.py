@@ -31,7 +31,7 @@ def prep_centering(centering):
 def prep_confidence_interval(confidence_interval):
     assert type(confidence_interval) in [bool, str]
     if type(confidence_interval) is str:
-        assert confidence_interval in ["std", "std_err", "ice"]
+        assert confidence_interval in ["std", "std_err", "ice", "shap_values"]
 
     if confidence_interval is True:
         confidence_interval = "std"

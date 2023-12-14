@@ -151,7 +151,7 @@ def ale_bins(ax2, bin_effects, bin_variance, limits, dx, error):
     ax2.legend()
 
 
-def plot_pdp_ice_2(
+def plot_pdp_ice(
     x,
     feature,
     yy,
@@ -244,3 +244,67 @@ def plot_pdp_ice_2(
 
     plt.show(block=False)
     return fig, ax
+
+
+def plot_shap(
+    x,
+    y,
+    xx,
+    yy,
+    y_std,
+    feature,
+    confidence_interval,
+    scale_x: typing.Union[None, dict] = None,
+    scale_y: typing.Union[None, dict] = None,
+    avg_output: typing.Union[None, float] = None,
+    feature_names: typing.Union[None, list] = None,
+    target_name: typing.Union[None, str] = None,
+    is_derivative: bool = False,
+    nof_shap_values: typing.Union[str, int] = "all",
+):
+
+    fig, ax = plt.subplots()
+    ax.set_title("SHAP Dependence Plot")
+
+    # scale x-axis
+    x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
+    xx = xx if scale_x is None else trans_affine(xx, scale_x["mean"], scale_x["std"])
+
+    # scale y-axis
+    if scale_y is not None:
+        y_std = trans_scale(y_std, scale_y["std"], square=False)
+        y = trans_affine(y, scale_y["mean"], scale_y["std"])
+        yy = trans_affine(yy, scale_y["mean"], scale_y["std"])
+        if avg_output is not None:
+            avg_output = trans_scale(avg_output, scale_y["std"], square=False)
+
+    # plot
+    if confidence_interval == "std":
+        ax.fill_between(
+            x,
+            y - y_std,
+            y + y_std,
+            color="red",
+            alpha=0.4,
+            label="std",
+        )
+    elif confidence_interval == "shap_values":
+        ax.plot(xx[0], yy[0], "rx", alpha=0.1, label="SHAP values")
+        ax.plot(xx, yy, "rx", alpha=0.1)
+
+    ax.plot(x, y, "b-", label="SHAP curve")
+
+    if avg_output is not None:
+        ax.axhline(y=avg_output, color="black", linestyle="--", label="avg output")
+
+    feature_name = (
+        "x_%d" % (feature + 1) if feature_names is None else feature_names[feature]
+    )
+    ax.set_xlabel(feature_name)
+    if is_derivative:
+        ax.set_ylabel("dy/dx")
+    else:
+        ax.set_ylabel("y") if target_name is None else ax.set_ylabel(target_name)
+    ax.legend()
+
+    plt.show(block=False)

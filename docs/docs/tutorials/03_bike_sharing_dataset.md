@@ -247,12 +247,10 @@ fig, ax = pdp.plot(feature=3, confidence_interval="std", centering=True, scale_x
 
     
 ![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_16_0.png)
-    
-
-
 
 ```python
-fig, ax = pdp.plot(feature=3, confidence_interval="ice", centering=True, scale_x=scale_x, scale_y=scale_y, show_avg_output=True, nof_ice=300)
+fig, ax = pdp.plot(feature=3, confidence_interval="ice", centering=True, scale_x=scale_x, scale_y=scale_y,
+                   show_avg_output=True, nof_shap_values=300)
 ```
 
 

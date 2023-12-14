@@ -11,23 +11,38 @@ def test_pdp_square():
     N = 10
     T = 100
 
-    data = np.stack([
-        np.random.rand(N + 1),
-        np.random.rand(N + 1),
-    ], axis=1)
+    data = np.stack(
+        [
+            np.random.rand(N + 1),
+            np.random.rand(N + 1),
+        ],
+        axis=1,
+    )
 
-    model = lambda x: x[:, 1] ** 2
-    model_jac = lambda x: (
-        np.stack(
-            [
-            np.zeros_like(x[:, 1]),
-            2 * x[:, 1]
-            ],
-        axis=1
-    ))
+    model = lambda x: x[:, 1] ** 2 + x[:, 0] + x[:, 0] * x[:, 1]
+    model_jac = lambda x: np.stack(
+        [
+            np.ones_like(x[:, 0]) + x[:, 1],
+            2 * x[:, 1] + x[:, 0],
+        ],
+        axis=1,
+    )
 
     x = np.linspace(0, 1, T)
 
+    # compute the PDP dependence
+    pdp = effector.PDP(data, model)
+    pdp.fit(features="all", centering="zero_start")
+    pdp.plot(feature=0, confidence_interval="std", centering="zero_integral")
+    pdp.plot(feature=0, confidence_interval="std_err", centering="zero_integral")
+    pdp.plot(feature=0, confidence_interval="ice", centering="zero_integral")
+
     # test the finite difference version
-    effector.DerivativePDP(data, model).plot(feature=1)
-    effector.DerivativePDP(data, model, model_jac).plot(feature=1)
+    d_pdp1 = effector.DerivativePDP(data, model)
+    d_pdp1.fit(features="all", centering=False)
+    d_pdp1.plot(feature=0, confidence_interval="ice", centering=False)
+
+    d_pdp2 = effector.DerivativePDP(data, model, model_jac)
+    d_pdp2.fit(features="all", centering=False)
+    d_pdp2.plot(feature=0, confidence_interval="ice", centering=False)
+

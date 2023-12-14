@@ -19,15 +19,7 @@ def test_shap_square():
         np.random.rand(N + 1),
     ], axis=1)
 
-    model = lambda x: x[:, 1] ** 2
-    model_jac = lambda x: (
-        np.stack(
-            [
-            np.zeros_like(x[:, 1]),
-            2 * x[:, 1]
-            ],
-        axis=1
-    ))
+    model = lambda x: x[:,0] * x[:, 1] ** 2
 
     x = np.linspace(0, 1, T)
 
@@ -36,26 +28,6 @@ def test_shap_square():
     shap_dep.fit(features="all", centering="zero_integral")
     yy = shap_dep.eval(feature=1, xs=x, centering="zero_integral")
 
-    # plot
-    plt.figure()
-    plt.plot(x, yy)
-    plt.plot(x, shap_dep.eval(0, x))
-    plt.show()
-
-    # shap_explainer = shap.Explainer(model, data)
-    # explanation = shap_explainer(data)
-    # yy = explanation.values[:, 1]
-    # xx = data[:, 1]
-    #
-    # # make xx monotonic
-    # idx = np.argsort(xx)
-    # xx = xx[idx]
-    # yy = yy[idx]
-    #
-    # spline = UnivariateSpline(xx, yy)
-    #
-    # plt.figure()
-    # plt.plot(xx, yy, "rx")
-    # plt.plot(xx, spline(xx), "b-")
-    # plt.show()
+    shap_dep.plot(feature=1, confidence_interval="std", centering="zero_integral")
+    shap_dep.plot(feature=1, confidence_interval="shap_values", centering="zero_integral")
 
