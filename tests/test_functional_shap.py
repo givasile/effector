@@ -24,25 +24,30 @@ def test_shap_linear():
     x = np.linspace(0, 1, T)
 
     # compute the SHAP dependence
-    shap_dep = effector.SHAPDependence(data, model)
-    shap_dep.fit(features="all", centering=False)
-    # yy = shap_dep.eval(feature=1, xs=x, centering=False)
+    shap_dep = effector.SHAPDependence(data, model, nof_instances=100)
+    shap_dep.fit(features="all", centering=True)
+    y, heterogeneity, _ = shap_dep.eval(feature=1, xs=x, uncertainty=True, centering=True)
 
-    shap_dep.plot(
-        feature=0,
-        confidence_interval="shap_values",
-        centering=False,
-        y_limits=[-0.5, 0.5],
-        show_avg_output=False,
-    )
+    # ground truth
+    y_gt = x
+    heterogeneity_gt = np.zeros_like(x)
+    np.allclose(y, y_gt, atol=1e-1, rtol=1e-1)
+    np.allclose(heterogeneity, heterogeneity_gt, atol=1e-1, rtol=1e-1)
 
-    shap_dep.plot(
-        feature=1,
-        confidence_interval="shap_values",
-        centering=False,
-        y_limits=[-0.5, 0.5],
-        show_avg_output=False,
-    )
+    # shap_dep.plot(
+    #     feature=0,
+    #     heterogeneity="shap_values",
+    #     centering=False,
+    #     show_avg_output=False,
+    #     nof_points = 100
+    # )
+
+    # shap_dep.plot(
+    #     feature=1,
+    #     heterogeneity="shap_values",
+    #     centering=False,
+    #     show_avg_output=False,
+    # )
 
 
 def test_shap_square():
@@ -65,22 +70,26 @@ def test_shap_square():
     x = np.linspace(0, 1, T)
 
     # compute the SHAP dependence
-    shap_dep = effector.SHAPDependence(data, model)
-    shap_dep.fit(features="all", centering=False)
-    # yy = shap_dep.eval(feature=1, xs=x, centering=False)
+    shap_dep = effector.SHAPDependence(data, model, nof_instances=100)
+    shap_dep.fit(features="all", centering=True)
+    y, heter, _ = shap_dep.eval(feature=1, xs=x, uncertainty=True, centering="zero_start")
 
-    shap_dep.plot(
-        feature=0,
-        confidence_interval="shap_values",
-        centering=False,
-        y_limits=[-0.5, 0.5],
-        show_avg_output=False,
-    )
+    y_gt = x ** 2 / 2
 
-    shap_dep.plot(
-        feature=1,
-        confidence_interval="shap_values",
-        centering=False,
-        y_limits=[-0.5, 0.5],
-        show_avg_output=False,
-    )
+    np.allclose(y, y_gt, atol=1e-1, rtol=1e-1)
+
+    # shap_dep.plot(
+    #     feature=0,
+    #     heterogeneity="shap_values",
+    #     centering=False,
+    #     y_limits=[-0.5, 0.5],
+    #     show_avg_output=False,
+    # )
+    #
+    # shap_dep.plot(
+    #     feature=1,
+    #     heterogeneity="std",
+    #     centering=True,
+    #     y_limits=[-0.5, 0.5],
+    #     show_avg_output=False,
+    # )

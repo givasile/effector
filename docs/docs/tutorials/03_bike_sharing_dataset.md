@@ -236,12 +236,10 @@ fig, ax = pdp.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y, 
 
     
 ![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_15_0.png)
-    
-
-
 
 ```python
-fig, ax = pdp.plot(feature=3, confidence_interval="std", centering=True, scale_x=scale_x, scale_y=scale_y, show_avg_output=True)
+fig, ax = pdp.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scale_y=scale_y,
+                   show_avg_output=True)
 ```
 
 
@@ -249,7 +247,7 @@ fig, ax = pdp.plot(feature=3, confidence_interval="std", centering=True, scale_x
 ![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_16_0.png)
 
 ```python
-fig, ax = pdp.plot(feature=3, confidence_interval="ice", centering=True, scale_x=scale_x, scale_y=scale_y,
+fig, ax = pdp.plot(feature=3, heterogeneity="ice", centering=True, scale_x=scale_x, scale_y=scale_y,
                    show_avg_output=True, nof_shap_values=300)
 ```
 
@@ -275,15 +273,13 @@ fig, ax1, ax2 = rhale.plot(feature=3, centering=True, scale_x=scale_x, scale_y=s
 
     
 ![png](03_bike_sharing_dataset_files/03_bike_sharing_dataset_19_0.png)
-    
-
-
 
 ```python
-rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, feature_names=feature_names, target_name=target_name)
+rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, feature_names=feature_names,
+                       target_name=target_name)
 binning_method = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=100, discount=0, cat_limit=10)
 rhale.fit(features=3, binning_method=binning_method)
-fig, ax1, ax2 = rhale.plot(feature=3, confidence_interval="std", centering=True, scale_x=scale_x, scale_y=scale_y)
+fig, ax1, ax2 = rhale.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scale_y=scale_y)
 ```
 
 

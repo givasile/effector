@@ -647,7 +647,7 @@ class RegionalPDP(RegionalEffect):
 
         pdp_1.plot(
             feature,
-            confidence_interval="ice",
+            heterogeneity="ice",
             nof_ice=100,
             scale_x=scale_x_per_feature[feature]
             if scale_x_per_feature is not None
@@ -657,7 +657,7 @@ class RegionalPDP(RegionalEffect):
         )
         pdp_2.plot(
             feature,
-            confidence_interval="ice",
+            heterogeneity="ice",
             nof_ice=100,
             scale_x=scale_x_per_feature[feature]
             if scale_x_per_feature is not None

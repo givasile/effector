@@ -41,7 +41,7 @@ So let's apply regional effect analysis to the $\mathtt{hour}$ feature.
 `Effector` provides a simple API for that, similar to the global effect API:
 
 ```python
-regional_rhale = effector.RegionalRHALE(X, model, model_jac).plot(feature=3, confidence_interval=True)
+regional_rhale = effector.RegionalRHALE(X, model, model_jac).plot(feature=3, heterogeneity=True)
 ```
 
 

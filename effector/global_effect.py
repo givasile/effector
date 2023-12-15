@@ -104,6 +104,19 @@ class GlobalEffect(ABC):
         """
         raise NotImplementedError
 
+    def refit(self, feature, centering):
+        """Checks if refitting is needed.
+        """
+        if not self.is_fitted[feature]:
+            return True
+        else:
+            if centering is not False:
+                term1 = np.all(self.feature_effect["feature_" + str(feature)]["norm_const"] == helpers.EMPTY_SYMBOL)
+                term2 = self.method_args["feature_" + str(feature)]["centering"] != centering
+                if term1 or term2:
+                    return True
+        return False
+
     def _compute_norm_const(
         self, feature: int, method: str = "zero_integral", nof_points: int = 100
     ) -> float:

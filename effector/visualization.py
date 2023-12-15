@@ -169,6 +169,7 @@ def plot_pdp_ice(
     target_name: typing.Union[None, str] = None,
     is_derivative: bool = False,
     nof_ice: typing.Union[str, int] = "all",
+    y_limits: typing.Union[None, tuple] = None
 ):
 
     fig, ax = plt.subplots()
@@ -244,6 +245,8 @@ def plot_pdp_ice(
     else:
         ax.set_ylabel("y") if target_name is None else ax.set_ylabel(target_name)
     ax.legend()
+    if y_limits is not None:
+        ax.set_ylim(y_limits[0], y_limits[1])
 
     plt.show(block=False)
     return fig, ax
@@ -256,7 +259,7 @@ def plot_shap(
     yy: np.ndarray,
     y_std,
     feature: int,
-    confidence_interval: str,
+    heterogeneity: str,
     scale_x: typing.Union[None, dict] = None,
     scale_y: typing.Union[None, dict] = None,
     avg_output: typing.Union[None, float] = None,
@@ -281,7 +284,7 @@ def plot_shap(
             avg_output = trans_scale(avg_output, scale_y["std"], square=False)
 
     # plot
-    if confidence_interval == "std":
+    if heterogeneity == "std":
         ax.fill_between(
             x,
             y - y_std,
@@ -290,9 +293,9 @@ def plot_shap(
             alpha=0.4,
             label="std",
         )
-    elif confidence_interval == "shap_values":
-        ax.plot(xx[0], yy[0], "rx", alpha=0.1, label="SHAP values")
-        ax.plot(xx, yy, "rx", alpha=0.1)
+    elif heterogeneity == "shap_values":
+        ax.plot(xx[0], yy[0], "rx", alpha=0.5, label="SHAP values")
+        ax.plot(xx, yy, "rx", alpha=0.5)
 
     ax.plot(x, y, "b-", label="SHAP curve")
 

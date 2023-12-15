@@ -583,12 +583,11 @@ Let's check it out the PDP effect using `effector`.
 
 #### Global PDP
 
-
 ```python
-pdp = effector.PDP(data=X_uncor_train, model=model_uncor, feature_names=['x1','x2','x3'], target_name="Y")
-fig, ax = pdp.plot(feature=0, centering=True, show_avg_output=False, confidence_interval="ice")
-fig, ax = pdp.plot(feature=1, centering=True, show_avg_output=False, confidence_interval="ice")
-fig, ax = pdp.plot(feature=2, centering=True, show_avg_output=False, confidence_interval="ice")
+pdp = effector.PDP(data=X_uncor_train, model=model_uncor, feature_names=['x1', 'x2', 'x3'], target_name="Y")
+fig, ax = pdp.plot(feature=0, centering=True, show_avg_output=False, heterogeneity="ice")
+fig, ax = pdp.plot(feature=1, centering=True, show_avg_output=False, heterogeneity="ice")
+fig, ax = pdp.plot(feature=2, centering=True, show_avg_output=False, heterogeneity="ice")
 ```
 
 
@@ -742,12 +741,11 @@ However, we should mention that this is just a hypothesis. Since the NN learns e
 
 #### Global PDP
 
-
 ```python
-pdp = effector.PDP(data=X_cor_train, model=model_cor, feature_names=['x1','x2','x3'], target_name="Y")
-fig, ax = pdp.plot(feature=0, centering=True, show_avg_output=False, confidence_interval="ice")
-fig, ax = pdp.plot(feature=1, centering=True, show_avg_output=False, confidence_interval="ice")
-fig, ax = pdp.plot(feature=2, centering=True, show_avg_output=False, confidence_interval="ice")
+pdp = effector.PDP(data=X_cor_train, model=model_cor, feature_names=['x1', 'x2', 'x3'], target_name="Y")
+fig, ax = pdp.plot(feature=0, centering=True, show_avg_output=False, heterogeneity="ice")
+fig, ax = pdp.plot(feature=1, centering=True, show_avg_output=False, heterogeneity="ice")
+fig, ax = pdp.plot(feature=2, centering=True, show_avg_output=False, heterogeneity="ice")
 ```
 
 
@@ -880,16 +878,16 @@ def model_cor_jac(x):
     return grads.numpy()
 ```
 
-
 ```python
-rhale = effector.RHALE(data=X_uncor_train, model=model_uncor, model_jac=model_uncor_jac, feature_names=['x1','x2','x3'], target_name="Y")
+rhale = effector.RHALE(data=X_uncor_train, model=model_uncor, model_jac=model_uncor_jac,
+                       feature_names=['x1', 'x2', 'x3'], target_name="Y")
 
 binning_method = effector.binning_methods.Fixed(15, min_points_per_bin=0)
 rhale.fit(features="all", binning_method=binning_method, centering=True)
 
-rhale.plot(feature=0, centering=True, confidence_interval="std", show_avg_output=False)
-rhale.plot(feature=1, centering=True, confidence_interval="std", show_avg_output=False)
-rhale.plot(feature=2, centering=True, confidence_interval="std", show_avg_output=False)
+rhale.plot(feature=0, centering=True, heterogeneity="std", show_avg_output=False)
+rhale.plot(feature=1, centering=True, heterogeneity="std", show_avg_output=False)
+rhale.plot(feature=2, centering=True, heterogeneity="std", show_avg_output=False)
 ```
 
 
@@ -1004,31 +1002,24 @@ binning_method = effector.binning_methods.Fixed(20, min_points_per_bin=0)
 rhale.fit(features="all", binning_method=binning_method, centering=True)
 ```
 
-
 ```python
-rhale.plot(feature=0, centering=True, show_avg_output=False, confidence_interval="std")
+rhale.plot(feature=0, centering=True, show_avg_output=False, heterogeneity="std")
 ```
 
 
     
 ![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_46_0.png)
-    
-
-
 
 ```python
-rhale.plot(feature=1, centering=True, show_avg_output=False, confidence_interval="std")
+rhale.plot(feature=1, centering=True, show_avg_output=False, heterogeneity="std")
 ```
 
 
     
 ![png](04_regional_effects_pdp_vs_rhale_files/04_regional_effects_pdp_vs_rhale_47_0.png)
-    
-
-
 
 ```python
-rhale.plot(feature=2, centering=True, show_avg_output=False, confidence_interval="std")
+rhale.plot(feature=2, centering=True, show_avg_output=False, heterogeneity="std")
 ```
 
 

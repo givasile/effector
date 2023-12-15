@@ -239,7 +239,6 @@ Bin splitting is a major limitation of ALE. The user has to choose the number of
 
 In our example, if setting a low number of bins (wide bins), e.g., 5, we get the following approximation:
 
-
 ```python
 feat = 0
 xx = np.linspace(-.5, .5, 100)
@@ -250,7 +249,7 @@ nof_bins = 5
 ale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
 binning = effector.binning_methods.Fixed(nof_bins=nof_bins, min_points_per_bin=0)
 ale.fit([feat], binning_method=binning)
-ale.plot(feature=feat, confidence_interval=True)
+ale.plot(feature=feat, heterogeneity=True)
 
 ```
 
@@ -267,7 +266,6 @@ The approximation with wide bins has two drawbacks:
 
 Let's see what happens with a high number of bins (narrow bins), e.g., 50:
 
-
 ```python
 # ale 50 bins
 nof_bins = 50
@@ -275,7 +273,7 @@ nof_bins = 50
 ale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
 binning = effector.binning_methods.Fixed(nof_bins=nof_bins, min_points_per_bin=0)
 ale.fit([feat], binning_method=binning)
-ale.plot(feature=feat, confidence_interval="std")
+ale.plot(feature=feat, heterogeneity="std")
 ```
 
 
@@ -296,14 +294,13 @@ In real-world problems, the user has to choose the number of bins without any gu
 
 RHALE proposes an automatic bin-splitting approach to resolve the issue. Let's first see it practice:
 
-
 ```python
 # rhale
 feat = 0
 rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.DynamicProgramming(max_nof_bins=20, min_points_per_bin=10, discount=0.5)
 rhale.fit([feat], binning_method=binning)
-rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
+rhale.plot(feature=feat, heterogeneity="std", show_avg_output=False)
 
 ```
 
@@ -328,9 +325,7 @@ In `Effector`, there are two automatic bin-splitting methods:
 
 ### Greedy approach
 
-`Greedy` has three parameters; `init_nof_bins`, `min_points_per_bin` and `discount`. `max_nof_bins` is the initial (and maximum) number of bins. The algorithm then tries to merge bins in a greedy way, i.e., it moves along the axis (from left to right) and if merging with the next bin leads to a similar variance then it merges the bins. In fact, discount expresses to what extent the algorithm favors the creation of wider bins. The higher the discount the more the algorithm tries to minimize the variance, sacrificing some bias and vice versa. `min_points_per_bin` is the minimum number of samples each bin should have. 
-
-
+`Greedy` has three parameters; `init_nof_bins`, `min_points_per_bin` and `discount`. `max_nof_bins` is the initial (and maximum) number of bins. The algorithm then tries to merge bins in a greedy way, i.e., it moves along the axis (from left to right) and if merging with the next bin leads to a similar variance then it merges the bins. In fact, discount expresses to what extent the algorithm favors the creation of wider bins. The higher the discount the more the algorithm tries to minimize the variance, sacrificing some bias and vice versa. `min_points_per_bin` is the minimum number of samples each bin should have.
 
 ```python
 # Greedy
@@ -338,7 +333,7 @@ feat = 0
 rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=10, discount=0.2)
 rhale.fit([feat], binning_method=binning)
-rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
+rhale.plot(feature=feat, heterogeneity="std", show_avg_output=False)
 ```
 
 
@@ -351,16 +346,13 @@ rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
 
 `DynamicProgramming` has three parameters; `max_nof_bins`, `min_points_per_bin` and `discount`. `max_nof_bins` is the maximum number of bins. The algorithm then tries to find the optimal binning, i.e., the binning that minimizes the bias-variance trade-off. `min_points_per_bin` is the minimum number of samples each bin should have. `discount` is the discount factor of the algorithm. The higher the discount the more the algorithm tries to minimize the variance, sacrificing some bias and vice versa. For more details, we refer the reader to the [RHALE paper](https://arxiv.org/abs/2309.11193).
 
-
-
-
 ```python
 # DynamicProgramming
 feat = 0
 rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 binning = effector.binning_methods.DynamicProgramming(max_nof_bins=50, min_points_per_bin=5, discount=0.2)
 rhale.fit([feat], binning_method=binning)
-rhale.plot(feature=feat, confidence_interval="std", show_avg_output=False)
+rhale.plot(feature=feat, heterogeneity="std", show_avg_output=False)
 ```
 
 
@@ -377,10 +369,8 @@ In short, yes, especially in scenarios where the features exhibit correlation. B
 
 In our example, it is evident that $x_3$ is highly dependent on $x_1$. Therefore, let's examine the implications of employing PDP-ICE.
 
-
-
 ```python
-fig, ax = effector.PDP(data=x, model=f, nof_instances=30).plot(feature=0, centering=True, confidence_interval="ice")
+fig, ax = effector.PDP(data=x, model=f, nof_instances=30).plot(feature=0, centering=True, heterogeneity="ice")
 ```
 
 

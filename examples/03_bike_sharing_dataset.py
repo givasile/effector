@@ -102,7 +102,7 @@ scale_x_list = [{"mean": x_mean[i], "std": x_std[i]} for i in range(len(x_mean))
 
 # pdp with ICE
 pdp = effector.PDP(data=X_train.to_numpy(), model=model_forward, nof_instances=1000, feature_names=col_names, target_name=target_name)
-pdp.plot(feature=3, confidence_interval="ice", centering=True, scale_x=scale_x, scale_y=scale_y, nof_ice=300)
+pdp.plot(feature=3, heterogeneity="ice", centering=True, scale_x=scale_x, scale_y=scale_y, nof_ice=300)
 
 
 # d-PDP with ICE

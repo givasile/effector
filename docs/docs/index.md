@@ -42,15 +42,14 @@ plotting the heterogeneity can be done by setting the `confidence_interval` para
 
 ```python
 # for ALE
-ALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature, confidence_interval=True)
+ALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature, heterogeneity=True)
 ```
 
 ![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_20_0.png)
 
-
 ```python
 # for PDP-ICE
-PDPwithICE(data=X, model=ml_model).plot(feature, confidence_interval="ice")
+PDPwithICE(data=X, model=ml_model).plot(feature, heterogeneity="ice")
 ```
 
 ![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)
@@ -77,7 +76,7 @@ we can see that the effect is much more homogeneous.
 `Effector` can find such subsets automatically and plot the regional effect plots in a single line of code:
 
 ```python
-RegionalRHALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature=0, confidence_interval=True)
+RegionalRHALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature=0, heterogeneity=True)
 ```
 
 ![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_25_1.png)

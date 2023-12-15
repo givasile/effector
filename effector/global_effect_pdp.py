@@ -13,15 +13,15 @@ class PDP(GlobalEffect):
         data: np.ndarray,
         model: callable,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        nof_instances: typing.Union[int, str] = 100,
+        nof_instances: typing.Union[int, str] = 300,
         avg_output: typing.Union[None, float] = None,
         feature_names: typing.Union[None, list] = None,
         target_name: typing.Union[None, str] = None,
     ):
         """
-        Initializes the PDP class.
+        Constructor of the PDP class.
 
-        Notes:
+        Definition:
             PDP implements the following feature effect method:
             $$
             \hat{f}(x_s) = {1 \over N} \sum_{i=1}^N f(x_s, x_{-s}^{(i)})
@@ -32,21 +32,46 @@ class PDP(GlobalEffect):
             \hat{f}^{(i)}(x_s) = f(x_s, x_{-s}^{(i)}), \quad i=1, \dots, N
             $$
 
+        Notes:
+            The required parameters are `data` and `model`. The rest are optional.
 
         Args:
-            data: The dataset, shape (N, D)
-            model: The model to be explained, (N, D) -> (N)
-            axis_limits: The axis limits for the FE plot (ndarray with shape (2,D)). If None, the axis limits will be computed from the dataset.
-            nof_instances: maximum number of instances to be used for PDP. If "all", all instances are used.
-            avg_output: average output of the model. If None, it is computed as the mean of the model output on the dataset.
-            feature_names: names of the features
-            target_name: name of the target
+            data: the design matrix
+
+                - shape: `(N,D)`
+            model: the black-box model. Must be a `Callable` with:
+
+                - input: `ndarray` of shape `(N, D)`
+                - output: `ndarray` of shape `(N, )`
+
+            axis_limits: The limits of the feature effect plot along each axis
+
+                - use a `ndarray` of shape `(2, D)`, to specify them manually
+                - use `None`, to be inferred from the data
+
+            nof_instances: maximum number of instances to be used for PDP.
+
+                - use "all", for using all instances.
+                - use an `int`, for using `nof_instances` instances.
+
+            avg_output: The average output of the model.
+
+                - use a `float`, to specify it manually
+                - use `None`, to be inferred as `np.mean(model(data))`
+
+            feature_names: The names of the features
+
+                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
+                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
+
+            target_name: The name of the target variable
+
+                - use a `str`, to specify it name manually. For example: `"price"`
+                - use `None`, to keep the default name: `"y"`
         """
         self.nof_instances, self.indices = helpers.prep_nof_instances(
             nof_instances, data.shape[0]
         )
-        # TODO: check if I want to keep all data for the PDP
-        # TODO: and the limited data for the ICE plot
         data = data[self.indices, :]
 
         super(PDP, self).__init__(
@@ -56,18 +81,20 @@ class PDP(GlobalEffect):
     def _fit_feature(
         self,
         feature: int,
-        centering: typing.Union[bool, str],
-        nof_points_centering: int,
+        centering: bool | str = False,
+        points_for_centering: int = 100,
     ) -> typing.Dict:
 
         # drop points outside of limits
-        data = self.data[self.data[:, feature] >= self.axis_limits[0, feature]]
+        self.data = self.data[self.data[:, feature] >= self.axis_limits[0, feature]]
+        self.data = self.data[self.data[:, feature] <= self.axis_limits[1, feature]]
+        data = self.data
 
         if centering is True or centering == "zero_integral":
             xx = np.linspace(
                 self.axis_limits[0, feature],
                 self.axis_limits[1, feature],
-                nof_points_centering,
+                points_for_centering,
             )
             y = pdp_1d_vectorized(
                 self.model, data, xx, feature, False, False, True
@@ -81,17 +108,17 @@ class PDP(GlobalEffect):
             )
             fe = {"norm_const": y[0]}
         else:
-            fe = {}
+            fe = {"norm_const": helpers.EMPTY_SYMBOL}
         return fe
 
     def fit(
         self,
-        features: typing.Union[int, str, list] = "all",
-        centering: typing.Union[bool, str] = True,
-        points_used_for_centering: int = 100,
+        features: int | str | list = "all",
+        centering: bool | str = True,
+        points_for_centering: int = 100,
     ):
         """
-        Fit the PDP and the ICE plots.
+        Fit the PD Plots.
 
         Notes:
             The only thing that `.fit` does is to compute the normalization constant for centering the
@@ -99,14 +126,17 @@ class PDP(GlobalEffect):
             This will be automatically done when calling `eval` or `plot`, so there is no need to call `fit` explicitly.
 
         Args:
-            features: The features to be fitted for explanation. If `"all"`, all features are fitted.
-            centering: Whether to center the PDP and the ICE plots.
-            points_used_for_centering: number of points on the x-axis to evaluate the PDP and the ICE plots on for computing the normalization constant
+            features: the features to fit.
+                - If set to "all", all the features will be fitted.
+            centering:
+                - If set to False, no centering will be applied.
+                - If set to "zero_integral" or True, the integral of the feature effect will be set to zero.
+                - If set to "zero_mean", the mean of the feature effect will be set to zero.
 
-        Notes:
-            * If `centering` is `False`, the PDP and ICE plots are not centered
-            * If `centering` is `True` or `"zero_integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
-            * If `centering` is `"zero_start"`, the PDP and the ICE plots start from `y=0`.
+            points_for_centering: number of linspaced points along the feature axis used for centering.
+
+                - If set to `all`, all the dataset points will be used.
+
         """
         assert centering in [
             True,
@@ -119,9 +149,13 @@ class PDP(GlobalEffect):
         # new implementation
         for s in features:
             self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s, centering, points_used_for_centering
+                s, centering, points_for_centering
             )
             self.is_fitted[s] = True
+            self.method_args["feature_" + str(s)] = {
+                "centering": centering,
+                "points_for_centering": points_for_centering,
+            }
 
     def eval(
         self,
@@ -133,36 +167,35 @@ class PDP(GlobalEffect):
     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
 
-        Notes:
-            The standard deviation of the PDP is computed as:
-            $$
-            todo
-            $$
-
-        Parameters:
+        Args:
             feature: index of feature of interest
-            xs: the points along the s-th axis to evaluate the FE plot, (T)
-            uncertainty: whether to return the uncertainty measures
+            xs: the points along the s-th axis to evaluate the FE plot
+
+              - `np.ndarray` of shape `(T,)`
+
+            uncertainty: whether to return the uncertainty measures.
+
+                  - if `uncertainty=False`, the function returns the mean effect at the given `xs`
+                  - If `uncertainty=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
+
             centering: whether to center the plot
-            return_all: whether to return all; PDP and ICE plots evaluated at `xs`
+
+                - If `centering` is `False`, the SHAP curve is not centered
+                - If `centering` is `True` or `zero_integral`, the SHAP curve is centered around the `y` axis.
+                - If `centering` is `zero_start`, the SHAP curve starts from `y=0`.
+
+            return_all: whether to return PDP and ICE plots evaluated at `xs`
+
+                - If `return_all=False`, the function returns the mean effect at the given `xs`
+                - If `return_all=True`, the function returns a `ndarray` of shape `(T, N)` with the `N` ICE plots evaluated at `xs`
 
         Returns:
             the mean effect `y`, if `uncertainty=False` (default) or a tuple `(y, std, estimator_var)` otherwise
 
-        Notes:
-            * If `centering` is `False`, the PDP is not centered
-            * If `centering` is `True` or `"zero_integral"`, the PDP is centered by subtracting the mean of the PDP.
-            * If `centering` is `"zero_start"`, the PDP is centered by subtracting the value of the PDP at the first point.
-
-        Notes:
-            * If `uncertainty` is `False`, the PDP returns only the mean effect `y` at the given `xs`.
-            * If `uncertainty` is `True`, the PDP returns `(y, std, estimator_var)` where:
-                * `y` is the mean effect
-                * `std` is the standard deviation of the mean effect
-                * `estimator_var` is the variance of the mean effect estimator
         """
         centering = helpers.prep_centering(centering)
-        if not self.is_fitted[feature] and centering is not False:
+
+        if self.refit(feature, centering):
             self.fit(features=feature, centering=centering)
 
         # Check if the lower bound is less than the upper bound
@@ -184,49 +217,49 @@ class PDP(GlobalEffect):
 
         if uncertainty:
             std = np.std(yy, axis=1)
-            estimator_var = np.var(yy, axis=1)
-            return y_pdp, std, estimator_var
+            return y_pdp, std, np.zeros_like(std)
         else:
             return y_pdp
 
     def plot(
         self,
         feature: int,
-        confidence_interval: typing.Union[bool, str] = False,
-        centering: typing.Union[bool, str] = False,
-        nof_axis_points: int = 30,
-        scale_x: typing.Union[None, dict] = None,
-        scale_y: typing.Union[None, dict] = None,
-        nof_ice: typing.Union[int, str] = "all",
+        heterogeneity: bool | str = False,
+        centering: bool | str = False,
+        nof_points: int = 30,
+        scale_x: None | dict = None,
+        scale_y: None | dict = None,
+        nof_ice: int | str = "all",
         show_avg_output: bool = False,
-    ) -> tuple[plt.Figure, plt.Axes]:
+        y_limits: None | list = None,
+    ) -> None:
         """
-        Plot the PDP along with the ICE plots
+        Plot the PDP.
 
         Args:
             feature: index of the plotted feature
-            confidence_interval: whether to plot the confidence interval
-            centering: whether to center the PDP
-            nof_axis_points: number of points on the x-axis to evaluate the PDP plot
+            heterogeneity: whether to output the heterogeneity of the SHAP values
+
+                - If `heterogeneity` is `False`, no heterogeneity is plotted
+                - If `heterogeneity` is `True` or `"std"`, the standard deviation of the shap values is plotted
+                - If `heterogeneity` is `ice`, the ICE plots are plotted
+
+            centering: whether to center the SDP
+
+                - If `centering` is `False`, the SHAP curve is not centered
+                - If `centering` is `True` or `zero_integral`, the SHAP curve is centered around the `y` axis.
+                - If `centering` is `zero_start`, the SHAP curve starts from `y=0`.
+
+            nof_points: number of points to evaluate the SDP plot
             scale_x: dictionary with keys "mean" and "std" for scaling the x-axis
             scale_y: dictionary with keys "mean" and "std" for scaling the y-axis
-            nof_ice: number of ICE plots to show on top of the PDP plot
+            nof_ice: number of shap values to show on top of the SHAP curve
             show_avg_output: whether to show the average output of the model
-
-        Notes:
-            * if `confidence_interval` is `False`, no confidence interval is plotted
-            * if `confidence_interval` is `True` or `"std"`, the standard deviation of the ICE plots is plotted
-            * if `confidence_interval` is `ice`, the ICE plots are plotted
-
-        Notes:
-            * If `centering` is `False`, the PDP and ICE plots are not centered
-            * If `centering` is `True` or `"zero_integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
-            * If `centering` is `"zero_start"`, the PDP and the ICE plots start from `y=0`.
-
+            y_limits: limits of the y-axis
         """
-        confidence_interval = helpers.prep_confidence_interval(confidence_interval)
+        heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         x = np.linspace(
-            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_axis_points
+            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
         )
 
         yy = self.eval(
@@ -235,12 +268,12 @@ class PDP(GlobalEffect):
 
         avg_output = None if not show_avg_output else self.avg_output
         title = "PDP Plot"
-        fig, ax = vis.plot_pdp_ice(
+        vis.plot_pdp_ice(
             x,
             feature,
             yy=yy,
             title=title,
-            confidence_interval=confidence_interval,
+            confidence_interval=heterogeneity,
             y_pdp_label="PDP",
             y_ice_label="ICE",
             scale_x=scale_x,
@@ -249,8 +282,8 @@ class PDP(GlobalEffect):
             feature_names=self.feature_names,
             target_name=self.target_name,
             nof_ice=nof_ice,
+            y_limits=y_limits,
         )
-        return fig, ax
 
 
 class DerivativePDP(GlobalEffect):
@@ -432,7 +465,7 @@ class DerivativePDP(GlobalEffect):
     def plot(
         self,
         feature: int,
-        confidence_interval: typing.Union[bool, str] = False,
+        confidence_interval: bool | str = False,
         centering: bool = False,
         nof_axis_points: int = 30,
         scale_x: typing.Union[None, dict] = None,

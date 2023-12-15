@@ -1,12 +1,10 @@
 import typing
 import effector.visualization as vis
 import effector.helpers as helpers
-import effector.utils as utils
 from effector.global_effect import GlobalEffect
 import numpy as np
 import shap
 from scipy.interpolate import UnivariateSpline
-import matplotlib.pyplot as plt
 
 
 class SHAPDependence(GlobalEffect):
@@ -15,6 +13,7 @@ class SHAPDependence(GlobalEffect):
         data: np.ndarray,
         model: callable,
         axis_limits: None | np.ndarray = None,
+        nof_instances: int | str = 100,
         avg_output: None | float = None,
         feature_names: None | list[str] = None,
         target_name: None | str = None,
@@ -42,10 +41,10 @@ class SHAPDependence(GlobalEffect):
 
             where $w_{S, j}$ assures that the contribution of feature $j$ is the same for all coalitions of the same size. For example, there are $D-1$ ways for $x_j$ to enter a coalition of $|S| = 1$ feature, so $w_{S, j} = {1 \over D (D-1)}$ for each of them. In contrast, there is only one way for $x_j$ to enter a coaltion of $|S|=0$ (to be the first specified feature), so $w_{S, j} = {1 \over D}$.
 
-            The SHAP Dependence Plot (SHAP-DP) is simply a scatter plot of $\{x_j^i, \hat{\phi}_j(x_j^i)\}_{i=1}^N$. To make it a continuous curve, we fit a spline to the scatter plot using the `UnivariateSpline` function from `scipy.interpolate`.
+            The SHAP Dependence Plot (SHAP-DP) is a spline $\hat{f}^{SDP}_j(x_j)$ fit to the dataset $\{(x_j^i, \hat{\phi}_j(x_j^i))\}_{i=1}^N$ using the `UnivariateSpline` function from `scipy.interpolate`.
 
         Notes:
-            * The required variables are `data` and `model`.
+            * The required parameters are `data` and `model`. The rest are optional.
             * SHAP values are computed using the `shap` package. Due to computational reasons, we use the `PermutationExplainer` method.
             * SHAP values are centered by default, i.e., the average SHAP value is subtracted from the SHAP values.
             * More details on the SHAP values can be found in the [original paper](https://arxiv.org/abs/1705.07874) and in the book [Interpreting Machine Learning Models with SHAP](https://christophmolnar.com/books/shap/)
@@ -64,6 +63,11 @@ class SHAPDependence(GlobalEffect):
                 - use a `ndarray` of shape `(2, D)`, to specify them manually
                 - use `None`, to be inferred from the data
 
+            nof_instances: maximum number of instances to be used for PDP.
+
+                - use "all", for using all instances.
+                - use an `int`, for using `nof_instances` instances.
+
             avg_output: The average output of the model.
 
                 - use a `float`, to specify it manually
@@ -78,8 +82,12 @@ class SHAPDependence(GlobalEffect):
 
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
-
         """
+        self.nof_instances, self.indices = helpers.prep_nof_instances(
+            nof_instances, data.shape[0]
+        )
+        data = data[self.indices, :]
+
         super(SHAPDependence, self).__init__(
             data, model, axis_limits, avg_output, feature_names, target_name
         )
@@ -87,20 +95,16 @@ class SHAPDependence(GlobalEffect):
     def _fit_feature(
         self,
         feature: int,
-        centering: typing.Union[bool, str] = False,
-        points_for_fitting_spline: int | str = 100,
-        points_used_for_centering: int = 100,
+        centering: bool | str = False,
+        points_for_centering: int = 100,
     ) -> typing.Dict:
 
         # drop points outside of limits
-        data = self.data[self.data[:, feature] >= self.axis_limits[0, feature]]
-
-        # prepare nof points
-        _, ind_shap = helpers.prep_nof_instances(points_for_fitting_spline, data.shape[0])
-        _, ind_cent = helpers.prep_nof_instances(points_used_for_centering, data.shape[0])
+        self.data = self.data[self.data[:, feature] >= self.axis_limits[0, feature]]
+        self.data = self.data[self.data[:, feature] <= self.axis_limits[1, feature]]
 
         # compute shap values
-        data = data[ind_shap, :]
+        data = self.data
         shap_explainer = shap.Explainer(self.model, data)
         explanation = shap_explainer(data)
 
@@ -122,7 +126,7 @@ class SHAPDependence(GlobalEffect):
 
         # compute norm constant
         if centering == "zero_integral":
-            x_norm = np.linspace(xx[0], xx[-1], points_used_for_centering)
+            x_norm = np.linspace(xx[0], xx[-1], points_for_centering)
             y_norm = spline_mean(x_norm)
             norm_const = np.trapz(y_norm, x_norm) / (xx[-1] - xx[0])
         elif centering == "zero_start":
@@ -143,7 +147,6 @@ class SHAPDependence(GlobalEffect):
         self,
         features: int | str | list = "all",
         centering: bool | str = False,
-        points_for_fitting_spline: int | str = 100,
         points_for_centering: int | str = 100,
     ) -> None:
         """Fit the SHAP Dependence Plot to the data.
@@ -162,13 +165,10 @@ class SHAPDependence(GlobalEffect):
                 - If set to False, no centering will be applied.
                 - If set to "zero_integral" or True, the integral of the feature effect will be set to zero.
                 - If set to "zero_mean", the mean of the feature effect will be set to zero.
-            points_for_fitting_spline: number of dataset points used for (a) computing the SHAP values and (b) fitting the spline.
 
-                - If set to `all`, all the dataset points will be used.
             points_for_centering: number of linspaced points along the feature axis used for centering.
 
                 - If set to `all`, all the dataset points will be used.
-
 
         Notes:
             SHAP values are by default centered, i.e., $\sum_{i=1}^N \hat{\phi}_j(x_j^i) = 0$. This does not mean that the SHAP _curve_ is centered around zero; this happens only if the $s$-th feature of the dataset instances, i.e., the set $\{x_s^i\}_{i=1}^N$ is uniformly distributed along the $s$-th axis. So, use:
@@ -189,9 +189,13 @@ class SHAPDependence(GlobalEffect):
         # new implementation
         for s in features:
             self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s, centering, points_for_fitting_spline, points_for_centering
+                s, centering, points_for_centering
             )
             self.is_fitted[s] = True
+            self.method_args["feature_" + str(s)] = {
+                "centering": centering,
+                "points_for_centering": points_for_centering,
+            }
 
     def eval(
         self,
@@ -222,11 +226,8 @@ class SHAPDependence(GlobalEffect):
             the mean effect `y`, if `uncertainty=False` (default) or a tuple `(y, std, estimator_var)` otherwise
         """
         centering = helpers.prep_centering(centering)
-        if (
-            not self.is_fitted[feature]
-            or self.feature_effect["feature_" + str(feature)]["norm_const"] == helpers.EMPTY_SYMBOL
-            and centering is not False
-        ):
+
+        if self.refit(feature, centering):
             self.fit(features=feature, centering=centering)
 
         # Check if the lower bound is less than the upper bound
@@ -247,71 +248,67 @@ class SHAPDependence(GlobalEffect):
     def plot(
         self,
         feature: int,
-        confidence_interval: typing.Union[bool, str] = False,
-        centering: typing.Union[bool, str] = False,
-        nof_axis_points: int = 30,
-        scale_x: typing.Union[None, dict] = None,
-        scale_y: typing.Union[None, dict] = None,
-        nof_shap_values: typing.Union[int, str] = "all",
+        heterogeneity: bool | str = False,
+        centering: bool | str = False,
+        nof_points: int = 30,
+        scale_x: None | dict = None,
+        scale_y: None | dict = None,
+        nof_shap_values: int | str = "all",
         show_avg_output: bool = False,
-        y_limits: typing.Union[None, list] = None,
+        y_limits: None | list = None,
     ) -> None:
         """
-        Plot the SHAP Dependence Plot.
+        Plot the SHAP Dependence Plot (SDP) of the s-th feature.
 
         Args:
             feature: index of the plotted feature
-            confidence_interval: whether to plot the confidence interval
-            centering: whether to center the PDP
-            nof_axis_points: number of points on the x-axis to evaluate the PDP plot
+            heterogeneity: whether to output the heterogeneity of the SHAP values
+
+                - If `heterogeneity` is `False`, no heterogeneity is plotted
+                - If `heterogeneity` is `True` or `"std"`, the standard deviation of the shap values is plotted
+                - If `heterogeneity` is `"shap_values"`, the shap values are scattered on top of the SHAP curve
+
+            centering: whether to center the SDP
+
+                - If `centering` is `False`, the SHAP curve is not centered
+                - If `centering` is `True` or `zero_integral`, the SHAP curve is centered around the `y` axis.
+                - If `centering` is `zero_start`, the SHAP curve starts from `y=0`.
+
+            nof_points: number of points to evaluate the SDP plot
             scale_x: dictionary with keys "mean" and "std" for scaling the x-axis
             scale_y: dictionary with keys "mean" and "std" for scaling the y-axis
             nof_shap_values: number of shap values to show on top of the SHAP curve
             show_avg_output: whether to show the average output of the model
             y_limits: limits of the y-axis
-
-        Notes:
-            * if `confidence_interval` is `False`, no confidence interval is plotted
-            * if `confidence_interval` is `True` or `"std"`, the standard deviation of the shap values is plotted
-            * if `confidence_interval` is `shap_values`, the shap values are plotted
-
-        Notes:
-            * If `centering` is `False`, the PDP and ICE plots are not centered
-            * If `centering` is `True` or `"zero_integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
-            * If `centering` is `"zero_start"`, the PDP and the ICE plots start from `y=0`.
-
         """
-        confidence_interval = helpers.prep_confidence_interval(confidence_interval)
+        heterogeneity = helpers.prep_confidence_interval(heterogeneity)
+
         x = np.linspace(
-            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_axis_points
+            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
         )
 
         # get the SHAP curve
         y = self.eval(feature, x, uncertainty=False, centering=centering)
-
-        # get the std of the SHAP curve
         y_std = (
             self.feature_effect["feature_" + str(feature)]["spline_std"](x)
-            if confidence_interval == "std"
+            if heterogeneity == "std"
             else None
         )
 
         # get some SHAP values
+        _, ind = helpers.prep_nof_instances(nof_shap_values, self.data.shape[0])
         yy = (
-            self.feature_effect["feature_" + str(feature)]["yy"]
-            if confidence_interval == "shap_values"
+            self.feature_effect["feature_" + str(feature)]["yy"][ind]
+            if heterogeneity == "shap_values"
             else None
         )
+        if yy is not None and centering is not False:
+            yy = yy - self.feature_effect["feature_" + str(feature)]["norm_const"]
         xx = (
-            self.feature_effect["feature_" + str(feature)]["xx"]
-            if confidence_interval == "shap_values"
+            self.feature_effect["feature_" + str(feature)]["xx"][ind]
+            if heterogeneity == "shap_values"
             else None
         )
-
-        if nof_shap_values != "all" and nof_shap_values < len(xx):
-            idx = np.random.choice(len(xx), nof_shap_values, replace=False)
-            xx = xx[idx]
-            yy = yy[idx]
 
         avg_output = None if not show_avg_output else self.avg_output
 
@@ -322,7 +319,7 @@ class SHAPDependence(GlobalEffect):
             yy,
             y_std,
             feature,
-            confidence_interval=confidence_interval,
+            heterogeneity=heterogeneity,
             scale_x=scale_x,
             scale_y=scale_y,
             avg_output=avg_output,

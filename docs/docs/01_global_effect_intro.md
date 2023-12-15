@@ -89,13 +89,13 @@ In `Effector`, we can do this by simply setting the `confidence_interval` parame
 
 
 ```python
-effector.RHALE(X, model, model_jac).plot(feature=3, confidence_interval=True)
+effector.RHALE(X, model, model_jac).plot(feature=3, heterogeneity=True)
 ```
 
 ![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_20_0.png)
 
 ```python
-effector.PDP(X, model).plot(feature=3, confidence_interval="ice")
+effector.PDP(X, model).plot(feature=3, heterogeneity="ice")
 ```
 
 ![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)

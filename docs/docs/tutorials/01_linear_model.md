@@ -216,10 +216,8 @@ $$\text{ICE}^{(i)}(x_s, x^{(i)}_c) = f(x_s, x^{(i)}_c)$$
 Plotting the ICE plots of many instances $i$ on top of the PDP, we can visually observe the heterogeneity.
 For example in the plot below, we can see that there is no heterogeneity in the instance-level effects, i.e., all instance-level effects are lines with gradient 7.
 
-
-
 ```python
-fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=True, confidence_interval="ice")
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=True, heterogeneity="ice")
 ```
 
 
@@ -239,9 +237,8 @@ In contrast, this difference will be visible under the uncentered ICE curves.
 
 In our example, setting `centering=False` gives the following plot; ICE plots with different intercepts but identical gradient.
 
-
 ```python
-fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=False, confidence_interval="ice")
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=False, heterogeneity="ice")
 ```
 
 
@@ -256,10 +253,8 @@ A second way to check for heterogeneity is by plotting the standard deviation of
 This is done setting `confidence_interval="std"` in the `plot` method. 
 In practice, this approach simply plots the std of the ICE plots instead of the ICE plots themselves.
 
-
-
 ```python
-fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=True, confidence_interval="std")
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=True, heterogeneity="std")
 ```
 
 
@@ -272,9 +267,8 @@ In this case, if we do not perform centering, it is difficult to differentiate w
 Therefore, we recommend to try both the centered and the uncentered version of the ICE, before coming to a conclusion. 
 If the heterogeneity is only present on the latter, then it is due to different intercepts.
 
-
 ```python
-fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=False, confidence_interval="std")
+fig, ax = effector.PDP(data=X, model=predict).plot(feature=0, centering=False, heterogeneity="std")
 ```
 
 
@@ -303,10 +297,9 @@ We have to mention that:
 
 As we can see below, the standard deviation of the ICE plots is zero, because they only measure the variation of the shapes of the curves; not the variation of the intercepts.
 
-
 ```python
-fig, ax = effector.DerivativePDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, confidence_interval=True)
-fig, ax = effector.DerivativePDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, confidence_interval="ice")
+fig, ax = effector.DerivativePDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, heterogeneity=True)
+fig, ax = effector.DerivativePDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, heterogeneity="ice")
 ```
 
 
@@ -382,9 +375,8 @@ effector.ALE(data=X, model=predict).plot(feature=0, centering=True)
 
 In ALE plots, the only way to check the heterogeneity of the instance-level effects is by plotting the standard deviation of the instance-level effects as $\pm$ interval around the ALE plot. In `Effector` this can be done by setting `confidence_interbal="std"`. The plot below informs shows that the heterogeneity is zero, which is correct. However, as we will see below [(RHALE section)](#robust-and-heterogeneity-aware-ale-rhale), ALE's fixed size bin-splitting is not the best way to estimate the heterogeneity. In contrast, the automatic bin-splitting introduced by [RHALE](https://arxiv.org/abs/2309.11193) provides a better estimation of the heterogeneity.
 
-
 ```python
-effector.ALE(data=X, model=predict).plot(feature=0, centering=True, confidence_interval="std")
+effector.ALE(data=X, model=predict).plot(feature=0, centering=True, heterogeneity="std")
 ```
 
 
@@ -488,9 +480,9 @@ As before, the heterogeneity is given by the the standard deviation of the insta
 It is important to notice, that automatic bin-splitting provides a better estimation of the heterogeneity, compared to the equisized binning method used by ALE. (check tutorial [ALE](./ale.ipynb) for more details). 
 The plot below correctly informs shows that the heterogeneity is zero.
 
-
 ```python
-effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True, confidence_interval="std", show_avg_output=False)
+effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True, heterogeneity="std",
+                                                                   show_avg_output=False)
 ```
 
 ### Bin-Splitting
