@@ -17,6 +17,7 @@
            - __init__
            - fit
            - plot
+           - eval
 
 ### ::: effector.global_effect_rhale.RHALE
        options:
@@ -45,6 +46,15 @@
           - fit
           - plot
 
+### ::: effector.global_effect_shap.SHAPDependence
+      options:
+        show_root_heading: True
+        show_symbol_type_toc: True
+        members:
+          - __init__
+          - fit
+          - eval
+          - plot
 
 ## Regional Effect Methods
 
