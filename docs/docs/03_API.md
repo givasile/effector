@@ -35,6 +35,7 @@
         members:
           - __init__
           - fit
+          - eval
           - plot
 
 ### ::: effector.global_effect_pdp.DerivativePDP

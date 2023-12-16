@@ -108,7 +108,7 @@ pdp.plot(feature=3, heterogeneity="ice", centering=True, scale_x=scale_x, scale_
 # d-PDP with ICE
 d_pdp = effector.DerivativePDP(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, nof_instances=1000, feature_names=col_names, target_name=target_name)
 d_pdp.fit(features=3, centering=False)
-d_pdp.plot(feature=3, confidence_interval="ice", centering=False, scale_x=scale_x, scale_y=scale_y, nof_ice=500)
+d_pdp.plot(feature=3, heterogeneity="ice", centering=False, scale_x=scale_x, scale_y=scale_y, nof_ice=500)
 
 # Regional RHALE
 regional_rhale = effector.RegionalRHALE(

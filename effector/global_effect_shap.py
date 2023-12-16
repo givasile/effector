@@ -26,7 +26,8 @@ class SHAPDependence(GlobalEffect):
             $$
             \hat{v}(S) = {1 \over N} \sum_{i=1}^N  f(x_S \cup x_C^i) - f(x^i)
             $$
-            The value of a coalition $S$ is the average (over all instances) difference on the output of the model between setting features in $S$ to be $x_S$, i.e., $\mathbf{x} = (\mathbf{x}_S, \mathbf{x}_C^i)$ and leaving the instance as it is, i.e., $\mathbf{x}^i = (\mathbf{x}_S^i, \mathbf{x}_C^i)$.
+            The value of a coalition $S$ quantifies what the values $\mathbf{x}_S$ of the features in $S$ contribute to the output of the model. It
+            is the average (over all instances) difference on the output between setting features in $S$ to be $x_S$, i.e., $\mathbf{x} = (\mathbf{x}_S, \mathbf{x}_C^i)$ and leaving the instance as it is, i.e., $\mathbf{x}^i = (\mathbf{x}_S^i, \mathbf{x}_C^i)$.
 
             The contribution of a feature $j$ added to a coalition $S$ is estimated as:
             $$
@@ -45,7 +46,7 @@ class SHAPDependence(GlobalEffect):
 
         Notes:
             * The required parameters are `data` and `model`. The rest are optional.
-            * SHAP values are computed using the `shap` package. Due to computational reasons, we use the `PermutationExplainer` method.
+            * SHAP values are computed using the `shap` package, using the class `Explainer`.
             * SHAP values are centered by default, i.e., the average SHAP value is subtracted from the SHAP values.
             * More details on the SHAP values can be found in the [original paper](https://arxiv.org/abs/1705.07874) and in the book [Interpreting Machine Learning Models with SHAP](https://christophmolnar.com/books/shap/)
 
@@ -56,7 +57,7 @@ class SHAPDependence(GlobalEffect):
             model: the black-box model. Must be a `Callable` with:
 
                 - input: `ndarray` of shape `(N, D)`
-                - output: `ndarray` of shape `(N, )`
+                - output: `ndarray` of shape `(N,)`
 
             axis_limits: The limits of the feature effect plot along each axis
 
