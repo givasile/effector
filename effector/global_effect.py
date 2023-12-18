@@ -171,6 +171,9 @@ class GlobalEffect(ABC):
         """
         centering = helpers.prep_centering(centering)
 
+        if self.refit(feature, centering):
+            self.fit(features=feature, centering=centering)
+
         # Check if the lower bound is less than the upper bound
         assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
 

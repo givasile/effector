@@ -33,7 +33,7 @@ def ale_plot(
     avg_output: typing.Union[None, float] = None,
     feature_names: typing.Union[None, list] = None,
     target_name: typing.Union[None, str] = None,
-    not_show: bool = False,
+    y_limits: typing.Union[None, tuple] = None,
 ):
     """
 
@@ -50,6 +50,7 @@ def ale_plot(
     scale_x: None or Dict with ['std', 'mean']
     scale_y: None or Dict with ['std', 'mean']
     savefig: False or path to store figure
+
     """
     # assert ale_params contains needed quantities
     assert all(
@@ -101,12 +102,11 @@ def ale_plot(
 
     ax1.set_ylabel("y") if target_name is None else ax1.set_ylabel(target_name)
 
+    ax1.set_ylim(y_limits[0], y_limits[1]) if y_limits is not None else None
+
     x_name = "x_%d" % (feature + 1) if feature_names is None else feature_names[feature]
     ax2.set_xlabel(x_name)
     ax2.set_ylabel("dy/dx")
-    if not not_show:
-        plt.show(block=False)
-    return fig, ax1, ax2
 
 
 def ale_curve(ax1, x, y, std_err, std, error=None, avg_output=None):

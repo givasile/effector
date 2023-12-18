@@ -12,30 +12,57 @@ class ALE(GlobalEffect):
         self,
         data: np.ndarray,
         model: callable,
-        axis_limits: typing.Union[None, np.ndarray] = None,
-        avg_output: typing.Union[None, float] = None,
-        feature_names: typing.Union[None, list] = None,
-        target_name: typing.Union[None, str] = None,
+        axis_limits: None | np.ndarray = None,
+        avg_output: None | float = None,
+        feature_names: None | list = None,
+        target_name: None | str = None,
     ):
         """
-        ALE constructor.
+        Constructor for the ALE plot.
+
+        Definition:
+            RHALE is defined as:
+            $$
+            \hat{f}^{RHALE}(x_s) = TODO
+            $$
+
+            The heterogeneity is:
+            $$
+            TODO
+            $$
+
+        Notes:
+            - The required parameters are `data` and `model`. The rest are optional.
 
         Args:
-            data: X matrix (N,D).
-            model: the black-box model (N,D) -> (N,).
-            axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
+            data: the design matrix
 
+                - shape: `(N,D)`
+            model: the black-box model. Must be a `Callable` with:
+
+                - input: `ndarray` of shape `(N, D)`
+                - output: `ndarray` of shape `(N, )`
+
+            axis_limits: The limits of the feature effect plot along each axis
+
+                - use a `ndarray` of shape `(2, D)`, to specify them manually
+                - use `None`, to be inferred from the data
+
+            avg_output: the average output of the model on the data
+
+                - use a `float`, to specify it manually
+                - use `None`, to be inferred as `np.mean(model(data))`
+
+            feature_names: The names of the features
+
+                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
+                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
+
+            target_name: The name of the target variable
+
+                - use a `str`, to specify it name manually. For example: `"price"`
+                - use `None`, to keep the default name: `"y"`
         """
-        # assertions
-        assert data.ndim == 2
-
-        # setters
-        self.model = model
-        self.data = data
-        axis_limits = (
-            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
-        )
-
         super(ALE, self).__init__(
             data, model, axis_limits, avg_output, feature_names, target_name
         )
@@ -52,8 +79,10 @@ class ALE(GlobalEffect):
         # assertion
         assert binning_method == "fixed" or isinstance(
             binning_method, bm.Fixed
-        ), "Only fixed binning method is supported for now"
+        ), "ALE can work only with the fixed binning method!"
 
+        if isinstance(binning_method, str):
+            binning_method = bm.Fixed(nof_bins=20, min_points_per_bin=0)
         bin_est = bm.find_limits(data, None, feature, self.axis_limits, binning_method)
         bin_name = bin_est.__class__.__name__
 
@@ -92,10 +121,11 @@ class ALE(GlobalEffect):
             binning_method:
                 - If set to "fixed", the greedy binning method with default values will be used.
                 - If you want to change the parameters of the method, you can pass an instance of the Fixed class.
-            centering:
-                - If set to False, no centering will be applied.
-                - If set to "zero_integral" or True, the integral of the feature effect will be set to zero.
-                - If set to "zero_mean", the mean of the feature effect will be set to zero.
+            centering: whether to center the RHALE plot
+
+                - If `centering` is `False`, the PDP not centered
+                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
+                - If `centering` is `zero_start`, the PDP starts from `y=0`.
         """
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
@@ -106,8 +136,10 @@ class ALE(GlobalEffect):
             if centering is not False:
                 self.norm_const[s] = self._compute_norm_const(s, method=centering)
             self.is_fitted[s] = True
+            self.method_args["feature_" + str(s)] = {
+                "centering": centering,
+            }
 
-    # TODO: add latex formula
     def _eval_unnorm(self, feature: int, x: np.ndarray, uncertainty: bool = False):
         params = self.feature_effect["feature_" + str(feature)]
         y = utils.compute_accumulated_effect(
@@ -135,19 +167,19 @@ class ALE(GlobalEffect):
     def plot(
         self,
         feature: int = 0,
-        confidence_interval: typing.Union[bool, str] = False,
+        heterogeneity: typing.Union[bool, str] = False,
         centering: typing.Union[bool, str] = False,
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
         show_avg_output: bool = False,
-        not_show: bool = False,
+        y_limits: None | list = None,
     ):
         """
         Plot the ALE plot for a given feature.
 
         Parameters:
             feature: the feature to plot
-            confidence_interval:
+            heterogeneity:
                 - If set to False, no confidence interval will be shown.
                 - If set to "std" or True, the accumulated standard deviation will be shown.
                 - If set to "stderr", the accumulated standard error of the mean will be shown.
@@ -164,9 +196,12 @@ class ALE(GlobalEffect):
                 - If set to None, no scaling will be applied.
                 - If set to a dict, the y-axis will be scaled by the standard deviation and the mean.
             show_avg_output: if True, the average output will be shown as a horizontal line.
-            not_show: if True, the plot will not be shown, but returned as a matplotlib object instead.
+            y_limits: None or tuple, the limits of the y-axis
+
+                - If set to None, the limits of the y-axis are set automatically
+                - If set to a tuple, the limits are manually set
         """
-        confidence_interval = helpers.prep_confidence_interval(confidence_interval)
+        heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
 
         # hack to fit the feature if not fitted
@@ -174,23 +209,22 @@ class ALE(GlobalEffect):
             feature, np.array([self.axis_limits[0, feature]]), centering=centering
         )
 
-        avg_output = helpers.prep_avg_output(
-            self.data, self.model, show_avg_output, self.avg_output, scale_y
-        )
+        if show_avg_output:
+            avg_output = helpers.prep_avg_output(self.data, self.model, self.avg_output, scale_y)
+        else:
+            avg_output = None
 
-        fig, ax1, ax2 = vis.ale_plot(
+        vis.ale_plot(
             self.feature_effect["feature_" + str(feature)],
             self.eval,
             feature,
             centering=centering,
-            error=confidence_interval,
+            error=heterogeneity,
             scale_x=scale_x,
             scale_y=scale_y,
             title="ALE plot",
             avg_output=avg_output,
             feature_names=self.feature_names,
             target_name=self.target_name,
-            not_show=not_show,
+            y_limits = y_limits
         )
-        if not_show:
-            return fig, ax1, ax2

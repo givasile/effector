@@ -1,5 +1,4 @@
 import typing
-import copy
 import effector.utils as utils
 import effector.visualization as vis
 import effector.binning_methods as bm
@@ -13,25 +12,67 @@ class RHALE(GlobalEffect):
         self,
         data: np.ndarray,
         model: callable,
-        model_jac: typing.Union[None, callable] = None,
-        axis_limits: typing.Union[None, np.ndarray] = None,
-        data_effect: typing.Union[None, np.ndarray] = None,
-        avg_output: typing.Union[None, float] = None,
-        feature_names: typing.Union[None, list] = None,
-        target_name: typing.Union[None, str] = None,
+        model_jac: None | callable = None,
+        axis_limits: None | np.ndarray = None,
+        data_effect: None | np.ndarray = None,
+        avg_output: None | float = None,
+        feature_names: None | list = None,
+        target_name: None | str = None,
     ):
         """
-        RHALE constructor.
+        Constructor for RHALE.
+
+        Definition:
+            RHALE is defined as:
+            $$
+            \hat{f}^{RHALE}(x_s) = TODO
+            $$
+
+            The heterogeneity is:
+            $$
+            TODO
+            $$
+
+        Notes:
+            The required parameters are `data` and `model`. The rest are optional.
 
         Args:
-            data: X matrix (N,D).
-            model: the black-box model (N,D) -> (N, )
-            model_jac: the black-box model Jacobian (N,D) -> (N,D)
-            axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
+            data: the design matrix
+
+                - shape: `(N,D)`
+            model: the black-box model. Must be a `Callable` with:
+
+                - input: `ndarray` of shape `(N, D)`
+                - output: `ndarray` of shape `(N, )`
+
+            model_jac: the Jacobian of the model. Must be a `Callable` with:
+
+                - input: `ndarray` of shape `(N, D)`
+                - output: `ndarray` of shape `(N, D)`
+
+            axis_limits: The limits of the feature effect plot along each axis
+
+                - use a `ndarray` of shape `(2, D)`, to specify them manually
+                - use `None`, to be inferred from the data
+
             data_effect:
                 - if np.ndarray, the model Jacobian computed on the `data`
                 - if None, the Jacobian will be computed using model_jac
 
+            avg_output: the average output of the model on the data
+
+                - use a `float`, to specify it manually
+                - use `None`, to be inferred as `np.mean(model(data))`
+
+            feature_names: The names of the features
+
+                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
+                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
+
+            target_name: The name of the target variable
+
+                - use a `str`, to specify it name manually. For example: `"price"`
+                - use `None`, to keep the default name: `"y"`
         """
         self.model_jac = model_jac
 
@@ -48,24 +89,15 @@ class RHALE(GlobalEffect):
         if self.data_effect is None and self.model_jac is not None:
             self.data_effect = self.model_jac(self.data)
         elif self.data_effect is None and self.model_jac is None:
-            self.data_effect = np.zeros_like(self.data)
-
-            # use finite difference
-            for i in range(self.data.shape[1]):
-                data_1 = copy.deepcopy(self.data)
-                data_2 = copy.deepcopy(self.data)
-
-                data_1[:, i] = data_1[:, i] + 1e-6
-                data_2[:, i] = data_2[:, i] - 1e-6
-                self.data_effect[:, i] = (
-                    self.model(data_1) - self.model(data_2)
-                ) / 2e-6
+            self.data_effect = utils.compute_jacobian_numerically(self.model, self.data)
 
     def _fit_feature(self, feature: int, binning_method) -> typing.Dict:
         if self.data_effect is None:
             self.compile()
 
         # drop points outside of limits
+        self.data = self.data[self.data[:, feature] >= self.axis_limits[0, feature]]
+        self.data = self.data[self.data[:, feature] <= self.axis_limits[1, feature]]
         ind = np.logical_and(
             self.data[:, feature] >= self.axis_limits[0, feature],
             self.data[:, feature] <= self.axis_limits[1, feature],
@@ -98,25 +130,27 @@ class RHALE(GlobalEffect):
 
     def fit(
         self,
-        features: typing.Union[int, str, list] = "all",
-        binning_method: typing.Union[
-            str, bm.DynamicProgramming, bm.Greedy, bm.Fixed
-        ] = "greedy",
-        centering: typing.Union[bool, str] = "zero_integral",
+        features: int | str | list = "all",
+        binning_method: str | bm.DynamicProgramming | bm.Greedy | bm.Fixed = "greedy",
+        centering: bool | str = False,
     ) -> None:
         """Fit the model.
 
         Args:
             features (int, str, list): the features to fit.
                 - If set to "all", all the features will be fitted.
-            binning_method (str):
+
+            binning_method (str): the binning method to use.
+
                 - If set to "greedy" or bm.Greedy, the greedy binning method will be used.
                 - If set to "dynamic" or bm.DynamicProgramming, the dynamic programming binning method will be used.
                 - If set to "fixed" or bm.Fixed, the fixed binning method will be used.
-            centering (bool, str):
-                - If set to False, no centering will be applied.
-                - If set to "zero_integral" or True, the integral of the feature effect will be set to zero.
-                - If set to "zero_mean", the mean of the feature effect will be set to zero.
+
+            centering: whether to center the RHALE plot
+
+                - If `centering` is `False`, the PDP not centered
+                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
+                - If `centering` is `zero_start`, the PDP starts from `y=0`.
         """
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
@@ -127,14 +161,16 @@ class RHALE(GlobalEffect):
             if centering is not False:
                 self.norm_const[s] = self._compute_norm_const(s, method=centering)
             self.is_fitted[s] = True
+            self.method_args["feature_" + str(s)] = {
+                "centering": centering,
+            }
 
-    # TODO: add latex formula and add to documentation
-    def _eval_unnorm(self, feature: int, x: np.ndarray, uncertainty: bool = False):
+    def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
         params = self.feature_effect["feature_" + str(feature)]
         y = utils.compute_accumulated_effect(
             x, limits=params["limits"], bin_effect=params["bin_effect"], dx=params["dx"]
         )
-        if uncertainty:
+        if heterogeneity:
             std = utils.compute_accumulated_effect(
                 x,
                 limits=params["limits"],
@@ -152,42 +188,49 @@ class RHALE(GlobalEffect):
         else:
             return y
 
-    # TODO: add latex formula and add to documentation
     def plot(
         self,
         feature: int = 0,
-        confidence_interval: typing.Union[bool, str] = False,
+        heterogeneity: typing.Union[bool, str] = False,
         centering: typing.Union[bool, str] = False,
         scale_x: typing.Union[None, dict] = None,
         scale_y: typing.Union[None, dict] = None,
         show_avg_output: bool = False,
-        not_show: bool = False,
+        y_limits: None | list = None
     ):
         """
-        Plot the ALE plot for a given feature.
+        Plot RHALE effect.
 
         Parameters:
             feature: the feature to plot
-            confidence_interval:
-                - If set to False, no confidence interval will be shown.
-                - If set to "std" or True, the accumulated standard deviation will be shown.
-                - If set to "stderr", the accumulated standard error of the mean will be shown.
-            centering:
-                - If set to False, no centering will be applied.
-                - If set to "zero_integral" or True, the integral of the feature effect will be set to zero.
-                - If set to "zero_mean", the mean of the feature effect will be set to zero.
+            heterogeneity: whether to output the heterogeneity of the RHALE plot
+
+                - If `heterogeneity` is `False`, no heterogeneity is plotted
+                - If `heterogeneity` is `True` or `"std"`, the standard deviation of the RHALE is plotted
+
+            centering: whether to center the PDP
+
+                - If `centering` is `False`, the RHALE is not centered
+                - If `centering` is `True` or `zero_integral`, the RHALE is centered around the `y` axis.
+                - If `centering` is `zero_start`, the RHALE starts from `y=0`.
+
             scale_x: None or Dict with keys ['std', 'mean']
 
                 - If set to None, no scaling will be applied.
                 - If set to a dict, the x-axis will be scaled by the standard deviation and the mean.
+
             scale_y: None or Dict with keys ['std', 'mean']
 
                 - If set to None, no scaling will be applied.
                 - If set to a dict, the y-axis will be scaled by the standard deviation and the mean.
+
             show_avg_output: bool, if True, the average output is shown
-            not_show: bool, if True, the plot is not shown, but returned as a matplotlib object
+            y_limits: None or tuple, the limits of the y-axis
+
+                - If set to None, the limits of the y-axis are set automatically
+                - If set to a tuple, the limits are manually set
         """
-        confidence_interval = helpers.prep_confidence_interval(confidence_interval)
+        heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
 
         # hack to fit the feature if not fitted
@@ -195,23 +238,22 @@ class RHALE(GlobalEffect):
             feature, np.array([self.axis_limits[0, feature]]), centering=centering
         )
 
-        avg_output = helpers.prep_avg_output(
-            self.data, self.model, show_avg_output, self.avg_output, scale_y
-        )
+        if show_avg_output:
+            avg_output = helpers.prep_avg_output(self.data, self.model, self.avg_output, scale_y)
+        else:
+            avg_output = None
 
-        fig, ax1, ax2 = vis.ale_plot(
+        vis.ale_plot(
             self.feature_effect["feature_" + str(feature)],
             self.eval,
             feature,
             centering=centering,
-            error=confidence_interval,
+            error=heterogeneity,
             scale_x=scale_x,
             scale_y=scale_y,
             title="RHALE Plot",
             avg_output=avg_output,
             feature_names=self.feature_names,
             target_name=self.target_name,
-            not_show=not_show,
+            y_limits=y_limits
         )
-        if not_show:
-            return fig, ax1, ax2

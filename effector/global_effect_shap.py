@@ -311,7 +311,10 @@ class SHAPDependence(GlobalEffect):
             else None
         )
 
-        avg_output = None if not show_avg_output else self.avg_output
+        if show_avg_output:
+            avg_output = helpers.prep_avg_output(self.data, self.model, self.avg_output, scale_y)
+        else:
+            avg_output = None
 
         vis.plot_shap(
             x,

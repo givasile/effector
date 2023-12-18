@@ -259,6 +259,8 @@ class PDP(GlobalEffect):
             y_limits: limits of the y-axis
         """
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
+        centering = helpers.prep_centering(centering)
+
         x = np.linspace(
             self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
         )
@@ -267,7 +269,11 @@ class PDP(GlobalEffect):
             feature, x, uncertainty=False, centering=centering, return_all=True
         )
 
-        avg_output = None if not show_avg_output else self.avg_output
+        if show_avg_output:
+            avg_output = helpers.prep_avg_output(self.data, self.model, self.avg_output, scale_y)
+        else:
+            avg_output = None
+
         title = "PDP"
         vis.plot_pdp_ice(
             x,
@@ -485,7 +491,7 @@ class DerivativePDP(GlobalEffect):
             the mean effect `y`, if `uncertainty=False` (default) or a tuple `(y, std, estimator_var)` otherwise
         """
         centering = helpers.prep_centering(centering)
-        if not self.is_fitted[feature]:
+        if self.refit(feature, centering):
             self.fit(features=feature, centering=centering)
 
         # Check if the lower bound is less than the upper bound
@@ -544,8 +550,16 @@ class DerivativePDP(GlobalEffect):
                 - If `centering` is `zero_start`, the d-PDP starts from `y=0`.
 
             nof_points: number of points to evaluate the SDP plot
-            scale_x: dictionary with keys "mean" and "std" for scaling the x-axis
-            scale_y: dictionary with keys "mean" and "std" for scaling the y-axis
+            scale_x: None or Dict with keys ['std', 'mean']
+
+                - If set to None, no scaling will be applied.
+                - If set to a dict, the x-axis will be scaled by the standard deviation and the mean.
+
+            scale_y: None or Dict with keys ['std', 'mean']
+
+                - If set to None, no scaling will be applied.
+                - If set to a dict, the y-axis will be scaled by the standard deviation and the mean.
+
             nof_ice: number of shap values to show on top of the SHAP curve
             show_avg_output: whether to show the average output of the model
             y_limits: limits of the y-axis
@@ -565,7 +579,11 @@ class DerivativePDP(GlobalEffect):
             feature, x, heterogeneity=False, centering=centering, return_all=True
         )
 
-        avg_output = None if not show_avg_output else self.avg_output
+        if show_avg_output:
+            avg_output = helpers.prep_avg_output(self.data, self.model, self.avg_output, scale_y)
+        else:
+            avg_output = None
+
         title = "d-PDP"
         vis.plot_pdp_ice(
             x,

@@ -95,9 +95,15 @@ def test_pdp_square():
     # test the finite difference version
     d_pdp1 = effector.DerivativePDP(data, model)
     y, heter, _ = d_pdp1.eval(feature=1, xs=x, heterogeneity=True, centering="zero_start")
-    
+
+    # ground truth
+    y_gt = 2 * x
+    np.allclose(y, y_gt, atol=1e-1, rtol=1e-1)
 
     d_pdp2 = effector.DerivativePDP(data, model, model_jac)
-    d_pdp2.fit(features="all", centering=False)
-    d_pdp2.plot(feature=0, heterogeneity="ice", centering=False)
+    y, heter, _ = d_pdp2.eval(feature=1, xs=x, heterogeneity=True, centering="zero_start")
+
+    # ground truth
+    y_gt = 2 * x
+    np.allclose(y, y_gt, atol=1e-1, rtol=1e-1)
 

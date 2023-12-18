@@ -440,3 +440,40 @@ def get_feature_types(data: np.ndarray, categorical_limit: int = 10) -> list[str
         for f in range(data.shape[1])
     ]
     return types
+
+
+def compute_jacobian_numerically(
+    model: typing.Callable, data: np.ndarray, eps: float = 1e-8
+) -> np.ndarray:
+    """Compute the Jacobian of the model using finite differences.
+
+    Notes:
+        The function computes the Jacobian of the model using finite differences. The formula is:
+
+        $$
+        \mathtt{J} = {\mathtt{model}(x + \mathtt{eps}) - \mathtt{model}(x) \over \mathtt{eps}}
+        $$
+
+    Examples:
+        >>> data = np.array([[1, 2], [2, 3.0]])
+        >>> model = lambda x: np.sum(x, axis=1)
+        >>> compute_jacobian_numerically(model, data)
+        array([[1., 1.],
+               [1., 1.]])
+
+    Args:
+        data: The dataset, (N, D)
+        model: The black-box model ((N, D) -> (N))
+        eps: The finite difference step
+
+    Returns:
+        jacobian: The Jacobian of the model, (N, D)
+
+    """
+    assert data.ndim == 2
+    jacobian = np.zeros_like(data)
+    for f in range(data.shape[1]):
+        data_plus = copy.deepcopy(data)
+        data_plus[:, f] += eps
+        jacobian[:, f] = (model(data_plus) - model(data)) / eps
+    return jacobian
