@@ -12,7 +12,7 @@ class RHALE(GlobalEffect):
         self,
         data: np.ndarray,
         model: callable,
-        model_jac: None | callable = None,
+        model_jac: typing.Union[None, callable] = None,
         axis_limits: None | np.ndarray = None,
         data_effect: None | np.ndarray = None,
         avg_output: None | float = None,

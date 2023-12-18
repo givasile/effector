@@ -200,11 +200,11 @@ def plot_pdp_ice(
             y_pdp_output = trans_affine(y_pdp_output, scale_y["mean"], scale_y["std"])
             y_ice_outputs = trans_affine(y_ice_outputs, scale_y["mean"], scale_y["std"])
 
-    if avg_output is not None and scale_y is not None:
-        if not is_derivative:
-            avg_output = trans_affine(avg_output, scale_y["mean"], scale_y["std"])
-        elif is_derivative:
-            avg_output = trans_scale(avg_output, scale_y["std"], square=False)
+    # if avg_output is not None and scale_y is not None:
+    #     if not is_derivative:
+    #         avg_output = trans_affine(avg_output, scale_y["mean"], scale_y["std"])
+    #     elif is_derivative:
+    #         avg_output = trans_scale(avg_output, scale_y["std"], square=False)
 
     # plot
     if confidence_interval == "std":
@@ -280,8 +280,8 @@ def plot_shap(
         y_std = trans_scale(y_std, scale_y["std"], square=False)
         y = trans_affine(y, scale_y["mean"], scale_y["std"])
         yy = trans_affine(yy, scale_y["mean"], scale_y["std"])
-        if avg_output is not None:
-            avg_output = trans_scale(avg_output, scale_y["std"], square=False)
+        # if avg_output is not None:
+        #     avg_output = trans_scale(avg_output, scale_y["std"], square=False)
 
     # plot
     if heterogeneity == "std":

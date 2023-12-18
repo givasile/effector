@@ -227,7 +227,7 @@ class RegionalRHALE(RegionalEffect):
             # heterogeneity is the accumulated std at the end of the curve
             axis_limits = helpers.axis_limits_from_data(data)
             stop = np.array([axis_limits[:, foi][1]])
-            _, z, _ = rhale.eval(feature=foi, xs=stop, uncertainty=True)
+            _, z, _ = rhale.eval(feature=foi, xs=stop, heterogeneity=True)
             return z.item()
 
         return heter
@@ -334,7 +334,7 @@ class RegionalRHALE(RegionalEffect):
     def plot_first_level(
         self,
         feature: int = 0,
-        confidence_interval: typing.Union[bool, str] = False,
+        heterogeneity: typing.Union[bool, str] = False,
         centering: typing.Union[bool, str] = False,
         binning_method: typing.Union[
             str,
@@ -415,14 +415,14 @@ class RegionalRHALE(RegionalEffect):
 
         rhale_1.plot(
             feature,
-            confidence_interval,
+            heterogeneity,
             centering,
             scale_x_per_feature[feature] if scale_x_per_feature is not None else None,
             scale_y if scale_y is not None else None,
         )
         rhale_2.plot(
             feature,
-            confidence_interval,
+            heterogeneity,
             centering,
             scale_x_per_feature[feature] if scale_x_per_feature is not None else None,
             scale_y if scale_y is not None else None,
@@ -487,7 +487,7 @@ class RegionalPDP(RegionalEffect):
 
             xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
             try:
-                _, z, _ = pdp.eval(feature=foi, xs=xx, uncertainty=True)
+                _, z, _ = pdp.eval(feature=foi, xs=xx, heterogeneity=True)
             except:
                 return BIG_M
             return np.mean(z)
@@ -581,7 +581,7 @@ class RegionalPDP(RegionalEffect):
     def plot_first_level(
         self,
         feature: int = 0,
-        confidence_interval: typing.Union[bool, str] = False,
+        heterogeneity: typing.Union[bool, str] = False,
         centering: typing.Union[bool, str] = True,
         scale_x_per_feature: typing.Union[None, list[dict[str, float]]] = None,
         scale_y: typing.Union[None, dict] = None,

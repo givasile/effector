@@ -131,7 +131,7 @@ regional_rhale.fit(
     split_categorical_features=True,
 )
 regional_rhale.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
-regional_rhale.plot_first_level(feature=3, confidence_interval=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y)
+regional_rhale.plot_first_level(feature=3, heterogeneity=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y)
 
 
 # Regional PDP
@@ -154,4 +154,4 @@ regional_pdp.fit(
 )
 
 regional_pdp.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
-regional_pdp.plot_first_level(feature=3, confidence_interval=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y)
+regional_pdp.plot_first_level(feature=3, heterogeneity=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y)

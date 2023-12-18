@@ -162,7 +162,7 @@ class PDP(GlobalEffect):
         self,
         feature: int,
         xs: np.ndarray,
-        uncertainty: bool = False,
+        heterogeneity: bool = False,
         centering: bool | str = False,
         return_all: bool = False,
     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
@@ -174,10 +174,10 @@ class PDP(GlobalEffect):
 
               - `np.ndarray` of shape `(T,)`
 
-            uncertainty: whether to return the uncertainty measures.
+            heterogeneity: whether to return the heterogeneity measures.
 
-                  - if `uncertainty=False`, the function returns the mean effect at the given `xs`
-                  - If `uncertainty=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
+                  - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
+                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
 
             centering: whether to center the PDP
 
@@ -191,7 +191,7 @@ class PDP(GlobalEffect):
                 - If `return_all=True`, the function returns a `ndarray` of shape `(T, N)` with the `N` ICE plots evaluated at `xs`
 
         Returns:
-            the mean effect `y`, if `uncertainty=False` (default) or a tuple `(y, std, estimator_var)` otherwise
+            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std, estimator_var)` otherwise
 
         """
         centering = helpers.prep_centering(centering)
@@ -216,7 +216,7 @@ class PDP(GlobalEffect):
         if return_all:
             return yy
 
-        if uncertainty:
+        if heterogeneity:
             std = np.std(yy, axis=1)
             return y_pdp, std, np.zeros_like(std)
         else:
@@ -266,9 +266,10 @@ class PDP(GlobalEffect):
         )
 
         yy = self.eval(
-            feature, x, uncertainty=False, centering=centering, return_all=True
+            feature, x, heterogeneity=False, centering=centering, return_all=True
         )
 
+        breakpoint()
         if show_avg_output:
             avg_output = helpers.prep_avg_output(self.data, self.model, self.avg_output, scale_y)
         else:
@@ -471,7 +472,7 @@ class DerivativePDP(GlobalEffect):
 
               - `np.ndarray` of shape `(T, )`
 
-            heterogeneity: whether to return the uncertainty measures.
+            heterogeneity: whether to return the heterogeneity measures.
 
                   - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
                   - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
@@ -488,7 +489,7 @@ class DerivativePDP(GlobalEffect):
                 - If `return_all=True`, the function returns a `ndarray` of shape `(T, N)` with the `N` ICE plots evaluated at `xs`
 
         Returns:
-            the mean effect `y`, if `uncertainty=False` (default) or a tuple `(y, std, estimator_var)` otherwise
+            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std, estimator_var)` otherwise
         """
         centering = helpers.prep_centering(centering)
         if self.refit(feature, centering):
@@ -609,7 +610,7 @@ def pdp_1d_non_vectorized(
     data: np.ndarray,
     x: np.ndarray,
     feature: int,
-    uncertainty: bool,
+    heterogeneity: bool,
     is_jac: bool,
 ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Computes the unnormalized 1-dimensional PDP, in a non-vectorized way.
@@ -624,7 +625,7 @@ def pdp_1d_non_vectorized(
         >>> data = np.random.rand(100, 10)
         >>> x = np.linspace(0.1, 1, 10)
         >>> feature = 0
-        >>> y = pdp_1d_vectorized(model, data, x, feature, uncertainty=False, model_returns_jac=False)
+        >>> y = pdp_1d_vectorized(model, data, x, feature, heterogeneity=False, model_returns_jac=False)
         >>> (y[1:] - y[:-1]) / (x[1:] - x[:-1])
         array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
 
@@ -633,11 +634,11 @@ def pdp_1d_non_vectorized(
         data: The design matrix, (N, D)
         x: positions to evaluate pdp, (T)
         feature: index of the feature of interest
-        uncertainty: whether to also compute the uncertainty of the PDP
+        heterogeneity: whether to also compute the heterogeneity of the PDP
         is_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
 
     Returns:
-        The PDP values `y` that correspond to `x`, if uncertainty is False, `(y, std, stderr)` otherwise
+        The PDP values `y` that correspond to `x`, if heterogeneity is False, `(y, std, stderr)` otherwise
 
     """
     nof_points = x.shape[0]
@@ -649,13 +650,13 @@ def pdp_1d_non_vectorized(
         x_new[:, feature] = x[i]
         y = model(x_new)[:, feature] if is_jac else model(x_new)
         mean_pdp.append(np.mean(y))
-        if uncertainty:
+        if heterogeneity:
             std = np.std(y)
             sigma_pdp.append(std)
             stderr.append(std / np.sqrt(data.shape[0]))
     return (
         (np.array(mean_pdp), np.array(sigma_pdp), np.array(stderr))
-        if uncertainty
+        if heterogeneity
         else np.array(mean_pdp)
     )
 
@@ -665,7 +666,7 @@ def pdp_1d_vectorized(
     data: np.ndarray,
     x: np.ndarray,
     feature: int,
-    uncertainty: bool,
+    heterogeneity: bool,
     model_returns_jac: bool,
     return_all: bool = False,
     ask_for_derivatives: bool = False,
@@ -685,7 +686,7 @@ def pdp_1d_vectorized(
         >>> data = np.random.rand(100, 10)
         >>> x = np.linspace(0.1, 1, 10)
         >>> feature = 0
-        >>> y = pdp_1d_vectorized(model, data, x, feature, uncertainty=False, model_returns_jac=False)
+        >>> y = pdp_1d_vectorized(model, data, x, feature, heterogeneity=False, model_returns_jac=False)
         >>> (y[1:] - y[:-1]) / (x[1:] - x[:-1])
         array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
 
@@ -694,13 +695,13 @@ def pdp_1d_vectorized(
         data: The design matrix, (N, D)
         x: positions to evaluate pdp, (T)
         feature: index of the feature of interest
-        uncertainty: whether to also compute the uncertainty of the PDP
+        heterogeneity: whether to also compute the heterogeneity of the PDP
         model_returns_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
         ask_for_derivatives (bool): whether to ask the model to return the derivatives wrt the input
         return_all (bool): whether to return all the predictions or only the mean (and std and stderr)
 
     Returns:
-        The PDP values `y` that correspond to `x`, if uncertainty is False, `(y, std, stderr)` otherwise
+        The PDP values `y` that correspond to `x`, if heterogeneity is False, `(y, std, stderr)` otherwise
 
     """
 
@@ -736,7 +737,7 @@ def pdp_1d_vectorized(
     if return_all:
         return y
 
-    if uncertainty:
+    if heterogeneity:
         std = np.std(y, axis=1)
         sigma_pdp = std
         stderr = std / np.sqrt(data.shape[0])
@@ -751,7 +752,7 @@ def pdp_nd_non_vectorized(
     data: np.ndarray,
     x: np.ndarray,
     features: list,
-    uncertainty: bool,
+    heterogeneity: bool,
     is_jac: bool,
 ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Computes the unnormalized n-dimensional PDP, in a non-vectorized way.
@@ -761,13 +762,13 @@ def pdp_nd_non_vectorized(
         data (np.ndarray): dataset, shape (N, D)
         x (np.ndarray): values of the features to be explained, shape (K, D)
         features (list): indices of the features to be explained
-        uncertainty (bool): whether to compute the uncertainty of the PDP
+        heterogeneity (bool): whether to compute the heterogeneity of the PDP
         is_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
 
     Returns:
-        if uncertainty is False:
+        if heterogeneity is False:
             np.ndarray: unnormalized n-dimensional PDP
-        if uncertainty is True:
+        if heterogeneity is True:
             a tuple of three np.ndarray: (unnormalized n-dimensional PDP, standard deviation, standard error)
     """
     assert len(features) == x.shape[1]
@@ -793,13 +794,13 @@ def pdp_nd_non_vectorized(
         mean_pdp.append(np.mean(y))
 
         # if uncertaitny, compute also the std and the stderr
-        if uncertainty:
+        if heterogeneity:
             std = np.std(y)
             sigma_pdp.append(std)
             stderr.append(std / np.sqrt(data.shape[0]))
     return (
         (np.array(mean_pdp), np.array(sigma_pdp), np.array(stderr))
-        if uncertainty
+        if heterogeneity
         else np.array(mean_pdp)
     )
 
@@ -810,7 +811,7 @@ def pdp_nd_vectorized(
     data: np.ndarray,
     x: np.ndarray,
     features: list,
-    uncertainty: bool,
+    heterogeneity: bool,
     model_returns_jac: bool,
 ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Computes the unnormalized n-dimensional PDP, in a vectorized way.
@@ -829,7 +830,7 @@ def pdp_nd_vectorized(
         >>> x = np.stack([np.linspace(0.1, 1, 10)] * 2, axis=-1)
         >>> x.shape[1]
         >>> features = [0, 1]
-        >>> y = pdp_nd_vectorized(model, data, x, features, uncertainty=False, model_returns_jac=False)
+        >>> y = pdp_nd_vectorized(model, data, x, features, heterogeneity=False, model_returns_jac=False)
         >>> (y[1:] - y[:-1]) / (x[1:] - x[:-1])
         array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
 
@@ -838,11 +839,11 @@ def pdp_nd_vectorized(
         data: The design matrix, (N, D)
         x: positions to evaluate pdp, (T)
         features: indices of the features of interest
-        uncertainty: whether to also compute the uncertainty of the PDP
+        heterogeneity: whether to also compute the heterogeneity of the PDP
         model_returns_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
 
     Returns:
-        The PDP values `y` that correspond to `x`, if uncertainty is False, `(y, std, stderr)` otherwise
+        The PDP values `y` that correspond to `x`, if heterogeneity is False, `(y, std, stderr)` otherwise
 
     """
 
@@ -857,7 +858,7 @@ def pdp_nd_vectorized(
     y = model(x_new)[:, features] if model_returns_jac else model(x_new)
     y = np.reshape(y, (x.shape[0], nof_instances))
     mean_pdp = np.mean(y, axis=1)
-    if uncertainty:
+    if heterogeneity:
         std = np.std(y, axis=1)
         sigma_pdp = std
         stderr = std / np.sqrt(data.shape[0])

@@ -127,6 +127,7 @@ def get_feature_names(dim: int) -> list:
 
 
 def prep_avg_output(data, model, avg_output, scale_y) -> float:
+    breakpoint()
     avg_output = avg_output if avg_output is not None else np.mean(model(data))
     avg_output = avg_output * scale_y["std"] + scale_y["mean"] if scale_y is not None else avg_output
     return avg_output

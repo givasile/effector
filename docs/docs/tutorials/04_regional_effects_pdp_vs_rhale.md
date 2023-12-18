@@ -659,10 +659,8 @@ regional_pdp.describe_subregions(features=0, only_important=True)
       - Number of instances before split: 500
       - Number of instances after split: [242, 258]
 
-
-
 ```python
-regional_pdp.plot_first_level(feature=0, confidence_interval="ice")
+regional_pdp.plot_first_level(feature=0, heterogeneity="ice")
 ```
 
 
@@ -701,10 +699,8 @@ regional_pdp.describe_subregions(features=2, only_important=True)
       - Number of instances before split: 500
       - Number of instances after split: [262, 238]
 
-
-
 ```python
-regional_pdp.plot_first_level(feature=2, confidence_interval="ice", centering=True)
+regional_pdp.plot_first_level(feature=2, heterogeneity="ice", centering=True)
 ```
 
 
@@ -818,10 +814,8 @@ regional_pdp.describe_subregions(features=0, only_important=True)
       - Number of instances before split: 500
       - Number of instances after split: [252, 248]
 
-
-
 ```python
-regional_pdp.plot_first_level(feature=0, confidence_interval="ice")
+regional_pdp.plot_first_level(feature=0, heterogeneity="ice")
 ```
 
 
@@ -953,13 +947,11 @@ regional_rhale.describe_subregions(features=0, only_important=True)
       - Number of instances before split: 500
       - Number of instances after split: [242, 258]
 
-
-
 ```python
 regional_rhale.plot_first_level(
-    feature=0, 
-    confidence_interval=True, 
-    binning_method=binning_method)
+  feature=0,
+  heterogeneity=True,
+  binning_method=binning_method)
 ```
 
 

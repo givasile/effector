@@ -202,7 +202,7 @@ class SHAPDependence(GlobalEffect):
         self,
         feature: int,
         xs: np.ndarray,
-        uncertainty: bool = False,
+        heterogeneity: bool = False,
         centering: typing.Union[bool, str] = False,
     ) -> np.ndarray | typing.Tuple[np.ndarray, np.ndarray]:
         """Evaluate the effect of the s-th feature at positions `xs`.
@@ -212,10 +212,10 @@ class SHAPDependence(GlobalEffect):
             xs: the points along the s-th axis to evaluate the FE plot
 
               - `np.ndarray` of shape `(T,)`
-            uncertainty: whether to return the uncertainty measures.
+            heterogeneity: whether to return the heterogeneity measures.
 
-                  - if `uncertainty=False`, the function returns the mean effect at the given `xs`
-                  - If `uncertainty=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
+                  - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
+                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
 
             centering: whether to center the plot
 
@@ -224,7 +224,7 @@ class SHAPDependence(GlobalEffect):
                 - If `centering` is `zero_start`, the SHAP curve starts from `y=0`.
 
         Returns:
-            the mean effect `y`, if `uncertainty=False` (default) or a tuple `(y, std, estimator_var)` otherwise
+            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std, estimator_var)` otherwise
         """
         centering = helpers.prep_centering(centering)
 
@@ -240,7 +240,7 @@ class SHAPDependence(GlobalEffect):
             norm_const = self.feature_effect["feature_" + str(feature)]["norm_const"]
             yy = yy - norm_const
 
-        if uncertainty:
+        if heterogeneity:
             yy_std = self.feature_effect["feature_" + str(feature)]["spline_std"](xs)
             return yy, yy_std, np.zeros_like(yy_std)
         else:
@@ -289,7 +289,7 @@ class SHAPDependence(GlobalEffect):
         )
 
         # get the SHAP curve
-        y = self.eval(feature, x, uncertainty=False, centering=centering)
+        y = self.eval(feature, x, heterogeneity=False, centering=centering)
         y_std = (
             self.feature_effect["feature_" + str(feature)]["spline_std"](x)
             if heterogeneity == "std"

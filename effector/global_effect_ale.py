@@ -140,12 +140,12 @@ class ALE(GlobalEffect):
                 "centering": centering,
             }
 
-    def _eval_unnorm(self, feature: int, x: np.ndarray, uncertainty: bool = False):
+    def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
         params = self.feature_effect["feature_" + str(feature)]
         y = utils.compute_accumulated_effect(
             x, limits=params["limits"], bin_effect=params["bin_effect"], dx=params["dx"]
         )
-        if uncertainty:
+        if heterogeneity:
             std = utils.compute_accumulated_effect(
                 x,
                 limits=params["limits"],

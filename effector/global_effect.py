@@ -56,14 +56,14 @@ class GlobalEffect(ABC):
         self.feature_effect: typing.Dict = {}
 
     def _eval_unnorm(
-        self, feature: int, x: np.ndarray, uncertainty: bool = False
+        self, feature: int, x: np.ndarray, heterogeneity: bool = False
     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """
         Compute the effect of the s-th feature at positions `x`.
 
-        If uncertainty is False, returns a [N,] np.ndarray with the evaluation of the plot
+        If heterogeneity is False, returns a [N,] np.ndarray with the evaluation of the plot
 
-        If uncertainty is True, returns a tuple (y, sigma, stderr) where:
+        If heterogeneity is True, returns a tuple (y, sigma, stderr) where:
          - y: is a [N,] np.ndarray with the expected effect
          - sigma: is a [N,] np.ndarray with the std of the expected effect
          - stderr: is a [N,] np.ndarray with the standard error of the expeceted effect
@@ -72,12 +72,12 @@ class GlobalEffect(ABC):
         ----------
         feature: int, index of the feature
         x: [N,] np.array, the points of the s-th axis to evaluate the FE plot
-        uncertainty: bool, whether to provide uncertainty measures
+        heterogeneity: bool, whether to provide heterogeneity measures
 
         Returns
         -------
-        - np.ndarray [N,], if uncertainty=False
-        - tuple (np.ndarray [N,], np.ndarray [N,], np.ndarray [N,]), if uncertainty=True
+        - np.ndarray [N,], if heterogeneity=False
+        - tuple (np.ndarray [N,], np.ndarray [N,], np.ndarray [N,]), if heterogeneity=True
         """
         raise NotImplementedError
 
@@ -111,9 +111,7 @@ class GlobalEffect(ABC):
             return True
         else:
             if centering is not False:
-                term1 = np.all(self.feature_effect["feature_" + str(feature)]["norm_const"] == helpers.EMPTY_SYMBOL)
-                term2 = self.method_args["feature_" + str(feature)]["centering"] != centering
-                if term1 or term2:
+                if self.method_args["feature_" + str(feature)]["centering"] != centering:
                     return True
         return False
 
@@ -124,7 +122,7 @@ class GlobalEffect(ABC):
         assert method in ["zero_integral", "zero_start"]
 
         def create_partial_eval(feature):
-            return lambda x: self._eval_unnorm(feature, x, uncertainty=False)
+            return lambda x: self._eval_unnorm(feature, x, heterogeneity=False)
 
         partial_eval = create_partial_eval(feature)
         start = self.axis_limits[0, feature]
@@ -140,7 +138,7 @@ class GlobalEffect(ABC):
         self,
         feature: int,
         xs: np.ndarray,
-        uncertainty: bool = False,
+        heterogeneity: bool = False,
         centering: typing.Union[bool, str] = False,
     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
@@ -148,14 +146,25 @@ class GlobalEffect(ABC):
         Notes:
             This is a common method among all the FE classes.
 
-        Parameters:
+        Args:
             feature: index of feature of interest
-            xs: the points along the s-th axis to evaluate the FE plot, (T)
-            uncertainty: whether to return the uncertainty measures
-            centering: whether to center the plot
+            xs: the points along the s-th axis to evaluate the FE plot
+
+              - `np.ndarray` of shape `(T, )`
+
+            heterogeneity: whether to return the heterogeneity measures.
+
+                  - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
+                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
+
+            centering: whether to center the PDP
+
+                - If `centering` is `False`, the PDP not centered
+                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
+                - If `centering` is `zero_start`, the PDP starts from `y=0`.
 
         Returns:
-            the mean effect `y`, if `uncertainty=False` (default) or a tuple `(y, std, estimator_var)` otherwise
+            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std, estimator_var)` otherwise
 
         Notes:
             * If `centering` is `False`, the plot is not centered
@@ -163,8 +172,8 @@ class GlobalEffect(ABC):
             * If `centering` is `"zero_start"`, the plot starts from zero.
 
         Notes:
-            * If `uncertainty` is `False`, the plot returns only the mean effect `y` at the given `xs`.
-            * If `uncertainty` is `True`, the plot returns `(y, std, estimator_var)` where:
+            * If `heterogeneity` is `False`, the plot returns only the mean effect `y` at the given `xs`.
+            * If `heterogeneity` is `True`, the plot returns `(y, std, estimator_var)` where:
                 * `y` is the mean effect
                 * `std` is the standard deviation of the mean effect
                 * `estimator_var` is the variance of the mean effect estimator
@@ -185,8 +194,8 @@ class GlobalEffect(ABC):
             ) if "centering" in arg_list else self.fit(features=feature)
 
         # Evaluate the feature
-        yy = self._eval_unnorm(feature, xs, uncertainty=uncertainty)
-        y, std, estimator_var = yy if uncertainty else (yy, None, None)
+        yy = self._eval_unnorm(feature, xs, heterogeneity=heterogeneity)
+        y, std, estimator_var = yy if heterogeneity else (yy, None, None)
 
         # Center if asked
         y = (
@@ -195,4 +204,4 @@ class GlobalEffect(ABC):
             else y
         )
 
-        return (y, std, estimator_var) if uncertainty is not False else y
+        return (y, std, estimator_var) if heterogeneity is not False else y
