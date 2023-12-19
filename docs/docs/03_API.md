@@ -9,6 +9,13 @@
          members:
            - eval
 
+### ::: effector.global_effect_ale.ALEBase
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+           - plot
+
 ### ::: effector.global_effect_ale.ALE
        options:
          show_root_heading: True
@@ -16,17 +23,24 @@
          members:
            - __init__
            - fit
-           - plot
-           - eval
 
-### ::: effector.global_effect_rhale.RHALE
+### ::: effector.global_effect_ale.RHALE
        options:
          show_root_heading: True
          show_symbol_type_toc: True
          members:
            - __init__
            - fit
-           - plot
+
+### ::: effector.global_effect_pdp.PDPBase
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+          - fit
+          - eval
+          - plot
+
 
 ### ::: effector.global_effect_pdp.PDP
       options:
@@ -34,9 +48,6 @@
         show_symbol_type_toc: True
         members:
           - __init__
-          - fit
-          - eval
-          - plot
 
 ### ::: effector.global_effect_pdp.DerivativePDP
       options:
@@ -44,8 +55,6 @@
         show_symbol_type_toc: True
         members:
           - __init__
-          - fit
-          - plot
 
 ### ::: effector.global_effect_shap.SHAPDependence
       options:

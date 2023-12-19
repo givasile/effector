@@ -26,7 +26,7 @@ def test_shap_linear():
     # compute the SHAP dependence
     shap_dep = effector.SHAPDependence(data, model, nof_instances=100)
     shap_dep.fit(features="all", centering=True)
-    y, heterogeneity, _ = shap_dep.eval(feature=1, xs=x, uncertainty=True, centering=True)
+    y, heterogeneity, _ = shap_dep.eval(feature=1, xs=x, heterogeneity=True, centering=True)
 
     # ground truth
     y_gt = x
@@ -72,7 +72,7 @@ def test_shap_square():
     # compute the SHAP dependence
     shap_dep = effector.SHAPDependence(data, model, nof_instances=100)
     shap_dep.fit(features="all", centering=True)
-    y, heter, _ = shap_dep.eval(feature=1, xs=x, uncertainty=True, centering="zero_start")
+    y, heter, _ = shap_dep.eval(feature=1, xs=x, heterogeneity=True, centering="zero_start")
 
     y_gt = x ** 2 / 2
 

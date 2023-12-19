@@ -7,81 +7,44 @@ from effector.global_effect import GlobalEffect
 import matplotlib.pyplot as plt
 
 
-class PDP(GlobalEffect):
+class PDPBase(GlobalEffect):
     def __init__(
         self,
         data: np.ndarray,
         model: callable,
+        model_jac: typing.Union[None, callable] = None,
         axis_limits: None | np.ndarray = None,
-        nof_instances: int | str = 300,
         avg_output: None | float = None,
+        nof_instances: int | str = 300,
         feature_names: None | list = None,
         target_name: None | str = None,
+        method_name: str = "PDP",
     ):
         """
-        Constructor of the PDP class.
-
-        Definition:
-            PDP is defined as:
-            $$
-            \hat{f}^{PDP}(x_s) = {1 \over N} \sum_{i=1}^N f(x_s, x_C^{(i)})b
-            $$
-
-            The ICE plots are:
-            $$
-            \hat{f}^{(i)}(x_s) = f(x_s, x_C^{(i)}), \quad i=1, \dots, N
-            $$
-
-            The heterogeneity is:
-            $$
-            \mathcal{H}^{PDP}(x_s) = \sqrt {{1 \over N} \sum_{i=1}^N ( \hat{f}^{(i)}(x_s) - \hat{f}^{PDP}(x_s) )^2}
-            $$
-
-        Notes:
-            The required parameters are `data` and `model`. The rest are optional.
-
-        Args:
-            data: the design matrix
-
-                - shape: `(N,D)`
-            model: the black-box model. Must be a `Callable` with:
-
-                - input: `ndarray` of shape `(N, D)`
-                - output: `ndarray` of shape `(N, )`
-
-            axis_limits: The limits of the feature effect plot along each axis
-
-                - use a `ndarray` of shape `(2, D)`, to specify them manually
-                - use `None`, to be inferred from the data
-
-            nof_instances: maximum number of instances to be used for PDP.
-
-                - use "all", for using all instances.
-                - use an `int`, for using `nof_instances` instances.
-
-            avg_output: The average output of the model.
-
-                - use a `float`, to specify it manually
-                - use `None`, to be inferred as `np.mean(model(data))`
-
-            feature_names: The names of the features
-
-                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
-                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
-
-            target_name: The name of the target variable
-
-                - use a `str`, to specify it name manually. For example: `"price"`
-                - use `None`, to keep the default name: `"y"`
+        Constructor of the PDPBase class.
         """
+        self.method_name = method_name
+        self.model_jac = model_jac
         self.nof_instances, self.indices = helpers.prep_nof_instances(
             nof_instances, data.shape[0]
         )
         data = data[self.indices, :]
 
-        super(PDP, self).__init__(
+        super(PDPBase, self).__init__(
             data, model, axis_limits, avg_output, feature_names, target_name
         )
+
+    def _predict(self, data, xx, feature):
+        if self.method_name == "PDP":
+            y = pdp_1d_vectorized(
+                self.model, data, xx, feature, False, False, True
+            )
+        else:
+            if self.model_jac is not None:
+                y = pdp_1d_vectorized(self.model_jac, self.data, xx, feature, False, True, True)
+            else:
+                y = pdp_1d_vectorized(self.model, self.data, xx, feature, False, False, True, True)
+        return y
 
     def _fit_feature(
         self,
@@ -101,16 +64,12 @@ class PDP(GlobalEffect):
                 self.axis_limits[1, feature],
                 points_for_centering,
             )
-            y = pdp_1d_vectorized(
-                self.model, data, xx, feature, False, False, True
-            )
+            y = self._predict(data, xx, feature)
             norm_const = np.mean(y, axis=0)
             fe = {"norm_const": norm_const}
         elif centering == "zero_start":
             xx = self.axis_limits[0, feature, np.newaxis]
-            y = pdp_1d_vectorized(
-                self.model, data, xx, feature, False, False, True
-            )
+            y = self._predict(data, xx, feature)
             fe = {"norm_const": y[0]}
         else:
             fe = {"norm_const": helpers.EMPTY_SYMBOL}
@@ -123,7 +82,7 @@ class PDP(GlobalEffect):
         points_for_centering: int = 100,
     ):
         """
-        Fit the PD Plots.
+        Fit the PDP or d-PDP.
 
         Notes:
             You can use `.eval` or `.plot` without calling `.fit` explicitly.
@@ -203,7 +162,7 @@ class PDP(GlobalEffect):
         assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
 
         # new implementation
-        yy = pdp_1d_vectorized(self.model, self.data, xs, feature, False, False, True)
+        yy = self._predict(self.data, xs, feature)
 
         if centering:
             norm_consts = np.expand_dims(
@@ -235,7 +194,7 @@ class PDP(GlobalEffect):
         y_limits: None | list = None,
     ):
         """
-        Plot the PDP.
+        Plot the PDP or d-PDP.
 
         Args:
             feature: index of the plotted feature
@@ -269,21 +228,20 @@ class PDP(GlobalEffect):
             feature, x, heterogeneity=False, centering=centering, return_all=True
         )
 
-        breakpoint()
         if show_avg_output:
             avg_output = helpers.prep_avg_output(self.data, self.model, self.avg_output, scale_y)
         else:
             avg_output = None
 
-        title = "PDP"
+        title = "PDP" if self.method_name == "PDP" else "d-PDP"
         vis.plot_pdp_ice(
             x,
             feature,
             yy=yy,
             title=title,
             confidence_interval=heterogeneity,
-            y_pdp_label="PDP",
-            y_ice_label="ICE",
+            y_pdp_label="PDP" if self.method_name == "PDP" else "d-PDP",
+            y_ice_label="ICE" if self.method_name == "PDP" else "d-ICE",
             scale_x=scale_x,
             scale_y=scale_y,
             avg_output=avg_output,
@@ -294,7 +252,85 @@ class PDP(GlobalEffect):
         )
 
 
-class DerivativePDP(GlobalEffect):
+class PDP(PDPBase):
+    def __init__(
+        self,
+        data: np.ndarray,
+        model: callable,
+        axis_limits: None | np.ndarray = None,
+        nof_instances: int | str = 300,
+        avg_output: None | float = None,
+        feature_names: None | list = None,
+        target_name: None | str = None,
+    ):
+        """
+        Constructor of the PDP class.
+
+        Definition:
+            PDP is defined as:
+            $$
+            \hat{f}^{PDP}(x_s) = {1 \over N} \sum_{i=1}^N f(x_s, x_C^{(i)})b
+            $$
+
+            The ICE plots are:
+            $$
+            \hat{f}^{(i)}(x_s) = f(x_s, x_C^{(i)}), \quad i=1, \dots, N
+            $$
+
+            The heterogeneity is:
+            $$
+            \mathcal{H}^{PDP}(x_s) = \sqrt {{1 \over N} \sum_{i=1}^N ( \hat{f}^{(i)}(x_s) - \hat{f}^{PDP}(x_s) )^2}
+            $$
+
+        Notes:
+            The required parameters are `data` and `model`. The rest are optional.
+
+        Args:
+            data: the design matrix
+
+                - shape: `(N,D)`
+            model: the black-box model. Must be a `Callable` with:
+
+                - input: `ndarray` of shape `(N, D)`
+                - output: `ndarray` of shape `(N, )`
+
+            axis_limits: The limits of the feature effect plot along each axis
+
+                - use a `ndarray` of shape `(2, D)`, to specify them manually
+                - use `None`, to be inferred from the data
+
+            nof_instances: maximum number of instances to be used for PDP.
+
+                - use "all", for using all instances.
+                - use an `int`, for using `nof_instances` instances.
+
+            avg_output: The average output of the model.
+
+                - use a `float`, to specify it manually
+                - use `None`, to be inferred as `np.mean(model(data))`
+
+            feature_names: The names of the features
+
+                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
+                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
+
+            target_name: The name of the target variable
+
+                - use a `str`, to specify it name manually. For example: `"price"`
+                - use `None`, to keep the default name: `"y"`
+        """
+        self.method_name = "PDP"
+        self.nof_instances, self.indices = helpers.prep_nof_instances(
+            nof_instances, data.shape[0]
+        )
+        data = data[self.indices, :]
+
+        super(PDP, self).__init__(
+            data, model, None, axis_limits, avg_output, nof_instances, feature_names, target_name, method_name="PDP"
+        )
+
+
+class DerivativePDP(PDPBase):
     def __init__(
         self,
         data: np.ndarray,
@@ -368,240 +404,14 @@ class DerivativePDP(GlobalEffect):
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
         """
+        self.method_name = "DerivativePDP"
         self.nof_instances, self.indices = helpers.prep_nof_instances(
             nof_instances, data.shape[0]
         )
         data = data[self.indices, :]
-        self.model_jac = model_jac
 
         super(DerivativePDP, self).__init__(
-            data, model, axis_limits, avg_output, feature_names, target_name
-        )
-
-    def _fit_feature(
-        self,
-        feature: int,
-        centering: bool | str = False,
-        points_for_centering: int = 100,
-    ) -> typing.Dict:
-
-        # drop points outside of limits
-        self.data = self.data[self.data[:, feature] >= self.axis_limits[0, feature]]
-        self.data = self.data[self.data[:, feature] <= self.axis_limits[1, feature]]
-
-        if centering is True or centering == "zero_integral":
-            xx = np.linspace(
-                self.axis_limits[0, feature],
-                self.axis_limits[1, feature],
-                points_for_centering,
-            )
-            if self.model_jac is not None:
-                y = pdp_1d_vectorized(self.model_jac, self.data, xx, feature, False, True, True)
-            else:
-                y = pdp_1d_vectorized(self.model, self.data, xx, feature, False, False, True, True)
-
-            # compute the normalization constant per ice
-            norm_const = np.mean(y, axis=0)
-            fe = {"norm_const": norm_const}
-        elif centering == "zero_start":
-            xx = self.axis_limits[0, feature, np.newaxis]
-            if self.model_jac is not None:
-                y = pdp_1d_vectorized(self.model_jac, self.data, xx, feature, False, True, True)
-            else:
-                y = pdp_1d_vectorized(self.model, self.data, xx, feature, False, False, True, True)
-            # compute the normalization constant per ice
-            fe = {"norm_const": y[0]}
-        else:
-            fe = {"norm_const": helpers.EMPTY_SYMBOL}
-        return fe
-
-    def fit(
-        self,
-        features: int | str | list = "all",
-        centering: bool | str = True,
-        points_for_centering: int = 100,
-    ):
-        """
-        Fit the Derivative PD Plots.
-
-        Notes:
-            You can use `.eval` or `.plot` without calling `.fit` explicitly.
-            The only thing that `.fit` does is to compute the normalization constant for centering the d-PDP and d-ICE plots.
-            This will be automatically done when calling `eval` or `plot`, so there is no need to call `fit` explicitly.
-
-        Args:
-            features: the features to fit.
-                - If set to "all", all the features will be fitted.
-
-            centering: whether to center the d-PDP
-
-                - If `centering` is `False`, the d-PDP not centered
-                - If `centering` is `True` or `zero_integral`, the d-PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the d-PDP starts from `y=0`.
-
-            points_for_centering: number of linspaced points along the feature axis used for centering.
-
-                - If set to `all`, all the dataset points will be used.
-        """
-        centering = helpers.prep_centering(centering)
-        features = helpers.prep_features(features, self.dim)
-
-        for s in features:
-            self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s, centering, points_for_centering
-            )
-            self.is_fitted[s] = True
-            self.method_args["feature_" + str(s)] = {
-                "centering": centering,
-                "points_for_centering": points_for_centering,
-            }
-
-    def eval(
-        self,
-        feature: int,
-        xs: np.ndarray,
-        heterogeneity: bool = False,
-        centering: bool | str = False,
-        return_all: bool = False,
-    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
-        """Evaluate the effect of the s-th feature at positions `xs`.
-
-        Args:
-            feature: index of feature of interest
-            xs: the points along the s-th axis to evaluate the FE plot
-
-              - `np.ndarray` of shape `(T, )`
-
-            heterogeneity: whether to return the heterogeneity measures.
-
-                  - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
-                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
-
-            centering: whether to center the d-PDP
-
-                - If `centering` is `False`, the d-PDP not centered
-                - If `centering` is `True` or `zero_integral`, the d-PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the d-PDP starts from `y=0`.
-
-            return_all: whether to return PDP and ICE plots evaluated at `xs`
-
-                - If `return_all=False`, the function returns the mean effect at the given `xs`
-                - If `return_all=True`, the function returns a `ndarray` of shape `(T, N)` with the `N` ICE plots evaluated at `xs`
-
-        Returns:
-            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std, estimator_var)` otherwise
-        """
-        centering = helpers.prep_centering(centering)
-        if self.refit(feature, centering):
-            self.fit(features=feature, centering=centering)
-
-        # Check if the lower bound is less than the upper bound
-        assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
-
-        if self.model_jac is not None:
-            yy = pdp_1d_vectorized(self.model_jac, self.data, xs, feature, False, True, True)
-        else:
-            yy = pdp_1d_vectorized(self.model, self.data, xs, feature, False, False, True, True)
-
-        if centering:
-            norm_consts = np.expand_dims(
-                self.feature_effect["feature_" + str(feature)]["norm_const"], axis=0
-            )
-            yy = yy - norm_consts
-
-        y_pdp = np.mean(yy, axis=1)
-
-        if return_all:
-            return yy
-
-        if heterogeneity:
-            std = np.std(yy, axis=1)
-            estimator_var = np.var(yy, axis=1)
-            return y_pdp, std, estimator_var
-        else:
-            return y_pdp
-
-    def plot(
-        self,
-        feature: int,
-        heterogeneity: bool | str = False,
-        centering: bool = False,
-        nof_points: int = 30,
-        scale_x: None | dict = None,
-        scale_y: None | dict = None,
-        nof_ice: int | str = "all",
-        show_avg_output: bool = False,
-        y_limits: None | list = None,
-    ):
-        """
-        Plot the d-PDP.
-
-        Args:
-            feature: index of the plotted feature
-            heterogeneity: whether to output the heterogeneity of the SHAP values
-
-                - If `heterogeneity` is `False`, no heterogeneity is plotted
-                - If `heterogeneity` is `True` or `"std"`, the standard deviation of the shap values is plotted
-                - If `heterogeneity` is `ice`, the ICE plots are plotted
-
-            centering: whether to center the d-PDP
-
-                - If `centering` is `False`, the d-PDP not centered
-                - If `centering` is `True` or `zero_integral`, the d-PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the d-PDP starts from `y=0`.
-
-            nof_points: number of points to evaluate the SDP plot
-            scale_x: None or Dict with keys ['std', 'mean']
-
-                - If set to None, no scaling will be applied.
-                - If set to a dict, the x-axis will be scaled by the standard deviation and the mean.
-
-            scale_y: None or Dict with keys ['std', 'mean']
-
-                - If set to None, no scaling will be applied.
-                - If set to a dict, the y-axis will be scaled by the standard deviation and the mean.
-
-            nof_ice: number of shap values to show on top of the SHAP curve
-            show_avg_output: whether to show the average output of the model
-            y_limits: limits of the y-axis
-
-        Notes:
-            * If `centering` is `False`, the PDP and ICE plots are not centered
-            * If `centering` is `True` or `"zero_integral"`, the PDP and the ICE plots are centered wrt to the `y` axis.
-            * If `centering` is `"zero_start"`, the PDP and the ICE plots start from `y=0`.
-
-        """
-        heterogeneity = helpers.prep_confidence_interval(heterogeneity)
-        x = np.linspace(
-            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
-        )
-
-        yy = self.eval(
-            feature, x, heterogeneity=False, centering=centering, return_all=True
-        )
-
-        if show_avg_output:
-            avg_output = helpers.prep_avg_output(self.data, self.model, self.avg_output, scale_y)
-        else:
-            avg_output = None
-
-        title = "d-PDP"
-        vis.plot_pdp_ice(
-            x,
-            feature,
-            yy=yy,
-            title=title,
-            confidence_interval=heterogeneity,
-            y_pdp_label="d-PDP",
-            y_ice_label="d-ICE",
-            scale_x=scale_x,
-            scale_y=scale_y,
-            avg_output=avg_output,
-            feature_names=self.feature_names,
-            target_name=self.target_name,
-            is_derivative=True,
-            nof_ice=nof_ice,
-            y_limits=y_limits
+            data, model, model_jac, axis_limits, avg_output, nof_instances, feature_names, target_name, method_name="PDP"
         )
 
 

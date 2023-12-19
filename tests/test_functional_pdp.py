@@ -24,7 +24,7 @@ def test_shap_linear():
 
     # compute the PDP
     pdp = effector.PDP(data, model, nof_instances=100)
-    y, heterogeneity, _ = pdp.eval(feature=1, xs=x, uncertainty=True, centering=True)
+    y, heterogeneity, _ = pdp.eval(feature=1, xs=x, heterogeneity=True, centering=True)
 
     # ground truth
     y_gt = x
@@ -86,7 +86,7 @@ def test_pdp_square():
 
     pdp = effector.PDP(data, model)
     pdp.plot(feature=1, heterogeneity="ice", centering="zero_start")
-    y, heterogeneity, _ = pdp.eval(feature=1, xs=x, uncertainty=True, centering="zero_start")
+    y, heterogeneity, _ = pdp.eval(feature=1, xs=x, heterogeneity=True, centering="zero_start")
 
     # ground truth
     y_gt = x ** 2 + .5*x

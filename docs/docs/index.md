@@ -6,7 +6,7 @@
 ---
 ### Installation
 
-Add installation instructions
+`pip install effector`
 
 ---
 ### Global effect plots
@@ -21,7 +21,7 @@ the user can get the effect plot of feature `feature` by simply calling:
 PDP(data=X, model=ml_model).plot(feature)
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_15_0.png)
+![Feature effect plot](./real-examples/01_bike_sharing_dataset_files/03_bike_sharing_dataset_15_0.png)
 
 
 ```python

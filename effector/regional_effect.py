@@ -3,7 +3,7 @@ import effector.binning_methods as binning_methods
 import effector.helpers as helpers
 import effector.utils as utils
 from effector.partitioning import Regions
-from effector.global_effect_rhale import RHALE
+from effector.global_effect_ale import RHALE
 from effector.global_effect_pdp import PDP
 import typing
 from tqdm import tqdm
@@ -16,8 +16,12 @@ BIG_M = helpers.BIG_M
 class RegionalEffect:
     def __init__(
         self,
-        axis_limits: np.ndarray,
-        feature_types: list[str],
+        data: np.ndarray,
+        model: callable,
+        instance_effects: typing.Union[None, np.ndarray] = None,
+        axis_limits: typing.Union[None, np.ndarray] = None,
+        feature_types: typing.Union[list, None] = None,
+        cat_limit: typing.Union[int, None] = 10,
         feature_names: typing.Union[list, None] = None,
         target_name: typing.Union[str, None] = None,
     ) -> None:
@@ -26,6 +30,26 @@ class RegionalEffect:
 
 
         """
+        self.data = data
+        self.instance_effects = instance_effects
+        self.model = model
+
+        axis_limits = (
+            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
+        )
+        feature_types = (
+            utils.get_feature_types(data, cat_limit)
+            if feature_types is None
+            else feature_types
+        )
+        feature_names = (
+            helpers.get_feature_names(axis_limits.shape[1])
+            if feature_names is None
+            else feature_names
+        )
+
+        self.cat_limit = cat_limit
+
         self.axis_limits: np.ndarray = axis_limits
         self.feature_types: typing.Union[list, None] = feature_types
         self.feature_names: typing.Union[list, None] = feature_names
@@ -39,8 +63,50 @@ class RegionalEffect:
         self.splits_per_feature_full_depth_found: np.ndarray = np.ones([self.dim]) < 0
         self.splits_per_feature_only_import_found: np.ndarray = np.ones([self.dim]) < 0
 
-    def _fit_feature(self, *args, **kwargs):
-        raise NotImplementedError
+    def _fit_feature(
+        self,
+        feature: int,
+        heter: callable,
+        heter_pcg_drop_thres=0.1,
+        heter_small_enough=0.1,
+        max_split_levels: int = 2,
+        nof_candidate_splits_for_numerical: int = 20,
+        min_points_per_subregion: int = 10,
+        candidate_conditioning_features: typing.Union["str", list] = "all",
+        split_categorical_features: bool = False,
+    ):
+        """
+        Find the Regional RHALE for a single feature.
+        """
+
+        # init Region Extractor
+        regions = Regions(
+            feature,
+            heter,
+            self.data,
+            None,
+            self.feature_types,
+            self.cat_limit,
+            candidate_conditioning_features,
+            min_points_per_subregion,
+            nof_candidate_splits_for_numerical,
+            max_split_levels,
+            heter_pcg_drop_thres,
+            heter_small_enough,
+            split_categorical_features,
+        )
+
+        self.regions["feature_{}".format(feature)] = regions
+        splits = regions.search_all_splits()
+
+        self.splits_per_feature_full_depth["feature_{}".format(feature)] = splits
+        self.splits_per_feature_full_depth_found[feature] = True
+
+        important_splits = regions.choose_important_splits()
+        self.splits_per_feature_only_important[
+            "feature_{}".format(feature)
+        ] = important_splits
+        self.splits_per_feature_only_import_found[feature] = True
 
     def fit(self, *args, **kwargs):
         raise NotImplementedError
@@ -187,28 +253,11 @@ class RegionalRHALE(RegionalEffect):
             cat_limit: the minimum number of unique values for a feature to be considered categorical
             feature_names: list of feature names
         """
-        self.data = data
-        self.model = model
         self.model_jac = model_jac
-        axis_limits = (
-            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
-        )
-        feature_types = (
-            utils.get_feature_types(data, cat_limit)
-            if feature_types is None
-            else feature_types
-        )
-        feature_names = (
-            helpers.get_feature_names(self.dim)
-            if feature_names is None
-            else feature_names
-        )
 
-        self.cat_limit = cat_limit
-        self.instance_effects = self.model_jac(self.data)
-
+        instance_effects = self.model_jac(data)
         super(RegionalRHALE, self).__init__(
-            axis_limits, feature_types, feature_names, target_name
+            data, model, instance_effects, axis_limits, feature_types, cat_limit, feature_names, target_name
         )
 
     def _create_heterogeneity_function(self, foi, binning_method, min_points=10):
@@ -231,59 +280,6 @@ class RegionalRHALE(RegionalEffect):
             return z.item()
 
         return heter
-
-    def _fit_feature(
-        self,
-        feature: int,
-        heter_pcg_drop_thres=0.1,
-        heter_small_enough=0.1,
-        binning_method: typing.Union[
-            str,
-            binning_methods.Fixed,
-            binning_methods.DynamicProgramming,
-            binning_methods.Greedy,
-        ] = "greedy",
-        max_split_levels: int = 2,
-        nof_candidate_splits_for_numerical: int = 20,
-        min_points_per_subregion: int = 10,
-        candidate_conditioning_features: typing.Union["str", list] = "all",
-        split_categorical_features: bool = False,
-    ):
-        """
-        Find the Regional RHALE for a single feature.
-        """
-        heter = self._create_heterogeneity_function(
-            feature, binning_method, min_points_per_subregion
-        )
-
-        # init Region Extractor
-        regions = Regions(
-            feature,
-            heter,
-            self.data,
-            self.instance_effects,
-            self.feature_types,
-            self.cat_limit,
-            candidate_conditioning_features,
-            min_points_per_subregion,
-            nof_candidate_splits_for_numerical,
-            max_split_levels,
-            heter_pcg_drop_thres,
-            heter_small_enough,
-            split_categorical_features,
-        )
-
-        self.regions["feature_{}".format(feature)] = regions
-        splits = regions.search_all_splits()
-
-        self.splits_per_feature_full_depth["feature_{}".format(feature)] = splits
-        self.splits_per_feature_full_depth_found[feature] = True
-
-        important_splits = regions.choose_important_splits()
-        self.splits_per_feature_only_important[
-            "feature_{}".format(feature)
-        ] = important_splits
-        self.splits_per_feature_only_import_found[feature] = True
 
     def fit(
         self,
@@ -319,11 +315,15 @@ class RegionalRHALE(RegionalEffect):
         assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
+            heter = self._create_heterogeneity_function(
+                feat, binning_method, min_points_per_subregion
+            )
+
             self._fit_feature(
                 feat,
+                heter,
                 heter_pcg_drop_thres,
                 heter_small_enough,
-                binning_method,
                 max_split_levels,
                 nof_candidate_splits_for_numerical,
                 min_points_per_subregion,
@@ -344,6 +344,7 @@ class RegionalRHALE(RegionalEffect):
         ] = "greedy",
         scale_x_per_feature: typing.Union[None, list[dict[str, float]]] = None,
         scale_y: typing.Union[None, dict] = None,
+        show_avg_output: bool = False,
     ):
 
         if not self.splits_per_feature_full_depth_found[feature]:
@@ -419,6 +420,7 @@ class RegionalRHALE(RegionalEffect):
             centering,
             scale_x_per_feature[feature] if scale_x_per_feature is not None else None,
             scale_y if scale_y is not None else None,
+            show_avg_output=show_avg_output
         )
         rhale_2.plot(
             feature,
@@ -426,6 +428,7 @@ class RegionalRHALE(RegionalEffect):
             centering,
             scale_x_per_feature[feature] if scale_x_per_feature is not None else None,
             scale_y if scale_y is not None else None,
+            show_avg_output=show_avg_output
         )
 
 
@@ -450,26 +453,7 @@ class RegionalPDP(RegionalEffect):
             cat_limit: the minimum number of unique values for a feature to be considered categorical
             feature_names: list of feature names
         """
-        self.dim = data.shape[1]
-        self.data = data
-        self.model = model
-
-        axis_limits = (
-            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
-        )
-        feature_types = (
-            utils.get_feature_types(data, cat_limit)
-            if feature_types is None
-            else feature_types
-        )
-        feature_names = (
-            helpers.get_feature_names(self.dim)
-            if feature_names is None
-            else feature_names
-        )
-
-        self.cat_limit = cat_limit
-        super(RegionalPDP, self).__init__(axis_limits, feature_types, feature_names)
+        super(RegionalPDP, self).__init__(data, model, None, axis_limits, feature_types, cat_limit, feature_names)
 
     def _create_heterogeneity_function(self, foi, min_points=10):
         def heter(data) -> float:
@@ -493,51 +477,6 @@ class RegionalPDP(RegionalEffect):
             return np.mean(z)
 
         return heter
-
-    def _fit_feature(
-        self,
-        feature: int,
-        heter_pcg_drop_thres=0.1,
-        heter_small_enough=0.1,
-        max_split_levels: int = 2,
-        nof_candidate_splits_for_numerical: int = 20,
-        min_points_per_subregion: int = 10,
-        candidate_conditioning_features: typing.Union["str", list] = "all",
-        split_categorical_features: bool = False,
-    ):
-        """
-        Find the Regional RHALE for a single feature.
-        """
-        heter = self._create_heterogeneity_function(feature, min_points_per_subregion)
-
-        # init Region Extractor
-        regions = Regions(
-            feature,
-            heter,
-            self.data,
-            None,
-            self.feature_types,
-            self.cat_limit,
-            candidate_conditioning_features,
-            min_points_per_subregion,
-            nof_candidate_splits_for_numerical,
-            max_split_levels,
-            heter_pcg_drop_thres,
-            heter_small_enough,
-            split_categorical_features,
-        )
-
-        self.regions["feature_{}".format(feature)] = regions
-        splits = regions.search_all_splits()
-
-        self.splits_per_feature_full_depth["feature_{}".format(feature)] = splits
-        self.splits_per_feature_full_depth_found[feature] = True
-
-        important_splits = regions.choose_important_splits()
-        self.splits_per_feature_only_important[
-            "feature_{}".format(feature)
-        ] = important_splits
-        self.splits_per_feature_only_import_found[feature] = True
 
     def fit(
         self,
@@ -567,8 +506,11 @@ class RegionalPDP(RegionalEffect):
         assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
+            heter = self._create_heterogeneity_function(feat, min_points_per_subregion)
+
             self._fit_feature(
                 feat,
+                heter,
                 heter_pcg_drop_thres,
                 heter_small_enough,
                 max_split_levels,
@@ -585,6 +527,7 @@ class RegionalPDP(RegionalEffect):
         centering: typing.Union[bool, str] = True,
         scale_x_per_feature: typing.Union[None, list[dict[str, float]]] = None,
         scale_y: typing.Union[None, dict] = None,
+        show_avg_output: bool = False,
     ):
 
         if not self.splits_per_feature_full_depth_found[feature]:
@@ -653,7 +596,8 @@ class RegionalPDP(RegionalEffect):
             if scale_x_per_feature is not None
             else None,
             scale_y=scale_y if scale_y is not None else None,
-            centering=centering
+            centering=centering,
+            show_avg_output=show_avg_output,
         )
         pdp_2.plot(
             feature,
@@ -663,5 +607,6 @@ class RegionalPDP(RegionalEffect):
             if scale_x_per_feature is not None
             else None,
             scale_y=scale_y if scale_y is not None else None,
-            centering=centering
+            centering=centering,
+            show_avg_output=show_avg_output
         )

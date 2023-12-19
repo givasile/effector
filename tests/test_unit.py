@@ -35,7 +35,7 @@ def test_pdp_1d_vectorized():
         data,
         x,
         feature=1,
-        uncertainty=False,
+        heterogeneity=False,
         model_returns_jac=False,
         return_all=False,
         ask_for_derivatives=True)
@@ -49,7 +49,7 @@ def test_pdp_1d_vectorized():
         data,
         x,
         feature=1,
-        uncertainty=False,
+        heterogeneity=False,
         model_returns_jac=True,
         return_all=False,
         ask_for_derivatives=True)
@@ -63,7 +63,7 @@ def test_pdp_1d_vectorized():
         data,
         x,
         feature=1,
-        uncertainty=False,
+        heterogeneity=False,
         model_returns_jac=False,
         return_all=False,
         ask_for_derivatives=False)

@@ -41,7 +41,7 @@ class Fixed:
 
 def find_limits(
         data: np.ndarray,
-        data_effect: np.ndarray,
+        data_effect: None |np.ndarray,
         feature: int,
         axis_limits: np.ndarray,
         binning_method: typing.Union[str, DynamicProgramming, Greedy, Fixed]):
