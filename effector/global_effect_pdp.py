@@ -23,15 +23,13 @@ class PDPBase(GlobalEffect):
         """
         Constructor of the PDPBase class.
         """
-        self.method_name = method_name
+
         self.model_jac = model_jac
-        self.nof_instances, self.indices = helpers.prep_nof_instances(
-            nof_instances, data.shape[0]
-        )
-        data = data[self.indices, :]
 
         super(PDPBase, self).__init__(
-            data, model, axis_limits, avg_output, feature_names, target_name
+            method_name,
+            data,
+            model, nof_instances, axis_limits, avg_output, feature_names, target_name
         )
 
     def _predict(self, data, xx, feature):
@@ -319,11 +317,6 @@ class PDP(PDPBase):
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
         """
-        self.method_name = "PDP"
-        self.nof_instances, self.indices = helpers.prep_nof_instances(
-            nof_instances, data.shape[0]
-        )
-        data = data[self.indices, :]
 
         super(PDP, self).__init__(
             data, model, None, axis_limits, avg_output, nof_instances, feature_names, target_name, method_name="PDP"
@@ -404,14 +397,9 @@ class DerivativePDP(PDPBase):
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
         """
-        self.method_name = "DerivativePDP"
-        self.nof_instances, self.indices = helpers.prep_nof_instances(
-            nof_instances, data.shape[0]
-        )
-        data = data[self.indices, :]
 
         super(DerivativePDP, self).__init__(
-            data, model, model_jac, axis_limits, avg_output, nof_instances, feature_names, target_name, method_name="PDP"
+            data, model, model_jac, axis_limits, avg_output, nof_instances, feature_names, target_name, method_name="d-PDP"
         )
 
 

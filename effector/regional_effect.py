@@ -267,7 +267,7 @@ class RegionalRHALE(RegionalEffect):
             if data.shape[0] < min_points:
                 return BIG_M
 
-            rhale = RHALE(data, self.model, self.model_jac, None, instance_effects)
+            rhale = RHALE(data, self.model, self.model_jac,  "all", None, instance_effects)
             try:
                 rhale.fit(features=foi, binning_method=binning_method)
             except:
@@ -397,6 +397,7 @@ class RegionalRHALE(RegionalEffect):
             data_1,
             self.model,
             self.model_jac,
+            "all",
             axis_limits,
             data_effect_1,
             feature_names=feature_names_1,
@@ -407,6 +408,7 @@ class RegionalRHALE(RegionalEffect):
             data_2,
             self.model,
             self.model_jac,
+"all",
             axis_limits,
             data_effect_2,
             feature_names=feature_names_2,
@@ -460,7 +462,7 @@ class RegionalPDP(RegionalEffect):
             if data.shape[0] < min_points:
                 return BIG_M
 
-            pdp = PDP(data, self.model, nof_instances=100)
+            pdp = PDP(data, self.model, None, nof_instances=100)
             try:
                 pdp.fit(features=foi)
             except:

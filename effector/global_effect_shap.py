@@ -64,7 +64,7 @@ class SHAPDependence(GlobalEffect):
                 - use a `ndarray` of shape `(2, D)`, to specify them manually
                 - use `None`, to be inferred from the data
 
-            nof_instances: maximum number of instances to be used for PDP.
+            nof_instances: maximum number of instances to be used for SHAP estimation.
 
                 - use "all", for using all instances.
                 - use an `int`, for using `nof_instances` instances.
@@ -90,7 +90,7 @@ class SHAPDependence(GlobalEffect):
         data = data[self.indices, :]
 
         super(SHAPDependence, self).__init__(
-            data, model, axis_limits, avg_output, feature_names, target_name
+            "SHAP DP", data, model, nof_instances, axis_limits, avg_output, feature_names, target_name
         )
 
     def _fit_feature(

@@ -10,21 +10,58 @@ class GlobalEffect(ABC):
 
     def __init__(
         self,
+        method_name: str,
         data: np.ndarray,
         model: typing.Callable,
-        axis_limits: typing.Union[None, np.ndarray] = None,
-        avg_output: typing.Union[None, float] = None,
-        feature_names: typing.Union[None, list] = None,
-        target_name: typing.Union[None, str] = None,
+        nof_instances: int | str = "all",
+        axis_limits: None | np.ndarray = None,
+        avg_output: None | float = None,
+        feature_names: None | list = None,
+        target_name: None | str = None,
     ) -> None:
         """
         Constructor for the FeatureEffectBase class.
 
         Args:
-            axis_limits: The axis limits defined as start and stop values for each axis, (2, D)
+            data: the design matrix
+
+                - shape: `(N,D)`
+            model: the black-box model. Must be a `Callable` with:
+
+                - input: `ndarray` of shape `(N, D)`
+                - output: `ndarray` of shape `(N, )`
+
+            axis_limits: The limits of the feature effect plot along each axis
+
+                - use a `ndarray` of shape `(2, D)`, to specify them manually
+                - use `None`, to be inferred from the data
+
+            avg_output: the average output of the model on the data
+
+                - use a `float`, to specify it manually
+                - use `None`, to be inferred as `np.mean(model(data))`
+
+            feature_names: The names of the features
+
+                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
+                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
+
+            target_name: The name of the target variable
+
+                - use a `str`, to specify it name manually. For example: `"price"`
+                - use `None`, to keep the default name: `"y"`
 
         """
         assert data.ndim == 2
+
+        self.method_name: str = method_name
+
+        # select nof_instances from the data
+        self.nof_instances, self.indices = helpers.prep_nof_instances(
+            nof_instances, data.shape[0]
+        )
+        data = data[self.indices, :]
+
         self.data: np.ndarray = data
         self.dim = self.data.shape[1]
 
@@ -49,47 +86,15 @@ class GlobalEffect(ABC):
         # parameters used when fitting the feature effect
         self.method_args: typing.Dict = {}
 
-        # normalization constant per feature for centering the FE plot
-        self.norm_const: np.ndarray = np.ones([self.dim]) * self.empty_symbol
-
         # dictionary with all the information required for plotting or evaluating the feature effect
         self.feature_effect: typing.Dict = {}
 
-    def _eval_unnorm(
-        self, feature: int, x: np.ndarray, heterogeneity: bool = False
-    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
-        """
-        Compute the effect of the s-th feature at positions `x`.
-
-        If heterogeneity is False, returns a [N,] np.ndarray with the evaluation of the plot
-
-        If heterogeneity is True, returns a tuple (y, sigma, stderr) where:
-         - y: is a [N,] np.ndarray with the expected effect
-         - sigma: is a [N,] np.ndarray with the std of the expected effect
-         - stderr: is a [N,] np.ndarray with the standard error of the expeceted effect
-
-        Parameters
-        ----------
-        feature: int, index of the feature
-        x: [N,] np.array, the points of the s-th axis to evaluate the FE plot
-        heterogeneity: bool, whether to provide heterogeneity measures
-
-        Returns
-        -------
-        - np.ndarray [N,], if heterogeneity=False
-        - tuple (np.ndarray [N,], np.ndarray [N,], np.ndarray [N,]), if heterogeneity=True
-        """
-        raise NotImplementedError
-
     @abstractmethod
     def fit(self, features: typing.Union[int, str, list] = "all", **kwargs) -> None:
-        """Iterates over _fit_feature for all features,
-        computes the normalization constant if asked
-        and updates self.is_fitted.
+        """Fit the feature effect for the given features.
 
-        Parameters
-        ----------
-        features
+        Args:
+            features: the features to fit. If set to "all", all the features will be fitted.
         """
         raise NotImplementedError
 
@@ -114,25 +119,6 @@ class GlobalEffect(ABC):
                 if self.method_args["feature_" + str(feature)]["centering"] != centering:
                     return True
         return False
-
-    def _compute_norm_const(
-        self, feature: int, method: str = "zero_integral", nof_points: int = 100
-    ) -> float:
-        """Compute the normalization constant."""
-        assert method in ["zero_integral", "zero_start"]
-
-        def create_partial_eval(feature):
-            return lambda x: self._eval_unnorm(feature, x, heterogeneity=False)
-
-        partial_eval = create_partial_eval(feature)
-        start = self.axis_limits[0, feature]
-        stop = self.axis_limits[1, feature]
-
-        if method == "zero_integral":
-            z = utils_integrate.mean_1d_linspace(partial_eval, start, stop, nof_points)
-        else:
-            z = partial_eval(np.array([start])).item()
-        return z
 
     def eval(
         self,
@@ -173,35 +159,8 @@ class GlobalEffect(ABC):
 
         Notes:
             * If `heterogeneity` is `False`, the plot returns only the mean effect `y` at the given `xs`.
-            * If `heterogeneity` is `True`, the plot returns `(y, std, estimator_var)` where:
+            * If `heterogeneity` is `True`, the plot returns `(y, std)` where:
                 * `y` is the mean effect
                 * `std` is the standard deviation of the mean effect
-                * `estimator_var` is the variance of the mean effect estimator
         """
-        centering = helpers.prep_centering(centering)
-
-        if self.refit(feature, centering):
-            self.fit(features=feature, centering=centering)
-
-        # Check if the lower bound is less than the upper bound
-        assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
-
-        # Fit the feature if not already fitted
-        if not self.is_fitted[feature]:
-            arg_list = self.fit.__code__.co_varnames
-            self.fit(
-                features=feature, centering=centering
-            ) if "centering" in arg_list else self.fit(features=feature)
-
-        # Evaluate the feature
-        yy = self._eval_unnorm(feature, xs, heterogeneity=heterogeneity)
-        y, std, estimator_var = yy if heterogeneity else (yy, None, None)
-
-        # Center if asked
-        y = (
-            y - self.norm_const[feature]
-            if self.norm_const[feature] != self.empty_symbol and centering
-            else y
-        )
-
-        return (y, std, estimator_var) if heterogeneity is not False else y
+        raise NotImplementedError

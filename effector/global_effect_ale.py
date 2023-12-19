@@ -3,6 +3,7 @@ import effector.utils as utils
 import effector.visualization as vis
 import effector.binning_methods as bm
 import effector.helpers as helpers
+import effector.utils_integrate as utils_integrate
 from effector.global_effect import GlobalEffect
 import numpy as np
 
@@ -12,6 +13,7 @@ class ALEBase(GlobalEffect):
         self,
         data: np.ndarray,
         model: callable,
+        nof_instances: int | str = "all",
         axis_limits: None | np.ndarray = None,
         avg_output: None | float = None,
         feature_names: None | list = None,
@@ -20,7 +22,14 @@ class ALEBase(GlobalEffect):
     ):
         self.method_name = method_name
         super(ALEBase, self).__init__(
-            data, model, axis_limits, avg_output, feature_names, target_name
+            method_name,
+            data,
+            model,
+            nof_instances,
+            axis_limits,
+            avg_output,
+            feature_names,
+            target_name
         )
 
     def _fit_feature(self,
@@ -34,6 +43,25 @@ class ALEBase(GlobalEffect):
             **kwargs) -> None:
         raise NotImplementedError
 
+    def _compute_norm_const(
+        self, feature: int, method: str = "zero_integral", nof_points: int = 100
+    ) -> float:
+        """Compute the normalization constant."""
+        assert method in ["zero_integral", "zero_start"]
+
+        def create_partial_eval(feature):
+            return lambda x: self._eval_unnorm(feature, x, heterogeneity=False)
+
+        partial_eval = create_partial_eval(feature)
+        start = self.axis_limits[0, feature]
+        stop = self.axis_limits[1, feature]
+
+        if method == "zero_integral":
+            z = utils_integrate.mean_1d_linspace(partial_eval, start, stop, nof_points)
+        else:
+            z = partial_eval(np.array([start])).item()
+        return z
+
     def _fit_loop(self, features, binning_method, centering):
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
@@ -41,8 +69,13 @@ class ALEBase(GlobalEffect):
             self.feature_effect["feature_" + str(s)] = self._fit_feature(
                 s, binning_method
             )
+
+            # append the "norm_const" to the feature effect
             if centering is not False:
-                self.norm_const[s] = self._compute_norm_const(s, method=centering)
+                self.feature_effect["feature_" + str(s)]["norm_const"] = self._compute_norm_const(s, method=centering)
+            else:
+                self.feature_effect["feature_" + str(s)]["norm_const"] = self.empty_symbol
+
             self.is_fitted[s] = True
             self.method_args["feature_" + str(s)] = {
                 "centering": centering,
@@ -70,6 +103,71 @@ class ALEBase(GlobalEffect):
             return y, std, std_err
         else:
             return y
+
+    def eval(
+        self,
+        feature: int,
+        xs: np.ndarray,
+        heterogeneity: bool = False,
+        centering: typing.Union[bool, str] = False,
+    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+        """Evaluate the effect of the s-th feature at positions `xs`.
+
+        Notes:
+            This is a common method among all the FE classes.
+
+        Args:
+            feature: index of feature of interest
+            xs: the points along the s-th axis to evaluate the FE plot
+
+              - `np.ndarray` of shape `(T, )`
+
+            heterogeneity: whether to return the heterogeneity measures.
+
+                  - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
+                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
+
+            centering: whether to center the PDP
+
+                - If `centering` is `False`, the PDP not centered
+                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
+                - If `centering` is `zero_start`, the PDP starts from `y=0`.
+
+        Returns:
+            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std, estimator_var)` otherwise
+
+        Notes:
+            * If `centering` is `False`, the plot is not centered
+            * If `centering` is `True` or `"zero_integral"`, the plot is centered by subtracting its mean.
+            * If `centering` is `"zero_start"`, the plot starts from zero.
+
+        Notes:
+            * If `heterogeneity` is `False`, the plot returns only the mean effect `y` at the given `xs`.
+            * If `heterogeneity` is `True`, the plot returns `(y, std, estimator_var)` where:
+                * `y` is the mean effect
+                * `std` is the standard deviation of the mean effect
+                * `estimator_var` is the variance of the mean effect estimator
+        """
+        centering = helpers.prep_centering(centering)
+
+        if self.refit(feature, centering):
+            self.fit(features=feature, centering=centering)
+
+        # Check if the lower bound is less than the upper bound
+        assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
+
+        # Evaluate the feature
+        yy = self._eval_unnorm(feature, xs, heterogeneity=heterogeneity)
+        y, std, estimator_var = yy if heterogeneity else (yy, None, None)
+
+        # Center if asked
+        y = (
+            y - self.feature_effect["feature_" + str(feature)]["norm_const"]
+            if centering
+            else y
+        )
+
+        return (y, std, estimator_var) if heterogeneity is not False else y
 
     def plot(
         self,
@@ -142,6 +240,7 @@ class ALE(ALEBase):
         self,
         data: np.ndarray,
         model: callable,
+        nof_instances: int | str = "all",
         axis_limits: None | np.ndarray = None,
         avg_output: None | float = None,
         feature_names: None | list = None,
@@ -194,7 +293,7 @@ class ALE(ALEBase):
                 - use `None`, to keep the default name: `"y"`
         """
         super(ALE, self).__init__(
-            data, model, axis_limits, avg_output, feature_names, target_name, "ALE"
+            data, model, nof_instances, axis_limits, avg_output, feature_names, target_name, "ALE"
         )
 
     def _fit_feature(self, feature: int, binning_method="fixed") -> typing.Dict:
@@ -271,6 +370,7 @@ class RHALE(ALEBase):
         data: np.ndarray,
         model: callable,
         model_jac: typing.Union[None, callable] = None,
+        nof_instances: int | str = "all",
         axis_limits: None | np.ndarray = None,
         data_effect: None | np.ndarray = None,
         avg_output: None | float = None,
@@ -308,6 +408,8 @@ class RHALE(ALEBase):
                 - input: `ndarray` of shape `(N, D)`
                 - output: `ndarray` of shape `(N, D)`
 
+            nof_instances: the number of instances to use for the explanation
+
             axis_limits: The limits of the feature effect plot along each axis
 
                 - use a `ndarray` of shape `(2, D)`, to specify them manually
@@ -334,11 +436,14 @@ class RHALE(ALEBase):
         """
         self.model_jac = model_jac
 
-        # if data_effect is None, it will be computed after compile
+        # select nof_instances from the data
+        nof_instances, indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
+        data = data[indices, :]
+        data_effect = data_effect[indices, :] if data_effect is not None else None
         self.data_effect = data_effect
 
         super(RHALE, self).__init__(
-            data, model, axis_limits, avg_output, feature_names, target_name, "RHALE"
+            data, model, "all", axis_limits, avg_output, feature_names, target_name, "RHALE"
         )
 
     def compile(self):
