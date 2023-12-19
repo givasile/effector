@@ -1,8 +1,6 @@
 # A very gentle introduction to Feature Effect methods
 
-This tutorial is a (slow and gentle) introduction to [feature effect methods](https://christophm.github.io/interpretable-ml-book/global-methods.html) and the `Effector` package.
-
-If you only care about using `Effector` in practice, you can skip the [Conclusion](#conclusion).
+This tutorial is a (slow and gentle) introduction to the basic global [feature effect methods](https://christophm.github.io/interpretable-ml-book/global-methods.html) and the `Effector` package. If you only care about using `Effector`'s API, you can go directly to the [Conclusion](#conclusion).
 
 
 
@@ -12,15 +10,27 @@ import effector
 ```
 
 ---
-## The dataset
+## Dataset and Model
 
 We will generate $N=1000$ examples with $D=3$ features each. The following matrix shows that $x_3$ is independent from $x_1$ and $x_2$, while $x_2$ is highly correlated with $x_1$.
 
 | Feature | Description                                                      | Distribution                      |
 |---------|------------------------------------------------------------------|-----------------------------------|
 | $x_1$   | Uniformly distributed between $0$ and $1$                        | $x_1 \sim \mathcal{U}(0,1)$       |
-| $x_2$   | $x_2 = x_1 + \epsilon $                                          | $\epsilon \sim \mathcal{N}(0, 0.01)$  |
+| $x_2$   | Follows $x_1$ with some added noise                              | $x_2 = x_1 + \epsilon $, $\epsilon \sim \mathcal{N}(0, 0.1)$ |
 | $x_3$   | Uniformly distributed between $0$ and $1$                        | $x_3 \sim \mathcal{U}(0,1)$       |
+
+and we will use $y = 7x_1 - 3x_2 + 4x_3$ as a black-box function. Due to the linear nature of the model, it is *trivial to compute the ground truth effects*; for $x_i$ the effect is simply $\alpha_i x_i$. Furthermore, since there are no interactions between the features, the effect of each feature is independent of the values of other features, so the heterogeneity is zero in all cases.
+
+<center>
+
+| Feature | Feature Effect | Heterogeneity |
+| --- | --- | --- |
+| $x_1$ | $7x_1$ | 0 |
+| $x_2$ | $-3x_2$ | 0 |
+| $x_3$ | $4x_3$ | 0 |
+
+</center>
 
 
 
@@ -37,25 +47,10 @@ np.random.seed(21)
 N = 1000
 x1_min = 0
 x1_max = 1
-x2_sigma = .01
+x2_sigma = .1
 x3_sigma = 1.
 X = generate_dataset(N, x1_min, x1_max, x2_sigma, x3_sigma)
 ```
-
----
-## The model
-
-We will use $y = 7x_1 - 3x_2 + 4x_3$ as a black-box function. Due to the linear nature of the model, it is trivial to compute the ground truth effects; for $x_i$ the effect is simply $\alpha_i x_i$. Furthermore, since there are no interactions between the features, the effect of each feature is independent of the values of other features, so the heterogeneity is zero in all cases.
-
-<center>
-
-| Feature | Feature Effect | Heterogeneity |
-| --- | --- | --- |
-| $x_1$ | $7x_1$ | 0 |
-| $x_2$ | $-3x_2$ | 0 |
-| $x_3$ | $4x_3$ | 0 |
-
-</center>
 
 
 ```python
@@ -73,18 +68,18 @@ def predict_grad(x):
 ---
 ## Feature Effect methods
 
-Feature effect methods explain the black-box model by estimating the effect of each feature on the model's prediction, i.e., they output a 1-1 mapping between the feature of interest $x_s$ and the ouput of the model $y$. `Effector` covers the following feature effect methods:
+Feature effect methods explain the black-box model by estimating the effect of each feature on the model's prediction, i.e., they output a 1-1 mapping between the feature of interest $x_s$ and the ouput of the model $y$. `Effector` provides the following feature effect methods:
 
 <center>
 
 | Method                                  | Description                        | API in `Effector`                                                            | Paper                                                             |
 |-----------------------------------------|------------------------------------|------------------------------------------------------------------------------|-------------------------------------------------------------------|
-| [PDP](#partial-dependence-plot-pdp)     | Partial Dependence Plot            | [PDP]((./../../reference/#effector.pdp.DerivativePDP))                       | [Friedman, 2001](https://statweb.stanford.edu/~jhf/ftp/trebst.pdf) |
-| [ICE](#partial-dependence-plot-pdp)     | Individual Conditional Expectation | [PDPwithICE](./../../reference/#effector.pdp.PDPwithICE)                     | [Goldstein et. al, 2013](https://arxiv.org/pdf/1309.6392)         |
-| [d-PDP](#derivative-pdp-d-pdp)          | Derivative PDP                     | [DerivativePDP](./../../reference/#effector.pdp.DerivativePDP)               | [Goldstein et. al, 2013](https://arxiv.org/pdf/1309.6392.pdf)     |
-| [d-ICE](#derivative-pdp-d-pdp)          | Derivative ICE                     | [DerivativePDPwithICE](./../../reference/#effector.pdp.DerivativePDPwithICE) | [Goldstein et. al, 2013](https://arxiv.org/pdf/1309.6392.pdf)     |
+| [PDP](#partial-dependence-plot-pdp)     | Partial Dependence Plot            | [PDP]((./../../reference/#effector.pdp.DerivativePDP))                       | [Friedman, 2001](https://statweb.stanford.edu/~jhf/ftp/trebst.pdf) |     |
+| [d-PDP](#derivative-pdp-d-pdp)          | Derivative PDP                     | [DerivativePDP](./../../reference/#effector.pdp.DerivativePDP)               | [Goldstein et. al, 2013](https://arxiv.org/pdf/1309.6392.pdf)     ||
 | [ALE](#accumulated-local-effects-ale)   | Accumulated Local Effect           | [ALE](./../../reference/#effector.ale.ALE)                                   | [Apley et. al, 2016](https://arxiv.org/pdf/1612.08468)            |
 | [RHALE](#accumulated-local-effects-ale) | Robust and Heterogeneity-aware ALE | [RHALE](./../../reference/#effector.ale.RHALE)                               | [Gkolemis et al, 2023](https://arxiv.org/abs/2309.11193)          | 
+| [SHAP](#shap-dependence-plot)           | SHAP Dependence Plot               | [SHAPDependence](./../../reference/#effector.shap_dependence.SHAPDependence) | [Lundberg et. al, 2017](https://arxiv.org/pdf/1705.07874.pdf)     |
+
 
 </center>
 
@@ -128,19 +123,19 @@ effector.PDP(data=X, model=predict).plot(feature=2, show_avg_output=True, y_limi
 
 
     
-![png](01_linear_model_files/01_linear_model_8_0.png)
+![png](01_linear_model_files/01_linear_model_7_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_8_1.png)
+![png](01_linear_model_files/01_linear_model_7_1.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_8_2.png)
+![png](01_linear_model_files/01_linear_model_7_2.png)
     
 
 
@@ -182,19 +177,19 @@ effector.PDP(data=X, model=predict).plot(feature=2, centering=True, y_limits=[-4
 
 
     
-![png](01_linear_model_files/01_linear_model_10_0.png)
+![png](01_linear_model_files/01_linear_model_9_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_10_1.png)
+![png](01_linear_model_files/01_linear_model_9_1.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_10_2.png)
+![png](01_linear_model_files/01_linear_model_9_2.png)
     
 
 
@@ -227,7 +222,7 @@ effector.PDP(data=X, model=predict).plot(feature=0, centering=True, heterogeneit
 
 
     
-![png](01_linear_model_files/01_linear_model_13_0.png)
+![png](01_linear_model_files/01_linear_model_12_0.png)
     
 
 
@@ -249,7 +244,7 @@ effector.PDP(data=X, model=predict).plot(feature=0, centering=False, heterogenei
 
 
     
-![png](01_linear_model_files/01_linear_model_15_0.png)
+![png](01_linear_model_files/01_linear_model_14_0.png)
     
 
 
@@ -267,7 +262,7 @@ effector.PDP(data=X, model=predict).plot(feature=0, centering=True, heterogeneit
 
 
     
-![png](01_linear_model_files/01_linear_model_17_0.png)
+![png](01_linear_model_files/01_linear_model_16_0.png)
     
 
 
@@ -282,7 +277,7 @@ effector.PDP(data=X, model=predict).plot(feature=0, centering=False, heterogenei
 
 
     
-![png](01_linear_model_files/01_linear_model_19_0.png)
+![png](01_linear_model_files/01_linear_model_18_0.png)
     
 
 
@@ -314,13 +309,13 @@ effector.DerivativePDP(data=X, model=predict, model_jac=predict_grad).plot(featu
 
 
     
-![png](01_linear_model_files/01_linear_model_21_0.png)
+![png](01_linear_model_files/01_linear_model_20_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_21_1.png)
+![png](01_linear_model_files/01_linear_model_20_1.png)
     
 
 
@@ -337,19 +332,19 @@ effector.ALE(data=X, model=predict).plot(feature=2)
 
 
     
-![png](01_linear_model_files/01_linear_model_23_0.png)
+![png](01_linear_model_files/01_linear_model_22_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_23_1.png)
+![png](01_linear_model_files/01_linear_model_22_1.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_23_2.png)
+![png](01_linear_model_files/01_linear_model_22_2.png)
     
 
 
@@ -377,7 +372,7 @@ effector.ALE(data=X, model=predict).plot(feature=0, centering=True)
 
 
     
-![png](01_linear_model_files/01_linear_model_25_0.png)
+![png](01_linear_model_files/01_linear_model_24_0.png)
     
 
 
@@ -392,7 +387,7 @@ effector.ALE(data=X, model=predict).plot(feature=0, centering=True, heterogeneit
 
 
     
-![png](01_linear_model_files/01_linear_model_27_0.png)
+![png](01_linear_model_files/01_linear_model_26_0.png)
     
 
 
@@ -431,13 +426,13 @@ ale.plot(feature=0)
 
 
     
-![png](01_linear_model_files/01_linear_model_29_0.png)
+![png](01_linear_model_files/01_linear_model_28_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_29_1.png)
+![png](01_linear_model_files/01_linear_model_28_1.png)
     
 
 
@@ -452,7 +447,7 @@ effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, ce
 
 
     
-![png](01_linear_model_files/01_linear_model_31_0.png)
+![png](01_linear_model_files/01_linear_model_30_0.png)
     
 
 
@@ -483,7 +478,7 @@ effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, ce
 
 
     
-![png](01_linear_model_files/01_linear_model_33_0.png)
+![png](01_linear_model_files/01_linear_model_32_0.png)
     
 
 
@@ -500,7 +495,7 @@ effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, ce
 
 
     
-![png](01_linear_model_files/01_linear_model_35_0.png)
+![png](01_linear_model_files/01_linear_model_34_0.png)
     
 
 
@@ -520,6 +515,71 @@ The above approximation uses a Riemannian sum to approximate the integral. The a
 But what we saw above is different. In the figure above, only one bin has been created and covers the whole area between $x=0$ and $x=1$. 
 This is because the default behaviour of `Effector` is to use an automatic bin-splitting method, as it was proposed by [Gkolemis et. al](https://arxiv.org/abs/2309.11193).
 For more details about that, you can check the in-depth [ALE tutorial](./ale.ipynb).
+
+## SHAP Dependence Plot
+
+TODO add intro
+
+
+```python
+effector.SHAPDependence(data=X, model=predict).plot(feature=0, centering=False, show_avg_output=False)
+```
+
+
+    
+![png](01_linear_model_files/01_linear_model_37_0.png)
+    
+
+
+### Fearure effect interpretation
+
+TODO add content 
+
+<center>
+
+| `centering`               | Description                            | Formula                                                               |
+|---------------------------|----------------------------------------|-----------------------------------------------------------------------|
+| `False` or `zero_start`   | Don't enforce any additional centering | c=0                                                                   |
+| `True` or `zero-integral` | Center around the $y$ axis             | c=$\mathbb{E}_{x_s \sim \mathcal{U(x_{s,min},x_{s, max})}}[ALE(x_s)]$ |
+
+</center>
+
+Let's see how this works for $x_1$:
+
+
+```python
+effector.SHAPDependence(data=X, model=predict).plot(feature=0, centering=True, show_avg_output=False)
+```
+
+
+    
+![png](01_linear_model_files/01_linear_model_39_0.png)
+    
+
+
+### Heterogeneity
+
+As before, the heterogeneity is given by the the standard deviation of the instance-level effects as $\pm$ interval around the ALE plot.
+It is important to notice, that automatic bin-splitting provides a better estimation of the heterogeneity, compared to the equisized binning method used by ALE. (check tutorial [ALE](./ale.ipynb) for more details). 
+The plot below correctly informs shows that the heterogeneity is zero.
+
+
+```python
+effector.SHAPDependence(data=X, model=predict).plot(feature=0, heterogeneity="shap_values")
+effector.SHAPDependence(data=X, model=predict).plot(feature=0, heterogeneity="std")
+```
+
+
+    
+![png](01_linear_model_files/01_linear_model_41_0.png)
+    
+
+
+
+    
+![png](01_linear_model_files/01_linear_model_41_1.png)
+    
+
 
 ## Conclusion
 
