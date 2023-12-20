@@ -17,15 +17,7 @@ def test_gam():
         ], axis=1)
 
     model = lambda x: x[:, 0]**3/5 + x[:, 1] ** 2/5
-    model_jac = lambda x: (
-        np.stack(
-            [
-            3 * x[:, 0]**2/5,
-            2 * x[:, 1]/5
-            ],
-        axis=1
-    ))
-
+    model_jac = lambda x: np.stack([3 * x[:, 0]**2/5, 2 * x[:, 1]/5], axis=1)
 
     x = np.linspace(0, 1, T)
     y_1_gt = x**3/5
@@ -43,7 +35,7 @@ def test_gam():
     np.allclose(y, y_2_gt, atol=1e-1, rtol=1e-1)
     np.allclose(heterogeneity, heter_gt, atol=1e-1, rtol=1e-1)
 
-    # test d-PDP withouth Jacobian
+    # test d-PDP without Jacobian
     d_pdp = effector.DerivativePDP(data, model)
     y, heter = d_pdp.eval(feature=0, xs=x, heterogeneity=True, centering=False)
     np.allclose(y, y_2_der_gt, atol=1e-1, rtol=1e-1)

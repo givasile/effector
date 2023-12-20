@@ -11,13 +11,13 @@ from tqdm import tqdm
 
 BIG_M = helpers.BIG_M
 
-
 # base method for all regional effect methods
 class RegionalEffect:
     def __init__(
         self,
         data: np.ndarray,
         model: callable,
+        nof_instances: int | str = 100,
         instance_effects: typing.Union[None, np.ndarray] = None,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
@@ -30,6 +30,14 @@ class RegionalEffect:
 
 
         """
+        # select nof_instances from the data
+        self.nof_instances, self.indices = helpers.prep_nof_instances(
+            nof_instances, data.shape[0]
+        )
+        data = data[self.indices, :]
+        if instance_effects is not None:
+            instance_effects = instance_effects[self.indices, :]
+
         self.data = data
         self.instance_effects = instance_effects
         self.model = model
@@ -57,11 +65,16 @@ class RegionalEffect:
         self.dim = self.axis_limits.shape[1]
 
         # state variables
+        self.splits_full_depth_found: np.ndarray = np.ones([self.dim]) < 0
+        self.splits_only_important_found: np.ndarray = np.ones([self.dim]) < 0
+
+        # parameters used when fitting the regional effect
+        self.method_args: typing.Dict = {}
+
+        # dictionary with all the information required for plotting or evaluating the regional effects
         self.regions: typing.Dict[str, Regions] = {}
-        self.splits_per_feature_full_depth: typing.Dict[str, list[dict]] = {}
-        self.splits_per_feature_only_important: typing.Dict[str, list[dict]] = {}
-        self.splits_per_feature_full_depth_found: np.ndarray = np.ones([self.dim]) < 0
-        self.splits_per_feature_only_import_found: np.ndarray = np.ones([self.dim]) < 0
+        self.splits_full_depth: typing.Dict[str, list[dict]] = {}
+        self.splits_only_important: typing.Dict[str, list[dict]] = {}
 
     def _fit_feature(
         self,
@@ -99,20 +112,81 @@ class RegionalEffect:
         self.regions["feature_{}".format(feature)] = regions
         splits = regions.search_all_splits()
 
-        self.splits_per_feature_full_depth["feature_{}".format(feature)] = splits
-        self.splits_per_feature_full_depth_found[feature] = True
+        self.splits_full_depth["feature_{}".format(feature)] = splits
+        self.splits_full_depth_found[feature] = True
 
         important_splits = regions.choose_important_splits()
-        self.splits_per_feature_only_important[
+        self.splits_only_important[
             "feature_{}".format(feature)
         ] = important_splits
-        self.splits_per_feature_only_import_found[feature] = True
+        self.splits_only_important_found[feature] = True
+
+    def refit(self, feature, centering):
+        "Checks if refitting is needed"
+        if not self.splits_full_depth_found[feature]:
+            return True
+        else:
+            if centering is not False:
+                if self.method_args["feature_" + str(feature)]["centering"] != centering:
+                    return True
+        return False
 
     def fit(self, *args, **kwargs):
         raise NotImplementedError
 
     def plot_first_level(self, *args, **kwargs):
         raise NotImplementedError
+
+    # def _split_dataset_on_important_splits(self, feature, level) -> List[np.ndarray]:
+    #     assert self.splits_full_depth_found[feature]
+    #     assert self.split_only_important_found[feature]
+    #
+    #     # get regions and splits
+    #     regions = self.regions["feature_{}".format(feature)]
+    #     splits = self.splits_only_important["feature_{}".format(feature)]
+    #
+    #     if len(splits) == 0:
+    #         print("No important splits found for feature {}".format(feature))
+    #         return [self.data]
+    #
+    #     final_level = np.min([level, len(splits)])
+    #
+    #     # split to two datasets
+    #     foc = splits[0]["feature"]
+    #     position = splits[0]["position"]
+    #     type_of_split_feature = self.feature_types[foc]
+    #     data_1, data_2 = regions.split_dataset(
+    #         self.data, None, foc, position, type_of_split_feature
+    #     )
+    #     data_effect_1, data_effect_2 = regions.split_dataset(
+    #         self.data, self.instance_effects, foc, position, type_of_split_feature
+    #     )
+    #     axis_limits = helpers.axis_limits_from_data(self.data)
+    #
+    #     # plot the two RHALE objects
+    #     foc_name = self.feature_names[foc]
+    #     foi_name = self.feature_names[feature]
+    #
+    #     # feature_names
+    #     position = (
+    #         scale_x_per_feature[foc]["mean"]
+    #         + scale_x_per_feature[foc]["std"] * position
+    #         if scale_x_per_feature is not None
+    #         else position
+    #     )
+    #     if type_of_split_feature != "cat":
+    #         feature_name_1 = "{} given {}<={:.2f}".format(foi_name, foc_name, position)
+    #         feature_name_2 = "{} given {}>{:.2f}".format(foi_name, foc_name, position)
+    #     else:
+    #         feature_name_1 = "{} given {}=={:.2f}".format(foi_name, foc_name, position)
+    #         feature_name_2 = "{} given {}!={:.2f}".format(foi_name, foc_name, position)
+    #
+    #     feature_names_1 = self.feature_names.copy()
+    #     feature_names_1[feature] = feature_name_1
+    #     feature_names_2 = self.feature_names.copy()
+    #     feature_names_2[feature] = feature_name_2
+    #
+    #     raise NotImplementedError
 
     def describe_subregions(
         self,
@@ -122,14 +196,14 @@ class RegionalEffect:
     ):
         features = helpers.prep_features(features, self.dim)
         for feature in features:
-            if not self.splits_per_feature_full_depth_found[feature]:
+            if not self.splits_full_depth_found[feature]:
                 self._fit_feature(feature)
 
             feature_name = (
                 self.feature_names[feature] if self.feature_names else feature
             )
             if only_important:
-                splits = self.splits_per_feature_only_important[
+                splits = self.splits_only_important[
                     "feature_{}".format(feature)
                 ]
                 if len(splits) == 0:
@@ -139,7 +213,7 @@ class RegionalEffect:
                     print("Important splits for feature {}".format(feature_name))
             else:
                 print("All splits for feature {}".format(feature_name))
-                splits = self.splits_per_feature_full_depth[
+                splits = self.splits_full_depth[
                     "feature_{}".format(feature)
                 ][1:]
 
@@ -208,7 +282,7 @@ class RegionalEffect:
                 print(
                     "  - Heterogeneity drop: {:.2f} ({:.2f} %)".format(
                         split["weighted_heter_drop"],
-                        (split["weighted_heter_drop"] / split["weighted_heter"] * 100),
+                        (split["weighted_heter_drop"] / (split["weighted_heter"] + split["weighted_heter_drop"]) * 100),
                     )
                 )
 
@@ -229,12 +303,13 @@ class RegionalEffect:
                 )
 
 
-class RegionalRHALE(RegionalEffect):
+class RegionalRHALEBase(RegionalEffect):
     def __init__(
         self,
         data: np.ndarray,
         model: callable,
         model_jac: callable,
+        nof_instances: int | str = 100,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
         cat_limit: typing.Union[int, None] = 10,
@@ -254,10 +329,15 @@ class RegionalRHALE(RegionalEffect):
             feature_names: list of feature names
         """
         self.model_jac = model_jac
-
         instance_effects = self.model_jac(data)
-        super(RegionalRHALE, self).__init__(
-            data, model, instance_effects, axis_limits, feature_types, cat_limit, feature_names, target_name
+
+        self.nof_instances, self.indices = helpers.prep_nof_instances(
+            nof_instances, data.shape[0]
+        )
+        data = data[self.indices, :]
+        instance_effects = instance_effects[self.indices, :]
+        super(RegionalRHALEBase, self).__init__(
+            data, model, "all", instance_effects, axis_limits, feature_types, cat_limit, feature_names, target_name
         )
 
     def _create_heterogeneity_function(self, foi, binning_method, min_points=10):
@@ -347,11 +427,11 @@ class RegionalRHALE(RegionalEffect):
         show_avg_output: bool = False,
     ):
 
-        if not self.splits_per_feature_full_depth_found[feature]:
+        if not self.splits_full_depth_found[feature]:
             self._fit_feature(feature)
 
         regions = self.regions["feature_{}".format(feature)]
-        splits = self.splits_per_feature_only_important["feature_{}".format(feature)]
+        splits = self.splits_only_important["feature_{}".format(feature)]
 
         if len(splits) == 0:
             print("No important splits found for feature {}".format(feature))
@@ -439,6 +519,7 @@ class RegionalPDP(RegionalEffect):
         self,
         data: np.ndarray,
         model: callable,
+        nof_instances: int | str = 100,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
         cat_limit: typing.Union[int, None] = 10,
@@ -455,7 +536,7 @@ class RegionalPDP(RegionalEffect):
             cat_limit: the minimum number of unique values for a feature to be considered categorical
             feature_names: list of feature names
         """
-        super(RegionalPDP, self).__init__(data, model, None, axis_limits, feature_types, cat_limit, feature_names)
+        super(RegionalPDP, self).__init__(data, model, nof_instances, None, axis_limits, feature_types, cat_limit, feature_names)
 
     def _create_heterogeneity_function(self, foi, min_points=10):
         def heter(data) -> float:
@@ -473,7 +554,7 @@ class RegionalPDP(RegionalEffect):
 
             xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
             try:
-                _, z, _ = pdp.eval(feature=foi, xs=xx, heterogeneity=True)
+                _, z = pdp.eval(feature=foi, xs=xx, heterogeneity=True)
             except:
                 return BIG_M
             return np.mean(z)
@@ -532,11 +613,11 @@ class RegionalPDP(RegionalEffect):
         show_avg_output: bool = False,
     ):
 
-        if not self.splits_per_feature_full_depth_found[feature]:
+        if not self.splits_full_depth_found[feature]:
             self._fit_feature(feature)
 
         regions = self.regions["feature_{}".format(feature)]
-        splits = self.splits_per_feature_only_important["feature_{}".format(feature)]
+        splits = self.splits_only_important["feature_{}".format(feature)]
 
         if len(splits) == 0:
             print("No important splits found for feature {}".format(feature))

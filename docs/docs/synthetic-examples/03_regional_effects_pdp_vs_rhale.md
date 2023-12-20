@@ -927,14 +927,13 @@ rhale.plot(feature=2, centering=True, heterogeneity="std", show_avg_output=False
 
 Add some comments
 
-
 ```python
-regional_rhale = effector.RegionalRHALE(
-    data=X_uncor_train, 
-    model=model_uncor, 
-    model_jac= model_uncor_jac, 
+regional_rhale = effector.RegionalRHALEBase(
+    data=X_uncor_train,
+    model=model_uncor,
+    model_jac=model_uncor_jac,
     feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
 binning_method = effector.binning_methods.Fixed(10, min_points_per_bin=0)
 regional_rhale.fit(
@@ -1058,15 +1057,12 @@ rhale.plot(feature=2, centering=True, show_avg_output=False, heterogeneity="std"
 
     
 ![png](03_regional_effects_pdp_vs_rhale_files/03_regional_effects_pdp_vs_rhale_48_0.png)
-    
-
-
 
 ```python
-regional_rhale = effector.RegionalRHALE(
-    data=X_cor_train, 
-    model=model_cor, 
-    model_jac= model_cor_jac, 
+regional_rhale = effector.RegionalRHALEBase(
+    data=X_cor_train,
+    model=model_cor,
+    model_jac=model_cor_jac,
     feature_names=['x1', 'x2', 'x3'],
     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 ```

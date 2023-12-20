@@ -111,7 +111,7 @@ d_pdp.fit(features=3, centering=False)
 d_pdp.plot(feature=3, heterogeneity="ice", centering=False, scale_x=scale_x, scale_y=scale_y, nof_ice=500)
 
 # Regional RHALE
-regional_rhale = effector.RegionalRHALE(
+regional_rhale = effector.RegionalRHALEBase(
     data=X_train.to_numpy(),
     model=model_forward,
     model_jac=model_jac,

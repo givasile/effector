@@ -308,10 +308,9 @@ rhale.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scal
 
 ### RegionalRHALE
 
-
 ```python
 # Regional RHALE
-regional_rhale = effector.RegionalRHALE(
+regional_rhale = effector.RegionalRHALEBase(
     data=X_train.to_numpy(),
     model=model_forward,
     model_jac=model_jac,
