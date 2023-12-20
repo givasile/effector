@@ -2,6 +2,7 @@ import typing
 import numpy as np
 import itertools
 from effector import helpers, utils
+import treelib
 
 
 BIG_M = helpers.BIG_M
@@ -261,7 +262,7 @@ class Regions:
     def choose_important_splits(self):
         assert self.split_found, "No splits found for feature {}".format(self.feature)
 
-        # if split is empy, skip
+        # if split is empty, skip
         if len(self.splits) == 0:
             optimal_splits = {}
         # if initial heterogeneity is BIG_M, skip
@@ -325,6 +326,45 @@ class Regions:
 
     def flatten_list(self, l):
         return [item for sublist in l for item in sublist]
+
+    def splits_to_tree(self):
+        if len(self.splits) == 0:
+            return None
+
+        tree = CustomTree("x_" + str(self.feature), self.splits[0])
+        parent_level_nodes = [tree.root]
+        for i, split in enumerate(self.splits[1:]):
+
+            # nof nodes to add
+            nodes_to_add = len(split["nof_instances"])
+
+            new_parent_level_nodes = []
+            # find parent
+            for j in range(nodes_to_add):
+                parent = parent_level_nodes[int(j/2)]
+
+                # prepare data
+                data = {
+                "hetereogeneity": split["heterogeneity"][j],
+                "position": split["position"],
+                "feature": split["feature"],
+                "feature_type": split["type"],
+                "range": split["range"],
+                "candidate_split_positions": split["candidate_split_positions"],
+                "nof_instances": split["nof_instances"][j],
+                }
+
+                name = "x_{} at position {}".format(split["feature"], split["position"])
+                tree.add_node(parent, name, data)
+                new_parent_level_nodes.append(tree.find_node(name))
+
+            # update parent_level_nodes
+            parent_level_nodes = new_parent_level_nodes
+
+        return tree
+
+
+
 
 
 class DataTransformer:
@@ -508,3 +548,26 @@ def rename_features():
 #     else:
 #         position = axis_limits[0, feature] + (j + 0.5) * step
 #     return I_start, I, i, j, feature, position, feature_types[i]
+
+
+from anytree import Node, RenderTree
+
+
+class CustomTree:
+    def __init__(self, root_name, data):
+        self.root = Node(root_name, data=data)
+        self.nodes = [self.root]
+
+    def add_node(self, parent_node, child_name, data):
+        child_node = Node(child_name, data=data, parent=parent_node)
+        self.nodes.append(child_node)
+
+    def find_node(self, name):
+        for node in self.nodes:
+            if node.name == name:
+                return node
+        return None
+
+    def print_tree(self):
+        print(RenderTree(self.root))
+

@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 BIG_M = helpers.BIG_M
 
+
 # base method for all regional effect methods
 class RegionalEffect:
     def __init__(
@@ -74,6 +75,7 @@ class RegionalEffect:
         # dictionary with all the information required for plotting or evaluating the regional effects
         self.regions: typing.Dict[str, Regions] = {}
         self.splits_full_depth: typing.Dict[str, list[dict]] = {}
+        self.splits_full_depth_tree: typing.Dict = {}
         self.splits_only_important: typing.Dict[str, list[dict]] = {}
 
     def _fit_feature(
@@ -121,6 +123,8 @@ class RegionalEffect:
         ] = important_splits
         self.splits_only_important_found[feature] = True
 
+        self.splits_full_depth_tree["feature_{}".format(feature)] = regions.splits_to_tree()
+
     def refit(self, feature, centering):
         "Checks if refitting is needed"
         if not self.splits_full_depth_found[feature]:
@@ -137,56 +141,18 @@ class RegionalEffect:
     def plot_first_level(self, *args, **kwargs):
         raise NotImplementedError
 
-    # def _split_dataset_on_important_splits(self, feature, level) -> List[np.ndarray]:
-    #     assert self.splits_full_depth_found[feature]
-    #     assert self.split_only_important_found[feature]
-    #
-    #     # get regions and splits
-    #     regions = self.regions["feature_{}".format(feature)]
-    #     splits = self.splits_only_important["feature_{}".format(feature)]
-    #
-    #     if len(splits) == 0:
-    #         print("No important splits found for feature {}".format(feature))
-    #         return [self.data]
-    #
-    #     final_level = np.min([level, len(splits)])
-    #
-    #     # split to two datasets
-    #     foc = splits[0]["feature"]
-    #     position = splits[0]["position"]
-    #     type_of_split_feature = self.feature_types[foc]
-    #     data_1, data_2 = regions.split_dataset(
-    #         self.data, None, foc, position, type_of_split_feature
-    #     )
-    #     data_effect_1, data_effect_2 = regions.split_dataset(
-    #         self.data, self.instance_effects, foc, position, type_of_split_feature
-    #     )
-    #     axis_limits = helpers.axis_limits_from_data(self.data)
-    #
-    #     # plot the two RHALE objects
-    #     foc_name = self.feature_names[foc]
-    #     foi_name = self.feature_names[feature]
-    #
-    #     # feature_names
-    #     position = (
-    #         scale_x_per_feature[foc]["mean"]
-    #         + scale_x_per_feature[foc]["std"] * position
-    #         if scale_x_per_feature is not None
-    #         else position
-    #     )
-    #     if type_of_split_feature != "cat":
-    #         feature_name_1 = "{} given {}<={:.2f}".format(foi_name, foc_name, position)
-    #         feature_name_2 = "{} given {}>{:.2f}".format(foi_name, foc_name, position)
-    #     else:
-    #         feature_name_1 = "{} given {}=={:.2f}".format(foi_name, foc_name, position)
-    #         feature_name_2 = "{} given {}!={:.2f}".format(foi_name, foc_name, position)
-    #
-    #     feature_names_1 = self.feature_names.copy()
-    #     feature_names_1[feature] = feature_name_1
-    #     feature_names_2 = self.feature_names.copy()
-    #     feature_names_2[feature] = feature_name_2
-    #
-    #     raise NotImplementedError
+    def describe_subregions_tree(self, features):
+        features = helpers.prep_features(features, self.dim)
+        for feat in features:
+            if not self.splits_full_depth_found[feat]:
+                self._fit_feature(feat)
+
+            print("Feature {}".format(feat))
+            if self.splits_full_depth_tree["feature_{}".format(feat)] is None:
+                print("No important splits found for feature {}".format(feat))
+            else:
+                self.splits_full_depth_tree["feature_{}".format(feat)].print_tree()
+
 
     def describe_subregions(
         self,

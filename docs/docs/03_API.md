@@ -71,7 +71,7 @@
            - describe_regions
 
 
-### ::: effector.regional_effect.RegionalRHALE
+### ::: effector.regional_effect.RegionalRHALEBase
        options:
          show_root_heading: True
          show_symbol_type_toc: True
