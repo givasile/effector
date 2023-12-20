@@ -5,6 +5,7 @@ import effector.binning_methods as bm
 import effector.helpers as helpers
 import effector.utils_integrate as utils_integrate
 from effector.global_effect import GlobalEffect
+from abc import abstractmethod
 import numpy as np
 
 
@@ -32,12 +33,14 @@ class ALEBase(GlobalEffect):
             target_name
         )
 
+    @abstractmethod
     def _fit_feature(self,
                      feature: int,
                      binning_method: str | bm.DynamicProgramming | bm.Greedy | bm.Fixed = "greedy"
                      ) -> typing.Dict:
         raise NotImplementedError
 
+    @abstractmethod
     def fit(self,
             features: typing.Union[int, str, list] = "all",
             **kwargs) -> None:
@@ -49,8 +52,8 @@ class ALEBase(GlobalEffect):
         """Compute the normalization constant."""
         assert method in ["zero_integral", "zero_start"]
 
-        def create_partial_eval(feature):
-            return lambda x: self._eval_unnorm(feature, x, heterogeneity=False)
+        def create_partial_eval(feat):
+            return lambda x: self._eval_unnorm(feat, x, heterogeneity=False)
 
         partial_eval = create_partial_eval(feature)
         start = self.axis_limits[0, feature]
@@ -66,11 +69,12 @@ class ALEBase(GlobalEffect):
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
         for s in features:
+            # compute all information required for plotting and evaluating the feature effect
             self.feature_effect["feature_" + str(s)] = self._fit_feature(
                 s, binning_method
             )
 
-            # append the "norm_const" to the feature effect
+            # append the "norm_const" to the feature effect if centering is not False
             if centering is not False:
                 self.feature_effect["feature_" + str(s)]["norm_const"] = self._compute_norm_const(s, method=centering)
             else:
@@ -93,14 +97,8 @@ class ALEBase(GlobalEffect):
                 bin_effect=np.sqrt(params["bin_variance"]),
                 dx=params["dx"],
             )
-            std_err = utils.compute_accumulated_effect(
-                x,
-                limits=params["limits"],
-                bin_effect=np.sqrt(params["bin_estimator_variance"]),
-                dx=params["dx"],
-            )
 
-            return y, std, std_err
+            return y, std
         else:
             return y
 
@@ -111,42 +109,29 @@ class ALEBase(GlobalEffect):
         heterogeneity: bool = False,
         centering: typing.Union[bool, str] = False,
     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
-        """Evaluate the effect of the s-th feature at positions `xs`.
+        """Evalueate the (RH)ALE feature effect of feature `feature` at points `xs`.
 
         Notes:
-            This is a common method among all the FE classes.
+            This is a common method inherited by both ALE and RHALE.
 
         Args:
             feature: index of feature of interest
             xs: the points along the s-th axis to evaluate the FE plot
-
               - `np.ndarray` of shape `(T, )`
+            heterogeneity: whether to return heterogeneity:
 
-            heterogeneity: whether to return the heterogeneity measures.
+                  - `False`, returns the mean effect `y` at the given `xs`
+                  - `True`, returns a tuple `(y, H)` of two `ndarrays`; `y` is the mean effect and `H` is the
+                  heterogeneity evaluated at `xs`
 
-                  - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
-                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
+            centering: whether to center the plot:
 
-            centering: whether to center the PDP
-
-                - If `centering` is `False`, the PDP not centered
-                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the PDP starts from `y=0`.
-
+                - `False` means no centering
+                - `True` or `zero_integral` centers around the `y` axis.
+                - `zero_start` starts the plot from `y=0`.
         Returns:
-            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std, estimator_var)` otherwise
+            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std)` otherwise
 
-        Notes:
-            * If `centering` is `False`, the plot is not centered
-            * If `centering` is `True` or `"zero_integral"`, the plot is centered by subtracting its mean.
-            * If `centering` is `"zero_start"`, the plot starts from zero.
-
-        Notes:
-            * If `heterogeneity` is `False`, the plot returns only the mean effect `y` at the given `xs`.
-            * If `heterogeneity` is `True`, the plot returns `(y, std, estimator_var)` where:
-                * `y` is the mean effect
-                * `std` is the standard deviation of the mean effect
-                * `estimator_var` is the variance of the mean effect estimator
         """
         centering = helpers.prep_centering(centering)
 
@@ -158,7 +143,7 @@ class ALEBase(GlobalEffect):
 
         # Evaluate the feature
         yy = self._eval_unnorm(feature, xs, heterogeneity=heterogeneity)
-        y, std, estimator_var = yy if heterogeneity else (yy, None, None)
+        y, std = yy if heterogeneity else (yy, None)
 
         # Center if asked
         y = (
@@ -167,31 +152,37 @@ class ALEBase(GlobalEffect):
             else y
         )
 
-        return (y, std, estimator_var) if heterogeneity is not False else y
+        return (y, std) if heterogeneity is not False else y
 
     def plot(
         self,
-        feature: int = 0,
-        heterogeneity: typing.Union[bool, str] = False,
-        centering: typing.Union[bool, str] = False,
-        scale_x: typing.Union[None, dict] = None,
-        scale_y: typing.Union[None, dict] = None,
+        feature: int,
+        heterogeneity: bool = False,
+        centering: bool | str = False,
+        scale_x: None | dict = None,
+        scale_y: None | dict = None,
         show_avg_output: bool = False,
         y_limits: None | list = None,
     ):
         """
-        Plot the ALE or RHALE plot for a given feature.
+        Plot the (RH)ALE feature effect of feature `feature`.
+
+        Notes:
+            This is a common method inherited by both ALE and RHALE.
 
         Parameters:
             feature: the feature to plot
-            heterogeneity:
-                - If set to False, no confidence interval will be shown.
-                - If set to "std" or True, the accumulated standard deviation will be shown.
-                - If set to "stderr", the accumulated standard error of the mean will be shown.
-            centering:
-                - If set to False, no centering will be applied.
-                - If set to "zero_integral" or True, the integral of the feature effect will be set to zero.
-                - If set to "zero_mean", the mean of the feature effect will be set to zero.
+            heterogeneity: whether to plot the heterogeneity
+
+                  - `False`, plots only the mean effect
+                  - `True`, the std of the bin-effects will be plotted using a red vertical bar
+
+            centering: whether to center the plot:
+
+                - `False` means no centering
+                - `True` or `zero_integral` centers around the `y` axis.
+                - `zero_start` starts the plot from `y=0`.
+
             scale_x: None or Dict with keys ['std', 'mean']
 
                 - If set to None, no scaling will be applied.
@@ -240,7 +231,7 @@ class ALE(ALEBase):
         self,
         data: np.ndarray,
         model: callable,
-        nof_instances: int | str = "all",
+        nof_instances: int | str = 1000,
         axis_limits: None | np.ndarray = None,
         avg_output: None | float = None,
         feature_names: None | list = None,
@@ -260,6 +251,11 @@ class ALE(ALEBase):
             TODO
             $$
 
+            The std of the bin-effects is:
+            $$
+            TODO
+            $$
+
         Notes:
             - The required parameters are `data` and `model`. The rest are optional.
 
@@ -271,6 +267,11 @@ class ALE(ALEBase):
 
                 - input: `ndarray` of shape `(N, D)`
                 - output: `ndarray` of shape `(N, )`
+
+            nof_instances: the number of instances to use for the explanation
+
+                - use an `int`, to specify the number of instances
+                - use `"all"`, to use all the instances
 
             axis_limits: The limits of the feature effect plot along each axis
 
@@ -347,15 +348,21 @@ class ALE(ALEBase):
 
         Args:
             features: the features to fit. If set to "all", all the features will be fitted.
+
             binning_method:
-                - If set to "fixed", the greedy binning method with default values will be used.
-                - If you want to change the parameters of the method, you can pass an instance of the Fixed class.
 
-            centering: whether to center the ALE plot
+                - If set to `"fixed"`, the ALE plot will be computed with the  default values, which are
+                `20` bins with at least `10` points per bin and the featue is considered as categorical if it has
+                less than `15` unique values.
+                - If you want to change the parameters of the method, you pass an instance of the
+                class `effector.binning_methods.Fixed` with the desired parameters.
+                For example: `Fixed(nof_bins=20, min_points_per_bin=0, cat_limit=10)`
 
-                - If `centering` is `False`, the PDP not centered
-                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the PDP starts from `y=0`.
+            centering: whether to compute the normalization constant for centering the plot:
+
+                - `False` means no centering
+                - `True` or `zero_integral` centers around the `y` axis.
+                - `zero_start` starts the plot from `y=0`.
         """
         assert binning_method == "fixed" or isinstance(
             binning_method, bm.Fixed
@@ -391,6 +398,11 @@ class RHALE(ALEBase):
             TODO
             $$
 
+            The std of the bin-effects is:
+            $$
+            TODO
+            $$
+
         Notes:
             The required parameters are `data` and `model`. The rest are optional.
 
@@ -409,6 +421,9 @@ class RHALE(ALEBase):
                 - output: `ndarray` of shape `(N, D)`
 
             nof_instances: the number of instances to use for the explanation
+
+                - use an `int`, to specify the number of instances
+                - use `"all"`, to use all the instances
 
             axis_limits: The limits of the feature effect plot along each axis
 
@@ -504,19 +519,23 @@ class RHALE(ALEBase):
 
         Args:
             features (int, str, list): the features to fit.
+
                 - If set to "all", all the features will be fitted.
 
             binning_method (str): the binning method to use.
 
-                - If set to "greedy" or bm.Greedy, the greedy binning method will be used.
-                - If set to "dynamic" or bm.DynamicProgramming, the dynamic programming binning method will be used.
-                - If set to "fixed" or bm.Fixed, the fixed binning method will be used.
+                - Use `"greedy"` for using the Greedy binning solution with the default parameters.
+                  For custom parameters initialize a `binning_methods.Greedy` object
+                - Use `"dp"` for using a Dynamic Programming binning solution with the default parameters.
+                  For custom parameters initialize a `binning_methods.DynamicProgramming` object
+                - Use `"fixed"` for using a Fixed binning solution with the default parameters.
+                  For custom parameters initialize a `binning_methods.Fixed` object
 
-            centering: whether to center the RHALE plot
+            centering: whether to compute the normalization constant for centering the plot:
 
-                - If `centering` is `False`, the PDP not centered
-                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the PDP starts from `y=0`.
+                - `False` means no centering
+                - `True` or `zero_integral` centers around the `y` axis
+                - `zero_start` starts the plot from `y=0`
         """
         assert binning_method in [
             "greedy",

@@ -2,18 +2,12 @@
 
 ## Feature Effect Methods
 
-### ::: effector.global_effect.GlobalEffect
-       options:
-         show_root_heading: True
-         show_symbol_type_toc: True
-         members:
-           - eval
-
 ### ::: effector.global_effect_ale.ALEBase
        options:
          show_root_heading: True
          show_symbol_type_toc: True
          members:
+           - eval
            - plot
 
 ### ::: effector.global_effect_ale.ALE
@@ -94,6 +88,29 @@
             - __init__
             - fit
             - plot_first_level
+
+
+## Binning Methods
+### ::: effector.binning_methods.Fixed
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+           - __init__
+
+### ::: effector.binning_methods.Greedy
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+           - __init__
+
+### ::: effector.binning_methods.DynamicProgramming
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+           - __init__
 
 
 ## Utils

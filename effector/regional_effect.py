@@ -276,7 +276,7 @@ class RegionalRHALE(RegionalEffect):
             # heterogeneity is the accumulated std at the end of the curve
             axis_limits = helpers.axis_limits_from_data(data)
             stop = np.array([axis_limits[:, foi][1]])
-            _, z, _ = rhale.eval(feature=foi, xs=stop, heterogeneity=True)
+            _, z = rhale.eval(feature=foi, xs=stop, heterogeneity=True)
             return z.item()
 
         return heter
@@ -408,7 +408,7 @@ class RegionalRHALE(RegionalEffect):
             data_2,
             self.model,
             self.model_jac,
-"all",
+            "all",
             axis_limits,
             data_effect_2,
             feature_names=feature_names_2,

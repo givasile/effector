@@ -242,7 +242,7 @@ class SHAPDependence(GlobalEffect):
 
         if heterogeneity:
             yy_std = self.feature_effect["feature_" + str(feature)]["spline_std"](xs)
-            return yy, yy_std, np.zeros_like(yy_std)
+            return yy, yy_std
         else:
             return yy
 
@@ -292,7 +292,7 @@ class SHAPDependence(GlobalEffect):
         y = self.eval(feature, x, heterogeneity=False, centering=centering)
         y_std = (
             self.feature_effect["feature_" + str(feature)]["spline_std"](x)
-            if heterogeneity == "std"
+            if heterogeneity == "std" or True
             else None
         )
 

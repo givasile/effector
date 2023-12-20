@@ -91,15 +91,15 @@ class PDPBase(GlobalEffect):
             features: the features to fit.
                 - If set to "all", all the features will be fitted.
 
-            centering: whether to center the PDP
+            centering: whether to center the plot:
 
-                - If `centering` is `False`, the PDP not centered
-                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the PDP starts from `y=0`.
+                - `False` means no centering
+                - `True` or `zero_integral` centers around the `y` axis.
+                - `zero_start` starts the plot from `y=0`.
 
             points_for_centering: number of linspaced points along the feature axis used for centering.
 
-                - If set to `all`, all the dataset points will be used.
+                - If set to `"all"`, all the dataset points will be used.
 
         """
         centering = helpers.prep_centering(centering)
@@ -122,14 +122,14 @@ class PDPBase(GlobalEffect):
         heterogeneity: bool = False,
         centering: bool | str = False,
         return_all: bool = False,
-    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
 
         Args:
             feature: index of feature of interest
             xs: the points along the s-th axis to evaluate the FE plot
 
-              - `np.ndarray` of shape `(T,)`
+              - `np.ndarray` of shape `(T, )`
 
             heterogeneity: whether to return the heterogeneity measures.
 
@@ -148,7 +148,7 @@ class PDPBase(GlobalEffect):
                 - If `return_all=True`, the function returns a `ndarray` of shape `(T, N)` with the `N` ICE plots evaluated at `xs`
 
         Returns:
-            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std, estimator_var)` otherwise
+            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std)` otherwise
 
         """
         centering = helpers.prep_centering(centering)
@@ -175,7 +175,7 @@ class PDPBase(GlobalEffect):
 
         if heterogeneity:
             std = np.std(yy, axis=1)
-            return y_pdp, std, np.zeros_like(std)
+            return y_pdp, std
         else:
             return y_pdp
 

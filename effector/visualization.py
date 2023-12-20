@@ -59,13 +59,12 @@ def ale_plot(
     )
 
     x = np.linspace(ale_params["limits"][0], ale_params["limits"][-1], 1000)
-    y, std, std_err = accum_effect_func(feature, x, True, centering)
+    y, std = accum_effect_func(feature, x, True, centering)
 
     # transform
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
     y = y if scale_y is None else trans_affine(y, scale_y["mean"], scale_y["std"])
     std = std if scale_y is None else trans_scale(std, scale_y["std"])
-    std_err = std_err if scale_y is None else trans_scale(std_err, scale_y["std"])
     limits = (
         ale_params["limits"]
         if scale_x is None
@@ -95,7 +94,7 @@ def ale_plot(
         ax1.set_title(title)
 
     # first subplot
-    ale_curve(ax1, x, y, std_err, std, error=error, avg_output=avg_output)
+    ale_curve(ax1, x, y, avg_output=avg_output)
 
     # second subplot
     ale_bins(ax2, bin_effect, bin_variance, limits, dx, error)
@@ -109,32 +108,10 @@ def ale_plot(
     ax2.set_ylabel("dy/dx")
 
 
-def ale_curve(ax1, x, y, std_err, std, error=None, avg_output=None):
+def ale_curve(ax1, x, y, avg_output=None):
     ax1.plot(x, y, "b--", label="global effect")
     if avg_output is not None:
         ax1.axhline(y=avg_output, color="black", linestyle="--", label="avg output")
-
-    # if error == "std":
-    #     ax1.fill_between(x, y - std, y + std, color="red", alpha=0.2, label="std")
-    # elif error == "stderr":
-    #     ax1.fill_between(
-    #         x,
-    #         y - std_err,
-    #         y + std_err,
-    #         color="red",
-    #         alpha=0.6,
-    #         label="standard error",
-    #     )
-    # elif error == "both":
-    #     ax1.fill_between(x, y - std, y + std, color="red", alpha=0.2, label="std")
-    #     ax1.fill_between(
-    #         x,
-    #         y - np.sqrt(std_err),
-    #         y + np.sqrt(std_err),
-    #         color="red",
-    #         alpha=0.6,
-    #         label="standard error",
-    #     )
     ax1.legend()
 
 

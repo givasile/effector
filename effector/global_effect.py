@@ -1,7 +1,6 @@
 import numpy as np
 import typing
 from effector import helpers
-from effector import utils_integrate
 from abc import ABC, abstractmethod
 
 
@@ -13,7 +12,7 @@ class GlobalEffect(ABC):
         method_name: str,
         data: np.ndarray,
         model: typing.Callable,
-        nof_instances: int | str = "all",
+        nof_instances: int | str = 1000,
         axis_limits: None | np.ndarray = None,
         avg_output: None | float = None,
         feature_names: None | list = None,
@@ -43,7 +42,7 @@ class GlobalEffect(ABC):
 
             feature_names: The names of the features
 
-                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
+                - use a `list` of `str`, to specify the name manually. For example: `["age", "weight", ...]`
                 - use `None`, to keep the default names: `["x_0", "x_1", ...]`
 
             target_name: The name of the target variable
@@ -67,7 +66,6 @@ class GlobalEffect(ABC):
 
         self.model: typing.Callable = model
 
-        # TODO: find more elegant way if self.data is very large
         self.avg_output = (
             avg_output if avg_output is not None else np.mean(self.model(self.data))
         )
@@ -120,6 +118,7 @@ class GlobalEffect(ABC):
                     return True
         return False
 
+    @abstractmethod
     def eval(
         self,
         feature: int,
