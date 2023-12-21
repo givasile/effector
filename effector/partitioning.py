@@ -2,7 +2,6 @@ import typing
 import numpy as np
 import itertools
 from effector import helpers, utils
-import treelib
 
 
 BIG_M = helpers.BIG_M
@@ -14,8 +13,10 @@ class Regions:
         feature: int,
         heter_func: callable,
         data: np.ndarray,
-        data_effect: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
+        data_effect: typing.Union[None, np.ndarray],
+        feature_types: typing.Union[list, None],
+        feature_names: list[str],
+        target_name: str,
         categorical_limit: int = 10,
         candidate_conditioning_features: typing.Union[None, list] = None,
         min_points_per_subregion: int = 10,
@@ -31,6 +32,8 @@ class Regions:
         self.dim = self.data.shape[1]
         self.cat_limit = categorical_limit
         self.data_effect = data_effect
+        self.feature_names = feature_names
+        self.target_name = target_name
         self.min_points = min_points_per_subregion
         self.heter_func = heter_func
         self.nof_candidate_splits_for_numerical = nof_candidate_splits_for_numerical
@@ -58,8 +61,11 @@ class Regions:
         self.method_args = {}
 
         # init splits
-        self.splits = {}
-        self.important_splits = {}
+        self.splits: dict = {}
+        self.important_splits: dict = {}
+
+        self.splits_tree: Tree | None = None
+        self.important_splits_tree: Tree | None = None
 
         # state variable
         self.split_found: bool = False
@@ -331,32 +337,84 @@ class Regions:
         if len(self.splits) == 0:
             return None
 
-        tree = CustomTree("x_" + str(self.feature), self.splits[0])
-        parent_level_nodes = [tree.root]
+        tree = Tree()
+        # format with two decimals
+        data = {
+            "heterogeneity": self.splits[0]["heterogeneity"][0].round(2),
+            "feature_name": self.feature,
+            "nof_instances": self.splits[0]["nof_instances"][0],
+            "data": self.data,
+            "data_effect": self.data_effect
+        }
+
+        tree.add_node("root", None, data=data, level=0)
+        parent_level_nodes = ["root"]
+        parent_level_data = [self.data]
+        parent_level_data_effect = [self.data_effect]
         for i, split in enumerate(self.splits[1:]):
 
             # nof nodes to add
             nodes_to_add = len(split["nof_instances"])
 
             new_parent_level_nodes = []
+            new_parent_level_data = []
+            new_parent_level_data_effect = []
+
             # find parent
             for j in range(nodes_to_add):
-                parent = parent_level_nodes[int(j/2)]
+                parent_name = parent_level_nodes[int(j/2)]
+                parent_data = parent_level_data[int(j/2)]
+                parent_data_effect = parent_level_data_effect[int(j/2)]
 
                 # prepare data
+
+                foc_name = self.feature_names[split["feature"]]
+                foc = split["feature"]
+                pos_small = split["position"].round(2)
+                pos = split["position"]
+
+                data_1, data_2 = self.split_dataset(parent_data, None, foc, pos, split["type"])
+                if self.data_effect is not None:
+                    data_effect_1, data_effect_2 = self.split_dataset(parent_data, parent_data_effect, foc, pos, split["type"])
+                else:
+                    data_effect_1, data_effect_2 = None, None
+
+                data_new = data_1 if j % 2 == 0 else data_2
+                data_effect_new = data_effect_1 if j % 2 == 0 else data_effect_2
+                if j % 2 == 0:
+                    if split["type"] == "cat":
+                        name = foc_name + " == {}".format(pos_small)
+                        comparison = "=="
+                    else:
+                        name = foc_name + " <= {}".format(pos_small)
+                        comparison = "<="
+                else:
+                    if split["type"] == "cat":
+                        name = foc_name + " != {}".format(pos_small)
+                        comparison = "!="
+                    else:
+                        name = foc_name + "  > {}".format(pos_small)
+                        comparison = ">"
+
                 data = {
-                "hetereogeneity": split["heterogeneity"][j],
+                "heterogeneity": split["heterogeneity"][j].round(2),
+                "weight": data_new.shape[0] / parent_data.shape[0],
                 "position": split["position"],
                 "feature": split["feature"],
                 "feature_type": split["type"],
                 "range": split["range"],
                 "candidate_split_positions": split["candidate_split_positions"],
                 "nof_instances": split["nof_instances"][j],
+                "data": data_new,
+                "data_effect": data_effect_new,
+                "comparison": comparison
                 }
 
-                name = "x_{} at position {}".format(split["feature"], split["position"])
-                tree.add_node(parent, name, data)
-                new_parent_level_nodes.append(tree.find_node(name))
+                tree.add_node(name, parent_name=parent_name, data=data, level=i)
+
+                new_parent_level_nodes.append(name)
+                new_parent_level_data.append(data_new)
+                new_parent_level_data_effect.append(data_effect_new)
 
             # update parent_level_nodes
             parent_level_nodes = new_parent_level_nodes
@@ -364,7 +422,62 @@ class Regions:
         return tree
 
 
+class Node:
+    def __init__(self, name, parent, data, level):
+        self.name = name
+        self.parent = parent
+        self.data = data
+        self.level = level
 
+
+class Tree:
+    def __init__(self):
+        self.nodes = []
+
+    def add_node(self, name, parent_name, data, level):
+        if parent_name is None:
+            parent_node = None
+        else:
+            assert parent_name in [node.name for node in self.nodes]
+            parent_node = self.get_node(parent_name)
+
+        node = Node(name, parent_node, data, level)
+        self.nodes.append(node)
+
+    def get_node(self, name):
+        node = None
+        for node_i in self.nodes:
+            if node_i.name == name:
+                node = node_i
+                break
+        return node
+
+    def get_root(self):
+        node = None
+        for node_i in self.nodes:
+            if node_i.parent is None:
+                node = node_i
+                break
+        assert node is not None
+        return node
+
+    def get_children(self, name):
+        children = []
+        for node_i in self.nodes:
+            if node_i.parent is not None:
+                if node_i.parent.name == name:
+                    children.append(node_i)
+        return children
+
+    def show(self, node=None, indent=0):
+        if node is None:
+            node = self.get_root()
+
+        print("  " * indent + f"{node.name}, heter: {node.data['heterogeneity']}")
+
+        children = self.get_children(node.name)
+        for child in children:
+            self.show(child, indent + 2)
 
 
 class DataTransformer:
@@ -459,115 +572,3 @@ class DataTransformer:
 
 def rename_features():
     pass
-
-
-# def pdp_heter(data, model, model_jac, foi, min_points=15):
-#     # if data is empty, return zero
-#     if data.shape[0] < min_points:
-#         return BIG_M
-#     feat = foi
-#
-#     # Initialize dpdp
-#     axis_limits = helpers.axis_limits_from_data(data)
-#     nof_instances = 100
-#     dpdp = pdp.DerivativePDP(data, model, model_jac, axis_limits, nof_instances)
-#
-#     # Fit dpdp
-#     dpdp.fit(features=foi, normalize=False)
-#
-#     start = axis_limits[:, feat][0]
-#     stop = axis_limits[:, feat][1]
-#
-#     x = np.linspace(start, stop, 21)
-#     x = 0.5 * (x[:-1] + x[1:])
-#
-#     pdp_m, pdp_std, pdp_stderr = dpdp._eval_unnorm(feature=feat, x=x, uncertainty=True)
-#     z = np.mean(pdp_std)
-#     return z
-
-
-# def split_pdp(
-#     model,
-#     model_jac,
-#     data,
-#     D1: list,
-#     foi: int,
-#     feature_types: list,
-#     foc: list,
-#     nof_splits: int,
-#     cat_limit,
-#     min_points=15,
-# ):
-#     heterogen = pdp_heter
-#
-#     # initialize I[i,j] where i is the feature of conditioning and j is the split position
-#     big_M = 1000000
-#     I = np.ones([len(foc), np.max(nof_splits, cat_limit)]) * big_M
-#
-#     nof_instances = 100
-#     axis_limits = helpers.axis_limits_from_data(data)
-#
-#     # evaluate heterogeneity before split
-#     print("evaluate heterogeneity before split")
-#     I_start = np.mean([heterogen(D, model, model_jac, foi, min_points) for D in D1])
-#
-#     # for each feature of conditioning
-#     for i, foc_i in enumerate(tqdm(foc)):
-#         # if feature is categorical, split at each possible value
-#         if feature_types[i] == "cat":
-#             for j, position in enumerate(np.unique(data[:, foc_i])):
-#                 # evaluate criterion (integral) after split
-#                 D2 = []
-#                 for d in D1:
-#                     D2.append(d[d[:, foc_i] == position])
-#                     D2.append(d[d[:, foc_i] != position])
-#                 I[i, j] = np.mean(
-#                     [heterogen(d, model, model_jac, foi, min_points) for d in D2]
-#                 )
-#         # else split at nof_splits positions
-#         else:
-#             step = (axis_limits[1, foc_i] - axis_limits[0, foc_i]) / nof_splits
-#             for j in range(nof_splits):
-#                 # find split position as the middle of the j-th interval
-#                 position = axis_limits[0, foc_i] + (j + 0.5) * step
-#
-#                 # evaluate criterion (integral) after split
-#                 D2 = []
-#                 for d in D1:
-#                     D2.append(d[d[:, foc_i] < position])
-#                     D2.append(d[d[:, foc_i] >= position])
-#                 I[i, j] = np.mean(
-#                     [heterogen(d, model, model_jac, foi, min_points) for d in D2]
-#                 )
-#
-#     # find minimum heterogeneity split
-#     i, j = np.unravel_index(np.argmin(I, axis=None), I.shape)
-#     feature = foc[i]
-#     if feature_types[i] == "cat":
-#         position = np.unique(data[:, feature])[j]
-#     else:
-#         position = axis_limits[0, feature] + (j + 0.5) * step
-#     return I_start, I, i, j, feature, position, feature_types[i]
-
-
-from anytree import Node, RenderTree
-
-
-class CustomTree:
-    def __init__(self, root_name, data):
-        self.root = Node(root_name, data=data)
-        self.nodes = [self.root]
-
-    def add_node(self, parent_node, child_name, data):
-        child_node = Node(child_name, data=data, parent=parent_node)
-        self.nodes.append(child_node)
-
-    def find_node(self, name):
-        for node in self.nodes:
-            if node.name == name:
-                return node
-        return None
-
-    def print_tree(self):
-        print(RenderTree(self.root))
-

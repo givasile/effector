@@ -9,6 +9,7 @@ T = 1000
 
 # create data, model
 data = np.stack([np.random.uniform(-1, 1, N + 1), np.random.randint(0, 2, N + 1)], axis=1)
+y = np.zeros_like(data[:, 0])
 
 model = lambda x: np.where(x[:, 1] == 0, x[:, 0], -x[:, 0])
 model_jac = lambda x: np.stack([np.where(x[:, 1] == 0, 1, -1), np.zeros_like(x[:, 1])], axis=1)
@@ -26,5 +27,9 @@ regional_pdp.fit("all",
                  split_categorical_features=False)
 
 regional_pdp.describe_subregions("all")
-regional_pdp.plot_first_level(0)
-regional_pdp.describe_subregions_tree("all")
+# regional_pdp.plot_first_level(0)
+# regional_pdp.describe_subregions_tree(0)
+
+# x0_tree = regional_pdp.splits_full_depth_tree["feature_0"]
+
+# x0_dict = regional_pdp.splits_full_depth["feature_0"]

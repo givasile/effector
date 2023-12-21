@@ -51,7 +51,7 @@ class RegionalEffect:
             if feature_types is None
             else feature_types
         )
-        feature_names = (
+        feature_names: list[str] = (
             helpers.get_feature_names(axis_limits.shape[1])
             if feature_names is None
             else feature_names
@@ -60,8 +60,8 @@ class RegionalEffect:
         self.cat_limit = cat_limit
 
         self.axis_limits: np.ndarray = axis_limits
-        self.feature_types: typing.Union[list, None] = feature_types
-        self.feature_names: typing.Union[list, None] = feature_names
+        self.feature_types: list = feature_types
+        self.feature_names: list = feature_names
         self.target_name = target_name
         self.dim = self.axis_limits.shape[1]
 
@@ -101,6 +101,8 @@ class RegionalEffect:
             self.data,
             None,
             self.feature_types,
+            self.feature_names,
+            self.target_name,
             self.cat_limit,
             candidate_conditioning_features,
             min_points_per_subregion,
@@ -151,8 +153,7 @@ class RegionalEffect:
             if self.splits_full_depth_tree["feature_{}".format(feat)] is None:
                 print("No important splits found for feature {}".format(feat))
             else:
-                self.splits_full_depth_tree["feature_{}".format(feat)].print_tree()
-
+                self.splits_full_depth_tree["feature_{}".format(feat)].show()
 
     def describe_subregions(
         self,
@@ -165,9 +166,7 @@ class RegionalEffect:
             if not self.splits_full_depth_found[feature]:
                 self._fit_feature(feature)
 
-            feature_name = (
-                self.feature_names[feature] if self.feature_names else feature
-            )
+            feature_name = self.feature_names[feature]
             if only_important:
                 splits = self.splits_only_important[
                     "feature_{}".format(feature)
@@ -185,11 +184,7 @@ class RegionalEffect:
 
             for i, split in enumerate(splits):
                 type_of_split_feature = self.feature_types[split["feature"]]
-                foc_name = (
-                    split["feature"]
-                    if self.feature_names is None
-                    else self.feature_names[split["feature"]]
-                )
+                foc_name = self.feature_names[split["feature"]]
                 print("- On feature {} ({})".format(foc_name, type_of_split_feature))
 
                 x_start, x_stop = split["range"][0], split["range"][1]

@@ -123,7 +123,7 @@ def prep_binning_method(method):
 
 def get_feature_names(dim: int) -> list:
     """Returns the feature names for the given dimensionality"""
-    return [i for i in range(dim)]
+    return ["x_" + str(i) for i in range(dim)]
 
 
 def prep_avg_output(data, model, avg_output, scale_y) -> float:
