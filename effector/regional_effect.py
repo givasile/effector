@@ -77,6 +77,7 @@ class RegionalEffect:
         self.splits_full_depth: typing.Dict[str, list[dict]] = {}
         self.splits_full_depth_tree: typing.Dict = {}
         self.splits_only_important: typing.Dict[str, list[dict]] = {}
+        self.splits_only_important_tree: dict = {}
 
     def _fit_feature(
         self,
@@ -126,6 +127,7 @@ class RegionalEffect:
         self.splits_only_important_found[feature] = True
 
         self.splits_full_depth_tree["feature_{}".format(feature)] = regions.splits_to_tree()
+        self.splits_only_important_tree["feature_{}".format(feature)] = regions.splits_to_tree(True)
 
     def refit(self, feature, centering):
         "Checks if refitting is needed"
@@ -143,7 +145,25 @@ class RegionalEffect:
     def plot_first_level(self, *args, **kwargs):
         raise NotImplementedError
 
-    def describe_subregions_tree(self, features):
+    def print_tree(self, features, only_important=True):
+        features = helpers.prep_features(features, self.dim)
+        for feat in features:
+            if not self.splits_full_depth_found[feat]:
+                self._fit_feature(feat)
+
+            print("Feature {}".format(feat))
+            if only_important:
+                if self.splits_only_important_tree["feature_{}".format(feat)] is None:
+                    print("No important splits found for feature {}".format(feat))
+                else:
+                    self.splits_only_important_tree["feature_{}".format(feat)].show()
+            else:
+                if self.splits_full_depth_tree["feature_{}".format(feat)] is None:
+                    print("No important splits found for feature {}".format(feat))
+                else:
+                    self.splits_full_depth_tree["feature_{}".format(feat)].show()
+
+    def print_level_stats(self, features):
         features = helpers.prep_features(features, self.dim)
         for feat in features:
             if not self.splits_full_depth_found[feat]:
@@ -153,7 +173,7 @@ class RegionalEffect:
             if self.splits_full_depth_tree["feature_{}".format(feat)] is None:
                 print("No important splits found for feature {}".format(feat))
             else:
-                self.splits_full_depth_tree["feature_{}".format(feat)].show()
+                self.splits_full_depth_tree["feature_{}".format(feat)].show1()
 
     def describe_subregions(
         self,
@@ -166,102 +186,54 @@ class RegionalEffect:
             if not self.splits_full_depth_found[feature]:
                 self._fit_feature(feature)
 
+            # it means it a categorical feature
+            if self.splits_full_depth_tree["feature_{}".format(feature)] is None:
+                continue
+
             feature_name = self.feature_names[feature]
             if only_important:
-                splits = self.splits_only_important[
-                    "feature_{}".format(feature)
-                ]
-                if len(splits) == 0:
+                tree = self.splits_only_important_tree["feature_{}".format(feature)]
+                if len(tree.nodes) == 1:
                     print("No important splits found for feature {}".format(feature))
                     continue
                 else:
                     print("Important splits for feature {}".format(feature_name))
             else:
                 print("All splits for feature {}".format(feature_name))
-                splits = self.splits_full_depth[
-                    "feature_{}".format(feature)
-                ][1:]
+                tree = self.splits_full_depth_tree["feature_{}".format(feature)]
 
-            for i, split in enumerate(splits):
-                type_of_split_feature = self.feature_types[split["feature"]]
-                foc_name = self.feature_names[split["feature"]]
+            max_level = max([node.level for node in tree.nodes])
+            for level in range(1, max_level+1):
+                previous_level_nodes = tree.get_level_nodes(level-1)
+                level_nodes = tree.get_level_nodes(level)
+                type_of_split_feature = level_nodes[0].data["feature_type"]
+                foc_name = self.feature_names[level_nodes[0].data["feature"]]
                 print("- On feature {} ({})".format(foc_name, type_of_split_feature))
 
-                x_start, x_stop = split["range"][0], split["range"][1]
-                if scale_x is not None:
-                    x_start = (
-                        x_start * scale_x[split["feature"]]["std"]
-                        + scale_x[split["feature"]]["mean"]
-                    )
-                    x_stop = (
-                        x_stop * scale_x[split["feature"]]["std"]
-                        + scale_x[split["feature"]]["mean"]
-                    )
-                range_formatted = "[{:.2f}, {:.2f}]".format(x_start, x_stop)
-                print("  - Range: {}".format(range_formatted))
-
-                candidate_splits_formatted = (
-                    ", ".join(
-                        ["{:.2f}".format(x) for x in split["candidate_split_positions"]]
-                    )
-                    if scale_x is None
-                    else ", ".join(
-                        [
-                            "{:.2f}".format(
-                                x * scale_x[split["feature"]]["std"]
-                                + scale_x[split["feature"]]["mean"]
-                            )
-                            for x in split["candidate_split_positions"]
-                        ]
-                    )
-                )
-                print(
-                    "  - Candidate split positions: {}".format(
-                        candidate_splits_formatted
-                    )
-                )
                 position_split_formatted = (
-                    "{:.2f}".format(split["position"])
+                    "{:.2f}".format(level_nodes[0].data["position"])
                     if scale_x is None
                     else "{:.2f}".format(
-                        split["position"] * scale_x[split["feature"]]["std"]
-                        + scale_x[split["feature"]]["mean"]
+                        level_nodes[0].data["position"] * scale_x[level_nodes[0].data["feature"]]["std"]
+                        + scale_x[level_nodes[0].data["feature"]]["mean"]
                     )
                 )
                 print("  - Position of split: {}".format(position_split_formatted))
 
-                print(
-                    "  - Heterogeneity before split: {:.2f}".format(
-                        split["weighted_heter"] + split["weighted_heter_drop"]
-                    )
-                )
-                print(
-                    "  - Heterogeneity after split: {:.2f}".format(
-                        split["weighted_heter"]
-                    )
-                )
-                print(
-                    "  - Heterogeneity drop: {:.2f} ({:.2f} %)".format(
-                        split["weighted_heter_drop"],
-                        (split["weighted_heter_drop"] / (split["weighted_heter"] + split["weighted_heter_drop"]) * 100),
-                    )
+                weight_heter_before = np.sum([node.data["weight"] * node.data["heterogeneity"] for node in previous_level_nodes])
+                print("  - Heterogeneity before split: {:.2f}".format(weight_heter_before))
+
+                weight_heter = np.sum([node.data["weight"] * node.data["heterogeneity"] for node in level_nodes])
+                print("  - Heterogeneity after split: {:.2f}".format(weight_heter))
+                weight_heter_drop = weight_heter_before - weight_heter
+                print("  - Heterogeneity drop: {:.2f} ({:.2f} %)".format(
+                    weight_heter_drop, weight_heter_drop / weight_heter_before * 100)
                 )
 
-                nof_instances_before = (
-                    sum(split["nof_instances"])
-                    if i == 0
-                    else splits[i - 1]["nof_instances"]
-                )
-                print(
-                    "  - Number of instances before split: {}".format(
-                        nof_instances_before
-                    )
-                )
-                print(
-                    "  - Number of instances after split: {}".format(
-                        split["nof_instances"]
-                    )
-                )
+                nof_instances_before = [nod.data["nof_instances"] for nod in previous_level_nodes]
+                print("  - Number of instances before split: {}".format(nof_instances_before))
+                nof_instances = [nod.data["nof_instances"] for nod in level_nodes]
+                print("  - Number of instances after split: {}".format(nof_instances))
 
 
 class RegionalRHALEBase(RegionalEffect):
@@ -391,23 +363,21 @@ class RegionalRHALEBase(RegionalEffect):
         if not self.splits_full_depth_found[feature]:
             self._fit_feature(feature)
 
-        regions = self.regions["feature_{}".format(feature)]
-        splits = self.splits_only_important["feature_{}".format(feature)]
+        tree = self.splits_only_important_tree["feature_{}".format(feature)]
+        level_nodes = tree.get_level_nodes(level=1)
 
-        if len(splits) == 0:
+        if len(tree.nodes) == 1:
             print("No important splits found for feature {}".format(feature))
             return
 
         # split to two datasets
-        foc = splits[0]["feature"]
-        position = splits[0]["position"]
+        foc = level_nodes[0].data["feature"]
+        position = level_nodes[0].data["position"]
         type_of_split_feature = self.feature_types[foc]
-        data_1, data_2 = regions.split_dataset(
-            self.data, None, foc, position, type_of_split_feature
-        )
-        data_effect_1, data_effect_2 = regions.split_dataset(
-            self.data, self.instance_effects, foc, position, type_of_split_feature
-        )
+        data_1 = level_nodes[0].data["data"]
+        data_2 = level_nodes[1].data["data"]
+        data_effect_1 = level_nodes[0].data["data_effect"]
+        data_effect_2 = level_nodes[1].data["data_effect"]
         axis_limits = helpers.axis_limits_from_data(self.data)
 
         # plot the two RHALE objects
@@ -577,20 +547,19 @@ class RegionalPDP(RegionalEffect):
         if not self.splits_full_depth_found[feature]:
             self._fit_feature(feature)
 
-        regions = self.regions["feature_{}".format(feature)]
-        splits = self.splits_only_important["feature_{}".format(feature)]
+        tree = self.splits_only_important_tree["feature_{}".format(feature)]
+        level_nodes = tree.get_level_nodes(level=1)
 
-        if len(splits) == 0:
+        if len(tree.nodes) == 1:
             print("No important splits found for feature {}".format(feature))
             return
 
         # split to two datasets
-        foc = splits[0]["feature"]
-        position = splits[0]["position"]
+        foc = level_nodes[0].data["feature"]
+        position = level_nodes[0].data["position"]
         type_of_split_feature = self.feature_types[foc]
-        data_1, data_2 = regions.split_dataset(
-            self.data, None, foc, position, type_of_split_feature
-        )
+        data_1 = level_nodes[0].data["data"]
+        data_2 = level_nodes[1].data["data"]
         axis_limits = helpers.axis_limits_from_data(self.data)
 
         # plot the two RHALE objects

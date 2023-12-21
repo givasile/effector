@@ -28,8 +28,8 @@ regional_pdp.fit("all",
 
 regional_pdp.describe_subregions("all")
 # regional_pdp.plot_first_level(0)
-# regional_pdp.describe_subregions_tree(0)
+regional_pdp.print_tree(0)
 
-# x0_tree = regional_pdp.splits_full_depth_tree["feature_0"]
+x0_tree = regional_pdp.splits_full_depth_tree["feature_0"]
 
-# x0_dict = regional_pdp.splits_full_depth["feature_0"]
+x0_dict = regional_pdp.splits_full_depth["feature_0"]

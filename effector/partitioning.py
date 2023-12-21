@@ -333,25 +333,30 @@ class Regions:
     def flatten_list(self, l):
         return [item for sublist in l for item in sublist]
 
-    def splits_to_tree(self):
+    def splits_to_tree(self, only_important=False):
         if len(self.splits) == 0:
             return None
 
+        nof_instances = self.splits[0]["nof_instances"][0]
         tree = Tree()
         # format with two decimals
         data = {
-            "heterogeneity": self.splits[0]["heterogeneity"][0].round(2),
+            "heterogeneity": self.splits[0]["heterogeneity"][0],
             "feature_name": self.feature,
             "nof_instances": self.splits[0]["nof_instances"][0],
             "data": self.data,
-            "data_effect": self.data_effect
+            "data_effect": self.data_effect,
+            "weight": 1
         }
 
         tree.add_node("root", None, data=data, level=0)
+
+
         parent_level_nodes = ["root"]
         parent_level_data = [self.data]
         parent_level_data_effect = [self.data_effect]
-        for i, split in enumerate(self.splits[1:]):
+        splits = self.important_splits if only_important else self.splits[1:]
+        for i, split in enumerate(splits):
 
             # nof nodes to add
             nodes_to_add = len(split["nof_instances"])
@@ -397,8 +402,8 @@ class Regions:
                         comparison = ">"
 
                 data = {
-                "heterogeneity": split["heterogeneity"][j].round(2),
-                "weight": data_new.shape[0] / parent_data.shape[0],
+                "heterogeneity": split["heterogeneity"][j],
+                "weight": data_new.shape[0] / nof_instances,
                 "position": split["position"],
                 "feature": split["feature"],
                 "feature_type": split["type"],
@@ -407,10 +412,10 @@ class Regions:
                 "nof_instances": split["nof_instances"][j],
                 "data": data_new,
                 "data_effect": data_effect_new,
-                "comparison": comparison
+                "comparison": comparison,
                 }
 
-                tree.add_node(name, parent_name=parent_name, data=data, level=i)
+                tree.add_node(name, parent_name=parent_name, data=data, level=i+1)
 
                 new_parent_level_nodes.append(name)
                 new_parent_level_data.append(data_new)
@@ -418,6 +423,8 @@ class Regions:
 
             # update parent_level_nodes
             parent_level_nodes = new_parent_level_nodes
+            parent_level_data = new_parent_level_data
+            parent_level_data_effect = new_parent_level_data
 
         return tree
 
@@ -452,6 +459,13 @@ class Tree:
                 break
         return node
 
+    def get_level_nodes(self, level):
+        nodes = []
+        for node_i in self.nodes:
+            if node_i.level == level:
+                nodes.append(node_i)
+        return nodes
+
     def get_root(self):
         node = None
         for node_i in self.nodes:
@@ -469,15 +483,33 @@ class Tree:
                     children.append(node_i)
         return children
 
-    def show(self, node=None, indent=0):
+    def get_level_stats(self, level):
+        level_nodes = self.get_level_nodes(level)
+        nof_instances = self.get_root().data["nof_instances"]
+
+        w_heter = 0
+        for nod in level_nodes:
+            w_heter += nod.data["heterogeneity"] * nod.data["weight"]
+
+        return {"heterogeneity": w_heter}
+
+    def show(self, node=None):
         if node is None:
             node = self.get_root()
 
-        print("  " * indent + f"{node.name}, heter: {node.data['heterogeneity']}")
-
+        indent = node.level*2
+        print("  " * indent + " split: %s, heter: %.2f, nof_instances: %5d, weight: %.2f" % (node.name, node.data['heterogeneity'], node.data['nof_instances'], node.data['weight']))
         children = self.get_children(node.name)
         for child in children:
-            self.show(child, indent + 2)
+            self.show(child)
+
+    def show1(self, node=None):
+        max_level = max([node.level for node in self.nodes])
+        for lev in range(max_level+1):
+            level_stats = self.get_level_stats(lev)
+            print("  " * lev*2 + " Level %.d, heter: %.2f" % (lev, level_stats['heterogeneity']))
+
+
 
 
 class DataTransformer:
