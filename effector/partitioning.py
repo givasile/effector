@@ -349,10 +349,9 @@ class Regions:
             "weight": 1
         }
 
-        tree.add_node("root", None, data=data, level=0)
-
-
-        parent_level_nodes = ["root"]
+        feature_name = self.feature_names[self.feature]
+        tree.add_node(feature_name, None, data=data, level=0)
+        parent_level_nodes = [feature_name]
         parent_level_data = [self.data]
         parent_level_data_effect = [self.data_effect]
         splits = self.important_splits if only_important else self.splits[1:]
@@ -401,6 +400,8 @@ class Regions:
                         name = foc_name + "  > {}".format(pos_small)
                         comparison = ">"
 
+                name = parent_name + " | " + name if nodes_to_add == 2 else parent_name + " and " + name
+
                 data = {
                 "heterogeneity": split["heterogeneity"][j],
                 "weight": data_new.shape[0] / nof_instances,
@@ -430,16 +431,52 @@ class Regions:
 
 
 class Node:
-    def __init__(self, name, parent, data, level):
+    def __init__(self, name, parent_node, data, level):
         self.name = name
-        self.parent = parent
+        self.parent_node = parent_node
         self.data = data
         self.level = level
+
+        self.heterogeneity = data["heterogeneity"]
+        self.weight = data["weight"]
+        self.nof_instances = data["nof_instances"]
+
+        self.foc = data["feature"] if "feature" in data else None
+        self.foc_type = data["feature_type"] if "feature_type" in data else None
+        self.foc_position = data["position"] if "position" in data else None
+        self.comparison = data["comparison"] if "comparison" in data else None
+        self.candidate_split_positions = data["candidate_split_positions"] if "candidate_split_positions" in data else None
+        self.range = data["range"] if "range" in data else None
+
+    def show(self, show_data=False):
+        print("name: ", self.name)
+        print("parent name: ", self.parent_node.name if self.parent_node is not None else None)
+        print("level: ", self.level)
+
+        print("heterogeneity: ", self.heterogeneity)
+        print("weight: ", self.weight)
+        print("nof_instances: ", self.nof_instances)
+
+        print("foc: ", self.foc)
+        print("foc_type: ", self.foc_type)
+        print("foc_position: ", self.foc_position)
+        print("comparison: ", self.comparison)
+
+        print("data: ", self.data) if show_data else None
 
 
 class Tree:
     def __init__(self):
         self.nodes = []
+
+    # def rename_nodes(self, scale_x_per_feature):
+    #     # traverse tree from root to leaves
+    #     root = self.get_root()
+    #
+    #     # get children of root
+    #     children = self.get_children(root.name)
+    #     for child in children:
+    #         child.node.name = "x{}".format(child.node.data["feature"])
 
     def add_node(self, name, parent_name, data, level):
         if parent_name is None:
@@ -469,7 +506,7 @@ class Tree:
     def get_root(self):
         node = None
         for node_i in self.nodes:
-            if node_i.parent is None:
+            if node_i.parent_node is None:
                 node = node_i
                 break
         assert node is not None
@@ -478,8 +515,8 @@ class Tree:
     def get_children(self, name):
         children = []
         for node_i in self.nodes:
-            if node_i.parent is not None:
-                if node_i.parent.name == name:
+            if node_i.parent_node is not None:
+                if node_i.parent_node.name == name:
                     children.append(node_i)
         return children
 

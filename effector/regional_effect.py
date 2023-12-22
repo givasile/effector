@@ -12,14 +12,15 @@ from tqdm import tqdm
 BIG_M = helpers.BIG_M
 
 
-# base method for all regional effect methods
-class RegionalEffect:
+class RegionalEffectBase:
+    empty_symbol = helpers.EMPTY_SYMBOL
+
     def __init__(
         self,
+        method_name: str,
         data: np.ndarray,
         model: callable,
         nof_instances: int | str = 100,
-        instance_effects: typing.Union[None, np.ndarray] = None,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
         cat_limit: typing.Union[int, None] = 10,
@@ -28,19 +29,16 @@ class RegionalEffect:
     ) -> None:
         """
         Constructor for the RegionalEffect class.
-
-
         """
+        self.method_name = method_name.lower()
+
         # select nof_instances from the data
         self.nof_instances, self.indices = helpers.prep_nof_instances(
             nof_instances, data.shape[0]
         )
         data = data[self.indices, :]
-        if instance_effects is not None:
-            instance_effects = instance_effects[self.indices, :]
-
         self.data = data
-        self.instance_effects = instance_effects
+        self.dim = self.data.shape[1]
         self.model = model
 
         axis_limits = (
@@ -74,9 +72,9 @@ class RegionalEffect:
 
         # dictionary with all the information required for plotting or evaluating the regional effects
         self.regions: typing.Dict[str, Regions] = {}
-        self.splits_full_depth: typing.Dict[str, list[dict]] = {}
+        # self.splits_full_depth: typing.Dict[str, list[dict]] = {}
         self.splits_full_depth_tree: typing.Dict = {}
-        self.splits_only_important: typing.Dict[str, list[dict]] = {}
+        # self.splits_only_important: typing.Dict[str, list[dict]] = {}
         self.splits_only_important_tree: dict = {}
 
     def _fit_feature(
@@ -117,13 +115,13 @@ class RegionalEffect:
         self.regions["feature_{}".format(feature)] = regions
         splits = regions.search_all_splits()
 
-        self.splits_full_depth["feature_{}".format(feature)] = splits
+        # self.splits_full_depth["feature_{}".format(feature)] = splits
         self.splits_full_depth_found[feature] = True
 
         important_splits = regions.choose_important_splits()
-        self.splits_only_important[
-            "feature_{}".format(feature)
-        ] = important_splits
+        # self.splits_only_important[
+        #     "feature_{}".format(feature)
+        # ] = important_splits
         self.splits_only_important_found[feature] = True
 
         self.splits_full_depth_tree["feature_{}".format(feature)] = regions.splits_to_tree()
@@ -134,6 +132,7 @@ class RegionalEffect:
         if not self.splits_full_depth_found[feature]:
             return True
         else:
+            # TODO: change that, we want refiting in many cases
             if centering is not False:
                 if self.method_args["feature_" + str(feature)]["centering"] != centering:
                     return True
@@ -236,12 +235,13 @@ class RegionalEffect:
                 print("  - Number of instances after split: {}".format(nof_instances))
 
 
-class RegionalRHALEBase(RegionalEffect):
+class RegionalRHALEBase(RegionalEffectBase):
     def __init__(
         self,
         data: np.ndarray,
         model: callable,
-        model_jac: callable,
+        model_jac: typing.Union[None, callable] = None,
+        instance_effects: None | np.ndarray = None,
         nof_instances: int | str = 100,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
@@ -262,15 +262,22 @@ class RegionalRHALEBase(RegionalEffect):
             feature_names: list of feature names
         """
         self.model_jac = model_jac
-        instance_effects = self.model_jac(data)
-
         self.nof_instances, self.indices = helpers.prep_nof_instances(
             nof_instances, data.shape[0]
         )
+        instance_effects = self.model_jac(data)
         data = data[self.indices, :]
+
         instance_effects = instance_effects[self.indices, :]
+        self.instance_effects = instance_effects
         super(RegionalRHALEBase, self).__init__(
-            data, model, "all", instance_effects, axis_limits, feature_types, cat_limit, feature_names, target_name
+            "rhale",
+            data,
+            model,
+            "all",
+            axis_limits,
+            feature_types,
+            cat_limit, feature_names, target_name
         )
 
     def _create_heterogeneity_function(self, foi, binning_method, min_points=10):
@@ -445,7 +452,7 @@ class RegionalRHALEBase(RegionalEffect):
         )
 
 
-class RegionalPDP(RegionalEffect):
+class RegionalPDP(RegionalEffectBase):
     def __init__(
         self,
         data: np.ndarray,
@@ -467,7 +474,7 @@ class RegionalPDP(RegionalEffect):
             cat_limit: the minimum number of unique values for a feature to be considered categorical
             feature_names: list of feature names
         """
-        super(RegionalPDP, self).__init__(data, model, nof_instances, None, axis_limits, feature_types, cat_limit, feature_names)
+        super(RegionalPDP, self).__init__("pdp", data, model, nof_instances, axis_limits, feature_types, cat_limit, feature_names)
 
     def _create_heterogeneity_function(self, foi, min_points=10):
         def heter(data) -> float:
@@ -623,3 +630,16 @@ class RegionalPDP(RegionalEffect):
             centering=centering,
             show_avg_output=show_avg_output
         )
+
+
+def scale_names(scale_x_per_feature, feature_name):
+    # Example feature name: "x_1 | x_2 != 0.0 and x_0  > 0.1"
+    # Example scale_x_per_feature: {"feature_0": {"mean": 0.1, "std": 0.2}, "feature_1": {"mean": 0.1, "std": 0.2}, "feature_3": {"mean": 0.1, "std": 0.2}}
+    # I want to make it "x_1 | x_2 != 0.0*0.2 + 0.1 and x_0  > 0.1*0.2 + 0.1"
+
+
+    # split the feature name into the feature name and the condition
+    feature_name, condition = feature_name.split("|")
+
+        # for each feature in the condition, replace the feature name with the scaled feature name
+

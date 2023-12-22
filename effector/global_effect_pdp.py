@@ -3,11 +3,11 @@ import copy
 import numpy as np
 import effector.visualization as vis
 import effector.helpers as helpers
-from effector.global_effect import GlobalEffect
+from effector.global_effect import GlobalEffectBase
 import matplotlib.pyplot as plt
 
 
-class PDPBase(GlobalEffect):
+class PDPBase(GlobalEffectBase):
     def __init__(
         self,
         data: np.ndarray,
@@ -33,7 +33,7 @@ class PDPBase(GlobalEffect):
         )
 
     def _predict(self, data, xx, feature):
-        if self.method_name == "PDP":
+        if self.method_name == "pdp":
             y = pdp_1d_vectorized(
                 self.model, data, xx, feature, False, False, True
             )
@@ -231,15 +231,15 @@ class PDPBase(GlobalEffect):
         else:
             avg_output = None
 
-        title = "PDP" if self.method_name == "PDP" else "d-PDP"
+        title = "PDP" if self.method_name == "pdp" else "d-PDP"
         vis.plot_pdp_ice(
             x,
             feature,
             yy=yy,
             title=title,
             confidence_interval=heterogeneity,
-            y_pdp_label="PDP" if self.method_name == "PDP" else "d-PDP",
-            y_ice_label="ICE" if self.method_name == "PDP" else "d-ICE",
+            y_pdp_label="PDP" if self.method_name == "pdp" else "d-PDP",
+            y_ice_label="ICE" if self.method_name == "pdp" else "d-ICE",
             scale_x=scale_x,
             scale_y=scale_y,
             avg_output=avg_output,

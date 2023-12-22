@@ -62,7 +62,7 @@
 
 ## Regional Effect Methods
 
-### ::: effector.regional_effect.RegionalEffect
+### ::: effector.regional_effect.RegionalEffectBase
        options:
          show_root_heading: True
          show_symbol_type_toc: True

@@ -4,7 +4,7 @@ from effector import helpers
 from abc import ABC, abstractmethod
 
 
-class GlobalEffect(ABC):
+class GlobalEffectBase(ABC):
     empty_symbol = helpers.EMPTY_SYMBOL
 
     def __init__(
@@ -22,6 +22,7 @@ class GlobalEffect(ABC):
         Constructor for the FeatureEffectBase class.
 
         Args:
+            method_name: the name of the method used to compute the feature effect
             data: the design matrix
 
                 - shape: `(N,D)`
@@ -53,7 +54,7 @@ class GlobalEffect(ABC):
         """
         assert data.ndim == 2
 
-        self.method_name: str = method_name
+        self.method_name: str = method_name.lower()
 
         # select nof_instances from the data
         self.nof_instances, self.indices = helpers.prep_nof_instances(

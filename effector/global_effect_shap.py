@@ -1,13 +1,13 @@
 import typing
 import effector.visualization as vis
 import effector.helpers as helpers
-from effector.global_effect import GlobalEffect
+from effector.global_effect import GlobalEffectBase
 import numpy as np
 import shap
 from scipy.interpolate import UnivariateSpline
 
 
-class SHAPDependence(GlobalEffect):
+class SHAPDependence(GlobalEffectBase):
     def __init__(
         self,
         data: np.ndarray,

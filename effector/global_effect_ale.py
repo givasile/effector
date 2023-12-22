@@ -4,12 +4,12 @@ import effector.visualization as vis
 import effector.binning_methods as bm
 import effector.helpers as helpers
 import effector.utils_integrate as utils_integrate
-from effector.global_effect import GlobalEffect
+from effector.global_effect import GlobalEffectBase
 from abc import abstractmethod
 import numpy as np
 
 
-class ALEBase(GlobalEffect):
+class ALEBase(GlobalEffectBase):
     def __init__(
         self,
         data: np.ndarray,

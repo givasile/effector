@@ -35,7 +35,7 @@ regional_pdp = effector.RegionalPDP(data, model, nof_instances=1000)
 regional_pdp.fit("all",
                  heter_pcg_drop_thres=0.1,
                  heter_small_enough=0.1,
-                 max_split_levels=1,
+                 max_split_levels=2,
                  nof_candidate_splits_for_numerical=10,
                  min_points_per_subregion=10,
                  candidate_conditioning_features="all",
@@ -45,9 +45,7 @@ regional_pdp.describe_subregions("all")
 regional_pdp.plot_first_level(0)
 regional_pdp.print_tree(0)
 
-x0_tree = regional_pdp.splits_full_depth_tree["feature_0"]
-
-x0_dict = regional_pdp.splits_full_depth["feature_0"]
+x0_tree = regional_pdp.splits_full_depth_tree["feature_1"]
 
 
 # ground truth
