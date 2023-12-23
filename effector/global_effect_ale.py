@@ -108,7 +108,7 @@ class ALEBase(GlobalEffectBase):
         xs: np.ndarray,
         heterogeneity: bool = False,
         centering: typing.Union[bool, str] = False,
-    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray]]:
         """Evalueate the (RH)ALE feature effect of feature `feature` at points `xs`.
 
         Notes:

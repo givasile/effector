@@ -138,6 +138,25 @@ class RegionalEffectBase:
                     return True
         return False
 
+    def _get_data_from_node(self, feature, node_idx):
+        # find the region and get data (and data_effect)
+        if not self.splits_full_depth_found[feature]:
+            self._fit_feature(feature)
+
+        # assert node id exists
+        assert node_idx in [node.idx for node in self.splits_only_important_tree["feature_{}".format(feature)].nodes], "Node {} does not exist".format(node_idx)
+
+        # find the node
+        node = [node for node in self.splits_only_important_tree["feature_{}".format(feature)].nodes if node.idx == node_idx][0]
+
+        # get data
+        data = node.data["data"]
+        data_effect = node.data["data_effect"]
+        return data, data_effect
+
+    def eval(self, feature, node_idx, xs, heterogeneity=False, centering=False):
+        pass
+
     def fit(self, *args, **kwargs):
         raise NotImplementedError
 

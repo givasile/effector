@@ -432,7 +432,8 @@ class Regions:
 
 
 class Node:
-    def __init__(self, name, parent_node, data, level):
+    def __init__(self, idx, name, parent_node, data, level):
+        self.idx = idx
         self.name = name
         self.parent_node = parent_node
         self.data = data
@@ -450,6 +451,7 @@ class Node:
         self.range = data["range"] if "range" in data else None
 
     def show(self, show_data=False):
+        print("Node id: ", self.idx)
         print("name: ", self.name)
         print("parent name: ", self.parent_node.name if self.parent_node is not None else None)
         print("level: ", self.level)
@@ -469,6 +471,7 @@ class Node:
 class Tree:
     def __init__(self):
         self.nodes = []
+        self.idx = 0
 
     def rename_nodes(self, scale_x_per_feature):
         nodes = self.nodes
@@ -490,7 +493,6 @@ class Tree:
             name = new_string
         return name
 
-
     def add_node(self, name, parent_name, data, level):
         if parent_name is None:
             parent_node = None
@@ -498,7 +500,9 @@ class Tree:
             assert parent_name in [node.name for node in self.nodes]
             parent_node = self.get_node(parent_name)
 
-        node = Node(name, parent_node, data, level)
+        idx = self.idx
+        self.idx += 1
+        node = Node(idx, name, parent_node, data, level)
         self.nodes.append(node)
 
     def get_node(self, name):
@@ -548,7 +552,7 @@ class Tree:
             node = self.get_root()
 
         indent = node.level*2
-        print("  " * indent + " split: %s, heter: %.2f, nof_instances: %5d, weight: %.2f" % (node.name, node.data['heterogeneity'], node.data['nof_instances'], node.data['weight']))
+        print("   " * indent + "Node id: %d, name: %s, heter: %.2f || nof_instances: %5d || weight: %.2f" % (node.idx, node.name, node.data['heterogeneity'], node.data['nof_instances'], node.data['weight']))
         children = self.get_children(node.name)
         for child in children:
             self.show(child)
