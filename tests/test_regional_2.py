@@ -41,27 +41,36 @@ regional_pdp.fit("all",
                  candidate_conditioning_features="all",
                  split_categorical_features=False)
 
-regional_pdp.describe_subregions("all")
-regional_pdp.plot_first_level(0)
+# regional_pdp.describe_subregions("all")
+# regional_pdp.plot_first_level(0)
 regional_pdp.print_tree(0)
 
-x0_tree = regional_pdp.splits_full_depth_tree["feature_1"]
+scale_x_per_feature ={
+    "feature_0": {"mean": 1, "std": 1},
+    "feature_1": {"mean": 2, "std": 2},
+    "feature_2": {"mean": 3, "std": 3}
+}
+
+tree = regional_pdp.splits_full_depth_tree["feature_0"]
+tree.rename_nodes(scale_x_per_feature)
+tree.show()
+# x0_tree = regional_pdp.splits_full_depth_tree["feature_1"]
 
 
-# ground truth
-regional_ale = effector.RegionalRHALEBase(data, model, model_jac, nof_instances=1000)
-regional_ale.fit("all",
-                 heter_pcg_drop_thres=0.1,
-                 heter_small_enough=0.,
-                 max_split_levels=2,
-                 nof_candidate_splits_for_numerical=10,
-                 min_points_per_subregion=10,
-                 candidate_conditioning_features="all",
-                 split_categorical_features=False)
+# # ground truth
+# regional_ale = effector.RegionalRHALEBase(data, model, model_jac, nof_instances=1000)
+# regional_ale.fit("all",
+#                  heter_pcg_drop_thres=0.1,
+#                  heter_small_enough=0.,
+#                  max_split_levels=2,
+#                  nof_candidate_splits_for_numerical=10,
+#                  min_points_per_subregion=10,
+#                  candidate_conditioning_features="all",
+#                  split_categorical_features=False)
 
-regional_ale.describe_subregions(0)
+# regional_ale.describe_subregions(0)
 
-regional_ale.plot_first_level(0)
+# regional_ale.plot_first_level(0)
 
-regional_ale.print_tree(1, only_important=False)
-regional_ale.print_level_stats(0)
+# regional_ale.print_tree(1, only_important=False)
+# regional_ale.print_level_stats(0)

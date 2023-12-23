@@ -1,6 +1,7 @@
 import typing
 import numpy as np
 import itertools
+import re
 from effector import helpers, utils
 
 
@@ -469,14 +470,26 @@ class Tree:
     def __init__(self):
         self.nodes = []
 
-    # def rename_nodes(self, scale_x_per_feature):
-    #     # traverse tree from root to leaves
-    #     root = self.get_root()
-    #
-    #     # get children of root
-    #     children = self.get_children(root.name)
-    #     for child in children:
-    #         child.node.name = "x{}".format(child.node.data["feature"])
+    def rename_nodes(self, scale_x_per_feature):
+        nodes = self.nodes
+
+        for node in nodes:
+            node.name = self._rename_node(node.name, scale_x_per_feature)
+
+    def _rename_node(self, name, scale):
+        pattern = r"(x_\d+) (==|!=|<=|<|>=|>) ([\d\.]+)"
+        for match in re.finditer(pattern, name):
+            var_name = match.group(1)
+            symb = match.group(2)
+            orig_value = match.group(3)
+            feat_i = int(var_name[2:])
+            std = scale["feature_" + str(feat_i)]["std"]
+            mean = scale["feature_" + str(feat_i)]["mean"]
+            scaled_value = std * float(orig_value) + mean
+            new_string = name.replace(orig_value, str(scaled_value))
+            name = new_string
+        return name
+
 
     def add_node(self, name, parent_name, data, level):
         if parent_name is None:
