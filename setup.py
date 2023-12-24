@@ -8,10 +8,10 @@ setup(
     packages=find_packages(),
     install_requires=[
         'numpy',
-        'pandas',
-        'scipy',
-        'matplotlib'
-        'tqdm'
+        'scipy'
+        'matplotlib',
+        'tqdm',
+        'shap'
         ]
 )
 

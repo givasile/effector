@@ -2,7 +2,7 @@ import numpy as np
 import effector.binning_methods as binning_methods
 import effector.helpers as helpers
 import effector.utils as utils
-from effector.partitioning import Regions
+from effector.partitioning import Regions, Tree
 from effector.global_effect_ale import RHALE, ALE
 from effector.global_effect_pdp import PDP, DerivativePDP
 from effector.global_effect_shap import SHAPDependence
@@ -21,6 +21,8 @@ class RegionalEffectBase:
         method_name: str,
         data: np.ndarray,
         model: callable,
+        model_jac: typing.Union[None, callable] = None,
+        data_effect: None | np.ndarray = None,
         nof_instances: int | str = 100,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
@@ -32,51 +34,53 @@ class RegionalEffectBase:
         Constructor for the RegionalEffect class.
         """
         self.method_name = method_name.lower()
+        self.model = model
+        self.model_jac = model_jac
 
         # select nof_instances from the data
         self.nof_instances, self.indices = helpers.prep_nof_instances(
             nof_instances, data.shape[0]
         )
-        data = data[self.indices, :]
-        self.data = data
+        self.data = data[self.indices, :]
+        self.instance_effects = data_effect[self.indices, :] if data_effect is not None else None
         self.dim = self.data.shape[1]
-        self.model = model
 
+        # set axis_limits
         axis_limits = (
             helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
         )
+        self.axis_limits: np.ndarray = axis_limits
+
+        # set feature types
+        self.cat_limit = cat_limit
         feature_types = (
             utils.get_feature_types(data, cat_limit)
             if feature_types is None
             else feature_types
         )
+        self.feature_types: list = feature_types
+
+        # set feature names
         feature_names: list[str] = (
             helpers.get_feature_names(axis_limits.shape[1])
             if feature_names is None
             else feature_names
         )
-
-        self.cat_limit = cat_limit
-
-        self.axis_limits: np.ndarray = axis_limits
-        self.feature_types: list = feature_types
         self.feature_names: list = feature_names
-        self.target_name = target_name
-        self.dim = self.axis_limits.shape[1]
+
+        # set target name
+        self.target_name = "y" if target_name is None else target_name
 
         # state variables
-        self.splits_full_depth_found: np.ndarray = np.ones([self.dim]) < 0
-        self.splits_only_important_found: np.ndarray = np.ones([self.dim]) < 0
+        self.is_fitted: np.ndarray = np.ones([self.dim]) < 0
 
         # parameters used when fitting the regional effect
         self.method_args: typing.Dict = {}
 
         # dictionary with all the information required for plotting or evaluating the regional effects
-        self.regions: typing.Dict[str, Regions] = {}
-        # self.splits_full_depth: typing.Dict[str, list[dict]] = {}
-        self.splits_full_depth_tree: typing.Dict = {}
-        # self.splits_only_important: typing.Dict[str, list[dict]] = {}
-        self.splits_only_important_tree: dict = {}
+        self.partition_objects: typing.Dict[str, Regions] = {}
+        self.tree_full: typing.Dict[str, Tree] = {}
+        self.tree_pruned: typing.Dict[str, Tree] = {}
 
     def _fit_feature(
         self,
@@ -85,9 +89,9 @@ class RegionalEffectBase:
         heter_pcg_drop_thres=0.1,
         heter_small_enough=0.1,
         max_split_levels: int = 2,
-        nof_candidate_splits_for_numerical: int = 20,
+        candidate_positions_for_numerical: int = 20,
         min_points_per_subregion: int = 10,
-        candidate_conditioning_features: typing.Union["str", list] = "all",
+        candidate_foc: typing.Union["str", list] = "all",
         split_categorical_features: bool = False,
     ):
         """
@@ -99,56 +103,45 @@ class RegionalEffectBase:
             feature,
             heter,
             self.data,
-            None,
+            self.instance_effects,
             self.feature_types,
             self.feature_names,
             self.target_name,
             self.cat_limit,
-            candidate_conditioning_features,
+            candidate_foc,
             min_points_per_subregion,
-            nof_candidate_splits_for_numerical,
+            candidate_positions_for_numerical,
             max_split_levels,
             heter_pcg_drop_thres,
             heter_small_enough,
             split_categorical_features,
         )
 
-        self.regions["feature_{}".format(feature)] = regions
-        splits = regions.search_all_splits()
+        # apply partitioning
+        regions.search_all_splits()
+        regions.choose_important_splits()
+        self.tree_full["feature_{}".format(feature)] = regions.splits_to_tree()
+        self.tree_pruned["feature_{}".format(feature)] = regions.splits_to_tree(True)
 
-        # self.splits_full_depth["feature_{}".format(feature)] = splits
-        self.splits_full_depth_found[feature] = True
+        # store the partitioning object
+        self.partition_objects["feature_{}".format(feature)] = regions
 
-        important_splits = regions.choose_important_splits()
-        # self.splits_only_important[
-        #     "feature_{}".format(feature)
-        # ] = important_splits
-        self.splits_only_important_found[feature] = True
+        # update state
+        self.is_fitted[feature] = True
 
-        self.splits_full_depth_tree["feature_{}".format(feature)] = regions.splits_to_tree()
-        self.splits_only_important_tree["feature_{}".format(feature)] = regions.splits_to_tree(True)
+    def refit(self, feature):
+        if not self.is_fitted[feature]:
+            self.fit(feature)
 
-    def refit(self, feature, centering):
-        "Checks if refitting is needed"
-        if not self.splits_full_depth_found[feature]:
-            return True
-        else:
-            # TODO: change that, we want refiting in many cases
-            if centering is not False:
-                if self.method_args["feature_" + str(feature)]["centering"] != centering:
-                    return True
-        return False
-
-    def _get_data_from_node(self, feature, node_idx):
-        # find the region and get data (and data_effect)
-        if not self.splits_full_depth_found[feature]:
-            self._fit_feature(feature)
+    def _get_node_info(self, feature, node_idx):
+        # if not fit, refit
+        self.refit(feature)
 
         # assert node id exists
-        assert node_idx in [node.idx for node in self.splits_only_important_tree["feature_{}".format(feature)].nodes], "Node {} does not exist".format(node_idx)
+        assert node_idx in [node.idx for node in self.tree_pruned["feature_{}".format(feature)].nodes], "Node {} does not exist".format(node_idx)
 
         # find the node
-        node = [node for node in self.splits_only_important_tree["feature_{}".format(feature)].nodes if node.idx == node_idx][0]
+        node = [node for node in self.tree_pruned["feature_{}".format(feature)].nodes if node.idx == node_idx][0]
 
         # get data
         data = node.data["data"]
@@ -156,23 +149,24 @@ class RegionalEffectBase:
         name = node.name
         return data, data_effect, name
 
-    def _create_object(self, method_name, data, data_effect, feature_names):
-        if method_name == "rhale":
-            return RHALE(data, self.model, self.model_jac, data_effect=data_effect, feature_names=feature_names)
-        elif method_name == "ale":
-            return ALE(data, self.model, feature_names=feature_names)
-        elif method_name == "shap":
-            return SHAPDependence(data, self.model, feature_names=feature_names)
-        elif method_name == "pdp":
-            return PDP(data, self.model, feature_names=feature_names)
-        elif method_name == "d-pdp":
-            return DerivativePDP(data, self.model, self.model_jac, feature_names=feature_names)
+    def _create_fe_object(self, data, data_effect, feature_names):
+        if self.method_name == "rhale":
+            return RHALE(data, self.model, self.model_jac, data_effect=data_effect, feature_names=feature_names, target_name=self.target_name)
+        elif self.method_name == "ale":
+            return ALE(data, self.model, feature_names=feature_names, target_name=self.target_name)
+        elif self.method_name == "shap":
+            return SHAPDependence(data, self.model, feature_names=feature_names, target_name=self.target_name)
+        elif self.method_name == "pdp":
+            return PDP(data, self.model, feature_names=feature_names, target_name=self.target_name)
+        elif self.method_name == "d-pdp":
+            return DerivativePDP(data, self.model, self.model_jac, feature_names=feature_names, target_name=self.target_name)
         else:
             raise NotImplementedError
 
     def eval(self, feature, node_idx, xs, heterogeneity=False, centering=False):
-        data, data_effect, feature_names = self._get_data_from_node(feature, node_idx)
-        fe_method = self._create_object(self.method_name, data, data_effect, feature_names)
+        centering = helpers.prep_centering(centering)
+        data, data_effect, _ = self._get_node_info(feature, node_idx)
+        fe_method = self._create_fe_object(data, data_effect, None)
         return fe_method.eval(feature, xs, heterogeneity, centering)
 
     def fit(self, *args, **kwargs):
@@ -186,10 +180,10 @@ class RegionalEffectBase:
              scale_x=None,
              scale_y=None,
              y_limits=None):
-        data, data_effect, name = self._get_data_from_node(feature, node_idx)
+        data, data_effect, name = self._get_node_info(feature, node_idx)
         feature_names = copy.deepcopy(self.feature_names)
         feature_names[feature] = name
-        fe_method = self._create_object(self.method_name, data, data_effect, feature_names)
+        fe_method = self._create_fe_object(data, data_effect, feature_names)
         # TODO add ylimits
         return fe_method.plot(
             feature=feature,
@@ -203,32 +197,32 @@ class RegionalEffectBase:
     def print_tree(self, features, only_important=True):
         features = helpers.prep_features(features, self.dim)
         for feat in features:
-            if not self.splits_full_depth_found[feat]:
+            if not self.is_fitted[feat]:
                 self._fit_feature(feat)
 
             print("Feature {}".format(feat))
             if only_important:
-                if self.splits_only_important_tree["feature_{}".format(feat)] is None:
+                if self.tree_pruned["feature_{}".format(feat)] is None:
                     print("No important splits found for feature {}".format(feat))
                 else:
-                    self.splits_only_important_tree["feature_{}".format(feat)].show()
+                    self.tree_pruned["feature_{}".format(feat)].show()
             else:
-                if self.splits_full_depth_tree["feature_{}".format(feat)] is None:
+                if self.tree_full["feature_{}".format(feat)] is None:
                     print("No important splits found for feature {}".format(feat))
                 else:
-                    self.splits_full_depth_tree["feature_{}".format(feat)].show()
+                    self.tree_full["feature_{}".format(feat)].show()
 
     def print_level_stats(self, features):
         features = helpers.prep_features(features, self.dim)
         for feat in features:
-            if not self.splits_full_depth_found[feat]:
+            if not self.is_fitted[feat]:
                 self._fit_feature(feat)
 
             print("Feature {}".format(feat))
-            if self.splits_full_depth_tree["feature_{}".format(feat)] is None:
+            if self.tree_full["feature_{}".format(feat)] is None:
                 print("No important splits found for feature {}".format(feat))
             else:
-                self.splits_full_depth_tree["feature_{}".format(feat)].show1()
+                self.tree_full["feature_{}".format(feat)].show1()
 
     def describe_subregions(
         self,
@@ -238,16 +232,16 @@ class RegionalEffectBase:
     ):
         features = helpers.prep_features(features, self.dim)
         for feature in features:
-            if not self.splits_full_depth_found[feature]:
+            if not self.is_fitted[feature]:
                 self._fit_feature(feature)
 
             # it means it a categorical feature
-            if self.splits_full_depth_tree["feature_{}".format(feature)] is None:
+            if self.tree_full["feature_{}".format(feature)] is None:
                 continue
 
             feature_name = self.feature_names[feature]
             if only_important:
-                tree = self.splits_only_important_tree["feature_{}".format(feature)]
+                tree = self.tree_pruned["feature_{}".format(feature)]
                 if len(tree.nodes) == 1:
                     print("No important splits found for feature {}".format(feature))
                     continue
@@ -255,7 +249,7 @@ class RegionalEffectBase:
                     print("Important splits for feature {}".format(feature_name))
             else:
                 print("All splits for feature {}".format(feature_name))
-                tree = self.splits_full_depth_tree["feature_{}".format(feature)]
+                tree = self.tree_full["feature_{}".format(feature)]
 
             max_level = max([node.level for node in tree.nodes])
             for level in range(1, max_level+1):
@@ -317,23 +311,18 @@ class RegionalRHALEBase(RegionalEffectBase):
             cat_limit: the minimum number of unique values for a feature to be considered categorical
             feature_names: list of feature names
         """
-        self.model_jac = model_jac
-        self.nof_instances, self.indices = helpers.prep_nof_instances(
-            nof_instances, data.shape[0]
-        )
-        instance_effects = self.model_jac(data)
-        data = data[self.indices, :]
-
-        instance_effects = instance_effects[self.indices, :]
-        self.instance_effects = instance_effects
         super(RegionalRHALEBase, self).__init__(
             "rhale",
             data,
             model,
-            "all",
+            model_jac,
+            instance_effects,
+            nof_instances,
             axis_limits,
             feature_types,
-            cat_limit, feature_names, target_name
+            cat_limit,
+            feature_names,
+            target_name
         )
 
     def _create_heterogeneity_function(self, foi, binning_method, min_points=10):
@@ -407,6 +396,8 @@ class RegionalRHALEBase(RegionalEffectBase):
                 split_categorical_features,
             )
 
+            # todo: add method args
+
 
 class RegionalPDP(RegionalEffectBase):
     def __init__(
@@ -430,7 +421,17 @@ class RegionalPDP(RegionalEffectBase):
             cat_limit: the minimum number of unique values for a feature to be considered categorical
             feature_names: list of feature names
         """
-        super(RegionalPDP, self).__init__("pdp", data, model, nof_instances, axis_limits, feature_types, cat_limit, feature_names)
+        super(RegionalPDP, self).__init__(
+            "pdp",
+            data,
+            model,
+            None,
+            None,
+            nof_instances,
+            axis_limits,
+            feature_types,
+            cat_limit,
+            feature_names)
 
     def _create_heterogeneity_function(self, foi, min_points=10):
         def heter(data) -> float:
@@ -496,3 +497,5 @@ class RegionalPDP(RegionalEffectBase):
                 candidate_conditioning_features,
                 split_categorical_features,
             )
+
+            # todo add methdod args

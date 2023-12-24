@@ -30,4 +30,4 @@ regional_pdp.describe_subregions("all")
 # regional_pdp.plot_first_level(0)
 regional_pdp.print_tree(0)
 
-x0_tree = regional_pdp.splits_full_depth_tree["feature_0"]
+x0_tree = regional_pdp.tree_full["feature_0"]
