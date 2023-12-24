@@ -41,21 +41,16 @@ regional_pdp.fit("all",
                  candidate_conditioning_features="all",
                  split_categorical_features=False)
 
-# regional_pdp.describe_subregions("all")
-# regional_pdp.plot_first_level(0)
+regional_pdp.describe_subregions("all")
 regional_pdp.print_tree(0)
 
-scale_x_per_feature ={
-    "feature_0": {"mean": 1, "std": 1},
-    "feature_1": {"mean": 2, "std": 2},
-    "feature_2": {"mean": 3, "std": 3}
-}
+# scale_x_per_feature ={
+#     "feature_0": {"mean": 1, "std": 1},
+#     "feature_1": {"mean": 2, "std": 2},
+#     "feature_2": {"mean": 3, "std": 3}
+# }
 
-tree = regional_pdp.splits_full_depth_tree["feature_0"]
-tree.rename_nodes(scale_x_per_feature)
-tree.show()
-# x0_tree = regional_pdp.splits_full_depth_tree["feature_1"]
-
+regional_pdp.plot(0, 1, heterogeneity=True)
 
 # # ground truth
 # regional_ale = effector.RegionalRHALEBase(data, model, model_jac, nof_instances=1000)
@@ -68,9 +63,13 @@ tree.show()
 #                  candidate_conditioning_features="all",
 #                  split_categorical_features=False)
 
-# regional_ale.describe_subregions(0)
+# # check the splitting
+# regional_ale.describe_subregions(2)
+# regional_ale.print_level_stats(1)
+# regional_ale.print_tree(0)
 
-# regional_ale.plot_first_level(0)
-
-# regional_ale.print_tree(1, only_important=False)
-# regional_ale.print_level_stats(0)
+# # plot/eval
+# xs = np.linspace(-1, 1, 1000)
+# heterogeneity = False
+# y = regional_ale.eval(0, 0, xs, heterogeneity=heterogeneity)
+# regional_ale.plot(0, 5, heterogeneity=True)

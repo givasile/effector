@@ -3,11 +3,12 @@ import effector.binning_methods as binning_methods
 import effector.helpers as helpers
 import effector.utils as utils
 from effector.partitioning import Regions
-from effector.global_effect_ale import RHALE
-from effector.global_effect_pdp import PDP
+from effector.global_effect_ale import RHALE, ALE
+from effector.global_effect_pdp import PDP, DerivativePDP
+from effector.global_effect_shap import SHAPDependence
 import typing
 from tqdm import tqdm
-
+import copy
 
 BIG_M = helpers.BIG_M
 
@@ -152,16 +153,52 @@ class RegionalEffectBase:
         # get data
         data = node.data["data"]
         data_effect = node.data["data_effect"]
-        return data, data_effect
+        name = node.name
+        return data, data_effect, name
+
+    def _create_object(self, method_name, data, data_effect, feature_names):
+        if method_name == "rhale":
+            return RHALE(data, self.model, self.model_jac, data_effect=data_effect, feature_names=feature_names)
+        elif method_name == "ale":
+            return ALE(data, self.model, feature_names=feature_names)
+        elif method_name == "shap":
+            return SHAPDependence(data, self.model, feature_names=feature_names)
+        elif method_name == "pdp":
+            return PDP(data, self.model, feature_names=feature_names)
+        elif method_name == "d-pdp":
+            return DerivativePDP(data, self.model, self.model_jac, feature_names=feature_names)
+        else:
+            raise NotImplementedError
 
     def eval(self, feature, node_idx, xs, heterogeneity=False, centering=False):
-        pass
+        data, data_effect, feature_names = self._get_data_from_node(feature, node_idx)
+        fe_method = self._create_object(self.method_name, data, data_effect, feature_names)
+        return fe_method.eval(feature, xs, heterogeneity, centering)
 
     def fit(self, *args, **kwargs):
         raise NotImplementedError
 
-    def plot_first_level(self, *args, **kwargs):
-        raise NotImplementedError
+    def plot(self,
+             feature,
+             node_idx,
+             heterogeneity=False,
+             centering=False,
+             scale_x=None,
+             scale_y=None,
+             y_limits=None):
+        data, data_effect, name = self._get_data_from_node(feature, node_idx)
+        feature_names = copy.deepcopy(self.feature_names)
+        feature_names[feature] = name
+        fe_method = self._create_object(self.method_name, data, data_effect, feature_names)
+        # TODO add ylimits
+        return fe_method.plot(
+            feature=feature,
+            heterogeneity=heterogeneity,
+            centering=centering,
+            scale_x=scale_x,
+            scale_y=scale_y
+            )
+
 
     def print_tree(self, features, only_important=True):
         features = helpers.prep_features(features, self.dim)
@@ -370,106 +407,6 @@ class RegionalRHALEBase(RegionalEffectBase):
                 split_categorical_features,
             )
 
-    def plot_first_level(
-        self,
-        feature: int = 0,
-        heterogeneity: typing.Union[bool, str] = False,
-        centering: typing.Union[bool, str] = False,
-        binning_method: typing.Union[
-            str,
-            binning_methods.Fixed,
-            binning_methods.DynamicProgramming,
-            binning_methods.Greedy,
-        ] = "greedy",
-        scale_x_per_feature: typing.Union[None, list[dict[str, float]]] = None,
-        scale_y: typing.Union[None, dict] = None,
-        show_avg_output: bool = False,
-    ):
-
-        if not self.splits_full_depth_found[feature]:
-            self._fit_feature(feature)
-
-        tree = self.splits_only_important_tree["feature_{}".format(feature)]
-        level_nodes = tree.get_level_nodes(level=1)
-
-        if len(tree.nodes) == 1:
-            print("No important splits found for feature {}".format(feature))
-            return
-
-        # split to two datasets
-        foc = level_nodes[0].data["feature"]
-        position = level_nodes[0].data["position"]
-        type_of_split_feature = self.feature_types[foc]
-        data_1 = level_nodes[0].data["data"]
-        data_2 = level_nodes[1].data["data"]
-        data_effect_1 = level_nodes[0].data["data_effect"]
-        data_effect_2 = level_nodes[1].data["data_effect"]
-        axis_limits = helpers.axis_limits_from_data(self.data)
-
-        # plot the two RHALE objects
-        foc_name = self.feature_names[foc]
-        foi_name = self.feature_names[feature]
-
-        # feature_names
-        position = (
-            scale_x_per_feature[foc]["mean"]
-            + scale_x_per_feature[foc]["std"] * position
-            if scale_x_per_feature is not None
-            else position
-        )
-        if type_of_split_feature != "cat":
-            feature_name_1 = "{} given {}<={:.2f}".format(foi_name, foc_name, position)
-            feature_name_2 = "{} given {}>{:.2f}".format(foi_name, foc_name, position)
-        else:
-            feature_name_1 = "{} given {}=={:.2f}".format(foi_name, foc_name, position)
-            feature_name_2 = "{} given {}!={:.2f}".format(foi_name, foc_name, position)
-
-        feature_names_1 = self.feature_names.copy()
-        feature_names_1[feature] = feature_name_1
-        feature_names_2 = self.feature_names.copy()
-        feature_names_2[feature] = feature_name_2
-
-        # create two RHALE objects and plot
-        rhale_1 = RHALE(
-            data_1,
-            self.model,
-            self.model_jac,
-            "all",
-            axis_limits,
-            data_effect_1,
-            feature_names=feature_names_1,
-            target_name=self.target_name,
-        )
-        rhale_1.fit(features=feature, binning_method=binning_method)
-        rhale_2 = RHALE(
-            data_2,
-            self.model,
-            self.model_jac,
-            "all",
-            axis_limits,
-            data_effect_2,
-            feature_names=feature_names_2,
-            target_name=self.target_name,
-        )
-        rhale_2.fit(features=feature, binning_method=binning_method)
-
-        rhale_1.plot(
-            feature,
-            heterogeneity,
-            centering,
-            scale_x_per_feature[feature] if scale_x_per_feature is not None else None,
-            scale_y if scale_y is not None else None,
-            show_avg_output=show_avg_output
-        )
-        rhale_2.plot(
-            feature,
-            heterogeneity,
-            centering,
-            scale_x_per_feature[feature] if scale_x_per_feature is not None else None,
-            scale_y if scale_y is not None else None,
-            show_avg_output=show_avg_output
-        )
-
 
 class RegionalPDP(RegionalEffectBase):
     def __init__(
@@ -559,106 +496,3 @@ class RegionalPDP(RegionalEffectBase):
                 candidate_conditioning_features,
                 split_categorical_features,
             )
-
-    def plot_first_level(
-        self,
-        feature: int = 0,
-        heterogeneity: typing.Union[bool, str] = False,
-        centering: typing.Union[bool, str] = True,
-        scale_x_per_feature: typing.Union[None, list[dict[str, float]]] = None,
-        scale_y: typing.Union[None, dict] = None,
-        show_avg_output: bool = False,
-    ):
-
-        if not self.splits_full_depth_found[feature]:
-            self._fit_feature(feature)
-
-        tree = self.splits_only_important_tree["feature_{}".format(feature)]
-        level_nodes = tree.get_level_nodes(level=1)
-
-        if len(tree.nodes) == 1:
-            print("No important splits found for feature {}".format(feature))
-            return
-
-        # split to two datasets
-        foc = level_nodes[0].data["feature"]
-        position = level_nodes[0].data["position"]
-        type_of_split_feature = self.feature_types[foc]
-        data_1 = level_nodes[0].data["data"]
-        data_2 = level_nodes[1].data["data"]
-        axis_limits = helpers.axis_limits_from_data(self.data)
-
-        # plot the two RHALE objects
-        foc_name = self.feature_names[foc]
-        foi_name = self.feature_names[feature]
-
-        # feature_names
-        position = (
-            scale_x_per_feature[foc]["mean"]
-            + scale_x_per_feature[foc]["std"] * position
-            if scale_x_per_feature is not None
-            else position
-        )
-        if type_of_split_feature != "cat":
-            feature_name_1 = "{} given {}<={:.2f}".format(foi_name, foc_name, position)
-            feature_name_2 = "{} given {}>{:.2f}".format(foi_name, foc_name, position)
-        else:
-            feature_name_1 = "{} given {}=={:.2f}".format(foi_name, foc_name, position)
-            feature_name_2 = "{} given {}!={:.2f}".format(foi_name, foc_name, position)
-
-        feature_names_1 = self.feature_names.copy()
-        feature_names_1[feature] = feature_name_1
-        feature_names_2 = self.feature_names.copy()
-        feature_names_2[feature] = feature_name_2
-
-        # create two RHALE objects and plot
-        pdp_1 = PDP(
-            data_1,
-            self.model,
-            axis_limits,
-            feature_names=feature_names_1,
-            target_name=self.target_name,
-        )
-        pdp_2 = PDP(
-            data_2,
-            self.model,
-            axis_limits,
-            feature_names=feature_names_2,
-            target_name=self.target_name,
-        )
-
-        pdp_1.plot(
-            feature,
-            heterogeneity="ice",
-            nof_ice=100,
-            scale_x=scale_x_per_feature[feature]
-            if scale_x_per_feature is not None
-            else None,
-            scale_y=scale_y if scale_y is not None else None,
-            centering=centering,
-            show_avg_output=show_avg_output,
-        )
-        pdp_2.plot(
-            feature,
-            heterogeneity="ice",
-            nof_ice=100,
-            scale_x=scale_x_per_feature[feature]
-            if scale_x_per_feature is not None
-            else None,
-            scale_y=scale_y if scale_y is not None else None,
-            centering=centering,
-            show_avg_output=show_avg_output
-        )
-
-
-def scale_names(scale_x_per_feature, feature_name):
-    # Example feature name: "x_1 | x_2 != 0.0 and x_0  > 0.1"
-    # Example scale_x_per_feature: {"feature_0": {"mean": 0.1, "std": 0.2}, "feature_1": {"mean": 0.1, "std": 0.2}, "feature_3": {"mean": 0.1, "std": 0.2}}
-    # I want to make it "x_1 | x_2 != 0.0*0.2 + 0.1 and x_0  > 0.1*0.2 + 0.1"
-
-
-    # split the feature name into the feature name and the condition
-    feature_name, condition = feature_name.split("|")
-
-        # for each feature in the condition, replace the feature name with the scaled feature name
-

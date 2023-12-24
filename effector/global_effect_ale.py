@@ -377,7 +377,7 @@ class RHALE(ALEBase):
         data: np.ndarray,
         model: callable,
         model_jac: typing.Union[None, callable] = None,
-        nof_instances: int | str = "all",
+        nof_instances: int | str = 1000,
         axis_limits: None | np.ndarray = None,
         data_effect: None | np.ndarray = None,
         avg_output: None | float = None,

@@ -107,9 +107,11 @@ def ale_plot(
     ax2.set_xlabel(x_name)
     ax2.set_ylabel("dy/dx")
 
+    plt.show(block=False)
+
 
 def ale_curve(ax1, x, y, avg_output=None):
-    ax1.plot(x, y, "b--", label="global effect")
+    ax1.plot(x, y, "b--", label="average effect")
     if avg_output is not None:
         ax1.axhline(y=avg_output, color="black", linestyle="--", label="avg output")
     ax1.legend()

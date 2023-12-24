@@ -69,7 +69,7 @@ class TestExample2:
 
         # prediction
         dale = effector.RHALE(data=samples, model=self.f, model_jac=self.f_der)
-        fixed = effector.binning_methods.Fixed(nof_bins=self.k)
+        fixed = effector.binning_methods.Fixed(nof_bins=self.k, min_points_per_bin=0)
         dale.fit(features="all", binning_method=fixed, centering=True)
 
         x = np.linspace(0, 1, 1000)

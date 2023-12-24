@@ -389,7 +389,7 @@ class DerivativePDP(PDPBase):
 
             feature_names: The names of the features
 
-                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
+                - use a `list` of `str`, to specify the name manually. For example: `["age", "weight", ...]`
                 - use `None`, to keep the default names: `["x_0", "x_1", ...]`
 
             target_name: The name of the target variable
