@@ -640,9 +640,9 @@ The above are as expected:
 
 Regional PDP will search for interpretable and distinct regions within the feature space such that the interaction-related heterogeneity is minimized within the regions. In the case of PDPs and ICE this means, that we minimize the heterogeneity of mean-centered ICE curves. This means that we group ICE curves with a similar shape, i.e., we find regions in which the instances within this regions show a similar influence on the prediction for the feature of interests, while this influence differs for other regions.
 
-
 ```python
-regional_pdp = effector.RegionalPDP(data=X_uncor_train, model=model_uncor, feature_names=['x1','x2','x3'], axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
+regional_pdp = effector.RegionalPDPBase(data=X_uncor_train, model=model_uncor, feature_names=['x1', 'x2', 'x3'],
+                                        axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
 regional_pdp.fit(
     features="all",
@@ -796,11 +796,10 @@ However, we should notice that there is some heterogeneity, erroneously introduc
 
 #### Regional-PDP
 
-
 ```python
-regional_pdp = effector.RegionalPDP(
-    data=X_cor_train, 
-    model=model_cor, 
+regional_pdp = effector.RegionalPDPBase(
+    data=X_cor_train,
+    model=model_cor,
     feature_names=['x1', 'x2', 'x3'],
     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 

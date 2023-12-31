@@ -24,11 +24,11 @@ class RegionalEffectBase:
         model_jac: typing.Union[None, callable] = None,
         data_effect: None | np.ndarray = None,
         nof_instances: int | str = 100,
-        axis_limits: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: typing.Union[int, None] = 10,
-        feature_names: typing.Union[list, None] = None,
-        target_name: typing.Union[str, None] = None,
+        axis_limits: None | np.ndarray = None,
+        feature_types: list | None = None,
+        cat_limit: int | None = 10,
+        feature_names: list | None = None,
+        target_name: str | None = None,
     ) -> None:
         """
         Constructor for the RegionalEffect class.
@@ -78,30 +78,29 @@ class RegionalEffectBase:
         self.method_args: typing.Dict = {}
 
         # dictionary with all the information required for plotting or evaluating the regional effects
-        self.partition_objects: typing.Dict[str, Regions] = {}
+        self.partitioners: typing.Dict[str, Regions] = {}
         self.tree_full: typing.Dict[str, Tree] = {}
         self.tree_pruned: typing.Dict[str, Tree] = {}
 
     def _fit_feature(
         self,
         feature: int,
-        heter: callable,
-        heter_pcg_drop_thres=0.1,
-        heter_small_enough=0.1,
+        heter_func: callable,
+        heter_pcg_drop_thres: float = 0.1,
+        heter_small_enough: float = 0.1,
         max_split_levels: int = 2,
         candidate_positions_for_numerical: int = 20,
         min_points_per_subregion: int = 10,
-        candidate_foc: typing.Union["str", list] = "all",
+        candidate_foc: str | list = "all",
         split_categorical_features: bool = False,
     ):
         """
-        Find the Regional RHALE for a single feature.
+        Find the subregions for a single feature.
         """
-
         # init Region Extractor
         regions = Regions(
             feature,
-            heter,
+            heter_func,
             self.data,
             self.instance_effects,
             self.feature_types,
@@ -124,7 +123,7 @@ class RegionalEffectBase:
         self.tree_pruned["feature_{}".format(feature)] = regions.splits_to_tree(True)
 
         # store the partitioning object
-        self.partition_objects["feature_{}".format(feature)] = regions
+        self.partitioners["feature_{}".format(feature)] = regions
 
         # update state
         self.is_fitted[feature] = True
@@ -134,9 +133,6 @@ class RegionalEffectBase:
             self.fit(feature)
 
     def _get_node_info(self, feature, node_idx):
-        # if not fit, refit
-        self.refit(feature)
-
         # assert node id exists
         assert node_idx in [node.idx for node in self.tree_pruned["feature_{}".format(feature)].nodes], "Node {} does not exist".format(node_idx)
 
@@ -164,6 +160,29 @@ class RegionalEffectBase:
             raise NotImplementedError
 
     def eval(self, feature, node_idx, xs, heterogeneity=False, centering=False):
+        """
+        Evaluate the regional effect for a given feature and node.
+
+        Args:
+            feature: the feature to evaluate
+            node_idx: the node corresponding to the subregion to evaluate
+            xs: the points at which to evaluate the regional effect
+            heterogeneity: whether to return the heterogeneity.
+
+                  - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
+                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
+
+            centering: whether to center the regional effect. The following options are available:
+
+                - If `centering` is `False`, the regional effect is not centered
+                - If `centering` is `True` or `zero_integral`, the regional effect is centered around the `y` axis.
+                - If `centering` is `zero_start`, the regional effect starts from `y=0`.
+
+        Returns:
+            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std)` otherwise
+
+        """
+        self.refit(feature)
         centering = helpers.prep_centering(centering)
         data, data_effect, _ = self._get_node_info(feature, node_idx)
         fe_method = self._create_fe_object(data, data_effect, None)
@@ -180,25 +199,27 @@ class RegionalEffectBase:
              scale_x=None,
              scale_y=None,
              y_limits=None):
+
+        self.refit(feature)
+
         data, data_effect, name = self._get_node_info(feature, node_idx)
         feature_names = copy.deepcopy(self.feature_names)
         feature_names[feature] = name
         fe_method = self._create_fe_object(data, data_effect, feature_names)
-        # TODO add ylimits
+
         return fe_method.plot(
             feature=feature,
             heterogeneity=heterogeneity,
             centering=centering,
             scale_x=scale_x,
-            scale_y=scale_y
+            scale_y=scale_y,
+            y_limits=y_limits
             )
-
 
     def print_tree(self, features, only_important=True):
         features = helpers.prep_features(features, self.dim)
         for feat in features:
-            if not self.is_fitted[feat]:
-                self._fit_feature(feat)
+            self.refit(feat)
 
             print("Feature {}".format(feat))
             if only_important:
@@ -215,8 +236,7 @@ class RegionalEffectBase:
     def print_level_stats(self, features):
         features = helpers.prep_features(features, self.dim)
         for feat in features:
-            if not self.is_fitted[feat]:
-                self._fit_feature(feat)
+            self.refit(feat)
 
             print("Feature {}".format(feat))
             if self.tree_full["feature_{}".format(feat)] is None:
@@ -232,8 +252,7 @@ class RegionalEffectBase:
     ):
         features = helpers.prep_features(features, self.dim)
         for feature in features:
-            if not self.is_fitted[feature]:
-                self._fit_feature(feature)
+            self.refit(feature)
 
             # it means it a categorical feature
             if self.tree_full["feature_{}".format(feature)] is None:
@@ -283,219 +302,3 @@ class RegionalEffectBase:
                 print("  - Number of instances before split: {}".format(nof_instances_before))
                 nof_instances = [nod.data["nof_instances"] for nod in level_nodes]
                 print("  - Number of instances after split: {}".format(nof_instances))
-
-
-class RegionalRHALEBase(RegionalEffectBase):
-    def __init__(
-        self,
-        data: np.ndarray,
-        model: callable,
-        model_jac: typing.Union[None, callable] = None,
-        instance_effects: None | np.ndarray = None,
-        nof_instances: int | str = 100,
-        axis_limits: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: typing.Union[int, None] = 10,
-        feature_names: typing.Union[list, None] = None,
-        target_name: typing.Union[str, None] = None,
-    ):
-        """
-        Regional RHALE constructor.
-
-        Args:
-            data: X matrix (N,D).
-            model: the black-box model (N,D) -> (N, )
-            model_jac: the black-box model Jacobian (N,D) -> (N,D)
-            axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
-            feature_types: list of feature types (categorical or numerical)
-            cat_limit: the minimum number of unique values for a feature to be considered categorical
-            feature_names: list of feature names
-        """
-        super(RegionalRHALEBase, self).__init__(
-            "rhale",
-            data,
-            model,
-            model_jac,
-            instance_effects,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names,
-            target_name
-        )
-
-    def _create_heterogeneity_function(self, foi, binning_method, min_points=10):
-        binning_method = helpers.prep_binning_method(binning_method)
-
-        def heter(data, instance_effects=None) -> float:
-            if data.shape[0] < min_points:
-                return BIG_M
-
-            rhale = RHALE(data, self.model, self.model_jac,  "all", None, instance_effects)
-            try:
-                rhale.fit(features=foi, binning_method=binning_method)
-            except:
-                return BIG_M
-
-            # heterogeneity is the accumulated std at the end of the curve
-            axis_limits = helpers.axis_limits_from_data(data)
-            stop = np.array([axis_limits[:, foi][1]])
-            _, z = rhale.eval(feature=foi, xs=stop, heterogeneity=True)
-            return z.item()
-
-        return heter
-
-    def fit(
-        self,
-        features: typing.Union[int, str, list],
-        heter_pcg_drop_thres: float = 0.1,
-        heter_small_enough: float = 0.1,
-        binning_method: typing.Union[
-            str,
-            binning_methods.Fixed,
-            binning_methods.DynamicProgramming,
-            binning_methods.Greedy,
-        ] = "greedy",
-        max_split_levels: int = 2,
-        nof_candidate_splits_for_numerical: int = 20,
-        min_points_per_subregion: int = 10,
-        candidate_conditioning_features: typing.Union["str", list] = "all",
-        split_categorical_features: bool = False,
-    ):
-        """
-        Find the Regional RHALE for a list of features.
-
-        Args:
-            features: list of features to fit
-            heter_pcg_drop_thres: heterogeneity drop threshold for a split to be considered important
-            heter_small_enough: heterogeneity threshold for a region to be considered homogeneous (splitting stops)
-            binning_method: binning method to use
-            max_split_levels: maximum number of splits to perform (depth of the tree)
-            nof_candidate_splits_for_numerical: number of candidate splits to consider for numerical features
-            min_points_per_subregion: minimum allowed number of points in a subregion (otherwise the split is not considered as valid)
-            candidate_conditioning_features: list of features to consider as conditioning features for the candidate splits
-        """
-
-        assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
-        features = helpers.prep_features(features, self.dim)
-        for feat in tqdm(features):
-            heter = self._create_heterogeneity_function(
-                feat, binning_method, min_points_per_subregion
-            )
-
-            self._fit_feature(
-                feat,
-                heter,
-                heter_pcg_drop_thres,
-                heter_small_enough,
-                max_split_levels,
-                nof_candidate_splits_for_numerical,
-                min_points_per_subregion,
-                candidate_conditioning_features,
-                split_categorical_features,
-            )
-
-            # todo: add method args
-
-
-class RegionalPDP(RegionalEffectBase):
-    def __init__(
-        self,
-        data: np.ndarray,
-        model: callable,
-        nof_instances: int | str = 100,
-        axis_limits: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: typing.Union[int, None] = 10,
-        feature_names: typing.Union[list, None] = None,
-    ):
-        """
-        Regional PDP constructor.
-
-        Args:
-            data: X matrix (N,D).
-            model: the black-box model (N,D) -> (N, )
-            axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
-            feature_types: list of feature types (categorical or numerical)
-            cat_limit: the minimum number of unique values for a feature to be considered categorical
-            feature_names: list of feature names
-        """
-        super(RegionalPDP, self).__init__(
-            "pdp",
-            data,
-            model,
-            None,
-            None,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names)
-
-    def _create_heterogeneity_function(self, foi, min_points=10):
-        def heter(data) -> float:
-            if data.shape[0] < min_points:
-                return BIG_M
-
-            pdp = PDP(data, self.model, None, nof_instances=100)
-            try:
-                pdp.fit(features=foi)
-            except:
-                return BIG_M
-
-            # heterogeneity is the mean heterogeneity over the curve
-            axis_limits = helpers.axis_limits_from_data(data)
-
-            xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
-            try:
-                _, z = pdp.eval(feature=foi, xs=xx, heterogeneity=True)
-            except:
-                return BIG_M
-            return np.mean(z)
-
-        return heter
-
-    def fit(
-        self,
-        features: typing.Union[int, str, list],
-        heter_pcg_drop_thres: float = 0.1,
-        heter_small_enough: float = 0.1,
-        max_split_levels: int = 2,
-        nof_candidate_splits_for_numerical: int = 20,
-        min_points_per_subregion: int = 10,
-        candidate_conditioning_features: typing.Union["str", list] = "all",
-        split_categorical_features: bool = False,
-    ):
-        """
-        Find the Regional PDP for a list of features.
-
-        Args:
-            features: list of features to fit
-            heter_pcg_drop_thres: heterogeneity drop threshold for a split to be considered important
-            heter_small_enough: heterogeneity threshold for a region to be considered homogeneous (splitting stops)
-            max_split_levels: maximum number of splits to perform (depth of the tree)
-            nof_candidate_splits_for_numerical: number of candidate splits to consider for numerical features
-            min_points_per_subregion: minimum allowed number of points in a subregion (otherwise the split is not considered as valid)
-            candidate_conditioning_features: list of features to consider as conditioning features for the candidate splits
-            split_categorical_features
-        """
-
-        assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
-        features = helpers.prep_features(features, self.dim)
-        for feat in tqdm(features):
-            heter = self._create_heterogeneity_function(feat, min_points_per_subregion)
-
-            self._fit_feature(
-                feat,
-                heter,
-                heter_pcg_drop_thres,
-                heter_small_enough,
-                max_split_levels,
-                nof_candidate_splits_for_numerical,
-                min_points_per_subregion,
-                candidate_conditioning_features,
-                split_categorical_features,
-            )
-
-            # todo add methdod args

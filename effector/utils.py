@@ -1,7 +1,7 @@
 import typing
 import numpy as np
 import copy
-import effector.helpers as helpers
+from effector import helpers
 
 BIG_M = helpers.BIG_M
 EPS = helpers.EPS

@@ -5,8 +5,8 @@ import effector.binning_methods as bm
 import effector.helpers as helpers
 import effector.utils_integrate as utils_integrate
 from effector.global_effect import GlobalEffectBase
-from abc import abstractmethod
 import numpy as np
+from abc import abstractmethod
 
 
 class ALEBase(GlobalEffectBase):

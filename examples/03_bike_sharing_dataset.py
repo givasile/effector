@@ -135,7 +135,7 @@ regional_rhale.plot_first_level(feature=3, heterogeneity=True, centering=True, s
 
 
 # Regional PDP
-regional_pdp = effector.RegionalPDP(
+regional_pdp = effector.RegionalPDPBase(
     data=X_train.to_numpy(),
     model=model_forward,
     cat_limit=10,

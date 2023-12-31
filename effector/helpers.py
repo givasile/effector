@@ -1,6 +1,5 @@
 import typing
 import numpy as np
-from effector import binning_methods as bm
 
 
 BIG_M = 1e8
@@ -106,19 +105,6 @@ def prep_nof_instances(nof_instances: typing.Union[int, str], N: int) -> tuple[i
         nof_instances = N
     indices = np.random.choice(N, nof_instances, replace=False) if nof_instances < N else np.arange(N)
     return nof_instances, indices
-
-
-def prep_binning_method(method):
-    assert method in ["greedy", "dp", "fixed"] or isinstance(method, bm.Fixed) or isinstance(method, bm.DynamicProgramming) or isinstance(method, bm.Greedy)
-
-    if method == "greedy":
-        return bm.Greedy()
-    elif method == "dp":
-        return bm.DynamicProgramming()
-    elif method == "fixed":
-        return bm.Fixed()
-    else:
-        return method
 
 
 def get_feature_names(dim: int) -> list:

@@ -16,7 +16,7 @@ model_jac = lambda x: np.stack([np.where(x[:, 1] == 0, 1, -1), np.zeros_like(x[:
 x = np.linspace(-1, 1, T)
 
 # ground truth
-regional_pdp = effector.RegionalPDP(data, model, nof_instances=100)
+regional_pdp = effector.RegionalPDPBase(data, model, nof_instances=100)
 regional_pdp.fit("all",
                  heter_pcg_drop_thres=0.1,
                  heter_small_enough=0.1,

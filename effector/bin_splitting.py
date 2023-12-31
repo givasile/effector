@@ -6,12 +6,8 @@ import effector.helpers as helpers
 import matplotlib.pyplot as plt
 
 
-# global (script-level) variables
-big_M = helpers.BIG_M
-
-
 class BinBase:
-    big_M = big_M
+    big_M = helpers.BIG_M
 
     def __init__(self,
                  feature: int,
@@ -167,7 +163,6 @@ class Greedy(BinBase):
                  feature: int, 
                  axis_limits: typing.Union[None, np.ndarray]):
         super(Greedy, self).__init__(feature, data, data_effect, axis_limits)
-
 
     def find(
         self,
