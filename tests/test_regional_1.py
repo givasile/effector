@@ -20,7 +20,7 @@ regional_pdp = effector.RegionalPDPBase(data, model, nof_instances=100)
 regional_pdp.fit("all",
                  heter_pcg_drop_thres=0.1,
                  heter_small_enough=0.1,
-                 max_split_levels=1,
+                 max_depth=1,
                  nof_candidate_splits_for_numerical=10,
                  min_points_per_subregion=10,
                  candidate_conditioning_features="all",

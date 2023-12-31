@@ -648,7 +648,7 @@ regional_pdp.fit(
     features="all",
     heter_small_enough=0.1,
     heter_pcg_drop_thres=0.3,
-    max_split_levels=2,
+    max_depth=2,
     nof_candidate_splits_for_numerical=5,
     min_points_per_subregion=10,
     candidate_conditioning_features="all",
@@ -807,7 +807,7 @@ regional_pdp.fit(
     features="all",
     heter_small_enough=0.1,
     heter_pcg_drop_thres=0.5,
-    max_split_levels=2,
+    max_depth=2,
     nof_candidate_splits_for_numerical=5,
     min_points_per_subregion=10,
     candidate_conditioning_features="all",
@@ -939,7 +939,7 @@ regional_rhale.fit(
     features="all",
     heter_small_enough=0.1,
     heter_pcg_drop_thres=0.3,
-    max_split_levels=2,
+    max_depth=2,
     nof_candidate_splits_for_numerical=5,
     binning_method=binning_method,
     min_points_per_subregion=10,
@@ -1066,14 +1066,13 @@ regional_rhale = effector.RegionalRHALEBase(
     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 ```
 
-
 ```python
 binning_method = effector.binning_methods.Greedy(100, min_points_per_bin=10)
 regional_rhale.fit(
     features="all",
     heter_small_enough=0.1,
     heter_pcg_drop_thres=0.3,
-    max_split_levels=2,
+    max_depth=2,
     nof_candidate_splits_for_numerical=5,
     binning_method=binning_method,
     min_points_per_subregion=10,

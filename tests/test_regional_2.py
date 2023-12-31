@@ -33,19 +33,20 @@ def model_jac(x):
 x = np.linspace(-1, 1, T)
 
 # ground truth
-regional_pdp = effector.RegionalDerivativePDP(data, model, nof_instances=1000)
-regional_pdp.fit("all",
+regional_effect = effector.RegionalSHAP(data, model, nof_instances=1000)
+regional_effect.fit("all",
                  heter_pcg_drop_thres=0.1,
                  heter_small_enough=0.1,
-                 max_split_levels=2,
+                 max_depth=2,
                  nof_candidate_splits_for_numerical=20,
                  min_points_per_subregion=10,
                  candidate_conditioning_features="all",
                  split_categorical_features=False)
 
-regional_pdp.describe_subregions("all")
-regional_pdp.print_tree(1)
-regional_pdp.print_level_stats(1)
+regional_effect.describe_subregions("all")
+regional_effect.print_tree(0)
+regional_effect.print_level_stats(0)
+regional_effect.plot(0, 5, heterogeneity=True)
 
 # scale_x_per_feature ={
 #     "feature_0": {"mean": 1, "std": 1},
@@ -53,7 +54,7 @@ regional_pdp.print_level_stats(1)
 #     "feature_2": {"mean": 3, "std": 3}
 # }
 
-regional_pdp.plot(1, 6, heterogeneity=True)
+# regional_pdp.plot(0, 6, heterogeneity=True)
 
 # # ground truth
 # regional_ale = effector.RegionalRHALEBase(data, model, model_jac, nof_instances=1000)

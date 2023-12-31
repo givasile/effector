@@ -77,7 +77,7 @@ class RegionalRHALE(RegionalEffectBase):
         features: typing.Union[int, str, list],
         heter_pcg_drop_thres: float = 0.1,
         heter_small_enough: float = 0.1,
-        max_split_levels: int = 2,
+        max_depth: int = 2,
         nof_candidate_splits_for_numerical: int = 20,
         min_points_per_subregion: int = 10,
         candidate_conditioning_features: typing.Union["str", list] = "all",
@@ -99,7 +99,7 @@ class RegionalRHALE(RegionalEffectBase):
             heter_pcg_drop_thres: heterogeneity drop threshold for a split to be considered important
             heter_small_enough: heterogeneity threshold for a region to be considered homogeneous (splitting stops)
             binning_method: binning method to use
-            max_split_levels: maximum number of splits to perform (depth of the tree)
+            max_depth: maximum number of splits to perform (depth of the tree)
             nof_candidate_splits_for_numerical: number of candidate splits to consider for numerical features
             min_points_per_subregion: minimum allowed number of points in a subregion (otherwise the split is not considered as valid)
             candidate_conditioning_features: list of features to consider as conditioning features for the candidate splits
@@ -117,7 +117,7 @@ class RegionalRHALE(RegionalEffectBase):
                 heter,
                 heter_pcg_drop_thres,
                 heter_small_enough,
-                max_split_levels,
+                max_depth,
                 nof_candidate_splits_for_numerical,
                 min_points_per_subregion,
                 candidate_conditioning_features,

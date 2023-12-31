@@ -5,31 +5,60 @@ import numpy as np
 from effector.global_effect_shap import SHAPDependence
 from tqdm import tqdm
 
-BIG_M = helpers.BIG_M
 
 class RegionalSHAP(RegionalEffectBase):
+    big_m = helpers.BIG_M
+
     def __init__(
             self,
             data: np.ndarray,
             model: callable,
+            axis_limits: None | np.ndarray = None,
             nof_instances: int | str = 100,
-            axis_limits: typing.Union[None, np.ndarray] = None,
-            feature_types: typing.Union[list, None] = None,
-            cat_limit: typing.Union[int, None] = 10,
-            feature_names: typing.Union[list, None] = None,
-            target_name: typing.Union[str, None] = None,
+            feature_types: list[str] | None = None,
+            cat_limit: int | None = 10,
+            feature_names: None | list[str] = None,
+            target_name: None | str = None,
     ):
         """
-        Regional RHALE constructor.
+        Regional SHAP constructor.
 
         Args:
-            data: X matrix (N,D).
-            model: the black-box model (N,D) -> (N, )
-            model_jac: the black-box model Jacobian (N,D) -> (N,D)
-            axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
-            feature_types: list of feature types (categorical or numerical)
+            data: the design matrix
+
+                - shape: `(N,D)`
+            model: the black-box model. Must be a `Callable` with:
+
+                - input: `ndarray` of shape `(N, D)`
+                - output: `ndarray` of shape `(N, )`
+
+            axis_limits: The limits of the feature effect plot along each axis
+
+                - use a `ndarray` of shape `(2, D)`, to specify them manually
+                - use `None`, to be inferred from the data
+
+            nof_instances: maximum number of instances to be used for PDP.
+
+                - use "all", for using all instances.
+                - use an `int`, for using `nof_instances` instances.
+
+            feature_types: The feature types.
+
+                - use `None`, to infer them from the data; whether a feature is categorical or numerical is inferred
+                from whether it exceeds the `cat_limit` unique values.
+                - use a list with elements `"cat"` or `"numerical"`, to specify them manually.
+
             cat_limit: the minimum number of unique values for a feature to be considered categorical
-            feature_names: list of feature names
+
+            feature_names: The names of the features
+
+                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
+                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
+
+            target_name: The name of the target variable
+
+                - use a `str`, to specify it name manually. For example: `"price"`
+                - use `None`, to keep the default name: `"y"`
         """
         super(RegionalSHAP, self).__init__(
             "shap",
@@ -45,60 +74,57 @@ class RegionalSHAP(RegionalEffectBase):
             target_name
         )
 
-    def _create_heterogeneity_function(self, foi, min_points, centering, nof_instances):
+    def _create_heterogeneity_function(self, foi, min_points, centering, points_for_centering):
 
-        def heter(data) -> float:
+        def heterogeneity_function(data) -> float:
             if data.shape[0] < min_points:
-                return BIG_M
+                return self.big_m
 
-            shap = SHAPDependence(data, self.model, None, nof_instances)
-            try:
-                shap.fit(features=foi, centering=centering)
-            except:
-                return BIG_M
-
-            # heterogeneity is the accumulated std at the end of the curve
             axis_limits = helpers.axis_limits_from_data(data)
-
             xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
 
-            _, z = shap.eval(feature=foi, xs=xx, heterogeneity=True)
+            shap = SHAPDependence(data, self.model, None, self.nof_instances)
+            shap.fit(foi, centering, points_for_centering)
+            _, z = shap.eval(foi, xx, heterogeneity=True)
             return np.mean(z)
 
-        return heter
+        return heterogeneity_function
 
     def fit(
             self,
             features: typing.Union[int, str, list],
             heter_pcg_drop_thres: float = 0.1,
             heter_small_enough: float = 0.1,
-            max_split_levels: int = 2,
+            max_depth: int = 2,
             nof_candidate_splits_for_numerical: int = 20,
             min_points_per_subregion: int = 10,
             candidate_conditioning_features: typing.Union["str", list] = "all",
             split_categorical_features: bool = False,
             centering: typing.Union[bool, str] = False,
-            nof_instances: int = 100,
+            points_for_centering: int = 100,
     ):
         """
-        Find the Regional RHALE for a list of features.
+        Fit the regional SHAP.
 
         Args:
-            features: list of features to fit
-            heter_pcg_drop_thres: heterogeneity drop threshold for a split to be considered important
+            features: the features to fit.
+                - If set to "all", all the features will be fitted.
+
+            heter_pcg_drop_thres: threshold for the percentage drop in heterogeneity to consider a split valid
             heter_small_enough: heterogeneity threshold for a region to be considered homogeneous (splitting stops)
-            binning_method: binning method to use
-            max_split_levels: maximum number of splits to perform (depth of the tree)
+            max_depth: maximum number of splits to perform (depth of the tree)
             nof_candidate_splits_for_numerical: number of candidate splits to consider for numerical features
             min_points_per_subregion: minimum allowed number of points in a subregion (otherwise the split is not considered as valid)
             candidate_conditioning_features: list of features to consider as conditioning features for the candidate splits
+            split_categorical_features: whether to search for subregions in categorical features
+            centering: whether to center the SHAP dependence plots before estimating the heterogeneity
+            points_for_centering: number of points to use for centering
         """
-
         assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
             heter = self._create_heterogeneity_function(
-                feat, min_points_per_subregion, centering, nof_instances
+                feat, min_points_per_subregion, centering, points_for_centering
             )
 
             self._fit_feature(
@@ -106,11 +132,21 @@ class RegionalSHAP(RegionalEffectBase):
                 heter,
                 heter_pcg_drop_thres,
                 heter_small_enough,
-                max_split_levels,
+                max_depth,
                 nof_candidate_splits_for_numerical,
                 min_points_per_subregion,
                 candidate_conditioning_features,
                 split_categorical_features,
             )
 
-            # todo: add method args
+            self.method_args["feature_" + str(feat)] = {
+                "heter_pcg_drop_thres": heter_pcg_drop_thres,
+                "heter_small_enough": heter_small_enough,
+                "max_depth": max_depth,
+                "nof_candidate_splits_for_numerical": nof_candidate_splits_for_numerical,
+                "min_points_per_subregion": min_points_per_subregion,
+                "candidate_conditioning_features": candidate_conditioning_features,
+                "split_categorical_features": split_categorical_features,
+                "centering": centering,
+                "points_for_centering": points_for_centering,
+            }
