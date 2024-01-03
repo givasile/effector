@@ -67,27 +67,51 @@
          show_root_heading: True
          show_symbol_type_toc: True
          members:
-           - __init__
+           - eval
+           - plot
+           - print_tree
+           - print_level_stats
+           - get_node_info           
            - describe_regions
 
 
-### ::: effector.regional_effect.RegionalRHALEBase
+### ::: effector.regional_effect_ale.RegionalALE
        options:
          show_root_heading: True
          show_symbol_type_toc: True
          members:
             - __init__
             - fit
-            - plot_first_level
 
-### ::: effector.regional_effect.RegionalPDP
+
+### ::: effector.regional_effect_ale.RegionalRHALE
        options:
          show_root_heading: True
          show_symbol_type_toc: True
          members:
             - __init__
             - fit
-            - plot_first_level
+
+### ::: effector.regional_effect_pdp.RegionalPDPBase
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+            - fit
+
+### ::: effector.regional_effect_pdp.RegionalPDP
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+            - __init__
+
+### ::: effector.regional_effect_pdp.RegionalDerivativePDP
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+            - __init__
 
 
 ## Binning Methods

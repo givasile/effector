@@ -132,7 +132,7 @@ class RegionalEffectBase:
         if not self.is_fitted[feature]:
             self.fit(feature)
 
-    def _get_node_info(self, feature, node_idx):
+    def get_node_info(self, feature, node_idx):
         # assert node id exists
         assert node_idx in [node.idx for node in self.tree_pruned["feature_{}".format(feature)].nodes], "Node {} does not exist".format(node_idx)
 
@@ -184,7 +184,7 @@ class RegionalEffectBase:
         """
         self.refit(feature)
         centering = helpers.prep_centering(centering)
-        data, data_effect, _ = self._get_node_info(feature, node_idx)
+        data, data_effect, _ = self.get_node_info(feature, node_idx)
         fe_method = self._create_fe_object(data, data_effect, None)
         return fe_method.eval(feature, xs, heterogeneity, centering)
 
@@ -202,7 +202,7 @@ class RegionalEffectBase:
 
         self.refit(feature)
 
-        data, data_effect, name = self._get_node_info(feature, node_idx)
+        data, data_effect, name = self.get_node_info(feature, node_idx)
         feature_names = copy.deepcopy(self.feature_names)
         feature_names[feature] = name
         fe_method = self._create_fe_object(data, data_effect, feature_names)

@@ -9,7 +9,9 @@ def test_gam():
     Test the vectorized version of the SHAP function for a square model
     """
     N = 1000
-    T = 10000
+    T = 1000
+    atol = 0.1
+    rtol = 0.1
 
     data = np.stack([
             np.random.rand(N + 1),
@@ -20,71 +22,39 @@ def test_gam():
     model_jac = lambda x: np.stack([3 * x[:, 0]**2/5, 2 * x[:, 1]/5], axis=1)
 
     x = np.linspace(0, 1, T)
-    y_1_gt = x**3/5
-    y_2_gt = x**2/5
-    heter_gt = np.zeros_like(x)
-    y_1_der_gt = 3 * x**2/5
-    y_2_der_gt = 2 * x/5
+    gt = {"x1": x**3/5, "x2": x**2/5, "heterogeneity": np.zeros_like(x), "x1_der": 3 * x**2/5, "x2_der": 2 * x/5}
 
-    # test PDP
-    pdp = effector.PDP(data, model, nof_instances=100)
-    y, heterogeneity = pdp.eval(feature=0, xs=x, heterogeneity=True, centering="zero_start")
-    np.allclose(y, y_1_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heterogeneity, heter_gt, atol=1e-1, rtol=1e-1)
-    y, heterogeneity = pdp.eval(feature=1, xs=x, heterogeneity=True, centering="zero_start")
-    np.allclose(y, y_2_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heterogeneity, heter_gt, atol=1e-1, rtol=1e-1)
+    # Define test cases
+    test_cases = [
+        {"method": effector.PDP, "kwargs": {}},
+        {"method": effector.DerivativePDP, "kwargs": {"model_jac": None}},
+        {"method": effector.DerivativePDP, "kwargs": {"model_jac": model_jac}},
+        {"method": effector.SHAPDependence, "kwargs": {}},
+        {"method": effector.ALE, "kwargs": {}},
+        {"method": effector.RHALE, "kwargs": {"model_jac": None}},
+        {"method": effector.RHALE, "kwargs": {"model_jac": model_jac}}
+    ]
 
-    # test d-PDP without Jacobian
-    d_pdp = effector.DerivativePDP(data, model)
-    y, heter = d_pdp.eval(feature=0, xs=x, heterogeneity=True, centering=False)
-    np.allclose(y, y_2_der_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heter, heterogeneity, atol=1e-1, rtol=1e-1)
-    y, heter = d_pdp.eval(feature=1, xs=x, heterogeneity=True, centering=False)
-    np.allclose(y, y_1_der_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heter, heterogeneity, atol=1e-1, rtol=1e-1)
+    for test_case in test_cases:
+        effector_class = test_case["method"]
+        kwargs = test_case["kwargs"]
 
-    # test d-PDP with Jacobian
-    d_pdp = effector.DerivativePDP(data, model, model_jac)
-    y, heter = d_pdp.eval(feature=0, xs=x, heterogeneity=True, centering=False)
-    np.allclose(y, y_2_der_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heter, heterogeneity, atol=1e-1, rtol=1e-1)
-    y, heter = d_pdp.eval(feature=1, xs=x, heterogeneity=True, centering=False)
-    np.allclose(y, y_1_der_gt, atol=1e-1, rtol=1e-1)
+        # Instantiate the effector class
+        eff = effector_class(data, model, nof_instances=100, **kwargs)
 
-    # test SHAP
-    shap_dep = effector.SHAPDependence(data, model, nof_instances=100)
-    y, heter = shap_dep.eval(feature=0, xs=x, heterogeneity=True, centering="zero_start")
-    np.allclose(y, y_1_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heter, heter_gt, atol=1e-1, rtol=1e-1)
-    y, heter = shap_dep.eval(feature=1, xs=x, heterogeneity=True, centering="zero_start")
-    np.allclose(y, y_2_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heter, heter_gt, atol=1e-1, rtol=1e-1)
+        for feature in [0, 1]:
+            # Evaluate the effector and retrieve results
+            y, heterogeneity = eff.eval(feature=feature, xs=x, heterogeneity=True, centering="zero_start")
 
-    # test ALE
-    ale = effector.ALE(data, model, nof_instances=100)
-    y, heter = ale.eval(feature=0, xs=x, heterogeneity=True, centering="zero_start")
-    np.allclose(y, y_1_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heter, heter_gt, atol=1e-1, rtol=1e-1)
-    y, heter = ale.eval(feature=1, xs=x, heterogeneity=True, centering="zero_start")
-    np.allclose(y, y_2_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heter, heter_gt, atol=1e-1, rtol=1e-1)
+            np.allclose(heterogeneity, gt["heterogeneity"], atol=atol, rtol=rtol)
 
-    # test RHALE without Jacobian
-    rhale = effector.RHALE(data, model, nof_instances=100)
-    y, heter = rhale.eval(feature=0, xs=x, heterogeneity=True, centering="zero_start")
-    np.allclose(y, y_1_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heter, heter_gt, atol=1e-1, rtol=1e-1)
-    y, heter = rhale.eval(feature=1, xs=x, heterogeneity=True, centering="zero_start")
-    np.allclose(y, y_2_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heter, heter_gt, atol=1e-1, rtol=1e-1)
-
-    # test RHALE with Jacobian
-    rhale = effector.RHALE(data, model, model_jac, nof_instances=100)
-    y, heter = rhale.eval(feature=0, xs=x, heterogeneity=True, centering="zero_start")
-    np.allclose(y, y_1_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heter, heter_gt, atol=1e-1, rtol=1e-1)
-    y, heter = rhale.eval(feature=1, xs=x, heterogeneity=True, centering="zero_start")
-    np.allclose(y, y_2_gt, atol=1e-1, rtol=1e-1)
-    np.allclose(heter, heter_gt, atol=1e-1, rtol=1e-1)
-
+            if effector_class not in [effector.DerivativePDP]:
+                if feature == 0:
+                    np.allclose(y, gt["x1"], atol=atol, rtol=rtol)
+                elif feature == 1:
+                    np.allclose(y, gt["x2"], atol=atol, rtol=rtol)
+            else:
+                if feature == 0:
+                    np.allclose(y, gt["x1_der"], atol=atol, rtol=rtol)
+                elif feature == 1:
+                    np.allclose(y, gt["x2_der"], atol=atol, rtol=rtol)
