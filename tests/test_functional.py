@@ -1,5 +1,6 @@
 import numpy as np
 import effector
+import effector.bin_splitting
 
 
 np.random.seed(21)
@@ -199,7 +200,7 @@ class TestBinEstimation:
 
         # test Greedy
         min_points = 2
-        est = effector.bin_estimation.Greedy(
+        est = effector.bin_splitting.Greedy(
             x, y_grad, feature=0, axis_limits=axis_limits
         )
         limits_greedy = est.find(init_nof_bins=100, discount=.3, min_points=min_points, cat_limit=1)
@@ -210,7 +211,7 @@ class TestBinEstimation:
 
         # test DP
         min_points = 2
-        est = effector.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
+        est = effector.bin_splitting.DP(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_dp = est.find(max_nof_bins=10, min_points=min_points, cat_limit=1)
 
         assert limits_dp.size == 3
@@ -223,14 +224,14 @@ class TestBinEstimation:
         gt_limits = np.array([0, 1.0])
 
         min_points = 3
-        est = effector.bin_estimation.Greedy(
+        est = effector.bin_splitting.Greedy(
             x, y_grad, feature=0, axis_limits=axis_limits
         )
         limits_greedy = est.find(init_nof_bins=100, discount=1.05, min_points=min_points, cat_limit=1)
         assert np.allclose(gt_limits, limits_greedy)
 
         min_points = 3
-        est = effector.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
+        est = effector.bin_splitting.DP(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_dp = est.find(max_nof_bins=10, min_points=min_points, cat_limit=1)
         assert np.allclose(gt_limits, limits_dp)
 
@@ -239,14 +240,14 @@ class TestBinEstimation:
         gt_limits = np.array([0, 1.0])
 
         min_points = 4
-        est = effector.bin_estimation.Greedy(
+        est = effector.bin_splitting.Greedy(
             x, y_grad, feature=0, axis_limits=axis_limits
         )
         limits_greedy = est.find(init_nof_bins=100, discount=1.05, min_points=min_points, cat_limit=1)
         assert np.allclose(gt_limits, limits_greedy)
 
         min_points = 4
-        est = effector.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
+        est = effector.bin_splitting.DP(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_dp = est.find(max_nof_bins=10, min_points=min_points, cat_limit=1)
         assert np.allclose(gt_limits, limits_dp)
 
@@ -254,14 +255,14 @@ class TestBinEstimation:
         x, y_grad, axis_limits = self.create_4_data_points()
 
         min_points = 5
-        est = effector.bin_estimation.Greedy(
+        est = effector.bin_splitting.Greedy(
             x, y_grad, feature=0, axis_limits=axis_limits
         )
         limits_Greedy = est.find(min_points, cat_limit=1)
         assert limits_Greedy is False
 
         min_points = 5
-        est = effector.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
+        est = effector.bin_splitting.DP(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_DP = est.find(min_points=min_points, cat_limit=1)
         assert limits_DP is False
 
@@ -271,7 +272,7 @@ class TestBinEstimation:
 
         # test Greedy
         min_points = 10
-        est = effector.bin_estimation.Greedy(
+        est = effector.bin_splitting.Greedy(
             x, y_grad, feature=0, axis_limits=axis_limits
         )
         limits_greedy = est.find(min_points, cat_limit=1)
@@ -323,7 +324,7 @@ class TestBinEstimation:
 
         # test DP
         min_points = 10
-        est = effector.bin_estimation.DP(x, y_grad, feature=0, axis_limits=axis_limits)
+        est = effector.bin_splitting.DP(x, y_grad, feature=0, axis_limits=axis_limits)
         limits_dp = est.find(min_points, cat_limit=1)
         assert (
             np.sum(

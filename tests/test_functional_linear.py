@@ -1,13 +1,13 @@
 import numpy as np
 import effector
 
-np.random.seed(21)
-
-
 def test_linear():
     """
     Test the vectorized version of the SHAP function for a linear model
     """
+
+    np.random.seed(21)
+
     N = 1000
     T = 1000
     rtol = .1

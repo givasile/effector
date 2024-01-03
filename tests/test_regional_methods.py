@@ -1,10 +1,10 @@
 import numpy as np
 import effector
 
-np.random.seed(21)
-
 
 def test_regional():
+    np.random.seed(21)
+
     N = 1000
     T = 1000
 
@@ -18,7 +18,7 @@ def test_regional():
         axis=1)
 
     def model(x):
-        y = np.zeros_like(x[:,0])
+        y = np.zeros_like(x[:, 0])
         ind = np.logical_and(x[:, 1] > 0, x[:, 2] == 0)
         y[ind] = 5*x[ind, 0]
         return y

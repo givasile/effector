@@ -2,13 +2,13 @@ import numpy as np
 import effector
 
 
-np.random.seed(21)
-
-
 def test_pdp_1d_vectorized():
     """
     Test the vectorized version of the PDP function for a square model
     """
+
+    np.random.seed(21)
+
     N = 10
     T = 100
 
