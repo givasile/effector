@@ -216,33 +216,28 @@ class RegionalEffectBase:
             y_limits=y_limits
             )
 
-    def print_tree(self, features, only_important=True):
+    def show_partitioning(self, features, only_important=True):
         features = helpers.prep_features(features, self.dim)
+
         for feat in features:
             self.refit(feat)
+            print("Feature {} - Full partition tree:".format(feat))
 
-            print("Feature {}".format(feat))
-            if only_important:
-                if self.tree_pruned["feature_{}".format(feat)] is None:
-                    print("No important splits found for feature {}".format(feat))
-                else:
-                    self.tree_pruned["feature_{}".format(feat)].show()
+            tree_dict = self.tree_pruned if only_important else self.tree_full
+            tree_key = "feature_{}".format(feat)
+
+            if tree_dict[tree_key] is None:
+                print("No splits found for feature {}".format(feat))
             else:
-                if self.tree_full["feature_{}".format(feat)] is None:
-                    print("No important splits found for feature {}".format(feat))
-                else:
-                    self.tree_full["feature_{}".format(feat)].show()
+                tree_dict[tree_key].show_full_tree()
 
-    def print_level_stats(self, features):
-        features = helpers.prep_features(features, self.dim)
-        for feat in features:
-            self.refit(feat)
+            print("-" * 50)
+            print("Feature {} - Statistics per tree level:".format(feat))
 
-            print("Feature {}".format(feat))
-            if self.tree_full["feature_{}".format(feat)] is None:
-                print("No important splits found for feature {}".format(feat))
+            if tree_dict[tree_key] is None:
+                print("No splits found for feature {}".format(feat))
             else:
-                self.tree_full["feature_{}".format(feat)].show1()
+                tree_dict[tree_key].show_level_stats()
 
     def describe_subregions(
         self,

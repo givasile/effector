@@ -547,21 +547,26 @@ class Tree:
 
         return {"heterogeneity": w_heter}
 
-    def show(self, node=None):
+    def show_full_tree(self, node=None):
         if node is None:
             node = self.get_root()
 
         indent = node.level*2
-        print("   " * indent + "Node id: %d, name: %s, heter: %.2f || nof_instances: %5d || weight: %.2f" % (node.idx, node.name, node.data['heterogeneity'], node.data['nof_instances'], node.data['weight']))
+        print("    " * indent + "Node id: %d, name: %s, heter: %.2f || nof_instances: %5d || weight: %.2f" % (node.idx, node.name, node.data['heterogeneity'], node.data['nof_instances'], node.data['weight']))
         children = self.get_children(node.name)
         for child in children:
-            self.show(child)
+            self.show_full_tree(child)
 
-    def show1(self, node=None):
+    def show_level_stats(self, node=None):
         max_level = max([node.level for node in self.nodes])
+        prev_heter = 0
         for lev in range(max_level+1):
             level_stats = self.get_level_stats(lev)
-            print("  " * lev*2 + " Level %.d, heter: %.2f" % (lev, level_stats['heterogeneity']))
+            if lev == 0:
+                print("    " * lev*2 + "Level %.d, heter: %.2f" % (lev, level_stats['heterogeneity']))
+            else:
+                print("    " * lev*2 + "Level %.d, heter: %.2f || heter drop: %.2f (%.2f%%)" % (lev, level_stats['heterogeneity'], prev_heter - level_stats['heterogeneity'], 100*(prev_heter - level_stats['heterogeneity'])/prev_heter))
+            prev_heter = level_stats['heterogeneity']
 
 
 

@@ -15,14 +15,14 @@ import tensorflow as tf
 from tensorflow import keras
 ```
 
-    2023-12-18 21:33:55.120445: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-    2023-12-18 21:33:55.157207: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2023-12-18 21:33:55.157252: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2023-12-18 21:33:55.158427: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2023-12-18 21:33:55.163835: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-    2023-12-18 21:33:55.164425: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-12-19 13:33:56.611106: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+    2023-12-19 13:33:56.644102: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    2023-12-19 13:33:56.644124: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    2023-12-19 13:33:56.644931: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2023-12-19 13:33:56.649814: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+    2023-12-19 13:33:56.650262: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-12-18 21:33:55.973538: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-12-19 13:33:57.524144: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 ## Preprocess the data
@@ -134,35 +134,65 @@ model = keras.Sequential([
 
 optimizer = keras.optimizers.Adam(learning_rate=0.001)
 model.compile(optimizer=optimizer, loss="mse", metrics=["mae", keras.metrics.RootMeanSquaredError()])
-model.fit(X_train, Y_train, batch_size=512, epochs=5, verbose=1)
+model.fit(X_train, Y_train, batch_size=512, epochs=20, verbose=1)
 model.evaluate(X_train, Y_train, verbose=1)
 model.evaluate(X_test, Y_test, verbose=1)
 
 ```
 
-    Epoch 1/5
+    Epoch 1/20
 
 
-    2023-12-18 21:34:08.448920: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
+    2023-12-19 13:33:58.184866: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
 
 
-    28/28 [==============================] - 1s 11ms/step - loss: 0.4583 - mae: 0.4910 - root_mean_squared_error: 0.6770
-    Epoch 2/5
-    28/28 [==============================] - 0s 12ms/step - loss: 0.3207 - mae: 0.4087 - root_mean_squared_error: 0.5663
-    Epoch 3/5
-    28/28 [==============================] - 0s 12ms/step - loss: 0.2588 - mae: 0.3627 - root_mean_squared_error: 0.5087
-    Epoch 4/5
-    28/28 [==============================] - 0s 10ms/step - loss: 0.2035 - mae: 0.3167 - root_mean_squared_error: 0.4511
-    Epoch 5/5
-    28/28 [==============================] - 0s 11ms/step - loss: 0.1460 - mae: 0.2657 - root_mean_squared_error: 0.3821
-    435/435 [==============================] - 1s 1ms/step - loss: 0.1276 - mae: 0.2583 - root_mean_squared_error: 0.3573
-    109/109 [==============================] - 0s 1ms/step - loss: 0.4399 - mae: 0.4965 - root_mean_squared_error: 0.6633
+    28/28 [==============================] - 1s 12ms/step - loss: 0.4592 - mae: 0.4937 - root_mean_squared_error: 0.6776
+    Epoch 2/20
+    28/28 [==============================] - 0s 11ms/step - loss: 0.3112 - mae: 0.3991 - root_mean_squared_error: 0.5578
+    Epoch 3/20
+    28/28 [==============================] - 0s 11ms/step - loss: 0.2446 - mae: 0.3479 - root_mean_squared_error: 0.4945
+    Epoch 4/20
+    28/28 [==============================] - 0s 12ms/step - loss: 0.1981 - mae: 0.3144 - root_mean_squared_error: 0.4451
+    Epoch 5/20
+    28/28 [==============================] - 0s 11ms/step - loss: 0.1475 - mae: 0.2691 - root_mean_squared_error: 0.3841
+    Epoch 6/20
+    28/28 [==============================] - 0s 11ms/step - loss: 0.1037 - mae: 0.2207 - root_mean_squared_error: 0.3220
+    Epoch 7/20
+    28/28 [==============================] - 0s 12ms/step - loss: 0.0768 - mae: 0.1919 - root_mean_squared_error: 0.2772
+    Epoch 8/20
+    28/28 [==============================] - 0s 12ms/step - loss: 0.0646 - mae: 0.1746 - root_mean_squared_error: 0.2542
+    Epoch 9/20
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0549 - mae: 0.1602 - root_mean_squared_error: 0.2344
+    Epoch 10/20
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0520 - mae: 0.1575 - root_mean_squared_error: 0.2281
+    Epoch 11/20
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0432 - mae: 0.1413 - root_mean_squared_error: 0.2079
+    Epoch 12/20
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0480 - mae: 0.1557 - root_mean_squared_error: 0.2192
+    Epoch 13/20
+    28/28 [==============================] - 0s 12ms/step - loss: 0.0430 - mae: 0.1403 - root_mean_squared_error: 0.2073
+    Epoch 14/20
+    28/28 [==============================] - 0s 12ms/step - loss: 0.0394 - mae: 0.1349 - root_mean_squared_error: 0.1984
+    Epoch 15/20
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0382 - mae: 0.1338 - root_mean_squared_error: 0.1954
+    Epoch 16/20
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0367 - mae: 0.1295 - root_mean_squared_error: 0.1916
+    Epoch 17/20
+    28/28 [==============================] - 0s 12ms/step - loss: 0.0357 - mae: 0.1288 - root_mean_squared_error: 0.1889
+    Epoch 18/20
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0349 - mae: 0.1259 - root_mean_squared_error: 0.1868
+    Epoch 19/20
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0331 - mae: 0.1262 - root_mean_squared_error: 0.1819
+    Epoch 20/20
+    28/28 [==============================] - 0s 12ms/step - loss: 0.0326 - mae: 0.1224 - root_mean_squared_error: 0.1804
+    435/435 [==============================] - 1s 1ms/step - loss: 0.0409 - mae: 0.1362 - root_mean_squared_error: 0.2022
+    109/109 [==============================] - 0s 1ms/step - loss: 0.2322 - mae: 0.3299 - root_mean_squared_error: 0.4818
 
 
 
 
 
-    [0.439924418926239, 0.49649322032928467, 0.663267970085144]
+    [0.23217250406742096, 0.3299064636230469, 0.4818428158760071]
 
 
 
@@ -202,39 +232,14 @@ target_name = "bike-rentals"
 
 
 ```python
-import numpy as np
-np.mean(model_forward(X_train.to_numpy())) * scale_y["std"] + scale_y["mean"]
-```
-
-
-
-
-    181.44963720359735
-
-
-
-
-```python
 pdp = effector.PDP(data=X_train.to_numpy(), model=model_forward, feature_names=feature_names, target_name=target_name, nof_instances=5000)
 pdp.plot(feature=3, centering=False, scale_x=scale_x, scale_y=scale_y, show_avg_output=True)
 ```
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_16_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_15_0.png)
     
-
-
-
-```python
-pdp.avg_output
-```
-
-
-
-
-    -0.05131003
-
 
 
 
@@ -242,16 +247,14 @@ pdp.avg_output
 pdp.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scale_y=scale_y)
 ```
 
-    2023-12-18 21:32:42.848593: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 2048000000 exceeds 10% of free system memory.
-    2023-12-18 21:32:43.211631: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 2048000000 exceeds 10% of free system memory.
-    2023-12-18 21:32:43.474956: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 2048000000 exceeds 10% of free system memory.
-    2023-12-18 21:32:43.754465: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 1024000000 exceeds 10% of free system memory.
-    2023-12-18 21:32:44.807002: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 1024000000 exceeds 10% of free system memory.
+    2023-12-19 13:34:07.190214: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 2048000000 exceeds 10% of free system memory.
+    2023-12-19 13:34:07.538920: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 2048000000 exceeds 10% of free system memory.
+    2023-12-19 13:34:07.811640: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 2048000000 exceeds 10% of free system memory.
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_1.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_16_1.png)
     
 
 
@@ -262,21 +265,18 @@ pdp.plot(feature=3, heterogeneity="ice", centering=True, scale_x=scale_x, scale_
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_19_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_0.png)
     
 
 
-
-```python
 ### RHALE
-```
 
 
 ```python
 rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, feature_names=feature_names, target_name=target_name)
 binning_method = effector.binning_methods.Greedy(init_nof_bins=1000, min_points_per_bin=100, discount=0, cat_limit=10)
 rhale.fit(features=3, binning_method=binning_method)
-rhale.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y)
+rhale.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y, show_avg_output=True)
 ```
 
     Degrees of freedom <= 0 for slice
@@ -286,7 +286,7 @@ rhale.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y)
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_21_1.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_19_1.png)
     
 
 
@@ -295,12 +295,12 @@ rhale.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y)
 rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, feature_names=feature_names, target_name=target_name)
 binning_method = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=100, discount=0, cat_limit=10)
 rhale.fit(features=3, binning_method=binning_method)
-rhale.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scale_y=scale_y)
+rhale.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scale_y=scale_y, show_avg_output=True)
 ```
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_22_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_0.png)
     
 
 
@@ -308,9 +308,10 @@ rhale.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scal
 
 ### RegionalRHALE
 
+
 ```python
 # Regional RHALE
-regional_rhale = effector.RegionalRHALEBase(
+regional_rhale = effector.RegionalRHALE(
     data=X_train.to_numpy(),
     model=model_forward,
     model_jac=model_jac,
@@ -323,7 +324,7 @@ regional_rhale.fit(
     heter_small_enough=0.1,
     heter_pcg_drop_thres=0.1,
     binning_method="greedy",
-    max_depth=2,
+    max_split_levels=2,
     nof_candidate_splits_for_numerical=5,
     min_points_per_subregion=10,
     candidate_conditioning_features="all",
@@ -331,86 +332,7 @@ regional_rhale.fit(
 )
 ```
 
-      0%|                                                                                                                                                            | 0/1 [00:00<?, ?it/s]
-
-
-
-    ---------------------------------------------------------------------------
-
-    TypeError                                 Traceback (most recent call last)
-
-    Cell In[16], line 10
-          1 # Regional RHALE
-          2 regional_rhale = effector.RegionalRHALE(
-          3     data=X_train.to_numpy(),
-          4     model=model_forward,
-       (...)
-          7     feature_names=feature_names,
-          8 )
-    ---> 10 regional_rhale.fit(
-         11     features=3,
-         12     heter_small_enough=0.1,
-         13     heter_pcg_drop_thres=0.1,
-         14     binning_method="greedy",
-         15     max_split_levels=2,
-         16     nof_candidate_splits_for_numerical=5,
-         17     min_points_per_subregion=10,
-         18     candidate_conditioning_features="all",
-         19     split_categorical_features=True,
-         20 )
-
-
-    File ~/github/packages/effector/effector/regional_effect.py:322, in RegionalRHALE.fit(self, features, heter_pcg_drop_thres, heter_small_enough, binning_method, max_split_levels, nof_candidate_splits_for_numerical, min_points_per_subregion, candidate_conditioning_features, split_categorical_features)
-        320 features = helpers.prep_features(features, self.dim)
-        321 for feat in tqdm(features):
-    --> 322     self._fit_feature(
-        323         feat,
-        324         heter_pcg_drop_thres,
-        325         heter_small_enough,
-        326         binning_method,
-        327         max_split_levels,
-        328         nof_candidate_splits_for_numerical,
-        329         min_points_per_subregion,
-        330         candidate_conditioning_features,
-        331         split_categorical_features,
-        332     )
-
-
-    File ~/github/packages/effector/effector/regional_effect.py:277, in RegionalRHALE._fit_feature(self, feature, heter_pcg_drop_thres, heter_small_enough, binning_method, max_split_levels, nof_candidate_splits_for_numerical, min_points_per_subregion, candidate_conditioning_features, split_categorical_features)
-        260 regions = Regions(
-        261     feature,
-        262     heter,
-       (...)
-        273     split_categorical_features,
-        274 )
-        276 self.regions["feature_{}".format(feature)] = regions
-    --> 277 splits = regions.search_all_splits()
-        279 self.splits_per_feature_full_depth["feature_{}".format(feature)] = splits
-        280 self.splits_per_feature_full_depth_found[feature] = True
-
-
-    File ~/github/packages/effector/effector/partitioning.py:83, in Regions.search_all_splits(self)
-         77 assert self.max_split_levels <= len(
-         78     self.foc
-         79 ), "nof_levels must be smaller than len(foc)"
-         81 # initialize heterogeneity
-         82 heter_init = (
-    ---> 83     self.heter_func(self.data, self.data_effect)
-         84     if self.data_effect is not None
-         85     else self.heter_func(self.data)
-         86 )
-         88 # initialize x_list, x_jac_list, splits
-         89 x_list = [self.data]
-
-
-    File ~/github/packages/effector/effector/regional_effect.py:230, in RegionalRHALE._create_heterogeneity_function.<locals>.heter(data, instance_effects)
-        228 axis_limits = helpers.axis_limits_from_data(data)
-        229 stop = np.array([axis_limits[:, foi][1]])
-    --> 230 _, z, _ = rhale.eval(feature=foi, xs=stop, uncertainty=True)
-        231 return z.item()
-
-
-    TypeError: GlobalEffect.eval() got an unexpected keyword argument 'uncertainty'
+    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:30<00:00, 30.91s/it]
 
 
 
@@ -418,17 +340,50 @@ regional_rhale.fit(
 regional_rhale.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
 ```
 
+    Important splits for feature hr
+    - On feature workingday (cat)
+      - Range: [0.00, 1.00]
+      - Candidate split positions: 0.00, 1.00
+      - Position of split: 0.00
+      - Heterogeneity before split: 5.69
+      - Heterogeneity after split: 3.76
+      - Heterogeneity drop: 1.93 (51.24 %)
+      - Number of instances before split: 13903
+      - Number of instances after split: [4387, 9516]
+    - On feature temp (cont)
+      - Range: [0.02, 1.00]
+      - Candidate split positions: 0.12, 0.31, 0.51, 0.71, 0.90
+      - Position of split: 0.51
+      - Heterogeneity before split: 3.76
+      - Heterogeneity after split: 3.14
+      - Heterogeneity drop: 0.62 (19.74 %)
+      - Number of instances before split: [4387, 9516]
+      - Number of instances after split: [2390, 1997, 4610, 4906]
+
+
 
 ```python
-
-regional_rhale.plot_first_level(feature=3, heterogeneity=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y)
+regional_rhale.plot_first_level(feature=3, heterogeneity=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y, show_avg_output=True)
 
 ```
 
+
+    
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_25_0.png)
+    
+
+
+
+    
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_25_1.png)
+    
+
+
 ### RegionalPDP
 
+
 ```python
-regional_pdp = effector.RegionalPDPBase(
+regional_pdp = effector.RegionalPDP(
     data=X_train.to_numpy(),
     model=model_forward,
     cat_limit=10,
@@ -439,7 +394,7 @@ regional_pdp.fit(
     features=3,
     heter_small_enough=0.1,
     heter_pcg_drop_thres=0.1,
-    max_depth=2,
+    max_split_levels=2,
     nof_candidate_splits_for_numerical=5,
     min_points_per_subregion=10,
     candidate_conditioning_features="all",
@@ -447,18 +402,53 @@ regional_pdp.fit(
 )
 ```
 
+    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:18<00:00, 18.56s/it]
+
+
 
 ```python
-
 regional_pdp.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
 ```
 
+    Important splits for feature hr
+    - On feature workingday (cat)
+      - Range: [0.00, 1.00]
+      - Candidate split positions: 0.00, 1.00
+      - Position of split: 1.00
+      - Heterogeneity before split: 0.59
+      - Heterogeneity after split: 0.45
+      - Heterogeneity drop: 0.14 (30.52 %)
+      - Number of instances before split: 13903
+      - Number of instances after split: [9516, 4387]
+    - On feature temp (cont)
+      - Range: [0.02, 1.00]
+      - Candidate split positions: 0.12, 0.31, 0.51, 0.71, 0.90
+      - Position of split: 0.51
+      - Heterogeneity before split: 0.41
+      - Heterogeneity after split: 0.36
+      - Heterogeneity drop: 0.05 (13.49 %)
+      - Number of instances before split: [9516, 4387]
+      - Number of instances after split: [4610, 4906, 2390, 1997]
+
+
 
 ```python
 
-regional_pdp.plot_first_level(feature=3, heterogeneity=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y)
+regional_pdp.plot_first_level(feature=3, heterogeneity=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y, show_avg_output=True)
 
 ```
+
+
+    
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_0.png)
+    
+
+
+
+    
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_1.png)
+    
+
 
 
 ```python
