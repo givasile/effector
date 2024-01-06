@@ -484,8 +484,6 @@ class RHALE(ALEBase):
             self.compile()
 
         # drop points outside of limits
-        self.data = self.data[self.data[:, feature] >= self.axis_limits[0, feature]]
-        self.data = self.data[self.data[:, feature] <= self.axis_limits[1, feature]]
         ind = np.logical_and(
             self.data[:, feature] >= self.axis_limits[0, feature],
             self.data[:, feature] <= self.axis_limits[1, feature],
