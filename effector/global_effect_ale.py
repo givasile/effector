@@ -163,6 +163,7 @@ class ALEBase(GlobalEffectBase):
         scale_y: None | dict = None,
         show_avg_output: bool = False,
         y_limits: None | list = None,
+        dy_limits: None | list = None
     ):
         """
         Plot the (RH)ALE feature effect of feature `feature`.
@@ -196,6 +197,11 @@ class ALEBase(GlobalEffectBase):
 
                 - If set to None, the limits of the y-axis are set automatically
                 - If set to a tuple, the limits are manually set
+
+            dy_limits: None or tuple, the limits of the dy-axis
+
+                - If set to None, the limits of the dy-axis are set automatically
+                - If set to a tuple, the limits are manually set
         """
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
@@ -222,7 +228,8 @@ class ALEBase(GlobalEffectBase):
             avg_output=avg_output,
             feature_names=self.feature_names,
             target_name=self.target_name,
-            y_limits=y_limits
+            y_limits=y_limits,
+            dy_limits=dy_limits
         )
 
 

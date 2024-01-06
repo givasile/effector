@@ -34,6 +34,7 @@ def ale_plot(
     feature_names: typing.Union[None, list] = None,
     target_name: typing.Union[None, str] = None,
     y_limits: typing.Union[None, tuple] = None,
+    dy_limits: typing.Union[None, tuple] = None
 ):
     """
 
@@ -97,7 +98,7 @@ def ale_plot(
     ale_curve(ax1, x, y, avg_output=avg_output)
 
     # second subplot
-    ale_bins(ax2, bin_effect, bin_variance, limits, dx, error)
+    ale_bins(ax2, bin_effect, bin_variance, limits, dx, error, dy_limits)
 
     ax1.set_ylabel("y") if target_name is None else ax1.set_ylabel(target_name)
 
@@ -117,7 +118,7 @@ def ale_curve(ax1, x, y, avg_output=None):
     ax1.legend()
 
 
-def ale_bins(ax2, bin_effects, bin_variance, limits, dx, error):
+def ale_bins(ax2, bin_effects, bin_variance, limits, dx, error, dy_limits):
     bin_centers = (limits[:-1] + limits[1:]) / 2
     yerr = np.sqrt(bin_variance) if error else None
     ax2.bar(
@@ -131,6 +132,7 @@ def ale_bins(ax2, bin_effects, bin_variance, limits, dx, error):
         label="dy_dx",
     )
     ax2.legend()
+    ax2.set_ylim(dy_limits[0], dy_limits[1]) if dy_limits is not None else None
 
 
 def plot_pdp_ice(

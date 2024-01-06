@@ -308,7 +308,6 @@ rhale.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scal
 
 ### RegionalRHALE
 
-
 ```python
 # Regional RHALE
 regional_rhale = effector.RegionalRHALE(
@@ -324,7 +323,7 @@ regional_rhale.fit(
     heter_small_enough=0.1,
     heter_pcg_drop_thres=0.1,
     binning_method="greedy",
-    max_split_levels=2,
+    max_depth=2,
     nof_candidate_splits_for_numerical=5,
     min_points_per_subregion=10,
     candidate_conditioning_features="all",
@@ -381,7 +380,6 @@ regional_rhale.plot_first_level(feature=3, heterogeneity=True, centering=True, s
 
 ### RegionalPDP
 
-
 ```python
 regional_pdp = effector.RegionalPDP(
     data=X_train.to_numpy(),
@@ -394,7 +392,7 @@ regional_pdp.fit(
     features=3,
     heter_small_enough=0.1,
     heter_pcg_drop_thres=0.1,
-    max_split_levels=2,
+    max_depth=2,
     nof_candidate_splits_for_numerical=5,
     min_points_per_subregion=10,
     candidate_conditioning_features="all",
