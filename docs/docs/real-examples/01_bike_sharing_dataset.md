@@ -333,10 +333,8 @@ regional_rhale.fit(
 
     100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:30<00:00, 30.91s/it]
 
-
-
 ```python
-regional_rhale.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
+regional_rhale.describe_subregions(features=3, only_important=True, scale_x_list=scale_x_list)
 ```
 
     Important splits for feature hr
@@ -402,10 +400,8 @@ regional_pdp.fit(
 
     100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:18<00:00, 18.56s/it]
 
-
-
 ```python
-regional_pdp.describe_subregions(features=3, only_important=True, scale_x=scale_x_list)
+regional_pdp.describe_subregions(features=3, only_important=True, scale_x_list=scale_x_list)
 ```
 
     Important splits for feature hr

@@ -73,7 +73,7 @@ class RegionalPDPBase(RegionalEffectBase):
         candidate_conditioning_features: typing.Union["str", list] = "all",
         split_categorical_features: bool = False,
         centering: typing.Union[bool, str] = False,
-        nof_instances: int = 100,
+        nof_instances: int = "all",
         points_for_centering: int = 100,
     ):
         """
@@ -115,7 +115,7 @@ class RegionalPDP(RegionalPDPBase):
         self,
         data: np.ndarray,
         model: callable,
-        nof_instances: int | str = 100,
+        nof_instances: int | str = 1000,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
         cat_limit: typing.Union[int, None] = 10,
@@ -141,7 +141,7 @@ class RegionalDerivativePDP(RegionalPDPBase):
         data: np.ndarray,
         model: callable,
         model_jac: typing.Union[None, callable] = None,
-        nof_instances: int | str = 100,
+        nof_instances: int | str = 1000,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
         cat_limit: typing.Union[int, None] = 10,

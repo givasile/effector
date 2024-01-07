@@ -334,7 +334,7 @@ class Regions:
     def flatten_list(self, l):
         return [item for sublist in l for item in sublist]
 
-    def splits_to_tree(self, only_important=False):
+    def splits_to_tree(self, only_important=False, scale_x_list=None):
         if len(self.splits) == 0:
             return None
 
@@ -347,7 +347,7 @@ class Regions:
             "nof_instances": self.splits[0]["nof_instances"][0],
             "data": self.data,
             "data_effect": self.data_effect,
-            "weight": 1
+            "weight": 1.
         }
 
         feature_name = self.feature_names[self.feature]
@@ -356,6 +356,7 @@ class Regions:
         parent_level_data = [self.data]
         parent_level_data_effect = [self.data_effect]
         splits = self.important_splits if only_important else self.splits[1:]
+
         for i, split in enumerate(splits):
 
             # nof nodes to add
@@ -375,8 +376,15 @@ class Regions:
 
                 foc_name = self.feature_names[split["feature"]]
                 foc = split["feature"]
-                pos_small = split["position"].round(2)
                 pos = split["position"]
+                if scale_x_list is not None:
+                    mean = scale_x_list[foc]["mean"]
+                    std = scale_x_list[foc]["std"]
+                    pos_scaled = std * split["position"] + mean
+                else:
+                    pos_scaled = pos
+
+                pos_small = pos_scaled.round(2)
 
                 data_1, data_2 = self.split_dataset(parent_data, None, foc, pos, split["type"])
                 if self.data_effect is not None:
@@ -405,7 +413,7 @@ class Regions:
 
                 data = {
                 "heterogeneity": split["heterogeneity"][j],
-                "weight": data_new.shape[0] / nof_instances,
+                "weight": float(data_new.shape[0]) / nof_instances,
                 "position": split["position"],
                 "feature": split["feature"],
                 "feature_type": split["type"],

@@ -81,6 +81,8 @@ class RegionalEffectBase:
         self.partitioners: typing.Dict[str, Regions] = {}
         self.tree_full: typing.Dict[str, Tree] = {}
         self.tree_pruned: typing.Dict[str, Tree] = {}
+        self.tree_full_scaled: typing.Dict[str, Tree] = {}
+        self.tree_pruned_scaled: typing.Dict[str, Tree] = {}
 
     def _fit_feature(
         self,
@@ -202,6 +204,8 @@ class RegionalEffectBase:
 
         self.refit(feature)
 
+        # todo: add renaming with scale_x_list
+
         data, data_effect, name = self.get_node_info(feature, node_idx)
         feature_names = copy.deepcopy(self.feature_names)
         feature_names[feature] = name
@@ -216,34 +220,39 @@ class RegionalEffectBase:
             y_limits=y_limits
             )
 
-    def show_partitioning(self, features, only_important=True):
+    def show_partitioning(self, features, only_important=True, scale_x_list=None):
         features = helpers.prep_features(features, self.dim)
 
         for feat in features:
             self.refit(feat)
+
+            if scale_x_list is not None:
+                tree_full_scaled = self.partitioners["feature_{}".format(feat)].splits_to_tree(True, scale_x_list)
+                tree_pruned_scaled = self.partitioners["feature_{}".format(feat)].splits_to_tree(False, scale_x_list)
+                tree_dict = tree_full_scaled if only_important else tree_pruned_scaled
+            else:
+                tree_dict = self.tree_pruned["feature_{}".format(feat)] if only_important else self.tree_full["feature_{}".format(feat)]
+
             print("Feature {} - Full partition tree:".format(feat))
 
-            tree_dict = self.tree_pruned if only_important else self.tree_full
-            tree_key = "feature_{}".format(feat)
-
-            if tree_dict[tree_key] is None:
+            if tree_dict is None:
                 print("No splits found for feature {}".format(feat))
             else:
-                tree_dict[tree_key].show_full_tree()
+                tree_dict.show_full_tree()
 
             print("-" * 50)
             print("Feature {} - Statistics per tree level:".format(feat))
 
-            if tree_dict[tree_key] is None:
+            if tree_dict is None:
                 print("No splits found for feature {}".format(feat))
             else:
-                tree_dict[tree_key].show_level_stats()
+                tree_dict.show_level_stats()
 
     def describe_subregions(
         self,
         features,
         only_important=True,
-        scale_x: typing.Union[None, list[dict]] = None,
+        scale_x_list: typing.Union[None, list[dict]] = None,
     ):
         features = helpers.prep_features(features, self.dim)
         for feature in features:
@@ -275,10 +284,10 @@ class RegionalEffectBase:
 
                 position_split_formatted = (
                     "{:.2f}".format(level_nodes[0].data["position"])
-                    if scale_x is None
+                    if scale_x_list is None
                     else "{:.2f}".format(
-                        level_nodes[0].data["position"] * scale_x[level_nodes[0].data["feature"]]["std"]
-                        + scale_x[level_nodes[0].data["feature"]]["mean"]
+                        level_nodes[0].data["position"] * scale_x_list[level_nodes[0].data["feature"]]["std"]
+                        + scale_x_list[level_nodes[0].data["feature"]]["mean"]
                     )
                 )
                 print("  - Position of split: {}".format(position_split_formatted))
