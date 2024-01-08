@@ -1,6 +1,6 @@
 # Regional Effects (known black-box function)
 
-This guide provides a gentle overview of Regional Effect methods and introduces the `Effector` package. Regional Effects serve as a bridge between local and global feature effects. Αs shown in [REPID](https://proceedings.mlr.press/v151/herbinger22a/herbinger22a.pdf), regional effect methods split the feature space in subregions where the feature interactions are minimized.
+This tutorial provides a gentle overview of Regional Effect methods and introduces the `Effector` package. Regional Effects serve as a bridge between local and global feature effects. Αs shown in [REPID](https://proceedings.mlr.press/v151/herbinger22a/herbinger22a.pdf), regional effect methods split the feature space in subregions where the feature interactions are minimized.
 
 In this tutorial, we show how to use `Effector` to explain a black box function using regional effect plots. The tutorial is organized as follows:
 
@@ -30,7 +30,7 @@ We will generate $N=1000$ examples with $D=3$ features, which are uniformly dist
 
 </center>
 
-For the correlated setting we keep the distributional assumptions for $x_2$ and $x_3$ but define $x_1$ such that it is highly correlated with $x_3$ by: $x_1 = x_3 + \delta$ with $\delta \sim \mathcal{N}(0,0.0625)$.
+For the correlated setting we keep the distributional assumptions for $x_2$ and $x_3$ but define $x_1$ such that it is identical to $x_3$ by: $x_1 = x_3$.
 
 
 ```python
@@ -153,7 +153,7 @@ regional_pdp = effector.RegionalPDP(data=X_uncor_train, model=model, feature_nam
 regional_pdp.fit(features="all", heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=11)
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 28.82it/s]
+    100%|██████████| 3/3 [00:00<00:00, 27.85it/s]
 
 
 
@@ -162,13 +162,13 @@ regional_pdp.show_partitioning(features=0)
 ```
 
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 1.68 || nof_instances:   100 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= 0.01, heter: 0.28 || nof_instances:    48 || weight: 0.48
-            Node id: 2, name: x1 | x3  > 0.01, heter: 0.29 || nof_instances:    52 || weight: 0.52
+    Node id: 0, name: x1, heter: 1.74 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.28 || nof_instances:   496 || weight: 0.50
+            Node id: 2, name: x1 | x3  > -0.0, heter: 0.29 || nof_instances:   504 || weight: 0.50
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 1.68
-            Level 1, heter: 0.28 || heter drop: 1.39 (83.15%)
+    Level 0, heter: 1.74
+            Level 1, heter: 0.29 || heter drop: 1.45 (83.59%)
 
 
 
@@ -195,10 +195,10 @@ regional_pdp.show_partitioning(features=1)
 ```
 
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 1.74 || nof_instances:   100 || weight: 1.00
+    Node id: 0, name: x2, heter: 1.84 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 1.74
+    Level 0, heter: 1.84
 
 
 
@@ -207,13 +207,13 @@ regional_pdp.show_partitioning(features=2)
 ```
 
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 1.66 || nof_instances:   100 || weight: 1.00
-            Node id: 1, name: x3 | x1 <= -0.14, heter: 0.73 || nof_instances:    39 || weight: 0.39
-            Node id: 2, name: x3 | x1  > -0.14, heter: 0.98 || nof_instances:    61 || weight: 0.61
+    Node id: 0, name: x3, heter: 1.75 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x3 | x1 <= -0.0, heter: 0.86 || nof_instances:   489 || weight: 0.49
+            Node id: 2, name: x3 | x1  > -0.0, heter: 0.86 || nof_instances:   511 || weight: 0.51
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 1.66
-            Level 1, heter: 0.88 || heter drop: 0.78 (47.06%)
+    Level 0, heter: 1.75
+            Level 1, heter: 0.86 || heter drop: 0.89 (51.06%)
 
 
 
@@ -295,7 +295,7 @@ regional_pdp = effector.RegionalPDP(data=X_cor_train, model=model, feature_names
 regional_pdp.fit(features="all", heter_pcg_drop_thres=0.4, nof_candidate_splits_for_numerical=11)
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 29.42it/s]
+    100%|██████████| 3/3 [00:00<00:00, 23.85it/s]
 
 
 
@@ -304,13 +304,13 @@ regional_pdp.show_partitioning(features=0)
 ```
 
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 1.72 || nof_instances:   100 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.28 || nof_instances:    44 || weight: 0.44
-            Node id: 2, name: x1 | x3  > -0.0, heter: 0.28 || nof_instances:    56 || weight: 0.56
+    Node id: 0, name: x1, heter: 1.74 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x1 | x3 <= 0.0, heter: 0.29 || nof_instances:   514 || weight: 0.51
+            Node id: 2, name: x1 | x3  > 0.0, heter: 0.30 || nof_instances:   486 || weight: 0.49
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 1.72
-            Level 1, heter: 0.28 || heter drop: 1.44 (83.63%)
+    Level 0, heter: 1.74
+            Level 1, heter: 0.29 || heter drop: 1.45 (83.23%)
 
 
 
@@ -337,13 +337,13 @@ regional_pdp.show_partitioning(features=1)
 ```
 
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 1.04 || nof_instances:   100 || weight: 1.00
-            Node id: 1, name: x2 | x1 <= 0.54, heter: 0.61 || nof_instances:    76 || weight: 0.76
-            Node id: 2, name: x2 | x1  > 0.54, heter: 0.55 || nof_instances:    24 || weight: 0.24
+    Node id: 0, name: x2, heter: 1.04 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x2 | x1 <= 0.54, heter: 0.59 || nof_instances:   783 || weight: 0.78
+            Node id: 2, name: x2 | x1  > 0.54, heter: 0.54 || nof_instances:   217 || weight: 0.22
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 1.04
-            Level 1, heter: 0.59 || heter drop: 0.45 (42.88%)
+            Level 1, heter: 0.58 || heter drop: 0.46 (44.15%)
 
 
 
@@ -352,13 +352,31 @@ regional_pdp.show_partitioning(features=2)
 ```
 
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 1.67 || nof_instances:   100 || weight: 1.00
-            Node id: 1, name: x3 | x1 <= -0.0, heter: 0.84 || nof_instances:    44 || weight: 0.44
-            Node id: 2, name: x3 | x1  > -0.0, heter: 0.85 || nof_instances:    56 || weight: 0.56
+    Node id: 0, name: x3, heter: 1.75 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x3 | x1 <= 0.0, heter: 0.86 || nof_instances:   514 || weight: 0.51
+            Node id: 2, name: x3 | x1  > 0.0, heter: 0.89 || nof_instances:   486 || weight: 0.49
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 1.67
-            Level 1, heter: 0.84 || heter drop: 0.83 (49.51%)
+    Level 0, heter: 1.75
+            Level 1, heter: 0.88 || heter drop: 0.87 (49.77%)
+
+
+
+```python
+regional_pdp.plot(feature=2, node_idx=1, heterogeneity="ice", centering=True, y_limits=[-5, 5])
+regional_pdp.plot(feature=2, node_idx=2, heterogeneity="ice", centering=True, y_limits=[-5, 5])
+```
+
+
+    
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_27_0.png)
+    
+
+
+
+    
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_27_1.png)
+    
 
 
 #### Conclusion
@@ -401,19 +419,19 @@ rhale.plot(feature=2, centering=True, heterogeneity="std", show_avg_output=False
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_30_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_31_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_30_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_31_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_30_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_31_2.png)
     
 
 
@@ -441,7 +459,7 @@ regional_rhale.fit(
 ```
 
       0%|          | 0/3 [00:00<?, ?it/s]invalid value encountered in divide
-    100%|██████████| 3/3 [00:00<00:00, 18.72it/s]
+    100%|██████████| 3/3 [00:00<00:00, 14.58it/s]
 
 
 
@@ -450,13 +468,13 @@ regional_rhale.show_partitioning(features=0)
 ```
 
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 5.44 || nof_instances:   100 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= 0.01, heter: 0.00 || nof_instances:    56 || weight: 0.56
-            Node id: 2, name: x1 | x3  > 0.01, heter: 0.00 || nof_instances:    44 || weight: 0.44
+    Node id: 0, name: x1, heter: 5.94 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.00 || nof_instances:   496 || weight: 0.50
+            Node id: 2, name: x1 | x3  > -0.0, heter: 0.00 || nof_instances:   504 || weight: 0.50
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 5.44
-            Level 1, heter: 0.00 || heter drop: 5.44 (100.00%)
+    Level 0, heter: 5.94
+            Level 1, heter: 0.00 || heter drop: 5.94 (100.00%)
 
 
 
@@ -467,13 +485,13 @@ regional_rhale.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_34_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_35_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_34_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_35_1.png)
     
 
 
@@ -483,7 +501,7 @@ regional_rhale.show_partitioning(features=1)
 ```
 
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 0.00 || nof_instances:   100 || weight: 1.00
+    Node id: 0, name: x2, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.00
@@ -495,7 +513,7 @@ regional_rhale.show_partitioning(features=2)
 ```
 
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 0.00 || nof_instances:   100 || weight: 1.00
+    Node id: 0, name: x3, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     Level 0, heter: 0.00
@@ -534,19 +552,19 @@ rhale.plot(feature=2, centering=True, heterogeneity="std", show_avg_output=False
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_40_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_40_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_40_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_2.png)
     
 
 
@@ -571,7 +589,7 @@ regional_rhale.fit(
 
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 17.21it/s]
+    100%|██████████| 3/3 [00:00<00:00, 16.78it/s]
 
 
 
@@ -580,7 +598,7 @@ regional_rhale.show_partitioning(features=0)
 ```
 
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 0.00 || nof_instances:   100 || weight: 1.00
+    Node id: 0, name: x1, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     Level 0, heter: 0.00
@@ -592,7 +610,7 @@ regional_rhale.show_partitioning(features=1)
 ```
 
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 0.00 || nof_instances:   100 || weight: 1.00
+    Node id: 0, name: x2, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.00
@@ -604,7 +622,7 @@ regional_rhale.show_partitioning(features=2)
 ```
 
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 0.00 || nof_instances:   100 || weight: 1.00
+    Node id: 0, name: x3, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     Level 0, heter: 0.00
@@ -631,19 +649,19 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_49_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_50_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_49_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_50_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_49_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_50_2.png)
     
 
 
@@ -664,7 +682,7 @@ regional_shap.fit(
 )
 ```
 
-    100%|██████████| 3/3 [00:06<00:00,  2.29s/it]
+    100%|██████████| 3/3 [00:05<00:00,  1.85s/it]
 
 
 
@@ -673,18 +691,13 @@ regional_shap.show_partitioning(0)
 ```
 
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 0.78 || nof_instances:   100 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= 0.01, heter: 0.00 || nof_instances:    48 || weight: 0.48
-                    Node id: 3, name: x1 | x3 <= 0.01 and x2 <= -0.0, heter: 0.00 || nof_instances:    27 || weight: 0.27
-                    Node id: 4, name: x1 | x3 <= 0.01 and x2  > -0.0, heter: 0.00 || nof_instances:    21 || weight: 0.21
-            Node id: 2, name: x1 | x3  > 0.01, heter: 0.00 || nof_instances:    52 || weight: 0.52
-                    Node id: 5, name: x1 | x3  > 0.01 and x2 <= -0.0, heter: 0.00 || nof_instances:    24 || weight: 0.24
-                    Node id: 6, name: x1 | x3  > 0.01 and x2  > -0.0, heter: 0.00 || nof_instances:    28 || weight: 0.28
+    Node id: 0, name: x1, heter: 0.75 || nof_instances:   100 || weight: 1.00
+            Node id: 1, name: x1 | x3 <= 0.02, heter: 0.10 || nof_instances:    51 || weight: 0.51
+            Node id: 2, name: x1 | x3  > 0.02, heter: 0.00 || nof_instances:    49 || weight: 0.49
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 0.78
-            Level 1, heter: 0.00 || heter drop: 0.78 (100.00%)
-                    Level 2, heter: 0.00 || heter drop: 0.00 (67.32%)
+    Level 0, heter: 0.75
+            Level 1, heter: 0.05 || heter drop: 0.70 (92.93%)
 
 
 
@@ -695,13 +708,13 @@ regional_shap.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, y
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_53_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_54_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_53_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_54_1.png)
     
 
 
@@ -723,10 +736,10 @@ regional_shap.show_partitioning(features=2)
 ```
 
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 0.66 || nof_instances:   100 || weight: 1.00
+    Node id: 0, name: x3, heter: 0.75 || nof_instances:   100 || weight: 1.00
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 0.66
+    Level 0, heter: 0.75
 
 
 #### Conclusion
@@ -755,19 +768,19 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_58_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_59_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_58_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_59_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_58_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_59_2.png)
     
 
 
@@ -788,7 +801,7 @@ regional_shap.fit(
 )
 ```
 
-    100%|██████████| 3/3 [00:06<00:00,  2.31s/it]
+    100%|██████████| 3/3 [00:05<00:00,  1.77s/it]
 
 
 
@@ -821,10 +834,10 @@ regional_shap.show_partitioning(2)
 ```
 
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 0.08 || nof_instances:   100 || weight: 1.00
+    Node id: 0, name: x3, heter: 0.09 || nof_instances:   100 || weight: 1.00
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 0.08
+    Level 0, heter: 0.09
 
 
 #### Conclusion

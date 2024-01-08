@@ -164,7 +164,8 @@ class RegionalRHALE(RegionalEffectBase):
         rhale = RHALE(data, self.model, self.model_jac, self.nof_instances, None, data_effect, feature_names=feature_names)
         binning_method = prep_binning_method(self.method_args["feature_" + str(feature)]["binning_method"])
         rhale.fit(features=feature, binning_method=binning_method, centering=centering)
-        rhale.plot(feature=feature, heterogeneity=heterogeneity, centering=centering, scale_x=scale_x_list[feature], scale_y=scale_y, y_limits=y_limits, dy_limits=dy_limits)
+        scale_x = scale_x_list[feature] if scale_x_list is not None else None
+        rhale.plot(feature=feature, heterogeneity=heterogeneity, centering=centering, scale_x=scale_x, scale_y=scale_y, y_limits=y_limits, dy_limits=dy_limits)
 
 
 class RegionalALE(RegionalEffectBase):
@@ -311,7 +312,8 @@ class RegionalALE(RegionalEffectBase):
         rhale = RHALE(data, self.model, self.model_jac, self.nof_instances, None, data_effect, feature_names=feature_names)
         binning_method = prep_binning_method(self.method_args["feature_" + str(feature)]["binning_method"])
         rhale.fit(features=feature, binning_method=binning_method, centering=centering)
-        rhale.plot(feature=feature, heterogeneity=heterogeneity, centering=centering, scale_x=scale_x_list[feature], scale_y=scale_y, y_limits=y_limits, dy_limits=dy_limits)
+        scale_x = scale_x_list[feature] if scale_x_list is not None else None
+        rhale.plot(feature=feature, heterogeneity=heterogeneity, centering=centering, scale_x=scale_x, scale_y=scale_y, y_limits=y_limits, dy_limits=dy_limits)
 
 
 def prep_binning_method(method):

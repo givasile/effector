@@ -15,14 +15,14 @@ tf.random.set_seed(42)
 
 ```
 
-    2024-01-08 12:32:29.285375: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-01-08 12:32:29.317781: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2024-01-08 12:32:29.317803: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2024-01-08 12:32:29.318628: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2024-01-08 12:32:29.323579: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-01-08 12:32:29.323792: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-01-08 14:10:02.113432: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-01-08 14:10:02.145940: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    2024-01-08 14:10:02.145962: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    2024-01-08 14:10:02.146743: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-01-08 14:10:02.151664: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-01-08 14:10:02.152237: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-01-08 12:32:30.067285: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-01-08 14:10:02.907279: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 ## Preprocess the data
@@ -145,56 +145,56 @@ model.evaluate(X_test, Y_test, verbose=1)
     Epoch 1/20
 
 
-    2024-01-08 12:32:30.734942: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
+    2024-01-08 14:10:03.542085: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
 
 
-    28/28 [==============================] - 1s 10ms/step - loss: 0.5033 - mae: 0.5128 - root_mean_squared_error: 0.7094
+    28/28 [==============================] - 1s 10ms/step - loss: 0.5126 - mae: 0.5196 - root_mean_squared_error: 0.7160
     Epoch 2/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.3610 - mae: 0.4337 - root_mean_squared_error: 0.6009
+    28/28 [==============================] - 0s 11ms/step - loss: 0.3579 - mae: 0.4280 - root_mean_squared_error: 0.5982
     Epoch 3/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.2752 - mae: 0.3688 - root_mean_squared_error: 0.5246
+    28/28 [==============================] - 0s 10ms/step - loss: 0.2762 - mae: 0.3698 - root_mean_squared_error: 0.5255
     Epoch 4/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.2063 - mae: 0.3180 - root_mean_squared_error: 0.4542
+    28/28 [==============================] - 0s 10ms/step - loss: 0.2060 - mae: 0.3177 - root_mean_squared_error: 0.4539
     Epoch 5/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.1567 - mae: 0.2754 - root_mean_squared_error: 0.3958
+    28/28 [==============================] - 0s 10ms/step - loss: 0.1465 - mae: 0.2640 - root_mean_squared_error: 0.3828
     Epoch 6/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.1298 - mae: 0.2500 - root_mean_squared_error: 0.3603
+    28/28 [==============================] - 0s 10ms/step - loss: 0.1148 - mae: 0.2356 - root_mean_squared_error: 0.3388
     Epoch 7/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0968 - mae: 0.2178 - root_mean_squared_error: 0.3110
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0887 - mae: 0.2062 - root_mean_squared_error: 0.2979
     Epoch 8/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0771 - mae: 0.1912 - root_mean_squared_error: 0.2778
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0741 - mae: 0.1880 - root_mean_squared_error: 0.2722
     Epoch 9/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0646 - mae: 0.1768 - root_mean_squared_error: 0.2542
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0606 - mae: 0.1685 - root_mean_squared_error: 0.2462
     Epoch 10/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0603 - mae: 0.1691 - root_mean_squared_error: 0.2455
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0588 - mae: 0.1666 - root_mean_squared_error: 0.2424
     Epoch 11/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0593 - mae: 0.1695 - root_mean_squared_error: 0.2436
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0609 - mae: 0.1710 - root_mean_squared_error: 0.2468
     Epoch 12/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.0577 - mae: 0.1704 - root_mean_squared_error: 0.2401
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0545 - mae: 0.1631 - root_mean_squared_error: 0.2334
     Epoch 13/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.0532 - mae: 0.1595 - root_mean_squared_error: 0.2307
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0509 - mae: 0.1568 - root_mean_squared_error: 0.2256
     Epoch 14/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0482 - mae: 0.1491 - root_mean_squared_error: 0.2196
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0474 - mae: 0.1489 - root_mean_squared_error: 0.2177
     Epoch 15/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0440 - mae: 0.1412 - root_mean_squared_error: 0.2098
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0451 - mae: 0.1428 - root_mean_squared_error: 0.2123
     Epoch 16/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0408 - mae: 0.1371 - root_mean_squared_error: 0.2020
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0430 - mae: 0.1395 - root_mean_squared_error: 0.2073
     Epoch 17/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0439 - mae: 0.1438 - root_mean_squared_error: 0.2096
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0462 - mae: 0.1489 - root_mean_squared_error: 0.2148
     Epoch 18/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.0403 - mae: 0.1361 - root_mean_squared_error: 0.2006
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0419 - mae: 0.1387 - root_mean_squared_error: 0.2047
     Epoch 19/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0411 - mae: 0.1368 - root_mean_squared_error: 0.2028
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0414 - mae: 0.1395 - root_mean_squared_error: 0.2036
     Epoch 20/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.0496 - mae: 0.1544 - root_mean_squared_error: 0.2227
-    435/435 [==============================] - 1s 1ms/step - loss: 0.0571 - mae: 0.1664 - root_mean_squared_error: 0.2390
-    109/109 [==============================] - 0s 1ms/step - loss: 0.0776 - mae: 0.1887 - root_mean_squared_error: 0.2785
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0486 - mae: 0.1524 - root_mean_squared_error: 0.2205
+    435/435 [==============================] - 1s 1ms/step - loss: 0.0492 - mae: 0.1509 - root_mean_squared_error: 0.2218
+    109/109 [==============================] - 0s 957us/step - loss: 0.0688 - mae: 0.1743 - root_mean_squared_error: 0.2622
 
 
 
 
 
-    [0.07755698263645172, 0.18868155777454376, 0.2784905433654785]
+    [0.06875330954790115, 0.17425496876239777, 0.2622085213661194]
 
 
 
@@ -241,9 +241,9 @@ pdp = effector.PDP(data=X_train.to_numpy(), model=model_forward, feature_names=f
 pdp.plot(feature=3, centering=False, scale_x=scale_x, scale_y=scale_y, show_avg_output=True)
 ```
 
-    2024-01-08 12:32:38.378155: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 1708400640 exceeds 10% of free system memory.
-    2024-01-08 12:32:38.639161: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 1708400640 exceeds 10% of free system memory.
-    2024-01-08 12:32:38.853573: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 1708400640 exceeds 10% of free system memory.
+    2024-01-08 14:10:10.948112: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 1708400640 exceeds 10% of free system memory.
+    2024-01-08 14:10:11.211370: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 1708400640 exceeds 10% of free system memory.
+    2024-01-08 14:10:11.428720: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 1708400640 exceeds 10% of free system memory.
 
 
 
@@ -257,8 +257,8 @@ pdp.plot(feature=3, centering=False, scale_x=scale_x, scale_y=scale_y, show_avg_
 pdp.plot(feature=3, heterogeneity="ice", centering=True, scale_x=scale_x, scale_y=scale_y, nof_ice=300, show_avg_output=True)
 ```
 
-    2024-01-08 12:32:40.871922: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 5694668800 exceeds 10% of free system memory.
-    2024-01-08 12:32:41.764261: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 5694668800 exceeds 10% of free system memory.
+    2024-01-08 14:10:13.477440: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 5694668800 exceeds 10% of free system memory.
+    2024-01-08 14:10:14.355351: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 5694668800 exceeds 10% of free system memory.
 
 
 
@@ -331,7 +331,7 @@ regional_rhale.fit(
 )
 ```
 
-    100%|██████████| 1/1 [00:16<00:00, 16.42s/it]
+    100%|██████████| 1/1 [00:16<00:00, 16.81s/it]
 
 
 
@@ -340,13 +340,13 @@ regional_rhale.show_partitioning(features=3, only_important=True, scale_x_list=s
 ```
 
     Feature 3 - Full partition tree:
-    Node id: 0, name: hr, heter: 5.92 || nof_instances: 13903 || weight: 1.00
-            Node id: 1, name: hr | workingday == 0.0, heter: 2.28 || nof_instances:  4385 || weight: 0.32
-            Node id: 2, name: hr | workingday != 0.0, heter: 4.58 || nof_instances:  9518 || weight: 0.68
+    Node id: 0, name: hr, heter: 6.02 || nof_instances: 13903 || weight: 1.00
+            Node id: 1, name: hr | workingday == 0.0, heter: 2.33 || nof_instances:  4385 || weight: 0.32
+            Node id: 2, name: hr | workingday != 0.0, heter: 4.54 || nof_instances:  9518 || weight: 0.68
     --------------------------------------------------
     Feature 3 - Statistics per tree level:
-    Level 0, heter: 5.92
-            Level 1, heter: 3.86 || heter drop: 2.07 (34.88%)
+    Level 0, heter: 6.02
+            Level 1, heter: 3.84 || heter drop: 2.18 (36.19%)
 
 
 
@@ -392,7 +392,7 @@ regional_pdp.fit(
 )
 ```
 
-    100%|██████████| 1/1 [00:15<00:00, 15.38s/it]
+    100%|██████████| 1/1 [00:15<00:00, 15.85s/it]
 
 
 
@@ -401,18 +401,18 @@ regional_pdp.show_partitioning(features=3, only_important=True, scale_x_list=sca
 ```
 
     Feature 3 - Full partition tree:
-    Node id: 0, name: hr, heter: 0.55 || nof_instances: 13903 || weight: 1.00
+    Node id: 0, name: hr, heter: 0.57 || nof_instances: 13903 || weight: 1.00
             Node id: 1, name: hr | workingday == 1.0, heter: 0.43 || nof_instances:  9518 || weight: 0.68
                     Node id: 3, name: hr | workingday == 1.0 and season == 1.0, heter: 0.29 || nof_instances:  2245 || weight: 0.16
                     Node id: 4, name: hr | workingday == 1.0 and season != 1.0, heter: 0.38 || nof_instances:  7273 || weight: 0.52
-            Node id: 2, name: hr | workingday != 1.0, heter: 0.44 || nof_instances:  4385 || weight: 0.32
-                    Node id: 5, name: hr | workingday != 1.0 and season == 1.0, heter: 0.28 || nof_instances:  1140 || weight: 0.08
-                    Node id: 6, name: hr | workingday != 1.0 and season != 1.0, heter: 0.38 || nof_instances:  3245 || weight: 0.23
+            Node id: 2, name: hr | workingday != 1.0, heter: 0.46 || nof_instances:  4385 || weight: 0.32
+                    Node id: 5, name: hr | workingday != 1.0 and season == 1.0, heter: 0.27 || nof_instances:  1140 || weight: 0.08
+                    Node id: 6, name: hr | workingday != 1.0 and season != 1.0, heter: 0.39 || nof_instances:  3245 || weight: 0.23
     --------------------------------------------------
     Feature 3 - Statistics per tree level:
-    Level 0, heter: 0.55
-            Level 1, heter: 0.43 || heter drop: 0.12 (22.43%)
-                    Level 2, heter: 0.36 || heter drop: 0.07 (16.15%)
+    Level 0, heter: 0.57
+            Level 1, heter: 0.44 || heter drop: 0.13 (22.76%)
+                    Level 2, heter: 0.36 || heter drop: 0.08 (17.64%)
 
 
 
