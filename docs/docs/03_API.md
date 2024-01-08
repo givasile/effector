@@ -113,6 +113,14 @@
          members:
             - __init__
 
+### ::: effector.regional_effect_shap.RegionalSHAP
+       options:
+            show_root_heading: True
+            show_symbol_type_toc: True
+            members:
+                - __init__
+                - fit
+
 
 ## Binning Methods
 ### ::: effector.binning_methods.Fixed

@@ -5,9 +5,11 @@
     Because they are one of the simplest ways to regionally interpret a black-box model.
 
 
-In the previous tutorial, we explained the effect of feature $\mathtt{hour}$ on the daily $\mathtt{bike-rentals}$, 
+In the [previous](./01_global_effect_intro.md) tutorial, we explained the effect of feature $\mathtt{hour}$ on the daily $\mathtt{bike-rentals}$, 
 using global feature effect plots. 
 The analysis, however, showed that there is high heterogeneity; there are many instances that behave differently from the average pattern.
+
+### The heterogeneity is the fidelity of the explanation
 
 ???+ Note "Recap on heterogeneity"
 
@@ -17,8 +19,8 @@ The analysis, however, showed that there is high heterogeneity; there are many i
 
 Below, we show the global effect plot for the $\mathtt{hour}$ feature on the daily $\mathtt{bike-rentals}$:
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_20_0.png)
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_0.png)
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_1.png)
 
 ---
 
@@ -36,18 +38,30 @@ Below, we show the global effect plot for the $\mathtt{hour}$ feature on the dai
     Regional Effect Plots search for subregions where 
     **the effect of feature $x_s$ on the output $y$, has smaller dependence on the values of other features $x_{\setminus s}$.**
 
+### Regional RHALE
 
 So let's apply regional effect analysis to the $\mathtt{hour}$ feature.
 `Effector` provides a simple API for that, similar to the global effect API:
 
 ```python
-regional_rhale = effector.RegionalRHALEBase(X, model, model_jac).plot(feature=3, heterogeneity=True)
+regional_rhale = effector.RegionalRHALE(X, model, model_jac).plot(feature=3, heterogeneity=True)
 ```
 
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_25_1.png)
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_25_2.png)
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_0.png)
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_1.png)
 
+
+### Regional PDP
+
+```python
+regional_pdp = effector.RegionalPDP(X, model).plot(feature=3, heterogeneity="ice")
+```
+
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_30_0.png)
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_31_0.png)
+
+### Conclusion
 
 ???+ danger "Don't rush to conclusions"
     In the [Global Effect Tutorial](./../01_global_effect_intro/), we said that there is

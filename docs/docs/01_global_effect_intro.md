@@ -7,9 +7,9 @@ title: Global Feature Effect
      Because they are one of the simplest ways to globally interpret a black-box model.
 
 Imagine you have trained a neural network to predict the expected daily bike rentals,
-like in this [tutorial](./tutorials/03_bike_sharing_dataset.md).
+like in this [tutorial](./../real-examples/01_bike_sharing_dataset/).
 The model is delivering satisfactory results, 
-exhibiting an average prediction error of approximately $81$ bike rentals per day.
+exhibiting an average prediction error of approximately $43$ bike rentals per day.
 
 You want to interpret how the model works. 
 Using feature effect plots, you can immediately get a graphical representation that illustrates 
@@ -19,13 +19,13 @@ how individual features impact the model's predictions:
 effector.RHALE(X, model, model_jac).plot(feature=3)
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_19_0.png)
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_19_1.png)
 
 ```python
 effector.PDP(X, model).plot(feature=3)
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_15_0.png)
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_16_1.png)
 
 
 Both plots show the effect of feature $\mathtt{hour}$ on the daily $\mathtt{bike-rentals}$;
@@ -79,26 +79,24 @@ which can raise some *criticism* and lead to appropriate *actions*.
     but it is the explanation that obscures them behind the averaging? 
     Heterogeneity analysis can help us answer these questions.
 
-### Heterogeneity shows the fidelity of the explanation
+### The heterogeneity is the fidelity of the explanation
 
-Based on Criticism 2, we want to check whether the explanation is holds for all the instances of the dataset.
+Based on Criticism 2, we want to check whether the explanation is valid for all the instances of the dataset.
 We can do this by analyzing the heterogeneity, i.e., the deviation of the instance-level effects from the average effect. 
 In `Effector`, we can do this by simply setting the `confidence_interval` parameter an appropriate value:
-
-```python
 
 
 ```python
 effector.RHALE(X, model, model_jac).plot(feature=3, heterogeneity=True)
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_20_0.png)
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_0.png)
 
 ```python
 effector.PDP(X, model).plot(feature=3, heterogeneity="ice")
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_1.png)
 
 Both methods show that there is high-variance in the instance-level effects;
 this means that the effect of feature $\mathtt{hour}$ varies significantly across different instances.
@@ -121,7 +119,7 @@ Moreover, PDP-ICE analysis provides precise insights into the distinct patterns:
     Of course, we can guess that the first pattern is related to the working days, and the second pattern is related to the weekends and holidays.
     But this is simply our intuition, and we need to confirm it with the data. 
     We need to find the features that are responsible for the two distinct patterns.
-    [Regional effect plots](./02_regional_effect_tutorial.md) are the answer to this question.
+    [Regional effect plots](./02_regional_effect_intro.md) are the answer to this question.
 
 ---
 ### Resources for further reading

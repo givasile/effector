@@ -1,7 +1,7 @@
 # Getting Started
 
-`Effector` is a python package for [global](#global-effect-plots) and 
-[regional](#regional-effect-plots-in-a-single-line) effect plots.
+`Effector` is a python package for [global](./01_global_effect_intro/) 
+and [regional](./02_regional_effect_intro/) effect analysis.
 
 ---
 ### Installation
@@ -11,100 +11,62 @@
 ---
 ### Global effect plots
 
-`Effector` is designed to provide a simple API. In most cases, the user can get 
-the plot in a single line of code. 
-Given a dataset `X` and a machine learning model `ml_model`, 
-the user can get the effect plot of feature `feature` by simply calling:
+`Effector` provides global effect plots in a single line of code. 
+Given a dataset `X` (`np.ndarray`) and a machine learning model `model` (`callable`), 
+the user can get the effect plot of `feature` by:
 
 ```python
-# for PDP
-PDP(data=X, model=ml_model).plot(feature)
+# for Robust and Heterogeneity-aware ALE (RHALE)
+RHALE(data=X, model=model).plot(feature)
 ```
 
-![Feature effect plot](./real-examples/01_bike_sharing_dataset_files/03_bike_sharing_dataset_15_0.png)
-
-
-```python
-# for ALE
-ALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature)
-```
-
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_19_0.png)
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_19_1.png)
 
 
 --- 
 
 ### Heterogeneity
 
-`Effector` gives emphasis to the heterogeneity of the effect, i.e., how much the
-instance-level effects deviate from the global effect. For all methods, 
-plotting the heterogeneity can be done by setting the `confidence_interval` parameter.
+`Effector` focuses on the heterogeneity of the effect, i.e., explaining how much the
+instance-level effects deviate from the global effect. The user can interpret the 
+heterogeneity through the `heterogeneity` argument:
 
 ```python
-# for ALE
-ALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature, heterogeneity=True)
+# for RHALE
+RHALE(data=X, model=model).plot(feature, heterogeneity="std")
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_20_0.png)
-
-```python
-# for PDP-ICE
-PDPwithICE(data=X, model=ml_model).plot(feature, heterogeneity="ice")
-```
-
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_17_0.png)
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_0.png)
 
 
-
-For more details, check the [global effect tutorial](./tutorials/00_linear_global_effect/).
+For more details, check the [global effect tutorial](./01_global_effect_intro/).
 
 --- 
 
 ### Regional Effect plots
 
-`Effector` provides a simple API for regional effect plots. 
-In cases with high-heterogeneity, the regional effect plots, i.e.,
-the effect plots for a subset of the data, can be more informative than the
-global effect plots. For example, the effect of feature `\mathtt{hour}` is highly-heterogeneous:
-
-<center>
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_20_0.png)
-</center>
-
-But, if we look at the effect of `\mathtt{hr}` for the subset of the workingdays (`workingday=1`) and non-workingdays (`workingday=0`),
-we can see that the effect is much more homogeneous. 
-`Effector` can find such subsets automatically and plot the regional effect plots in a single line of code:
+High-heterogeneity is an indicator for regional effect analysis.
+`Effector` provides the same simple API for regional effect plots. 
 
 ```python
-RegionalRHALE(data=X, model=ml_model, model_jac=ml_model_jac).plot(feature=0, heterogeneity=True)
+RegionalRHALE(data=X, model=model).plot(feature=0, node_idx=1, heterogeneity=True)
+RegionalRHALE(data=X, model=model).plot(feature=0, node_idx=2, heterogeneity=True)
 ```
 
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_25_1.png)
-![Feature effect plot](./tutorials/03_bike_sharing_dataset_files/03_bike_sharing_dataset_25_2.png)
-
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_0.png)
+![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_1.png)
 
 ---
 
-## Methods Supported by Effector
+## Methods supported
 
-### Global Effect Plots
-
-
-| Method        | How to use                                                                                                                                              |
-|---------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| PDP           | [`effector.PDP(X, model).plot(feature, centering, confidence_interval)`](./../../03_API/#effector.global_effect_pdp.PDP)                                |
-| d-PDP         | [`effector.DerivativePDP(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../03_API/#effector.global_effect_pdp.DerivativePDP) |
-| ALE           | [`effector.ALE(X, model).plot(feature, centering, confidence_interval)`](./../../03_API/#effector.global_effect_ale.ALE)                                |
-| RHALE         | [`effector.RHALE(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../03_API/#effector.global_effect_rhale.RHALE)               |
-
-
-### Regional Effect Plots
-
-
-| Method        | How to use                                                                                          |
-|---------------|-----------------------------------------------------------------------------------------------------|
-| RegionalRHALE | [`effector.ALE(X, model).plot(feature, centering, confidence_interval)`](./../../03_API/#effector.global_effect_ale.ALE)|
-| RegionalPDP   | [`effector.PDP(X, model).plot(feature, centering, confidence_interval)`](./../../03_API/#effector.global_effect_ale.ALE) |
+| Method   | Global Effect                                                                    | Regional Effect                                                                         |                                                                                                                                
+|----------|----------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
+| PDP      | [`PDP`](./../../03_API/#effector.global_effect_pdp.PDP)                          | [`RegionalPDP`](./../../03_API/#effector.regional_effect_pdp.RegionalPDP)               |
+| d-PDP    | [`DerivativePDP`](./../../03_API/#effector.global_effect_pdp.DerivativePDP)      | [`RegionalDerivativePDP`](./../../03_API/#effector.regional_effect_pdp.RegionalDerivativePDP) |
+| ALE      | [`ALE`](./../../03_API/#effector.global_effect_ale.ALE)                          | [`RegionalALE`](./../../03_API/#effector.regional_effect_ale.RegionalALE)               |
+| RHALE    | [`RHALE`](./../../03_API/#effector.global_effect_ale.RHALE)                      | [`RegionalRHALE`](./../../03_API/#effector.regional_effect_ale.RegionalRHALE)           |
+| SHAP-DP  | [`SHAPDependence`](./../../03_API/#effector.global_effect_shap.SHAPDependence)   | [`RegionalSHAP`](./../../03_API/#effector.regional_effect_shap.RegionalSHAPDependence)  |
 
 
 

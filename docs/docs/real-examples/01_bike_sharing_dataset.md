@@ -1,28 +1,28 @@
 # Bike-Sharing Dataset
 
-The Bike-Sharing Dataset contains the bike rentals for almost every hour over the period 2011 and 2012. 
-The dataset contains 14 features and we select the 11 features that are relevant to the prediction task. 
-The features contain information about the day, like the month, the hour, the day of the week, the day-type,
-and the weather conditions. 
-
-Lets take a closer look!
+The [Bike-Sharing Dataset](https://archive.ics.uci.edu/ml/datasets/bike+sharing+dataset) This dataset contains the hourly and daily count of rental bikes between years 2011 and 2012 in Capital bikeshare system with the corresponding weather and seasonal information. The dataset contains 14 features with information about the day-type, e.g., month, hour, which day of the week, whether it is working-day, and the weather conditions, e.g., temperature, humidity, wind speed, etc. The target variable is the number of bike rentals per hour. The dataset contains 17,379 instances. 
 
 
 ```python
 import effector
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
+
+np.random.seed(42)
+tf.random.set_seed(42)
+
 ```
 
-    2023-12-19 13:33:56.611106: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-    2023-12-19 13:33:56.644102: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2023-12-19 13:33:56.644124: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2023-12-19 13:33:56.644931: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2023-12-19 13:33:56.649814: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
-    2023-12-19 13:33:56.650262: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-01-08 12:32:29.285375: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-01-08 12:32:29.317781: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    2024-01-08 12:32:29.317803: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    2024-01-08 12:32:29.318628: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-01-08 12:32:29.323579: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-01-08 12:32:29.323792: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-12-19 13:33:57.524144: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-01-08 12:32:30.067285: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 ## Preprocess the data
@@ -56,36 +56,33 @@ for col_name in df.columns:
     Feature: cnt            , unique:  869, Mean: 189.46, Std: 181.39, Min:   1.00, Max: 977.00
 
 
-Feature Table:
+Feature analysis:
 
-| Feature      | Description                            | Value Range                                         |
-|--------------|----------------------------------------|-----------------------------------------------------|
-| season       | season                                 | 1: winter, 2: spring, 3: summer, 4: fall            |
-| yr           | year                                   | 0: 2011, 1: 2012                                    |
-| mnth         | month                                  | 1 to 12                                             |
-| hr           | hour                                   | 0 to 23                                             |
-| holiday      | whether the day is a holiday or not    | 0: no, 1: yes                                       |
-| weekday      | day of the week                        | 0: Sunday, 1: Monday, …, 6: Saturday                |
-| workingday   | whether the day is a working day or not | 0: no, 1: yes                                      |
-| weathersit   | weather situation                      | 1: clear, 2: mist, 3: light rain, 4: heavy rain     |
-| temp         | temperature                            | normalized, [0.02, 1.00]                            |
-| hum          | humidity                               | normalized, [0.00, 1.00]                            |
-| windspeed    | wind speed                             | normalized, [0.00, 1.00]                            |
+| Feature      | Description                              | Value Range                                           |
+|--------------|------------------------------------------|-------------------------------------------------------|
+| season       | season                                   | 1: winter, 2: spring, 3: summer, 4: fall              |
+| yr           | year                                     | 0: 2011, 1: 2012                                      |
+| mnth         | month                                    | 1 to 12                                               |
+| hr           | hour                                     | 0 to 23                                               |
+| holiday      | whether the day is a holiday or not      | 0: no, 1: yes                                         |
+| weekday      | day of the week                          | 0: Sunday, 1: Monday, …, 6: Saturday                  |
+| workingday   | whether the day is a working day or not  | 0: no, 1: yes                                         |
+| weathersit   | weather situation                        | 1: clear, 2: mist, 3: light rain, 4: heavy rain       |
+| temp         | temperature                              | values in [0.02, 1.00], with mean: 0.50 and std: 0.19 |
+| hum          | humidity                                 | values in [0.00, 1.00], with mean: 0.63 and std: 0.19 |
+| windspeed    | wind speed                               | values in [0.00, 0.85], with mean: 0.19 and std: 0.12 |
 
 
-Target:
+Target variable:
 
-| Target       | Description                            | Value Range                                         |
-|--------------|----------------------------------------|-----------------------------------------------------|
-| cnt          | bike rentals per hour                  | [1, 977]                                            |
+| Target       | Description                            | Value Range                                          |
+|--------------|----------------------------------------|------------------------------------------------------|
+| cnt          | bike rentals per hour                  | values in [1, 977] with mean: 189.46 and std: 181.39 |
 
 
 
 ```python
 def preprocess(df):
-    # shuffle
-    df.sample(frac=1).reset_index(drop=True)
-
     # Standarize X
     X_df = df.drop(["cnt"], axis=1)
     x_mean = X_df.mean()
@@ -106,21 +103,26 @@ X_df, Y_df, x_mean, x_std, y_mean, y_std = preprocess(df)
 
 ```python
 def split(X_df, Y_df):
+    # shuffle indices
+    indices = X_df.index.tolist()
+    np.random.shuffle(indices)
+    
     # data split
-    X_train = X_df[:int(0.8 * len(X_df))]
-    Y_train = Y_df[:int(0.8 * len(Y_df))]
-    X_test = X_df[int(0.8 * len(X_df)):]
-    Y_test = Y_df[int(0.8 * len(Y_df)):]
+    train_size = int(0.8 * len(X_df))
+    
+    X_train = X_df.iloc[indices[:train_size]]
+    Y_train = Y_df.iloc[indices[:train_size]]
+    X_test = X_df.iloc[indices[train_size:]]
+    Y_test = Y_df.iloc[indices[train_size:]]
+    
     return X_train, Y_train, X_test, Y_test
 
 # train/test split
 X_train, Y_train, X_test, Y_test = split(X_df, Y_df)
+
 ```
 
 ## Fit a Neural Network
-
-We train a deep fully-connected Neural Network with 3 hidden layers for \(20\) epochs. 
-The model achieves a mean absolute error on the test of about \(38\) counts.
 
 
 ```python
@@ -143,60 +145,65 @@ model.evaluate(X_test, Y_test, verbose=1)
     Epoch 1/20
 
 
-    2023-12-19 13:33:58.184866: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
+    2024-01-08 12:32:30.734942: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
 
 
-    28/28 [==============================] - 1s 12ms/step - loss: 0.4592 - mae: 0.4937 - root_mean_squared_error: 0.6776
+    28/28 [==============================] - 1s 10ms/step - loss: 0.5033 - mae: 0.5128 - root_mean_squared_error: 0.7094
     Epoch 2/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.3112 - mae: 0.3991 - root_mean_squared_error: 0.5578
+    28/28 [==============================] - 0s 10ms/step - loss: 0.3610 - mae: 0.4337 - root_mean_squared_error: 0.6009
     Epoch 3/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.2446 - mae: 0.3479 - root_mean_squared_error: 0.4945
+    28/28 [==============================] - 0s 10ms/step - loss: 0.2752 - mae: 0.3688 - root_mean_squared_error: 0.5246
     Epoch 4/20
-    28/28 [==============================] - 0s 12ms/step - loss: 0.1981 - mae: 0.3144 - root_mean_squared_error: 0.4451
+    28/28 [==============================] - 0s 10ms/step - loss: 0.2063 - mae: 0.3180 - root_mean_squared_error: 0.4542
     Epoch 5/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.1475 - mae: 0.2691 - root_mean_squared_error: 0.3841
+    28/28 [==============================] - 0s 11ms/step - loss: 0.1567 - mae: 0.2754 - root_mean_squared_error: 0.3958
     Epoch 6/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.1037 - mae: 0.2207 - root_mean_squared_error: 0.3220
+    28/28 [==============================] - 0s 11ms/step - loss: 0.1298 - mae: 0.2500 - root_mean_squared_error: 0.3603
     Epoch 7/20
-    28/28 [==============================] - 0s 12ms/step - loss: 0.0768 - mae: 0.1919 - root_mean_squared_error: 0.2772
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0968 - mae: 0.2178 - root_mean_squared_error: 0.3110
     Epoch 8/20
-    28/28 [==============================] - 0s 12ms/step - loss: 0.0646 - mae: 0.1746 - root_mean_squared_error: 0.2542
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0771 - mae: 0.1912 - root_mean_squared_error: 0.2778
     Epoch 9/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.0549 - mae: 0.1602 - root_mean_squared_error: 0.2344
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0646 - mae: 0.1768 - root_mean_squared_error: 0.2542
     Epoch 10/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0520 - mae: 0.1575 - root_mean_squared_error: 0.2281
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0603 - mae: 0.1691 - root_mean_squared_error: 0.2455
     Epoch 11/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0432 - mae: 0.1413 - root_mean_squared_error: 0.2079
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0593 - mae: 0.1695 - root_mean_squared_error: 0.2436
     Epoch 12/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.0480 - mae: 0.1557 - root_mean_squared_error: 0.2192
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0577 - mae: 0.1704 - root_mean_squared_error: 0.2401
     Epoch 13/20
-    28/28 [==============================] - 0s 12ms/step - loss: 0.0430 - mae: 0.1403 - root_mean_squared_error: 0.2073
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0532 - mae: 0.1595 - root_mean_squared_error: 0.2307
     Epoch 14/20
-    28/28 [==============================] - 0s 12ms/step - loss: 0.0394 - mae: 0.1349 - root_mean_squared_error: 0.1984
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0482 - mae: 0.1491 - root_mean_squared_error: 0.2196
     Epoch 15/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.0382 - mae: 0.1338 - root_mean_squared_error: 0.1954
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0440 - mae: 0.1412 - root_mean_squared_error: 0.2098
     Epoch 16/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0367 - mae: 0.1295 - root_mean_squared_error: 0.1916
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0408 - mae: 0.1371 - root_mean_squared_error: 0.2020
     Epoch 17/20
-    28/28 [==============================] - 0s 12ms/step - loss: 0.0357 - mae: 0.1288 - root_mean_squared_error: 0.1889
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0439 - mae: 0.1438 - root_mean_squared_error: 0.2096
     Epoch 18/20
-    28/28 [==============================] - 0s 10ms/step - loss: 0.0349 - mae: 0.1259 - root_mean_squared_error: 0.1868
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0403 - mae: 0.1361 - root_mean_squared_error: 0.2006
     Epoch 19/20
-    28/28 [==============================] - 0s 11ms/step - loss: 0.0331 - mae: 0.1262 - root_mean_squared_error: 0.1819
+    28/28 [==============================] - 0s 11ms/step - loss: 0.0411 - mae: 0.1368 - root_mean_squared_error: 0.2028
     Epoch 20/20
-    28/28 [==============================] - 0s 12ms/step - loss: 0.0326 - mae: 0.1224 - root_mean_squared_error: 0.1804
-    435/435 [==============================] - 1s 1ms/step - loss: 0.0409 - mae: 0.1362 - root_mean_squared_error: 0.2022
-    109/109 [==============================] - 0s 1ms/step - loss: 0.2322 - mae: 0.3299 - root_mean_squared_error: 0.4818
+    28/28 [==============================] - 0s 10ms/step - loss: 0.0496 - mae: 0.1544 - root_mean_squared_error: 0.2227
+    435/435 [==============================] - 1s 1ms/step - loss: 0.0571 - mae: 0.1664 - root_mean_squared_error: 0.2390
+    109/109 [==============================] - 0s 1ms/step - loss: 0.0776 - mae: 0.1887 - root_mean_squared_error: 0.2785
 
 
 
 
 
-    [0.23217250406742096, 0.3299064636230469, 0.4818428158760071]
+    [0.07755698263645172, 0.18868155777454376, 0.2784905433654785]
 
 
+
+We train a deep fully-connected Neural Network with 3 hidden layers for \(20\) epochs. 
+The model achieves a root mean squared error on the test of about $0.24$ units, that corresponds to approximately \(0.24 * 181 = 43\) counts.
 
 ## Explain
+
+We will focus on the feature `temp` (temperature) because its global effect is quite heterogeneous and the heterogeneity can be further explained using regional effects.
 
 
 ```python
@@ -215,41 +222,28 @@ def model_forward(x):
 
 
 ```python
-scale_x = {"mean": x_mean[3], "std": x_std[3]}
+scale_x = {"mean": x_mean.iloc[3], "std": x_std.iloc[3]}
 scale_y = {"mean": y_mean, "std": y_std}
-scale_x_list =[{"mean": x_mean[i], "std": x_std[i]} for i in range(len(x_mean))]
+scale_x_list =[{"mean": x_mean.iloc[i], "std": x_std.iloc[i]} for i in range(len(x_mean))]
 feature_names = X_df.columns.to_list()
 target_name = "bike-rentals"
 ```
 
-    Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
-    Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`
-
-
 ## Global Effect
+
+We will first analyze the global effect of the feature `hour` on the target variable `bike-rentals`, using the PDP and RHALE methods.
 
 ### PDP 
 
 
 ```python
-pdp = effector.PDP(data=X_train.to_numpy(), model=model_forward, feature_names=feature_names, target_name=target_name, nof_instances=5000)
+pdp = effector.PDP(data=X_train.to_numpy(), model=model_forward, feature_names=feature_names, target_name=target_name, nof_instances="all")
 pdp.plot(feature=3, centering=False, scale_x=scale_x, scale_y=scale_y, show_avg_output=True)
 ```
 
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_15_0.png)
-    
-
-
-
-```python
-pdp.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scale_y=scale_y)
-```
-
-    2023-12-19 13:34:07.190214: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 2048000000 exceeds 10% of free system memory.
-    2023-12-19 13:34:07.538920: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 2048000000 exceeds 10% of free system memory.
-    2023-12-19 13:34:07.811640: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 2048000000 exceeds 10% of free system memory.
+    2024-01-08 12:32:38.378155: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 1708400640 exceeds 10% of free system memory.
+    2024-01-08 12:32:38.639161: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 1708400640 exceeds 10% of free system memory.
+    2024-01-08 12:32:38.853573: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 1708400640 exceeds 10% of free system memory.
 
 
 
@@ -260,12 +254,16 @@ pdp.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scale_
 
 
 ```python
-pdp.plot(feature=3, heterogeneity="ice", centering=True, scale_x=scale_x, scale_y=scale_y, nof_ice=300)
+pdp.plot(feature=3, heterogeneity="ice", centering=True, scale_x=scale_x, scale_y=scale_y, nof_ice=300, show_avg_output=True)
 ```
+
+    2024-01-08 12:32:40.871922: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 5694668800 exceeds 10% of free system memory.
+    2024-01-08 12:32:41.764261: W external/local_tsl/tsl/framework/cpu_allocator_impl.cc:83] Allocation of 5694668800 exceeds 10% of free system memory.
+
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_1.png)
     
 
 
@@ -274,8 +272,7 @@ pdp.plot(feature=3, heterogeneity="ice", centering=True, scale_x=scale_x, scale_
 
 ```python
 rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, feature_names=feature_names, target_name=target_name)
-binning_method = effector.binning_methods.Greedy(init_nof_bins=1000, min_points_per_bin=100, discount=0, cat_limit=10)
-rhale.fit(features=3, binning_method=binning_method)
+rhale.fit(features=3, binning_method=effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=100, discount=1., cat_limit=10))
 rhale.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y, show_avg_output=True)
 ```
 
@@ -292,9 +289,6 @@ rhale.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y, show_avg
 
 
 ```python
-rhale = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, feature_names=feature_names, target_name=target_name)
-binning_method = effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=100, discount=0, cat_limit=10)
-rhale.fit(features=3, binning_method=binning_method)
 rhale.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scale_y=scale_y, show_avg_output=True)
 ```
 
@@ -304,9 +298,14 @@ rhale.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scal
     
 
 
-# Regional Effects
+### Conclusion
+
+The global effect of feature `hour` on the target variable `bike-rentals` shows two high peaks, one at around 8:00 and another at around 17:00, which probably corresponds to the morning and evening commute hours of the working days. However, the effect is quite heterogeneous. For this reason, we will analyze the regional effects which may explain the underlying heterogeneity.
+
+## Regional Effect
 
 ### RegionalRHALE
+
 
 ```python
 # Regional RHALE
@@ -316,67 +315,60 @@ regional_rhale = effector.RegionalRHALE(
     model_jac=model_jac,
     cat_limit=10,
     feature_names=feature_names,
+    nof_instances="all"
 )
 
 regional_rhale.fit(
     features=3,
     heter_small_enough=0.1,
-    heter_pcg_drop_thres=0.1,
-    binning_method="greedy",
+    heter_pcg_drop_thres=0.2,
+    binning_method=effector.binning_methods.Greedy(init_nof_bins=100, min_points_per_bin=100, discount=1., cat_limit=10),
     max_depth=2,
-    nof_candidate_splits_for_numerical=5,
+    nof_candidate_splits_for_numerical=10,
     min_points_per_subregion=10,
     candidate_conditioning_features="all",
     split_categorical_features=True,
 )
 ```
 
-    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:30<00:00, 30.91s/it]
-
-```python
-regional_rhale.describe_subregions(features=3, only_important=True, scale_x_list=scale_x_list)
-```
-
-    Important splits for feature hr
-    - On feature workingday (cat)
-      - Range: [0.00, 1.00]
-      - Candidate split positions: 0.00, 1.00
-      - Position of split: 0.00
-      - Heterogeneity before split: 5.69
-      - Heterogeneity after split: 3.76
-      - Heterogeneity drop: 1.93 (51.24 %)
-      - Number of instances before split: 13903
-      - Number of instances after split: [4387, 9516]
-    - On feature temp (cont)
-      - Range: [0.02, 1.00]
-      - Candidate split positions: 0.12, 0.31, 0.51, 0.71, 0.90
-      - Position of split: 0.51
-      - Heterogeneity before split: 3.76
-      - Heterogeneity after split: 3.14
-      - Heterogeneity drop: 0.62 (19.74 %)
-      - Number of instances before split: [4387, 9516]
-      - Number of instances after split: [2390, 1997, 4610, 4906]
+    100%|██████████| 1/1 [00:16<00:00, 16.42s/it]
 
 
 
 ```python
-regional_rhale.plot_first_level(feature=3, heterogeneity=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y, show_avg_output=True)
+regional_rhale.show_partitioning(features=3, only_important=True, scale_x_list=scale_x_list)
+```
 
+    Feature 3 - Full partition tree:
+    Node id: 0, name: hr, heter: 5.92 || nof_instances: 13903 || weight: 1.00
+            Node id: 1, name: hr | workingday == 0.0, heter: 2.28 || nof_instances:  4385 || weight: 0.32
+            Node id: 2, name: hr | workingday != 0.0, heter: 4.58 || nof_instances:  9518 || weight: 0.68
+    --------------------------------------------------
+    Feature 3 - Statistics per tree level:
+    Level 0, heter: 5.92
+            Level 1, heter: 3.86 || heter drop: 2.07 (34.88%)
+
+
+
+```python
+regional_rhale.plot(feature=3, node_idx=1, heterogeneity=True, centering=True, scale_x_list=scale_x_list, scale_y=scale_y)
+regional_rhale.plot(feature=3, node_idx=2, heterogeneity=True, centering=True, scale_x_list=scale_x_list, scale_y=scale_y)
 ```
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_25_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_0.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_25_1.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_1.png)
     
 
 
 ### RegionalPDP
+
 
 ```python
 regional_pdp = effector.RegionalPDP(
@@ -384,6 +376,7 @@ regional_pdp = effector.RegionalPDP(
     model=model_forward,
     cat_limit=10,
     feature_names=feature_names,
+    nof_instances="all"
 )
 
 regional_pdp.fit(
@@ -395,61 +388,55 @@ regional_pdp.fit(
     min_points_per_subregion=10,
     candidate_conditioning_features="all",
     split_categorical_features=True,
+    nof_instances=1000
 )
 ```
 
-    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:18<00:00, 18.56s/it]
-
-```python
-regional_pdp.describe_subregions(features=3, only_important=True, scale_x_list=scale_x_list)
-```
-
-    Important splits for feature hr
-    - On feature workingday (cat)
-      - Range: [0.00, 1.00]
-      - Candidate split positions: 0.00, 1.00
-      - Position of split: 1.00
-      - Heterogeneity before split: 0.59
-      - Heterogeneity after split: 0.45
-      - Heterogeneity drop: 0.14 (30.52 %)
-      - Number of instances before split: 13903
-      - Number of instances after split: [9516, 4387]
-    - On feature temp (cont)
-      - Range: [0.02, 1.00]
-      - Candidate split positions: 0.12, 0.31, 0.51, 0.71, 0.90
-      - Position of split: 0.51
-      - Heterogeneity before split: 0.41
-      - Heterogeneity after split: 0.36
-      - Heterogeneity drop: 0.05 (13.49 %)
-      - Number of instances before split: [9516, 4387]
-      - Number of instances after split: [4610, 4906, 2390, 1997]
+    100%|██████████| 1/1 [00:15<00:00, 15.38s/it]
 
 
 
 ```python
+regional_pdp.show_partitioning(features=3, only_important=True, scale_x_list=scale_x_list)
+```
 
-regional_pdp.plot_first_level(feature=3, heterogeneity=True, centering=True, scale_x_per_feature=scale_x_list, scale_y=scale_y, show_avg_output=True)
+    Feature 3 - Full partition tree:
+    Node id: 0, name: hr, heter: 0.55 || nof_instances: 13903 || weight: 1.00
+            Node id: 1, name: hr | workingday == 1.0, heter: 0.43 || nof_instances:  9518 || weight: 0.68
+                    Node id: 3, name: hr | workingday == 1.0 and season == 1.0, heter: 0.29 || nof_instances:  2245 || weight: 0.16
+                    Node id: 4, name: hr | workingday == 1.0 and season != 1.0, heter: 0.38 || nof_instances:  7273 || weight: 0.52
+            Node id: 2, name: hr | workingday != 1.0, heter: 0.44 || nof_instances:  4385 || weight: 0.32
+                    Node id: 5, name: hr | workingday != 1.0 and season == 1.0, heter: 0.28 || nof_instances:  1140 || weight: 0.08
+                    Node id: 6, name: hr | workingday != 1.0 and season != 1.0, heter: 0.38 || nof_instances:  3245 || weight: 0.23
+    --------------------------------------------------
+    Feature 3 - Statistics per tree level:
+    Level 0, heter: 0.55
+            Level 1, heter: 0.43 || heter drop: 0.12 (22.43%)
+                    Level 2, heter: 0.36 || heter drop: 0.07 (16.15%)
 
+
+
+```python
+regional_pdp.plot(feature=3, node_idx=1, heterogeneity="ice", centering=True, scale_x_list=scale_x_list, scale_y=scale_y)
 ```
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_0.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_1.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_30_0.png)
     
 
 
 
 ```python
-
+regional_pdp.plot(feature=3, node_idx=2, heterogeneity="ice", centering=True, scale_x_list=scale_x_list, scale_y=scale_y)
 ```
 
 
-```python
+    
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_31_0.png)
+    
 
-```
+
+### Conclusion
+
+The both PDP and RHALE regional effect reveal two distinct explanations; one for the working days and another for the non-working days. For the working days, the effect is quite similar to the global effect (unfortunately, working ways dominate our life), with two high peaks at around 8:00 and 17:00. However, for the non-working days, the effect is quite different, with a single high peak at around 13:00 which probably corresponds to sightseeing and leisure activities.

@@ -135,11 +135,19 @@ class RegionalEffectBase:
             self.fit(feature)
 
     def get_node_info(self, feature, node_idx):
+        assert self.is_fitted[feature], "Feature {} has not been fitted yet".format(feature)
+        assert self.tree_pruned["feature_{}".format(feature)] is not None, "Feature {} has no splits".format(feature)
+
+        if self.tree_pruned_scaled is not None and "feature_{}".format(feature) in self.tree_pruned_scaled.keys():
+            tree = self.tree_pruned_scaled["feature_{}".format(feature)]
+        else:
+            tree = self.tree_pruned["feature_{}".format(feature)]
+
         # assert node id exists
-        assert node_idx in [node.idx for node in self.tree_pruned["feature_{}".format(feature)].nodes], "Node {} does not exist".format(node_idx)
+        assert node_idx in [node.idx for node in tree.nodes], "Node {} does not exist".format(node_idx)
 
         # find the node
-        node = [node for node in self.tree_pruned["feature_{}".format(feature)].nodes if node.idx == node_idx][0]
+        node = [node for node in tree.nodes if node.idx == node_idx][0]
 
         # get data
         data = node.data["data"]
@@ -198,13 +206,15 @@ class RegionalEffectBase:
              node_idx,
              heterogeneity=False,
              centering=False,
-             scale_x=None,
+             scale_x_list=None,
              scale_y=None,
              y_limits=None):
 
         self.refit(feature)
 
-        # todo: add renaming with scale_x_list
+        if scale_x_list is not None:
+            self.tree_full_scaled["feature_{}".format(feature)] = self.partitioners["feature_{}".format(feature)].splits_to_tree(False, scale_x_list)
+            self.tree_pruned_scaled["feature_{}".format(feature)] = self.partitioners["feature_{}".format(feature)].splits_to_tree(True, scale_x_list)
 
         data, data_effect, name = self.get_node_info(feature, node_idx)
         feature_names = copy.deepcopy(self.feature_names)
@@ -215,7 +225,7 @@ class RegionalEffectBase:
             feature=feature,
             heterogeneity=heterogeneity,
             centering=centering,
-            scale_x=scale_x,
+            scale_x=scale_x_list[feature] if scale_x_list is not None else None,
             scale_y=scale_y,
             y_limits=y_limits
             )
