@@ -1,12 +1,6 @@
-matplotlib
-numdifftools
 numpy
-scipy
-pandas
 tqdm
-jupyter
-keras
-tensorflow
+matplotlib
+scipy
 pytest
 shap
-anytree
