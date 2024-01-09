@@ -11,9 +11,8 @@ version = "0.0.1"
 readme = "README.md"
 dependencies = [
     "matplotlib",
-    "numdifftools",
     "numpy",
     "scipy",
-    "pandas",
-    "tqdm"
+    "tqdm",
+    "shap"
 ]
