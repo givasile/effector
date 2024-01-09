@@ -3,7 +3,7 @@ name: Publish effector to PyPi
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build:
