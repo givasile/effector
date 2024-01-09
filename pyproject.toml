@@ -8,6 +8,7 @@ py-modules = ["effector"]
 [project]
 name = "effector"
 version = "0.0.1"
+readme = "README.md"
 dependencies = [
     "matplotlib",
     "numdifftools",
