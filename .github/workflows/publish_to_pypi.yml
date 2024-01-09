@@ -24,7 +24,7 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Build a binary wheel and a source tarball
-        run: python setup.py sdist bdist_wheel
+        run: python -m build --sdist --wheel --outdir dist/
 
       - name: Store the distribution packages
         uses: actions/upload-artifact@v3
