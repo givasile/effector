@@ -1,4 +1,4 @@
-name: Push File
+name: Publish effector documentation to xai-effector/effector.github.io
 
 on: push
 

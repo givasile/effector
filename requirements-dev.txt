@@ -6,3 +6,4 @@ pytest
 shap
 build
 mkdocs
+mkdocstrings
