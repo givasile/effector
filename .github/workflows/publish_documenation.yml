@@ -1,0 +1,45 @@
+name: Push File
+
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout current repo
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+
+    - name: Build docs
+      run: |
+        cd docs
+        mkdocs build
+        cd ..
+
+    - name: Copy site to temp directory
+      run: |
+        mkdir ../effector_site
+        cp -r ./docs/site/* ../effector_site
+        cd ../effector_site
+
+    - name: Configure Git
+      run: |
+        git config --global user.email "ntipakos@github.com"
+        git config --global user.name "ntipakos"
+
+    - name: Commit and Push to Repo 2
+      run: |
+        git init
+        git add .
+        git commit -m "Update site from ntipakos/effector"
+        git push --force https://${{ secrets.EFFECTOR_GITHUB_API_KEY }}@github.com/xai-effector/effector.git gh-pages

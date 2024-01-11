@@ -143,3 +143,5 @@ dmypy.json
 paper.prv
 
 out/
+
+docs/site/
