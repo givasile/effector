@@ -51,17 +51,25 @@ jobs:
         ls -la
         ls -la site
 
-    - name: Push directory to effector.github.io
-      uses: datalbry/copy_folder_to_another_repo_action@1.0.0
-      env:
-        API_TOKEN_GITHUB: ${{ secrets.EFFECTOR_GITHUB_API_KEY }}
+    - name: Checkout effector.github.io using github token
+      uses: actions/checkout@v2
       with:
-        source_folder: 'site'
-        destination_repo: 'xai-effector/xai-effector.github.io'
-        destination_branch: 'gh-pages'
-        user_email: 'ntipakos@gmail.com'
-        user_name: 'ntipakos'
-        commit_msg: '[GHA] Update the test files.'
+          repository: xai-effector/xai-effector.github.io
+          token: ${{ secrets.EFFECTOR_GITHUB_API_KEY }}
+          path: xai-effector.github.io
+
+
+#    - name: Push directory to effector.github.io
+#      uses: datalbry/copy_folder_to_another_repo_action@1.0.0
+#      env:
+#        API_TOKEN_GITHUB: ${{ secrets.EFFECTOR_GITHUB_API_KEY }}
+#      with:
+#        source_folder: 'site'
+#        destination_repo: 'xai-effector/xai-effector.github.io'
+#        destination_branch: 'gh-pages'
+#        user_email: 'ntipakos@gmail.com'
+#        user_name: 'ntipakos'
+#        commit_msg: '[GHA] Update the test files.'
 
 
 #    - name: Configure Git
