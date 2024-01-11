@@ -32,8 +32,8 @@ jobs:
         name: docs-site
         path: docs/site
 
-  copy-file:
-    name: Copy site to effector.github.io
+  copy-site:
+    name: Copy built site to effector.github.io
     needs:
     - build
 

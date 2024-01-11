@@ -1,9 +1,0 @@
-* create more examples with real datasets:
-  * Risk Factors for Cervical Cancer (Classification)
-* add new methods:
-  * PFI
-
-Backlog:
-* pass feature name to plots
-* rename data_effect to instance_effect
-* check why in linear case RHALE is not merging all bins
