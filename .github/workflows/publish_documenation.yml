@@ -18,7 +18,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements-dev.txt
+        pip install -r requirements-build-docs.txt
 
     - name: Build docs
       run: |
@@ -49,7 +49,7 @@ jobs:
         API_TOKEN_GITHUB: ${{ secrets.EFFECTOR_GITHUB_API_KEY }}
       with:
         source_folder: '../site'
-        destination_repo: 'xai-effector/effector.github.io'
+        destination_repo: 'xai-effector/xai-effector.github.io'
         destination_folder: '.'
         user_email: 'ntipakos@gmail.com'
         user_name: 'ntipakos'
