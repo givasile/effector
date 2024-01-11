@@ -5,3 +5,4 @@ scipy
 pytest
 shap
 build
+mkdocs
