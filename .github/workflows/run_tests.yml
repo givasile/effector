@@ -1,4 +1,4 @@
-name: learn-github-actions
+name: Execute all tests
 on: [push]
 jobs:
   run-tests:
