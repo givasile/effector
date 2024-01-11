@@ -7,4 +7,5 @@ shap
 build
 mkdocs
 mkdocstrings
+mkdocstrings-python
 mkdocs-material
