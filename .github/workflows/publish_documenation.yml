@@ -51,6 +51,7 @@ jobs:
         source_folder: '../site'
         destination_repo: 'xai-effector/xai-effector.github.io'
         destination_folder: '.'
+        destination_branch: 'gh-pages'
         user_email: 'ntipakos@gmail.com'
         user_name: 'ntipakos'
         commit_msg: '[GHA] Update the test files.'
