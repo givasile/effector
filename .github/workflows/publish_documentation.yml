@@ -26,11 +26,11 @@ jobs:
         mkdocs build
         cd ..
 
-    - name: Copy site to temp directory
-      run: |
-        mkdir ../site
-        cp -r ./docs/site/* ../site
-        cd ..
+    - name: Copy site site as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: docs-site
+        path: docs/site
 
   copy-file:
     name: Copy site to effector.github.io
@@ -40,16 +40,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-
-    - name: show cwd
-      run: |
-        pwd
-        ls -la
-        ls -la docs
-        ls -la ./../
-        ls -la ./../../
+    - name: download site artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: docs-site
+        path: site
 
     - name: Push directory to effector.github.io
       uses: datalbry/copy_folder_to_another_repo_action@1.0.0
