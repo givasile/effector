@@ -51,11 +51,11 @@ jobs:
         ls -la
         ls -la site
 
-    - name: Checkout effector.github.io using github token
+    - name: Checkout effector.github.io gh-pages branch using github token
       uses: actions/checkout@v2
       with:
           repository: xai-effector/xai-effector.github.io
-          branch: gh-pages
+          ref: gh-pages
           token: ${{ secrets.EFFECTOR_GITHUB_API_KEY }}
           path: xai-effector.github.io
 
