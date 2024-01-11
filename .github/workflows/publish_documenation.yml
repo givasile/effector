@@ -28,18 +28,42 @@ jobs:
 
     - name: Copy site to temp directory
       run: |
-        mkdir ../effector_site
-        cp -r ./docs/site/* ../effector_site
-        cd ../effector_site
+        mkdir ../site
+        cp -r ./docs/site/* ../site
+        cd ../site
 
-    - name: Configure Git
-      run: |
-        git config --global user.email "ntipakos@github.com"
-        git config --global user.name "ntipakos"
+  copy-file:
+    name: Copy site to effector.github.io
+    needs:
+    - build
 
-    - name: Commit and Push to Repo 2
-      run: |
-        git init
-        git add .
-        git commit -m "Update site from ntipakos/effector"
-        git push --force https://${{ secrets.EFFECTOR_GITHUB_API_KEY }}@github.com/xai-effector/effector.git gh-pages
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Push directory to effector.github.io
+      uses: datalbry/copy_folder_to_another_repo_action@1.0.0
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.EFFECTOR_GITHUB_API_KEY }}
+      with:
+        source_folder: '../site'
+        destination_repo: 'xai-effector/effector.github.io'
+        destination_folder: '.'
+        user_email: 'ntipakos@gmail.com'
+        user_name: 'ntipakos'
+        commit_msg: '[GHA] Update the test files.'
+
+
+#    - name: Configure Git
+#      run: |
+#        git config --global user.email "ntipakos@github.com"
+#        git config --global user.name "ntipakos"
+#
+#    - name: Commit and push to effector.github.io
+#      run: |
+#        git init
+#        git add .
+#        git commit -m "Update site from ntipakos/effector"
+#        git push --force https://${{ secrets.EFFECTOR_GITHUB_API_KEY }}@github.com/xai-effector/effector.git gh-pages
