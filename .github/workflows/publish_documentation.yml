@@ -46,6 +46,11 @@ jobs:
         name: docs-site
         path: site
 
+    - name: show files
+      run: |
+        ls -la
+        ls -la site
+
     - name: Push directory to effector.github.io
       uses: datalbry/copy_folder_to_another_repo_action@1.0.0
       env:
