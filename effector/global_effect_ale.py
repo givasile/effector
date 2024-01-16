@@ -1,4 +1,5 @@
 import typing
+from typing import Callable, List, Optional, Union, Tuple
 import effector.utils as utils
 import effector.visualization as vis
 import effector.binning_methods as bm
@@ -10,16 +11,17 @@ from abc import abstractmethod
 
 
 class ALEBase(GlobalEffectBase):
+
     def __init__(
-        self,
-        data: np.ndarray,
-        model: callable,
-        nof_instances: int | str = "all",
-        axis_limits: None | np.ndarray = None,
-        avg_output: None | float = None,
-        feature_names: None | list = None,
-        target_name: None | str = None,
-        method_name: str = "ALE",
+            self,
+            data: np.ndarray,
+            model: callable,
+            nof_instances: Union[int, str] = "all",
+            axis_limits: Optional[np.ndarray] = None,
+            avg_output: Optional[float] = None,
+            feature_names: Optional[List] = None,
+            target_name: Optional[str] = None,
+            method_name: str = "ALE",
     ):
         self.method_name = method_name
         super(ALEBase, self).__init__(
@@ -36,7 +38,7 @@ class ALEBase(GlobalEffectBase):
     @abstractmethod
     def _fit_feature(self,
                      feature: int,
-                     binning_method: str | bm.DynamicProgramming | bm.Greedy | bm.Fixed = "greedy"
+                     binning_method: typing.Union[str, bm.DynamicProgramming, bm.Greedy, bm.Fixed] = "greedy"
                      ) -> typing.Dict:
         raise NotImplementedError
 
@@ -155,15 +157,15 @@ class ALEBase(GlobalEffectBase):
         return (y, std) if heterogeneity is not False else y
 
     def plot(
-        self,
-        feature: int,
-        heterogeneity: bool = False,
-        centering: bool | str = False,
-        scale_x: None | dict = None,
-        scale_y: None | dict = None,
-        show_avg_output: bool = False,
-        y_limits: None | list = None,
-        dy_limits: None | list = None
+            self,
+            feature: int,
+            heterogeneity: bool = False,
+            centering: Union[bool, str] = False,
+            scale_x: Optional[dict] = None,
+            scale_y: Optional[dict] = None,
+            show_avg_output: bool = False,
+            y_limits: Optional[List] = None,
+            dy_limits: Optional[List] = None
     ):
         """
         Plot the (RH)ALE feature effect of feature `feature`.
@@ -235,14 +237,14 @@ class ALEBase(GlobalEffectBase):
 
 class ALE(ALEBase):
     def __init__(
-        self,
-        data: np.ndarray,
-        model: callable,
-        nof_instances: int | str = "all",
-        axis_limits: None | np.ndarray = None,
-        avg_output: None | float = None,
-        feature_names: None | list = None,
-        target_name: None | str = None,
+            self,
+            data: np.ndarray,
+            model: callable,
+            nof_instances: Union[int, str] = "all",
+            axis_limits: Optional[np.ndarray] = None,
+            avg_output: Optional[float] = None,
+            feature_names: Optional[List] = None,
+            target_name: Optional[str] = None,
     ):
         """
         Constructor for the ALE plot.
@@ -380,16 +382,16 @@ class ALE(ALEBase):
 
 class RHALE(ALEBase):
     def __init__(
-        self,
-        data: np.ndarray,
-        model: callable,
-        model_jac: typing.Union[None, callable] = None,
-        nof_instances: int | str = "all",
-        axis_limits: None | np.ndarray = None,
-        data_effect: None | np.ndarray = None,
-        avg_output: None | float = None,
-        feature_names: None | list = None,
-        target_name: None | str = None,
+            self,
+            data: np.ndarray,
+            model: callable,
+            model_jac: typing.Union[None, callable] = None,
+            nof_instances: typing.Union[int, str] = "all",
+            axis_limits: typing.Optional[np.ndarray] = None,
+            data_effect: typing.Optional[np.ndarray] = None,
+            avg_output: typing.Optional[float] = None,
+            feature_names: typing.Optional[list] = None,
+            target_name: typing.Optional[str] = None,
     ):
         """
         Constructor for RHALE.
@@ -476,10 +478,11 @@ class RHALE(ALEBase):
         elif self.data_effect is None and self.model_jac is None:
             self.data_effect = utils.compute_jacobian_numerically(self.model, self.data)
 
-    def _fit_feature(self,
-                     feature: int,
-                     binning_method: str | bm.DynamicProgramming | bm.Greedy | bm.Fixed = "greedy"
-                     ) -> typing.Dict:
+    def _fit_feature(
+            self,
+            feature: int,
+            binning_method: Union[str, bm.DynamicProgramming, bm.Greedy, bm.Fixed] = "greedy"
+    ) -> typing.Dict:
         if self.data_effect is None:
             self.compile()
 
@@ -516,9 +519,9 @@ class RHALE(ALEBase):
 
     def fit(
         self,
-        features: int | str | list = "all",
-        binning_method: str | bm.DynamicProgramming | bm.Greedy | bm.Fixed = "greedy",
-        centering: bool | str = False,
+        features: typing.Union[int, str, list] = "all",
+        binning_method: typing.Union[str, bm.DynamicProgramming, bm.Greedy, bm.Fixed] = "greedy",
+        centering: typing.Union[bool, str] = False,
     ) -> None:
         """Fit the model.
 

@@ -1,4 +1,5 @@
 import typing
+from typing import Callable, List, Optional, Union, Tuple
 import effector.visualization as vis
 import effector.helpers as helpers
 from effector.global_effect import GlobalEffectBase
@@ -9,14 +10,14 @@ from scipy.interpolate import UnivariateSpline
 
 class SHAPDependence(GlobalEffectBase):
     def __init__(
-        self,
-        data: np.ndarray,
-        model: callable,
-        axis_limits: None | np.ndarray = None,
-        nof_instances: int | str = 100,
-        avg_output: None | float = None,
-        feature_names: None | list[str] = None,
-        target_name: None | str = None,
+            self,
+            data: np.ndarray,
+            model: Callable,
+            axis_limits: Optional[np.ndarray] = None,
+            nof_instances: Union[int, str] = 100,
+            avg_output: Optional[float] = None,
+            feature_names: Optional[List[str]] = None,
+            target_name: Optional[str] = None,
     ):
         """
         Constructor of the SHAPDependence class.
@@ -96,7 +97,7 @@ class SHAPDependence(GlobalEffectBase):
     def _fit_feature(
         self,
         feature: int,
-        centering: bool | str = False,
+        centering: typing.Union[bool, str] = False,
         points_for_centering: int = 100,
     ) -> typing.Dict:
 
@@ -145,10 +146,10 @@ class SHAPDependence(GlobalEffectBase):
         return ret_dict
 
     def fit(
-        self,
-        features: int | str | list = "all",
-        centering: bool | str = False,
-        points_for_centering: int | str = 100,
+            self,
+            features: Union[int, str, List] = "all",
+            centering: Union[bool, str] = False,
+            points_for_centering: Union[int, str] = 100,
     ) -> None:
         """Fit the SHAP Dependence Plot to the data.
 
@@ -204,7 +205,7 @@ class SHAPDependence(GlobalEffectBase):
         xs: np.ndarray,
         heterogeneity: bool = False,
         centering: typing.Union[bool, str] = False,
-    ) -> np.ndarray | typing.Tuple[np.ndarray, np.ndarray]:
+    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
 
         Args:
@@ -249,14 +250,14 @@ class SHAPDependence(GlobalEffectBase):
     def plot(
         self,
         feature: int,
-        heterogeneity: bool | str = False,
-        centering: bool | str = False,
+        heterogeneity: Union[bool, str] = False,
+        centering: Union[bool, str] = False,
         nof_points: int = 30,
-        scale_x: None | dict = None,
-        scale_y: None | dict = None,
-        nof_shap_values: int | str = "all",
+        scale_x: Optional[dict] = None,
+        scale_y: Optional[dict] = None,
+        nof_shap_values: Union[int, str] = "all",
         show_avg_output: bool = False,
-        y_limits: None | list = None,
+        y_limits: Optional[List] = None,
     ) -> None:
         """
         Plot the SHAP Dependence Plot (SDP) of the s-th feature.

@@ -1,4 +1,5 @@
 import typing
+from typing import Callable, List, Optional, Union, Tuple
 import copy
 import numpy as np
 import effector.visualization as vis
@@ -11,13 +12,13 @@ class PDPBase(GlobalEffectBase):
     def __init__(
         self,
         data: np.ndarray,
-        model: callable,
-        model_jac: typing.Union[None, callable] = None,
-        axis_limits: None | np.ndarray = None,
-        avg_output: None | float = None,
-        nof_instances: int | str = 300,
-        feature_names: None | list = None,
-        target_name: None | str = None,
+        model: Callable,
+        model_jac: Optional[Callable] = None,
+        axis_limits: Optional[np.ndarray] = None,
+        avg_output: Optional[float] = None,
+        nof_instances: Union[int, str] = 300,
+        feature_names: Optional[List] = None,
+        target_name: Optional[str] = None,
         method_name: str = "PDP",
     ):
         """
@@ -47,9 +48,9 @@ class PDPBase(GlobalEffectBase):
     def _fit_feature(
         self,
         feature: int,
-        centering: bool | str = False,
+        centering: Union[bool, str] = False,
         points_for_centering: int = 100,
-    ) -> typing.Dict:
+    ) -> dict:
 
         # drop points outside of limits
         self.data = self.data[self.data[:, feature] >= self.axis_limits[0, feature]]
@@ -75,8 +76,8 @@ class PDPBase(GlobalEffectBase):
 
     def fit(
         self,
-        features: int | str | list = "all",
-        centering: bool | str = True,
+        features: Union[int, str, list] = "all",
+        centering: Union[bool, str] = True,
         points_for_centering: int = 100,
     ):
         """
@@ -120,7 +121,7 @@ class PDPBase(GlobalEffectBase):
         feature: int,
         xs: np.ndarray,
         heterogeneity: bool = False,
-        centering: bool | str = False,
+        centering: typing.Union[bool, str] = False,
         return_all: bool = False,
     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
@@ -182,14 +183,14 @@ class PDPBase(GlobalEffectBase):
     def plot(
         self,
         feature: int,
-        heterogeneity: bool | str = False,
-        centering: bool | str = False,
+        heterogeneity: Union[bool, str] = False,
+        centering: Union[bool, str] = False,
         nof_points: int = 30,
-        scale_x: None | dict = None,
-        scale_y: None | dict = None,
-        nof_ice: int | str = "all",
+        scale_x: Optional[dict] = None,
+        scale_y: Optional[dict] = None,
+        nof_ice: Union[int, str] = "all",
         show_avg_output: bool = False,
-        y_limits: None | list = None,
+        y_limits: Optional[List] = None,
     ):
         """
         Plot the PDP or d-PDP.
@@ -254,12 +255,12 @@ class PDP(PDPBase):
     def __init__(
         self,
         data: np.ndarray,
-        model: callable,
-        axis_limits: None | np.ndarray = None,
-        nof_instances: int | str = 300,
-        avg_output: None | float = None,
-        feature_names: None | list = None,
-        target_name: None | str = None,
+        model: Callable,
+        axis_limits: Optional[np.ndarray] = None,
+        nof_instances: Union[int, str] = 300,
+        avg_output: Optional[float] = None,
+        feature_names: Optional[List] = None,
+        target_name: Optional[str] = None,
     ):
         """
         Constructor of the PDP class.
@@ -325,15 +326,15 @@ class PDP(PDPBase):
 
 class DerivativePDP(PDPBase):
     def __init__(
-        self,
-        data: np.ndarray,
-        model: callable,
-        model_jac: typing.Union[None, callable] = None,
-        axis_limits: None | np.ndarray = None,
-        nof_instances: int | str = 300,
-        avg_output: None | float = None,
-        feature_names: None | list = None,
-        target_name: None | str = None,
+            self,
+            data: np.ndarray,
+            model: Callable,
+            model_jac: Optional[Callable] = None,
+            axis_limits: Optional[np.ndarray] = None,
+            nof_instances: Union[int, str] = 300,
+            avg_output: Optional[float] = None,
+            feature_names: Optional[List] = None,
+            target_name: Optional[str] = None,
     ):
         """
         Constructor of the DerivativePDP class.

@@ -1,5 +1,5 @@
 import numpy as np
-import typing
+from typing import Callable, List, Optional, Union, Tuple
 from effector import helpers
 from abc import ABC, abstractmethod
 
@@ -8,15 +8,15 @@ class GlobalEffectBase(ABC):
     empty_symbol = helpers.EMPTY_SYMBOL
 
     def __init__(
-        self,
-        method_name: str,
-        data: np.ndarray,
-        model: typing.Callable,
-        nof_instances: int | str = 1000,
-        axis_limits: None | np.ndarray = None,
-        avg_output: None | float = None,
-        feature_names: None | list = None,
-        target_name: None | str = None,
+            self,
+            method_name: str,
+            data: np.ndarray,
+            model: Callable,
+            nof_instances: Union[int, str] = 1000,
+            axis_limits: Optional[np.ndarray] = None,
+            avg_output: Optional[float] = None,
+            feature_names: Optional[List] = None,
+            target_name: Optional[str] = None,
     ) -> None:
         """
         Constructor for the FeatureEffectBase class.
@@ -65,7 +65,7 @@ class GlobalEffectBase(ABC):
         self.data: np.ndarray = data
         self.dim = self.data.shape[1]
 
-        self.model: typing.Callable = model
+        self.model: Callable = model
 
         self.avg_output = (
             avg_output if avg_output is not None else np.mean(self.model(self.data))
@@ -76,20 +76,20 @@ class GlobalEffectBase(ABC):
         )
         self.axis_limits: np.ndarray = axis_limits
 
-        self.feature_names: typing.Union[None, list] = feature_names
-        self.target_name: typing.Union[None, str] = target_name
+        self.feature_names: Union[None, list] = feature_names
+        self.target_name: Union[None, str] = target_name
 
         # state variable
         self.is_fitted: np.ndarray = np.ones([self.dim]) < 1
 
         # parameters used when fitting the feature effect
-        self.method_args: typing.Dict = {}
+        self.method_args: dict = {}
 
         # dictionary with all the information required for plotting or evaluating the feature effect
-        self.feature_effect: typing.Dict = {}
+        self.feature_effect: dict = {}
 
     @abstractmethod
-    def fit(self, features: typing.Union[int, str, list] = "all", **kwargs) -> None:
+    def fit(self, features: Union[int, str, list] = "all", **kwargs) -> None:
         """Fit the feature effect for the given features.
 
         Args:
@@ -125,8 +125,8 @@ class GlobalEffectBase(ABC):
         feature: int,
         xs: np.ndarray,
         heterogeneity: bool = False,
-        centering: typing.Union[bool, str] = False,
-    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+        centering: Union[bool, str] = False,
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
 
         Notes:

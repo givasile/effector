@@ -4,21 +4,22 @@ from effector import helpers
 import numpy as np
 from effector.global_effect_shap import SHAPDependence
 from tqdm import tqdm
+from typing import Callable, Optional, Union, List
 
 
 class RegionalSHAP(RegionalEffectBase):
     big_m = helpers.BIG_M
 
     def __init__(
-            self,
-            data: np.ndarray,
-            model: callable,
-            axis_limits: None | np.ndarray = None,
-            nof_instances: int | str = 100,
-            feature_types: list[str] | None = None,
-            cat_limit: int | None = 10,
-            feature_names: None | list[str] = None,
-            target_name: None | str = None,
+        self,
+        data: np.ndarray,
+        model: Callable,
+        axis_limits: Optional[np.ndarray] = None,
+        nof_instances: Union[int, str] = 100,
+        feature_types: Optional[List[str]] = None,
+        cat_limit: Optional[int] = 10,
+        feature_names: Optional[List[str]] = None,
+        target_name: Optional[str] = None,
     ):
         """
         Regional SHAP constructor.

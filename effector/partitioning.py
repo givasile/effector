@@ -65,8 +65,8 @@ class Regions:
         self.splits: dict = {}
         self.important_splits: dict = {}
 
-        self.splits_tree: Tree | None = None
-        self.important_splits_tree: Tree | None = None
+        self.splits_tree: typing.Union[Tree, None] = None
+        self.important_splits_tree: typing.Union[Tree, None] = None
 
         # state variable
         self.split_found: bool = False

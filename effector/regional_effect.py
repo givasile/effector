@@ -7,6 +7,7 @@ from effector.global_effect_ale import RHALE, ALE
 from effector.global_effect_pdp import PDP, DerivativePDP
 from effector.global_effect_shap import SHAPDependence
 import typing
+from typing import Callable, Optional, Union, List
 from tqdm import tqdm
 import copy
 
@@ -20,15 +21,15 @@ class RegionalEffectBase:
         self,
         method_name: str,
         data: np.ndarray,
-        model: callable,
-        model_jac: typing.Union[None, callable] = None,
-        data_effect: None | np.ndarray = None,
-        nof_instances: int | str = 100,
-        axis_limits: None | np.ndarray = None,
-        feature_types: list | None = None,
-        cat_limit: int | None = 10,
-        feature_names: list | None = None,
-        target_name: str | None = None,
+        model: Callable,
+        model_jac: Optional[Callable] = None,
+        data_effect: Optional[np.ndarray] = None,
+        nof_instances: Union[int, str] = 100,
+        axis_limits: Optional[np.ndarray] = None,
+        feature_types: Optional[List] = None,
+        cat_limit: Optional[int] = 10,
+        feature_names: Optional[List] = None,
+        target_name: Optional[str] = None,
     ) -> None:
         """
         Constructor for the RegionalEffect class.
@@ -87,13 +88,13 @@ class RegionalEffectBase:
     def _fit_feature(
         self,
         feature: int,
-        heter_func: callable,
+        heter_func: Callable,
         heter_pcg_drop_thres: float = 0.1,
         heter_small_enough: float = 0.1,
         max_split_levels: int = 2,
         candidate_positions_for_numerical: int = 20,
         min_points_per_subregion: int = 10,
-        candidate_foc: str | list = "all",
+        candidate_foc: Union[str, List] = "all",
         split_categorical_features: bool = False,
     ):
         """

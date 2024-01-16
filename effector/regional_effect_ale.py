@@ -6,6 +6,7 @@ from effector.global_effect_ale import ALE, RHALE
 from tqdm import tqdm
 from effector import binning_methods
 import copy
+from typing import Callable, Optional, Union, List
 
 
 BIG_M = helpers.BIG_M
@@ -15,15 +16,15 @@ class RegionalRHALE(RegionalEffectBase):
     def __init__(
         self,
         data: np.ndarray,
-        model: callable,
-        model_jac: typing.Union[None, callable] = None,
-        instance_effects: None | np.ndarray = None,
-        nof_instances: int | str = "all",
-        axis_limits: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: typing.Union[int, None] = 10,
-        feature_names: typing.Union[list, None] = None,
-        target_name: typing.Union[str, None] = None,
+        model: Callable,
+        model_jac: Optional[Callable] = None,
+        instance_effects: Optional[np.ndarray] = None,
+        nof_instances: Union[int, str] = "all",
+        axis_limits: Optional[np.ndarray] = None,
+        feature_types: Optional[List] = None,
+        cat_limit: Optional[int] = 10,
+        feature_names: Optional[List] = None,
+        target_name: Optional[str] = None,
     ):
         """
         Regional RHALE constructor.
@@ -173,7 +174,7 @@ class RegionalALE(RegionalEffectBase):
         self,
         data: np.ndarray,
         model: callable,
-        nof_instances: int | str = "all",
+        nof_instances: typing.Union[int, str] = "all",
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
         cat_limit: typing.Union[int, None] = 10,
@@ -238,7 +239,7 @@ class RegionalALE(RegionalEffectBase):
         min_points_per_subregion: int = 10,
         candidate_conditioning_features: typing.Union["str", list] = "all",
         split_categorical_features: bool = False,
-        binning_method: str | binning_methods.Fixed = binning_methods.Fixed(nof_bins=20, min_points_per_bin=0),
+        binning_method: typing.Union[str, binning_methods.Fixed] = binning_methods.Fixed(nof_bins=20, min_points_per_bin=0),
         centering: typing.Union[bool, str] = False,
     ):
         """
