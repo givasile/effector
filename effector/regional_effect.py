@@ -263,7 +263,7 @@ class RegionalEffectBase:
         self,
         features,
         only_important=True,
-        scale_x_list: typing.Union[None, list[dict]] = None,
+        scale_x_list: typing.Union[None, typing.List[dict]] = None,
     ):
         features = helpers.prep_features(features, self.dim)
         for feature in features:
