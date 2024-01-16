@@ -1,9 +1,14 @@
 name: Publish effector documentation to xai-effector/effector.github.io
 
-on: push
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
 
 jobs:
-  build:
+  build-documentation:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,7 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements-build-docs.txt
+        pip install mkdocs mkdocstrings mkdocstrings-python mkdocs-material
 
     - name: Build docs
       run: |
@@ -26,32 +31,27 @@ jobs:
         mkdocs build
         cd ..
 
-    - name: Copy site site as artifact
+    - name: Save site site as artifact
       uses: actions/upload-artifact@v2
       with:
         name: docs-site
         path: docs/site
 
-  copy-site:
-    name: Copy built site to effector.github.io
+  push-site:
+    name: Copy site to effector.github.io
     needs:
-    - build
+    - build-documentation
 
     runs-on: ubuntu-latest
 
     steps:
-    - name: download site artifact
+    - name: Download the site as artifact
       uses: actions/download-artifact@v2
       with:
         name: docs-site
         path: site
 
-    - name: show files
-      run: |
-        ls -la
-        ls -la site
-
-    - name: Checkout effector.github.io gh-pages branch using github token
+    - name: Clone xai-effector.github.io and checkout gh-pages branch
       uses: actions/checkout@v2
       with:
           repository: xai-effector/xai-effector.github.io
@@ -59,12 +59,7 @@ jobs:
           token: ${{ secrets.EFFECTOR_GITHUB_API_KEY }}
           path: xai-effector.github.io
 
-    - name: show files
-      run: |
-          ls -la
-          ls -la xai-effector.github.io
-
-    - name: rm old site
+    - name: rm old site and copy new site
       run: |
           rm -rf xai-effector.github.io/*
           cp -r site/* xai-effector.github.io
@@ -76,32 +71,4 @@ jobs:
           git config --global user.name "ntipakos"
           git add .
           git commit -m "Update site from ntipakos/effector"
-          git push --force
-          
-          
-      
-      
-#            - name: Push directory to effector.github.io
-#      uses: datalbry/copy_folder_to_another_repo_action@1.0.0
-#      env:
-#        API_TOKEN_GITHUB: ${{ secrets.EFFECTOR_GITHUB_API_KEY }}
-#      with:
-#        source_folder: 'site'
-#        destination_repo: 'xai-effector/xai-effector.github.io'
-#        destination_branch: 'gh-pages'
-#        user_email: 'ntipakos@gmail.com'
-#        user_name: 'ntipakos'
-#        commit_msg: '[GHA] Update the test files.'
-
-
-#    - name: Configure Git
-#      run: |
-#        git config --global user.email "ntipakos@github.com"
-#        git config --global user.name "ntipakos"
-#
-#    - name: Commit and push to effector.github.io
-#      run: |
-#        git init
-#        git add .
-#        git commit -m "Update site from ntipakos/effector"
-#        git push --force https://${{ secrets.EFFECTOR_GITHUB_API_KEY }}@github.com/xai-effector/effector.git gh-pages
+          git push --force origin gh-pages
