@@ -19,13 +19,13 @@ how individual features impact the model's predictions:
 effector.RHALE(X, model, model_jac).plot(feature=3)
 ```
 
-![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_19_1.png)
+![Feature effect plot](./../Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_19_1.png)
 
 ```python
 effector.PDP(X, model).plot(feature=3)
 ```
 
-![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_16_1.png)
+![Feature effect plot](./../Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_16_1.png)
 
 
 Both plots show the effect of feature $\mathtt{hour}$ on the daily $\mathtt{bike-rentals}$;
@@ -90,13 +90,13 @@ In `Effector`, we can do this by simply setting the `confidence_interval` parame
 effector.RHALE(X, model, model_jac).plot(feature=3, heterogeneity=True)
 ```
 
-![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_0.png)
+![Feature effect plot](./../Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_0.png)
 
 ```python
 effector.PDP(X, model).plot(feature=3, heterogeneity="ice")
 ```
 
-![Feature effect plot](./../real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_1.png)
+![Feature effect plot](./../Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_1.png)
 
 Both methods show that there is high-variance in the instance-level effects;
 this means that the effect of feature $\mathtt{hour}$ varies significantly across different instances.

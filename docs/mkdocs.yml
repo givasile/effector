@@ -1,5 +1,25 @@
 site_name: Effector Documentation
 
+nav:
+  - Home: index.md
+  - Feature Effect:
+      - Global Effect: Feature Effect/01_global_effect_intro.md
+      - Regional Effect: Feature Effect/02_regional_effect_intro.md
+  - Tutorials:
+      - Guides:
+          - Wrap black-models in common ML libraries: Tutorials/Guides/wrap_models.md
+      - Synthetic Datasets:
+          - Linear Model: Tutorials/synthetic-examples/01_linear_model.md
+          - RHALE vs ALE vs PDP: Tutorials/synthetic-examples/02_rhale_vs_ale_vs_pdp.md
+          - Regional Effect in depth (a): Tutorials/synthetic-examples/03_regional_effects_synthetic_f.md
+          - Regional Effect in depth (b): Tutorials/synthetic-examples/04_regional_effects_real_f.md
+      - Real Datasets:
+          - Bike Sharing: Tutorials/real-examples/01_bike_sharing_dataset.md
+  - API: api.md
+  - Contributing: contributing.md
+  - References: references.md
+
+
 theme:
   name: material
 
@@ -56,6 +76,8 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
 
 extra_javascript:
   - javascripts/mathjax.js

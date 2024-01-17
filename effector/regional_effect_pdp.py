@@ -64,10 +64,10 @@ class RegionalPDPBase(RegionalEffectBase):
 
     def fit(
         self,
-        features: typing.Union[int, str, list],
+        features: typing.Union[int, str, list] = "all",
         heter_pcg_drop_thres: float = 0.1,
         heter_small_enough: float = 0.1,
-        max_depth: int = 2,
+        max_depth: int = 1,
         nof_candidate_splits_for_numerical: int = 20,
         min_points_per_subregion: int = 10,
         candidate_conditioning_features: typing.Union["str", list] = "all",

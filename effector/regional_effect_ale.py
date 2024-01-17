@@ -1,12 +1,13 @@
 import typing
 from effector.regional_effect import RegionalEffectBase
-from effector import helpers
+from effector import helpers, utils
 import numpy as np
 from effector.global_effect_ale import ALE, RHALE
 from tqdm import tqdm
 from effector import binning_methods
 import copy
 from typing import Callable, Optional, Union, List
+
 
 
 BIG_M = helpers.BIG_M
@@ -40,7 +41,11 @@ class RegionalRHALE(RegionalEffectBase):
         """
 
         if instance_effects is None:
-            instance_effects = model_jac(data)
+            if model_jac is not None:
+                instance_effects = model_jac(data)
+            else:
+                instance_effects = utils.compute_jacobian_numerically(model, data)
+
 
         super(RegionalRHALE, self).__init__(
             "rhale",
@@ -79,10 +84,10 @@ class RegionalRHALE(RegionalEffectBase):
 
     def fit(
         self,
-        features: typing.Union[int, str, list],
+        features: typing.Union[int, str, list] = "all",
         heter_pcg_drop_thres: float = 0.1,
         heter_small_enough: float = 0.1,
-        max_depth: int = 2,
+        max_depth: int = 1,
         nof_candidate_splits_for_numerical: int = 20,
         min_points_per_subregion: int = 10,
         candidate_conditioning_features: typing.Union["str", list] = "all",
@@ -234,7 +239,7 @@ class RegionalALE(RegionalEffectBase):
         features: typing.Union[int, str, list],
         heter_pcg_drop_thres: float = 0.1,
         heter_small_enough: float = 0.1,
-        max_depth: int = 2,
+        max_depth: int = 1,
         nof_candidate_splits_for_numerical: int = 20,
         min_points_per_subregion: int = 10,
         candidate_conditioning_features: typing.Union["str", list] = "all",
