@@ -45,6 +45,7 @@ def test_regional():
 
         reg_eff.fit(0,
                     heter_pcg_drop_thres=0.1,
+                    max_depth=2,
                     nof_candidate_splits_for_numerical=11,
                     candidate_conditioning_features="all",
                     split_categorical_features=True)
