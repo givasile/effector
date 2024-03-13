@@ -26,7 +26,7 @@ jobs:
           pip install build
 
       - name: Build a binary wheel and a source tarball
-        run: python -m build --sdist --wheel --outdir dist/
+        run: python -m build
 
       - name: Store the distribution packages
         uses: actions/upload-artifact@v3

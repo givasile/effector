@@ -10,7 +10,7 @@ nav:
           - Wrap black-models in common ML libraries: Tutorials/Guides/wrap_models.md
       - Synthetic Datasets:
           - Linear Model: Tutorials/synthetic-examples/01_linear_model.md
-          - RHALE vs ALE vs PDP: Tutorials/synthetic-examples/02_rhale_vs_ale_vs_pdp.md
+          - Global Effect - Methods Comparison: Tutorials/synthetic-examples/02_global_effect_methods_comparision.md
           - Regional Effect in depth (a): Tutorials/synthetic-examples/03_regional_effects_synthetic_f.md
           - Regional Effect in depth (b): Tutorials/synthetic-examples/04_regional_effects_real_f.md
       - Real Datasets:
