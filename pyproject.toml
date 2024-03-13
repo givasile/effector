@@ -7,7 +7,7 @@ py-modules = ["effector"]
 
 [project]
 name = "effector"
-version = "0.0.260"
+version = "0.0.261"
 readme = "README.md"
 dependencies = [
     "matplotlib",
