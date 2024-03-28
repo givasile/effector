@@ -638,9 +638,8 @@ The global RHALE plots follow the formula obtained after setting $x_1=x_3$ while
 
 #### Global SHAP DP
 
-
 ```python
-shap = effector.SHAPDependence(data=X_uncor_train, model=model, feature_names=['x1','x2','x3'], target_name="Y")
+shap = effector.ShapDP(data=X_uncor_train, model=model, feature_names=['x1', 'x2', 'x3'], target_name="Y")
 
 shap.plot(feature=0, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
 shap.plot(feature=1, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
@@ -667,13 +666,12 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
 
 #### Regional SHAP-DP
 
-
 ```python
-regional_shap = effector.RegionalSHAP(
-    data=X_uncor_train, 
-    model=model, 
+regional_shap = effector.RegionalShapDP(
+    data=X_uncor_train,
+    model=model,
     feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
 regional_shap.fit(
     features="all",
@@ -757,9 +755,8 @@ Regional SHAP-DP:
 
 #### Global SHAP-DP
 
-
 ```python
-shap = effector.SHAPDependence(data=X_cor_train, model=model, feature_names=['x1','x2','x3'], target_name="Y")
+shap = effector.ShapDP(data=X_cor_train, model=model, feature_names=['x1', 'x2', 'x3'], target_name="Y")
 
 shap.plot(feature=0, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
 shap.plot(feature=1, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
@@ -786,13 +783,12 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
 
 #### Regional SHAP
 
-
 ```python
-regional_shap = effector.RegionalSHAP(
-    data=X_cor_train, 
-    model=model, 
+regional_shap = effector.RegionalShapDP(
+    data=X_cor_train,
+    model=model,
     feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
 regional_shap.fit(
     features="all",

@@ -27,9 +27,9 @@ def test_gam():
     # Define test cases
     test_cases = [
         {"method": effector.PDP, "kwargs": {}},
-        {"method": effector.DerivativePDP, "kwargs": {"model_jac": None}},
-        {"method": effector.DerivativePDP, "kwargs": {"model_jac": model_jac}},
-        {"method": effector.SHAPDependence, "kwargs": {}},
+        {"method": effector.DerPDP, "kwargs": {"model_jac": None}},
+        {"method": effector.DerPDP, "kwargs": {"model_jac": model_jac}},
+        {"method": effector.ShapDP, "kwargs": {}},
         {"method": effector.ALE, "kwargs": {}},
         {"method": effector.RHALE, "kwargs": {"model_jac": None}},
         {"method": effector.RHALE, "kwargs": {"model_jac": model_jac}}
@@ -48,7 +48,7 @@ def test_gam():
 
             np.allclose(heterogeneity, gt["heterogeneity"], atol=atol, rtol=rtol)
 
-            if effector_class not in [effector.DerivativePDP]:
+            if effector_class not in [effector.DerPDP]:
                 if feature == 0:
                     np.allclose(y, gt["x1"], atol=atol, rtol=rtol)
                 elif feature == 1:

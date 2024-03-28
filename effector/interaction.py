@@ -3,7 +3,7 @@ import logging
 import typing
 from effector import helpers
 import effector
-from effector import DerivativePDP, PDP
+from effector import DerPDP, PDP
 from effector.global_effect_pdp import pdp_1d_vectorized, pdp_1d_non_vectorized, pdp_nd_non_vectorized, pdp_nd_vectorized
 import tqdm
 

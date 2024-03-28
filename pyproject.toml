@@ -7,7 +7,11 @@ py-modules = ["effector"]
 
 [project]
 name = "effector"
-version = "0.0.261"
+description = "A Python library for global and regional effects"
+authors = [{name = "Vasilis Gkolemis", email = "ntipakos@gmail.com"}]
+requires-python = ">=3.7"
+keywords = ["explainability", "machine learning", "deep learning", "interpretability", "feature effect"]
+version = "0.0.262"
 readme = "README.md"
 dependencies = [
     "matplotlib",
@@ -16,3 +20,11 @@ dependencies = [
     "tqdm",
     "shap"
 ]
+
+[project.urls]
+documentation = "https://https://xai-effector.github.io/"
+source = "https://github.com/givasile/effector"
+tracker = "https://github.com/givasile/effector/issues"
+
+[project.optional-dependencies]
+tutorials = ["ipython", "pandas", "tensorflow", "keras", "ucimlrepo", "jupyter"]

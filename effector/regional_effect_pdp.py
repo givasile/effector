@@ -2,7 +2,7 @@ import typing
 import numpy as np
 from effector.regional_effect import RegionalEffectBase
 from effector import helpers
-from effector.global_effect_pdp import PDP, DerivativePDP
+from effector.global_effect_pdp import PDP, DerPDP
 from tqdm import tqdm
 
 BIG_M = helpers.BIG_M
@@ -43,7 +43,7 @@ class RegionalPDPBase(RegionalEffectBase):
             if self.method_name == "pdp":
                 pdp = PDP(data, self.model, self.axis_limits, nof_instances=nof_instances)
             else:
-                pdp = DerivativePDP(data, self.model, self.model_jac, self.axis_limits, nof_instances=nof_instances)
+                pdp = DerPDP(data, self.model, self.model_jac, self.axis_limits, nof_instances=nof_instances)
 
             try:
                 pdp.fit(features=foi, centering=centering, points_for_centering=points_for_centering)
@@ -135,7 +135,7 @@ class RegionalPDP(RegionalPDPBase):
             target_name)
 
 
-class RegionalDerivativePDP(RegionalPDPBase):
+class RegionalDerPDP(RegionalPDPBase):
     def __init__(
         self,
         data: np.ndarray,
@@ -148,7 +148,7 @@ class RegionalDerivativePDP(RegionalPDPBase):
         feature_names: typing.Union[list, None] = None,
         target_name: typing.Union[str, None] = None,
     ):
-        super(RegionalDerivativePDP, self).__init__(
+        super(RegionalDerPDP, self).__init__(
             "d-pdp",
             data,
             model,

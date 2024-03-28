@@ -6,15 +6,15 @@ nav:
       - Global Effect: Feature Effect/01_global_effect_intro.md
       - Regional Effect: Feature Effect/02_regional_effect_intro.md
   - Tutorials:
-      - Guides:
-          - Wrap black-models in common ML libraries: Tutorials/Guides/wrap_models.md
       - Synthetic Datasets:
           - Linear Model: Tutorials/synthetic-examples/01_linear_model.md
-          - Global Effect - Methods Comparison: Tutorials/synthetic-examples/02_global_effect_methods_comparision.md
+          - Global Effect - Methods Comparison: Tutorials/synthetic-examples/02_rhale_vs_ale_vs_pdp.md
           - Regional Effect in depth (a): Tutorials/synthetic-examples/03_regional_effects_synthetic_f.md
           - Regional Effect in depth (b): Tutorials/synthetic-examples/04_regional_effects_real_f.md
       - Real Datasets:
           - Bike Sharing: Tutorials/real-examples/01_bike_sharing_dataset.md
+      - Guides:
+          - Wrap black-models in common ML libraries: Tutorials/Guides/wrap_models.md
   - API: api.md
   - Contributing: contributing.md
   - References: references.md
@@ -30,6 +30,7 @@ theme:
   features:
     - navigation.footer
     - header.autohide
+    - content.code.copy
   icon:
     repo: fontawesome/brands/github
 

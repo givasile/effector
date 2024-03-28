@@ -35,9 +35,9 @@ def test_linear():
     # Create a list of test cases
     test_cases = [
         {"method": effector.PDP, "init_kwargs": {}},
-        {"method": effector.DerivativePDP, "init_kwargs": {}},
-        {"method": effector.DerivativePDP, "init_kwargs": {"model_jac": model_jac}},
-        {"method": effector.SHAPDependence, "init_kwargs": {}},
+        {"method": effector.DerPDP, "init_kwargs": {}},
+        {"method": effector.DerPDP, "init_kwargs": {"model_jac": model_jac}},
+        {"method": effector.ShapDP, "init_kwargs": {}},
         {"method": effector.ALE, "init_kwargs": {}},
         {"method": effector.RHALE, "init_kwargs": {}},
         {"method": effector.RHALE, "init_kwargs": {"model_jac": model_jac}}

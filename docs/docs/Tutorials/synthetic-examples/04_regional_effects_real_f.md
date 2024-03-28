@@ -1058,10 +1058,8 @@ regional_rhale.show_partitioning(features=2)
 ### Uncorrelated setting
 #### Global SHAP DP
 
-
-
 ```python
-shap = effector.SHAPDependence(data=X_uncor_train, model=model_uncor, feature_names=['x1', 'x2', 'x3'], target_name="Y")
+shap = effector.ShapDP(data=X_uncor_train, model=model_uncor, feature_names=['x1', 'x2', 'x3'], target_name="Y")
 
 shap.plot(feature=0, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
 shap.plot(feature=1, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
@@ -1089,9 +1087,8 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
 
 #### Regional SHAP-DP
 
-
 ```python
-regional_shap = effector.RegionalSHAP(
+regional_shap = effector.RegionalShapDP(
     data=X_uncor_train,
     model=model_uncor,
     feature_names=['x1', 'x2', 'x3'],
@@ -1171,11 +1168,9 @@ regional_shap.show_partitioning(features=2)
 
 #### Global SHAP-DP
 
-
-
 ```python
 
-shap = effector.SHAPDependence(data=X_cor_train, model=model_cor, feature_names=['x1', 'x2', 'x3'], target_name="Y")
+shap = effector.ShapDP(data=X_cor_train, model=model_cor, feature_names=['x1', 'x2', 'x3'], target_name="Y")
 
 shap.plot(feature=0, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
 shap.plot(feature=1, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
@@ -1203,9 +1198,8 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
 
 #### Regional SHAP
 
-
 ```python
-regional_shap = effector.RegionalSHAP(
+regional_shap = effector.RegionalShapDP(
     data=X_cor_train,
     model=model_cor,
     feature_names=['x1', 'x2', 'x3'],

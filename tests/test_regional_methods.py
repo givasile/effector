@@ -35,13 +35,13 @@ def test_regional():
         if method == "pdp":
             reg_eff = effector.RegionalPDP(data, model, nof_instances=1000)
         elif method == "d-pdp":
-            reg_eff = effector.RegionalDerivativePDP(data, model, model_jac, nof_instances=1000)
+            reg_eff = effector.RegionalDerPDP(data, model, model_jac, nof_instances=1000)
         elif method == "ale":
             reg_eff = effector.RegionalALE(data, model, nof_instances=1000)
         elif method == "rhale":
             reg_eff = effector.RegionalRHALE(data, model, model_jac, nof_instances=1000)
         else:
-            reg_eff = effector.RegionalSHAP(data, model, nof_instances=1000)
+            reg_eff = effector.RegionalShapDP(data, model, nof_instances=1000)
 
         reg_eff.fit(0,
                     heter_pcg_drop_thres=0.1,

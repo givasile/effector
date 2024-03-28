@@ -498,12 +498,10 @@ plt.show()
 
     
 ![png](02_rhale_vs_ale_vs_pdp_files/02_rhale_vs_ale_vs_pdp_37_0.png)
-    
-
-
 
 ```python
-effector.DerivativePDP(data=x, model=f, model_jac=dfdx, nof_instances=50).plot(feature=0, centering=False, heterogeneity="ice", y_limits=[-20, 20])
+effector.DerPDP(data=x, model=f, model_jac=dfdx, nof_instances=50).plot(feature=0, centering=False, heterogeneity="ice",
+                                                                        y_limits=[-20, 20])
 ```
 
 
@@ -514,11 +512,9 @@ effector.DerivativePDP(data=x, model=f, model_jac=dfdx, nof_instances=50).plot(f
 
 ## SHAP Dependence Plots
 
-
-
-
 ```python
-effector.SHAPDependence(data=x, model=f, nof_instances="all").plot(feature=0, centering=True, heterogeneity="shap_values", y_limits=[-3, 3])
+effector.ShapDP(data=x, model=f, nof_instances="all").plot(feature=0, centering=True, heterogeneity="shap_values",
+                                                           y_limits=[-3, 3])
 ```
 
 

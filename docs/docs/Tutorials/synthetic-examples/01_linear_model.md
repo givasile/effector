@@ -310,10 +310,9 @@ We have to mention that:
 
 As we can see below, the standard deviation of the ICE plots is zero, because they only measure the variation of the shapes of the curves; not the variation of the intercepts.
 
-
 ```python
-effector.DerivativePDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, heterogeneity=True)
-effector.DerivativePDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, heterogeneity="ice")
+effector.DerPDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, heterogeneity=True)
+effector.DerPDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, heterogeneity="ice")
 ```
 
 
@@ -529,9 +528,8 @@ For more details about that, you can check the in-depth [ALE tutorial](./ale.ipy
 
 TODO add intro
 
-
 ```python
-effector.SHAPDependence(data=X, model=predict).plot(feature=0, centering=False, show_avg_output=False)
+effector.ShapDP(data=X, model=predict).plot(feature=0, centering=False, show_avg_output=False)
 ```
 
 
@@ -555,9 +553,8 @@ TODO add content
 
 Let's see how this works for $x_1$:
 
-
 ```python
-effector.SHAPDependence(data=X, model=predict).plot(feature=0, centering=True, show_avg_output=False)
+effector.ShapDP(data=X, model=predict).plot(feature=0, centering=True, show_avg_output=False)
 ```
 
 
@@ -572,10 +569,9 @@ As before, the heterogeneity is given by the the standard deviation of the insta
 It is important to notice, that automatic bin-splitting provides a better estimation of the heterogeneity, compared to the equisized binning method used by ALE. (check tutorial [ALE](./ale.ipynb) for more details). 
 The plot below correctly informs shows that the heterogeneity is zero.
 
-
 ```python
-effector.SHAPDependence(data=X, model=predict).plot(feature=0, heterogeneity="shap_values")
-effector.SHAPDependence(data=X, model=predict).plot(feature=0, heterogeneity="std")
+effector.ShapDP(data=X, model=predict).plot(feature=0, heterogeneity="shap_values")
+effector.ShapDP(data=X, model=predict).plot(feature=0, heterogeneity="std")
 ```
 
 

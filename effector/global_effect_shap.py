@@ -8,7 +8,7 @@ import shap
 from scipy.interpolate import UnivariateSpline
 
 
-class SHAPDependence(GlobalEffectBase):
+class ShapDP(GlobalEffectBase):
     def __init__(
             self,
             data: np.ndarray,
@@ -90,7 +90,7 @@ class SHAPDependence(GlobalEffectBase):
         )
         data = data[self.indices, :]
 
-        super(SHAPDependence, self).__init__(
+        super(ShapDP, self).__init__(
             "SHAP DP", data, model, nof_instances, axis_limits, avg_output, feature_names, target_name
         )
 

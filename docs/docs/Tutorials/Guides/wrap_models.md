@@ -1,6 +1,6 @@
 # Wrap ML models into callables
 
-In this tutorial, we provide brief snippets for wrapping ML models into callables.
+Integration of `Effector` with common machine learning libraries is straightforward:
 
 === "scikit-learn"
 
@@ -93,5 +93,5 @@ In this tutorial, we provide brief snippets for wrapping ML models into callable
     def model_callable(X):
       return model.predict(X)
 
-    Attention: Tree based models are not differentiable, so there is no way to compute the Jacobian.
+    # Attention: Tree based models are not differentiable, so there is no way to compute the Jacobian.
     ```

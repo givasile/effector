@@ -4,8 +4,8 @@ import effector.helpers as helpers
 import effector.utils as utils
 from effector.partitioning import Regions, Tree
 from effector.global_effect_ale import RHALE, ALE
-from effector.global_effect_pdp import PDP, DerivativePDP
-from effector.global_effect_shap import SHAPDependence
+from effector.global_effect_pdp import PDP, DerPDP
+from effector.global_effect_shap import ShapDP
 import typing
 from typing import Callable, Optional, Union, List
 from tqdm import tqdm
@@ -162,11 +162,11 @@ class RegionalEffectBase:
         elif self.method_name == "ale":
             return ALE(data, self.model, feature_names=feature_names, target_name=self.target_name)
         elif self.method_name == "shap":
-            return SHAPDependence(data, self.model, feature_names=feature_names, target_name=self.target_name)
+            return ShapDP(data, self.model, feature_names=feature_names, target_name=self.target_name)
         elif self.method_name == "pdp":
             return PDP(data, self.model, feature_names=feature_names, target_name=self.target_name)
         elif self.method_name == "d-pdp":
-            return DerivativePDP(data, self.model, self.model_jac, feature_names=feature_names, target_name=self.target_name)
+            return DerPDP(data, self.model, self.model_jac, feature_names=feature_names, target_name=self.target_name)
         else:
             raise NotImplementedError
 

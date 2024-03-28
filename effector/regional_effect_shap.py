@@ -2,12 +2,12 @@ import typing
 from effector.regional_effect import RegionalEffectBase
 from effector import helpers
 import numpy as np
-from effector.global_effect_shap import SHAPDependence
+from effector.global_effect_shap import ShapDP
 from tqdm import tqdm
 from typing import Callable, Optional, Union, List
 
 
-class RegionalSHAP(RegionalEffectBase):
+class RegionalShapDP(RegionalEffectBase):
     big_m = helpers.BIG_M
 
     def __init__(
@@ -61,7 +61,7 @@ class RegionalSHAP(RegionalEffectBase):
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
         """
-        super(RegionalSHAP, self).__init__(
+        super(RegionalShapDP, self).__init__(
             "shap",
             data,
             model,
@@ -84,7 +84,7 @@ class RegionalSHAP(RegionalEffectBase):
             axis_limits = helpers.axis_limits_from_data(data)
             xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
 
-            shap = SHAPDependence(data, self.model, None, self.nof_instances)
+            shap = ShapDP(data, self.model, None, self.nof_instances)
             shap.fit(foi, centering, points_for_centering)
             _, z = shap.eval(foi, xx, heterogeneity=True)
             return np.mean(z)

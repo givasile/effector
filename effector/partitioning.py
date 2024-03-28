@@ -577,8 +577,6 @@ class Tree:
             prev_heter = level_stats['heterogeneity']
 
 
-
-
 class DataTransformer:
     def __init__(self, splits: typing.Dict):
         self.splits = splits

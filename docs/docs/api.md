@@ -43,14 +43,14 @@
         members:
           - __init__
 
-### ::: effector.global_effect_pdp.DerivativePDP
+### ::: effector.global_effect_pdp.DerPDP
       options:
         show_root_heading: True
         show_symbol_type_toc: True
         members:
           - __init__
 
-### ::: effector.global_effect_shap.SHAPDependence
+### ::: effector.global_effect_shap.ShapDP
       options:
         show_root_heading: True
         show_symbol_type_toc: True
@@ -106,14 +106,14 @@
          members:
             - __init__
 
-### ::: effector.regional_effect_pdp.RegionalDerivativePDP
+### ::: effector.regional_effect_pdp.RegionalDerPDP
        options:
          show_root_heading: True
          show_symbol_type_toc: True
          members:
             - __init__
 
-### ::: effector.regional_effect_shap.RegionalSHAP
+### ::: effector.regional_effect_shap.RegionalShapDP
        options:
             show_root_heading: True
             show_symbol_type_toc: True

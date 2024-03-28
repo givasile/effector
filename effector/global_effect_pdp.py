@@ -324,7 +324,7 @@ class PDP(PDPBase):
         )
 
 
-class DerivativePDP(PDPBase):
+class DerPDP(PDPBase):
     def __init__(
             self,
             data: np.ndarray,
@@ -399,7 +399,7 @@ class DerivativePDP(PDPBase):
                 - use `None`, to keep the default name: `"y"`
         """
 
-        super(DerivativePDP, self).__init__(
+        super(DerPDP, self).__init__(
             data, model, model_jac, axis_limits, avg_output, nof_instances, feature_names, target_name, method_name="d-PDP"
         )
 

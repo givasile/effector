@@ -1,6 +1,6 @@
 # Home
 
-`Effector` is a python package for [global](./Feature Effect/01_global_effect_intro/) and [regional](./Feature Effect/02_regional_effect_intro/) effect analysis.
+`Effector` is a python package for [global](./Feature Effect/01_global_effect_intro/) and [regional](./Feature Effect/02_regional_effect_intro/) effect plots.
 
 ---
 
@@ -12,7 +12,7 @@
 `Effector` is compatible with `Python 3.7+`. We recommend to first create a virtual environment with `conda`:
 
 ```bash
-conda create -n effector python=3.7
+conda create -n effector python=3.11 # any python 3.7+ will work
 conda activate effector
 ```
 
@@ -20,6 +20,12 @@ and then install `Effector` via `pip`:
 
 ```bash
 pip install effector
+```
+
+If you want to also run the Tutorial notebooks, add some more dependencies to the environment:
+
+```bash
+pip install -r requirements-dev.txt
 ```
 
 ---
@@ -30,7 +36,7 @@ pip install effector
 Global effect is one the simplest ways to interpret a black-box model;
 it simply shows how a particular feature relates to the model's output.
 Given the dataset `X` (`np.ndarray`) and the black-box predictive function `model` (`callable`), 
-you can use `Effector` to get the global effect of a `feature` in a single line of code:
+you can use `effector` to get the global effect of a `feature` in a single line of code:
 
 ```python
 # for Robust and Heterogeneity-aware ALE (RHALE)
@@ -38,7 +44,7 @@ RHALE(data=X, model=model).plot(feature)
 ```
 
 For example, the following code shows the global effect of the feature hour (`hr`) on the 
-number of bikes (`cnt`) rent within a day (check [this](Tutorials/real-examples/01_bike_sharing_dataset.ipynb) 
+number of bikes (`cnt`) rent within a day (check [this](./Tutorials/real-examples/01_bike_sharing_dataset/) 
 notebook for more details). It is easy to interpret what the black-box model has learned:
 There are two peaks in rentals during a day, one in the morning and one in the evening,
 where people go to work and return home, respectively:
@@ -51,7 +57,7 @@ where people go to work and return home, respectively:
 
 However, there are cases where the global effect can be misleading. This happens 
 when there are many particular instances that deviate from the global effect.
-In `Effector`, the user can understand where the global effect is misleading, 
+In `effector`, the user can understand where the global effect is misleading, 
 using the argument `heterogeneity`, while plotting:
 
 ```python
@@ -69,7 +75,7 @@ For more details, check the [global effect tutorial](./Feature Effect/01_global_
 #### Regional Effect
 
 In this cases, it is useful to search if there are subspaces where the effect.
-In `Effector` this can be also done in a single line of code:
+In `effector` this can be also done in a single line of code:
 
 ```python
 RegionalRHALE(data=X, model=model).plot(feature=0, node_idx=1, heterogeneity=True)
@@ -88,32 +94,15 @@ For more details, check the [regional effect tutorial](./Feature Effect/02_regio
 
 ---
 
-## Methods and Publications
-
 ### Methods
 
 `Effector` implements the following methods:
 
-| Method   | Global Effect                                                                  | Regional Effect                                                                         |                                                                                                                                
-|----------|--------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
-| PDP      | [`PDP`](./api/#effector.global_effect_pdp.PDP)                                 | [`RegionalPDP`](./../../03_API/#effector.regional_effect_pdp.RegionalPDP)               |
-| d-PDP    | [`DerivativePDP`](./../../03_API/#effector.global_effect_pdp.DerivativePDP)    | [`RegionalDerivativePDP`](./../../03_API/#effector.regional_effect_pdp.RegionalDerivativePDP) |
-| ALE      | [`ALE`](./../../03_API/#effector.global_effect_ale.ALE)                        | [`RegionalALE`](./../../03_API/#effector.regional_effect_ale.RegionalALE)               |
-| RHALE    | [`RHALE`](./../../03_API/#effector.global_effect_ale.RHALE)                    | [`RegionalRHALE`](./../../03_API/#effector.regional_effect_ale.RegionalRHALE)           |
-| SHAP-DP  | [`SHAPDependence`](./../../03_API/#effector.global_effect_shap.SHAPDependence) | [`RegionalSHAP`](./../../03_API/#effector.regional_effect_shap.RegionalSHAPDependence)  |
+| Method   | Global Effect                                             | Regional Effect                                                               | Paper                                                                                                                                               |                                                                                                                                
+|----------|-----------------------------------------------------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| PDP      | [`PDP`](./api/#effector.global_effect_pdp.PDP)            | [`RegionalPDP`](./api/#effector.regional_effect_pdp.RegionalPDP)              | [PDP](https://projecteuclid.org/euclid.aos/1013203451), [ICE](https://arxiv.org/abs/1309.6392), [GAGDET-PD](https://arxiv.org/pdf/2306.00541.pdf)   |
+| d-PDP    | [`DerPDP`](./api/#effector.global_effect_pdp.DerPDP)      | [`RegionalDerPDP`](./api/#effector.regional_effect_pdp.RegionalDerPDP)        | [d-PDP, d-ICE](https://arxiv.org/abs/1309.6392)                                                                                                     | 
+| ALE      | [`ALE`](./api/#effector.global_effect_ale.ALE)            | [`RegionalALE`](./api/#effector.regional_effect_ale.RegionalALE)              | [ALE](https://academic.oup.com/jrsssb/article/82/4/1059/7056085), [GAGDET-ALE](https://arxiv.org/pdf/2306.00541.pdf)                                |                                                                                    
+| RHALE    | [`RHALE`](./api/#effector.global_effect_ale.RHALE)        | [`RegionalRHALE`](./api/#effector.regional_effect_ale.RegionalRHALE)          | [RHALE](https://ebooks.iospress.nl/doi/10.3233/FAIA230354), [DALE](https://proceedings.mlr.press/v189/gkolemis23a/gkolemis23a.pdf)                  |
+| SHAP-DP  | [`ShapDP`](./api/#effector.global_effect_shap.ShapDP)     | [`RegionalShapDP`](./api/#effector.regional_effect_shap.RegionalShapDP)       | [SHAP](https://papers.nips.cc/paper/7062-a-unified-approach-to-interpreting-model-predictions), [GAGDET-DP](https://arxiv.org/pdf/2306.00541.pdf)   |
 
-### Publications
-
-The methods above are based on the following publications:
-
-
-  - PDP and d-PDP: [Friedman, Jerome H. "Greedy function approximation: a gradient boosting machine." Annals of statistics (2001): 1189-1232.](https://projecteuclid.org/euclid.aos/1013203451)
-  - ALE: [Apley, Daniel W. "Visualizing the effects of predictor variables in black box supervised learning models." arXiv preprint arXiv:1612.08468 (2016).](https://arxiv.org/abs/1612.08468)
-  - RHALE: [Gkolemis, Vasilis, "RHALE](https://ebooks.iospress.nl/doi/10.3233/FAIA230354)
-  - SHAP-DP: [Lundberg, Scott M., and Su-In Lee. "A unified approach to interpreting model predictions." Advances in neural information processing systems. 2017.](https://papers.nips.cc/paper/7062-a-unified-approach-to-interpreting-model-predictions)
-
-- Regional Effect:
- 
-  - [REPID: Regional Effect Plots with implicit Interaction Detection](https://proceedings.mlr.press/v151/herbinger22a.html)
-  - [Decomposing Global Feature Effects Based on Feature Interactions](https://arxiv.org/pdf/2306.00541.pdf)
-  - [Regionally Additive Models: Explainable-by-design models minimizing feature interactions](https://arxiv.org/abs/2309.12215)
