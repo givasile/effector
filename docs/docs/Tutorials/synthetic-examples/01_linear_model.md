@@ -34,7 +34,7 @@ Hopefully, there is a quantity called **heterogeneity** that can be used to chec
 
 </center>
 
-For the rest of the tutorial, we will use the following notation for the rest of the tutorial:
+For the rest of the tutorial, we will use the following notation:
 
 <center>
 
@@ -71,7 +71,7 @@ As dataset, we will generate $N=1000$ examples comming from the following distri
 | Feature | Description                                                      | Distribution                      |
 |---------|------------------------------------------------------------------|-----------------------------------|
 | $x_1$   | Uniformly distributed between $0$ and $1$                        | $x_1 \sim \mathcal{U}(0,1)$       |
-| $x_2$   | Follows $x_1$ with some added noise                              | $x_2 = x_1 + \epsilon $, $\epsilon \sim \mathcal{N}(0, 0.1)$ |
+| $x_2$   | Follows $x_1$ with some added noise                              | $x_2 = x_1 + \epsilon, \epsilon \sim \mathcal{N}(0, 0.1)$ |
 | $x_3$   | Uniformly distributed between $0$ and $1$                        | $x_3 \sim \mathcal{U}(0,1)$       |
 
 
@@ -310,6 +310,7 @@ We have to mention that:
 
 As we can see below, the standard deviation of the ICE plots is zero, because they only measure the variation of the shapes of the curves; not the variation of the intercepts.
 
+
 ```python
 effector.DerPDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, heterogeneity=True)
 effector.DerPDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, heterogeneity="ice")
@@ -528,6 +529,7 @@ For more details about that, you can check the in-depth [ALE tutorial](./ale.ipy
 
 TODO add intro
 
+
 ```python
 effector.ShapDP(data=X, model=predict).plot(feature=0, centering=False, show_avg_output=False)
 ```
@@ -553,6 +555,7 @@ TODO add content
 
 Let's see how this works for $x_1$:
 
+
 ```python
 effector.ShapDP(data=X, model=predict).plot(feature=0, centering=True, show_avg_output=False)
 ```
@@ -568,6 +571,7 @@ effector.ShapDP(data=X, model=predict).plot(feature=0, centering=True, show_avg_
 As before, the heterogeneity is given by the the standard deviation of the instance-level effects as $\pm$ interval around the ALE plot.
 It is important to notice, that automatic bin-splitting provides a better estimation of the heterogeneity, compared to the equisized binning method used by ALE. (check tutorial [ALE](./ale.ipynb) for more details). 
 The plot below correctly informs shows that the heterogeneity is zero.
+
 
 ```python
 effector.ShapDP(data=X, model=predict).plot(feature=0, heterogeneity="shap_values")

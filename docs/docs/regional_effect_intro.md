@@ -5,7 +5,7 @@
     Because they are one of the simplest ways to regionally interpret a black-box model.
 
 
-In the [previous](01_global_effect_intro.md) tutorial, we explained the effect of feature $\mathtt{hour}$ on the daily $\mathtt{bike-rentals}$, 
+In the [previous](global_effect_intro) tutorial, we explained the effect of feature $\mathtt{hour}$ on the daily $\mathtt{bike-rentals}$, 
 using global feature effect plots. 
 The analysis, however, showed that there is high heterogeneity; there are many instances that behave differently from the average pattern.
 
@@ -19,8 +19,8 @@ The analysis, however, showed that there is high heterogeneity; there are many i
 
 Below, we show the global effect plot for the $\mathtt{hour}$ feature on the daily $\mathtt{bike-rentals}$:
 
-![Feature effect plot](./../Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_0.png)
-![Feature effect plot](./../Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_1.png)
+![Feature effect plot](static/bike_sharing_global_rhale_heterogeneity.png)
+![Feature effect plot](static/bike_sharing_global_pdp_heterogeneity.png)
 
 ---
 
@@ -48,8 +48,8 @@ regional_rhale = effector.RegionalRHALE(X, model, model_jac).plot(feature=3, het
 ```
 
 
-![Feature effect plot](./../Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_0.png)
-![Feature effect plot](./../Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_1.png)
+![Feature effect plot](static/bike_sharing_regional_rhale_workingdays.png)
+![Feature effect plot](static/bike_sharing_regional_rhale_weekends.png)
 
 
 ### Regional PDP
@@ -58,13 +58,13 @@ regional_rhale = effector.RegionalRHALE(X, model, model_jac).plot(feature=3, het
 regional_pdp = effector.RegionalPDP(X, model).plot(feature=3, heterogeneity="ice")
 ```
 
-![Feature effect plot](./../Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_30_0.png)
-![Feature effect plot](./../Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_31_0.png)
+![Feature effect plot](static/bike_sharing_regional_pdp_workingdays.png)
+![Feature effect plot](static/bike_sharing_regional_pdp_weekends.png)
 
 ### Conclusion
 
 ???+ danger "Don't rush to conclusions"
-    In the [Global Effect Tutorial](./01_global_effect_intro.md), we said that there is
+    In the [Global Effect Tutorial](global_effect_intro), we said that there is
     a small piece of the puzzle missing. We copy-paste the text:
 
     > Although we have identified the two distinct patterns, we still don't know what causes them.

@@ -5,7 +5,11 @@ Integration of `Effector` with common machine learning libraries is straightforw
 === "scikit-learn"
 
     ``` python
+    import effector
     from sklearn.ensemble import RandomForestRegressor
+
+    # X = ... # input data
+    # y = ... # target data
 
     model = RandomForestRegressor()
     model.fit(X, y)
@@ -13,14 +17,24 @@ Integration of `Effector` with common machine learning libraries is straightforw
     def model_callable(X):
       return model.predict(X)
 
-    # Attention: scikit-learn does not provide a method for computing the Jacobian using automatic differentiation.
+    # global and regional pdp effect
+    effector.PDP(X, model_callable).plot(feature=0)
+    effector.RegionalPDP(X, model_callable).plot(feature=0, node_idx=0)
+
+    # global and regional rhale effect
+    effector.RHALE(X, model_callable).plot(feature=0)
+    effector.RegionalRHALE(X, model_callable).plot(feature=0, node_idx=0)
     ```
 
 === "pytorch"
 
     ``` python
+    import effector
     import torch
     import torch.nn as nn
+
+    # X = ... # input data
+    # y = ... # target data
 
     class Net(nn.Module):
       def __init__(self):
@@ -53,12 +67,24 @@ Integration of `Effector` with common machine learning libraries is straightforw
         X.requires_grad = True
         y = model(X)
         return torch.autograd.grad(y, X)[0].numpy()
+
+    # global and regional pdp effect
+    effector.PDP(X, model_callable).plot(feature=0)
+    effector.RegionalPDP(X, model_callable).plot(feature=0, node_idx=0)
+
+    # global and regional rhale effect
+    effector.RHALE(X, model_callable, model_jac_callable).plot(feature=0)
+    effector.RegionalRHALE(X, model_callable, model_jac_callable).plot(feature=0, node_idx=0)
     ```
 
 === "tensorflow"
 
     ``` python
+    import effector
     import tensorflow as tf
+
+    # X = ... # input data
+    # y = ... # target data
     
     # define model
     model = tf.keras.Sequential([
@@ -79,13 +105,25 @@ Integration of `Effector` with common machine learning libraries is straightforw
             tape.watch(X)
             y = model(X)
         return tape.gradient(y, X).numpy()
+
+    # global and regional pdp effect
+    effector.PDP(X, model_callable).plot(feature=0)
+    effector.RegionalPDP(X, model_callable).plot(feature=0, node_idx=0)
+
+    # global and regional rhale effect
+    effector.RHALE(X, model_callable, model_jac_callable).plot(feature=0)
+    effector.RegionalRHALE(X, model_callable, model_jac_callable).plot(feature=0, node_idx=0)
+
     ```
 
 === "xgboost"
 
     ``` python
-
+    import effector
     import xgboost as xgb
+
+    # X = ... # input data
+    # y = ... # target data
 
     model = xgb.XGBRegressor()
     model.fit(X, y)
@@ -94,4 +132,11 @@ Integration of `Effector` with common machine learning libraries is straightforw
       return model.predict(X)
 
     # Attention: Tree based models are not differentiable, so there is no way to compute the Jacobian.
+    # global and regional pdp effect
+    effector.PDP(X, model_callable).plot(feature=0)
+    effector.RegionalPDP(X, model_callable).plot(feature=0, node_idx=0)
+
+    # global and regional rhale effect
+    effector.RHALE(X, model_callable).plot(feature=0)
+    effector.RegionalRHALE(X, model_callable).plot(feature=0, node_idx=0)
     ```

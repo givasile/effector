@@ -1,6 +1,6 @@
 # Home
 
-`Effector` is a python package for [global](./Feature Effect/01_global_effect_intro/) and [regional](./Feature Effect/02_regional_effect_intro/) effect plots.
+`Effector` is a python package for [global](./global_effect_intro/) and [regional](.regional_effect_intro/) feature effects.
 
 ---
 
@@ -49,7 +49,7 @@ notebook for more details). It is easy to interpret what the black-box model has
 There are two peaks in rentals during a day, one in the morning and one in the evening,
 where people go to work and return home, respectively:
 
-![Feature effect plot](./Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_19_1.png)
+![Feature effect plot](./static/bike_sharing_global_pdp.png)
 
 --- 
 
@@ -65,10 +65,10 @@ using the argument `heterogeneity`, while plotting:
 RHALE(data=X, model=model).plot(feature, heterogeneity=True)
 ```
 
-![Feature effect plot](./Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_0.png)
+![Feature effect plot](./static/bike_sharing_global_pdp_heterogeneity.png)
 
 
-For more details, check the [global effect tutorial](./Feature Effect/01_global_effect_intro/).
+For more details, check the [global effect tutorial](./global_effect_intro/).
 
 --- 
 
@@ -87,10 +87,10 @@ follows to different patterns (regional effects) depending on the day of the wee
 In weekdays, the effect is similar to the global effect, while in weekends, the effect is
 completely different; there is a single peak in the morning when people rent bikes to go for sightseeing.
 
-![Feature effect plot](./../Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_0.png)
-![Feature effect plot](./../Tutorials/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_1.png)
+![Feature effect plot](./static/bike_sharing_regional_pdp_workingdays.png)
+![Feature effect plot](./static/bike_sharing_regional_pdp_weekends.png)
 
-For more details, check the [regional effect tutorial](./Feature Effect/02_regional_effect_intro/).
+For more details, check the [regional effect tutorial](./regional_effect_intro/).
 
 ---
 
@@ -98,11 +98,11 @@ For more details, check the [regional effect tutorial](./Feature Effect/02_regio
 
 `Effector` implements the following methods:
 
-| Method   | Global Effect                                             | Regional Effect                                                               | Paper                                                                                                                                               |                                                                                                                                
-|----------|-----------------------------------------------------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| PDP      | [`PDP`](./api/#effector.global_effect_pdp.PDP)            | [`RegionalPDP`](./api/#effector.regional_effect_pdp.RegionalPDP)              | [PDP](https://projecteuclid.org/euclid.aos/1013203451), [ICE](https://arxiv.org/abs/1309.6392), [GAGDET-PD](https://arxiv.org/pdf/2306.00541.pdf)   |
-| d-PDP    | [`DerPDP`](./api/#effector.global_effect_pdp.DerPDP)      | [`RegionalDerPDP`](./api/#effector.regional_effect_pdp.RegionalDerPDP)        | [d-PDP, d-ICE](https://arxiv.org/abs/1309.6392)                                                                                                     | 
-| ALE      | [`ALE`](./api/#effector.global_effect_ale.ALE)            | [`RegionalALE`](./api/#effector.regional_effect_ale.RegionalALE)              | [ALE](https://academic.oup.com/jrsssb/article/82/4/1059/7056085), [GAGDET-ALE](https://arxiv.org/pdf/2306.00541.pdf)                                |                                                                                    
-| RHALE    | [`RHALE`](./api/#effector.global_effect_ale.RHALE)        | [`RegionalRHALE`](./api/#effector.regional_effect_ale.RegionalRHALE)          | [RHALE](https://ebooks.iospress.nl/doi/10.3233/FAIA230354), [DALE](https://proceedings.mlr.press/v189/gkolemis23a/gkolemis23a.pdf)                  |
-| SHAP-DP  | [`ShapDP`](./api/#effector.global_effect_shap.ShapDP)     | [`RegionalShapDP`](./api/#effector.regional_effect_shap.RegionalShapDP)       | [SHAP](https://papers.nips.cc/paper/7062-a-unified-approach-to-interpreting-model-predictions), [GAGDET-DP](https://arxiv.org/pdf/2306.00541.pdf)   |
+| Method   | Global Effect                                         | Regional Effect                                                               | Paper                                                                                                                                               |                                                                                                                                
+|----------|-------------------------------------------------------|-------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| PDP      | [`PDP`](./api/#effector.global_effect_pdp.PDP)        | [`RegionalPDP`](./api/#effector.regional_effect_pdp.RegionalPDP)              | [PDP](https://projecteuclid.org/euclid.aos/1013203451), [ICE](https://arxiv.org/abs/1309.6392), [GAGDET-PD](https://arxiv.org/pdf/2306.00541.pdf)   |
+| d-PDP    | [`DerPDP`](./api/#effector.global_effect_pdp.DerPDP)  | [`RegionalDerPDP`](./api/#effector.regional_effect_pdp.RegionalDerPDP)        | [d-PDP, d-ICE](https://arxiv.org/abs/1309.6392)                                                                                                     | 
+| ALE      | [`ALE`](./api/#effector.global_effect_ale.ALE)        | [`RegionalALE`](./api/#effector.regional_effect_ale.RegionalALE)              | [ALE](https://academic.oup.com/jrsssb/article/82/4/1059/7056085), [GAGDET-ALE](https://arxiv.org/pdf/2306.00541.pdf)                                |                                                                                    
+| RHALE    | [`RHALE`](./api/#effector.global_effect_ale.RHALE)    | [`RegionalRHALE`](./api/#effector.regional_effect_ale.RegionalRHALE)          | [RHALE](https://ebooks.iospress.nl/doi/10.3233/FAIA230354), [DALE](https://proceedings.mlr.press/v189/gkolemis23a/gkolemis23a.pdf)                  |
+| SHAP-DP  | [`ShapDP`](./api/#effector.global_effect_shap.ShapDP) | [`RegionalShapDP`](./api/#effector.regional_effect_shap.RegionalShapDP)       | [SHAP](https://papers.nips.cc/paper/7062-a-unified-approach-to-interpreting-model-predictions), [GAGDET-DP](https://arxiv.org/pdf/2306.00541.pdf)   |
 
