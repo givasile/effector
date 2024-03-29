@@ -1,4 +1,4 @@
-site_name: Effector Documentation
+site_name: effector
 
 nav:
   - Home: index.md

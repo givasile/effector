@@ -3,7 +3,8 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["effector"]
+packages = ['effector']
+package-dir = {'effector'='effector'}
 
 [project]
 name = "effector"
@@ -11,7 +12,7 @@ description = "A Python library for global and regional effects"
 authors = [{name = "Vasilis Gkolemis", email = "ntipakos@gmail.com"}]
 requires-python = ">=3.7"
 keywords = ["explainability", "machine learning", "deep learning", "interpretability", "feature effect"]
-version = "0.0.266"
+version = "0.0.267"
 readme = "README.md"
 dependencies = [
     "matplotlib",

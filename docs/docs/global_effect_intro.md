@@ -7,7 +7,7 @@ title: Global Feature Effect
      Because they are one of the simplest ways to globally interpret a black-box model.
 
 Imagine you have trained a neural network to predict the expected daily bike rentals,
-like in this [tutorial](./../real-examples/01_bike_sharing_dataset/).
+like in this [tutorial](./Tutorials/real-examples/01_bike_sharing_dataset/).
 The model is delivering satisfactory results, 
 exhibiting an average prediction error of approximately $43$ bike rentals per day.
 

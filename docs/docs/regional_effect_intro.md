@@ -5,7 +5,7 @@
     Because they are one of the simplest ways to regionally interpret a black-box model.
 
 
-In the [previous](global_effect_intro) tutorial, we explained the effect of feature $\mathtt{hour}$ on the daily $\mathtt{bike-rentals}$, 
+In the [previous](./global_effect_intro/) tutorial, we explained the effect of feature $\mathtt{hour}$ on the daily $\mathtt{bike-rentals}$, 
 using global feature effect plots. 
 The analysis, however, showed that there is high heterogeneity; there are many instances that behave differently from the average pattern.
 
