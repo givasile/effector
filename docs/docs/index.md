@@ -2,99 +2,137 @@
 
 `Effector` is a python package for [global](./global_effect_intro/) and [regional](.regional_effect_intro/) feature effects.
 
----
+## How to use
 
-![using effector](static/effector_intro.gif)
+???+ success "You need a dataset"
+     Must be a `np.ndarray` with shape `(n_samples, n_features)`.
 
----
-### Installation
+=== "Code"
 
-`Effector` is compatible with `Python 3.7+`. We recommend to first create a virtual environment with `conda`:
+    ```python
+    X = np.random.uniform(-1, 1, (100, 2))
+    ```
 
-```bash
-conda create -n effector python=3.11 # any python 3.7+ will work
-conda activate effector
-```
+=== "Plot"
 
-and then install `Effector` via `pip`:
+    ```python
+    plt.scatter(X[:, 0], X[:, 1], c="red", marker="x")
+    plt.xlabel("Feature 1")
+    plt.ylabel("Feature 2")
+    plt.xlim(-1.5, 1.5)
+    plt.ylim(-1.5, 1.5)
+    plt.show()
+    ```
 
-```bash
-pip install effector
-```
+=== "Output"
+    
+    ![Dataset](./static/concept_example_dataset.png)
 
-If you want to also run the Tutorial notebooks, add some more dependencies to the environment:
+???+ success "And a model"
+     The black-box model you want to interpret.
 
-```bash
-pip install -r requirements-dev.txt
-```
-
----
-### Motivation
-
-#### Global Effect 
-
-Global effect is one the simplest ways to interpret a black-box model;
-it simply shows how a particular feature relates to the model's output.
-Given the dataset `X` (`np.ndarray`) and the black-box predictive function `model` (`callable`), 
-you can use `effector` to get the global effect of a `feature` in a single line of code:
-
-```python
-# for Robust and Heterogeneity-aware ALE (RHALE)
-RHALE(data=X, model=model).plot(feature)
-```
-
-For example, the following code shows the global effect of the feature hour (`hr`) on the 
-number of bikes (`cnt`) rent within a day (check [this](./Tutorials/real-examples/01_bike_sharing_dataset/) 
-notebook for more details). It is easy to interpret what the black-box model has learned:
-There are two peaks in rentals during a day, one in the morning and one in the evening,
-where people go to work and return home, respectively:
-
-![Feature effect plot](./static/bike_sharing_global_pdp.png)
-
---- 
-
-#### Heterogeneity
-
-However, there are cases where the global effect can be misleading. This happens 
-when there are many particular instances that deviate from the global effect.
-In `effector`, the user can understand where the global effect is misleading, 
-using the argument `heterogeneity`, while plotting:
-
-```python
-# for RHALE
-RHALE(data=X, model=model).plot(feature, heterogeneity=True)
-```
-
-![Feature effect plot](./static/bike_sharing_global_pdp_heterogeneity.png)
+     Must be a `callable` with signature `model(X: np.ndarray[n_samples, n_features]) -> np.ndarray[n_samples]`.
 
 
-For more details, check the [global effect tutorial](./global_effect_intro/).
+=== "Code"
 
---- 
+    ```python
+    def predict(x):
+        y = np.zeros(x.shape[0])
+        ind = x[:, 1] > 0
+        y[ind] = 10*x[ind, 0]
+        y[~ind] = -10*x[~ind, 0]
+        return y + np.random.normal(0, 1, x.shape[0])
+    ```
 
-#### Regional Effect
+=== "Plot"
 
-In this cases, it is useful to search if there are subspaces where the effect.
-In `effector` this can be also done in a single line of code:
+    ```python
+    plt.scatter(X[:, 0], X[:, 1], c=predict(X), cmap="coolwarm", marker="x")
+    plt.xlabel("Feature 1")
+    plt.ylabel("Feature 2")
+    plt.xlim(-1.5, 1.5)
+    plt.ylim(-1.5, 1.5)
+    plt.colorbar()
+    plt.show()
+    ```
 
-```python
-RegionalRHALE(data=X, model=model).plot(feature=0, node_idx=1, heterogeneity=True)
-RegionalRHALE(data=X, model=model).plot(feature=0, node_idx=2, heterogeneity=True)
-```
+=== "Output"
 
-In the bike sharing dataset, we can see that the effect of the feature hour (`hr`) 
-follows to different patterns (regional effects) depending on the day of the week (subspaces).
-In weekdays, the effect is similar to the global effect, while in weekends, the effect is
-completely different; there is a single peak in the morning when people rent bikes to go for sightseeing.
+    ![Model](./static/concept_example_black_box.png)
 
-![Feature effect plot](./static/bike_sharing_regional_pdp_workingdays.png)
-![Feature effect plot](./static/bike_sharing_regional_pdp_weekends.png)
+=== "$f(x)$"
+   
+    $$f(x) = \begin{cases} 10x_1 + \epsilon, & \text{if } x_2 > 0 \\ -10x_1 + \epsilon, & \text{otherwise} \end{cases}$$    
 
-For more details, check the [regional effect tutorial](./regional_effect_intro/).
+???+ success "Global Effect"
 
----
+    As you do not know the model's form, you want to understand how `Feature 1` relates to the model's output. 
+    You can use `Effector`:
 
-### Methods
+=== "Global Effect"
+
+    ```python
+    effector.PDP(data=X, model=predict).plot(feature=0, heterogeneity="ice")
+    ```
+
+=== "Plot"
+
+    ![Global Effect](./static/concept_example_global_effect_feat_1_pdp.png)
+
+???+ success "Regional Effect"
+
+    The plot implies that the global effect of `Feature 1` on the model's output is zero,
+    but there is heterogeneity in the effect.
+    You want to further investigate the sources of heterogeneity:
+
+=== "Code"
+
+    ```python
+    reg_pdp = effector.RegionalPDP(data=X, model=predict)
+    reg_pdp.show_partitioning(feature=0)
+
+    reg_pdp.plot(feature=0, node_idx=0, heterogeneity="ice", y_limits=(-13, 13))
+    reg_pdp.plot(feature=0, node_idx=1, heterogeneity="ice", y_limits=(-13, 13))
+    reg_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", y_limits=(-13, 13))
+    ```
+
+=== "Show Partitioning"
+    
+    ```
+    Feature 0 - Full partition tree:
+        Node id: 0, name: x_0, heter: 5.57 || nof_instances:   100 || weight: 1.00
+                Node id: 1, name: x_0 | x_1 <= 0.04, heter: 2.78 || nof_instances:    50 || weight: 0.50
+                Node id: 2, name: x_0 | x_1  > 0.04, heter: 1.03 || nof_instances:    50 || weight: 0.50
+    --------------------------------------------------
+    Feature 0 - Statistics per tree level:
+        Level 0, heter: 5.57
+                Level 1, heter: 1.90 || heter drop: 3.67 (65.85%)
+    ```
+
+=== "when $x_1 <= 0.04$"
+
+    ![Regional Effect](./static/concept_example_regional_effect_feat_1_index_1_pdp.png)
+
+=== "when $x_1 > 0.04$"
+
+    ![Regional Effect](./static/concept_example_regional_effect_feat_1_index_2_pdp.png)
+
+## Dive in
+
+That was a simple example. 
+`Effector` has many more methods for obtaining global and regional effects
+and 
+for each method many parameters to customize your analysis:
+For a deeper dive, check out:
+
+- the intoduction to [global effects](./global_effect_intro/),
+- the introduction to [regional effects](./regional_effect_intro/),
+- the tutorials on synthetic examples: [link 1](/Tutorials/synthetic-examples/01_linear_model/), [link 2](/Tutorials/synthetic-examples/02_global_effect_methods_comparison/), [link 3](/Tutorials/synthetic-examples/03_regional_effects_synthetic_f/), [link 4](/Tutorials/synthetic-examples/04_regional_effects_real_f/),
+- the tutorials on real examples: [link 1](/Tutorials/real-examples/01_bike_sharing/), [link 2](/Tutorials/real-examples/02_bike_sharing_global_effect/), [link 3](/Tutorials/real-examples/03_bike_sharing_dataset/).
+- the guides on how to use effector: [link 1](/Guides/wrap_models/)
+
+## Methods
 
 `Effector` implements the following methods:
 

@@ -2,6 +2,7 @@ site_name: Effector Documentation
 
 nav:
   - Home: index.md
+  - Installation: installation.md
   - Global effect: global_effect_intro.md
   - Regional effect: regional_effect_intro.md
   - Tutorials:
@@ -30,6 +31,7 @@ theme:
     - navigation.footer
     - header.autohide
     - content.code.copy
+    - content.code.select
   icon:
     repo: fontawesome/brands/github
 
