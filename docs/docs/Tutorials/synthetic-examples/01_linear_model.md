@@ -1,6 +1,13 @@
-# Intro to Feature Effect methods with a linear model
+# Feature Effect on a linear model
 
-This tutorial is a (slow and gentle) introduction to the basic global [feature effect methods](https://christophm.github.io/interpretable-ml-book/global-methods.html) and the `Effector` package. If you only care about using `Effector`'s API, you can go directly to the [Conclusion](#conclusion).
+- Author: [givasile](https://givasile.github.io/)
+- Date created: 2024/04/29
+- Last modified: 2024/05/29
+- **Description**: Apply global effect on a linear model
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/givasile/effector/blob/main/synthetic-examples/01_linear_model.ipynb) 
+[![Show in Github](https://xai-effector.github.io/static/github-mark-white.svg)](https://github.com/givasile/effector/blob/main/synthetic-examples/01_linear_model.ipynb)
+
 
 
 
@@ -132,19 +139,19 @@ effector.PDP(data=X, model=predict).plot(feature=2, show_avg_output=True, y_limi
 
 
     
-![png](01_linear_model_files/01_linear_model_8_0.png)
+![png](01_linear_model_files/01_linear_model_9_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_8_1.png)
+![png](01_linear_model_files/01_linear_model_9_1.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_8_2.png)
+![png](01_linear_model_files/01_linear_model_9_2.png)
     
 
 
@@ -186,19 +193,19 @@ effector.PDP(data=X, model=predict).plot(feature=2, centering=True, y_limits=[-4
 
 
     
-![png](01_linear_model_files/01_linear_model_10_0.png)
+![png](01_linear_model_files/01_linear_model_11_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_10_1.png)
+![png](01_linear_model_files/01_linear_model_11_1.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_10_2.png)
+![png](01_linear_model_files/01_linear_model_11_2.png)
     
 
 
@@ -231,7 +238,7 @@ effector.PDP(data=X, model=predict).plot(feature=0, centering=True, heterogeneit
 
 
     
-![png](01_linear_model_files/01_linear_model_13_0.png)
+![png](01_linear_model_files/01_linear_model_14_0.png)
     
 
 
@@ -253,7 +260,7 @@ effector.PDP(data=X, model=predict).plot(feature=0, centering=False, heterogenei
 
 
     
-![png](01_linear_model_files/01_linear_model_15_0.png)
+![png](01_linear_model_files/01_linear_model_16_0.png)
     
 
 
@@ -271,7 +278,7 @@ effector.PDP(data=X, model=predict).plot(feature=0, centering=True, heterogeneit
 
 
     
-![png](01_linear_model_files/01_linear_model_17_0.png)
+![png](01_linear_model_files/01_linear_model_18_0.png)
     
 
 
@@ -286,7 +293,7 @@ effector.PDP(data=X, model=predict).plot(feature=0, centering=False, heterogenei
 
 
     
-![png](01_linear_model_files/01_linear_model_19_0.png)
+![png](01_linear_model_files/01_linear_model_20_0.png)
     
 
 
@@ -318,13 +325,13 @@ effector.DerPDP(data=X, model=predict, model_jac=predict_grad).plot(feature=0, h
 
 
     
-![png](01_linear_model_files/01_linear_model_21_0.png)
+![png](01_linear_model_files/01_linear_model_22_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_21_1.png)
+![png](01_linear_model_files/01_linear_model_22_1.png)
     
 
 
@@ -341,19 +348,19 @@ effector.ALE(data=X, model=predict).plot(feature=2)
 
 
     
-![png](01_linear_model_files/01_linear_model_23_0.png)
+![png](01_linear_model_files/01_linear_model_24_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_23_1.png)
+![png](01_linear_model_files/01_linear_model_24_1.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_23_2.png)
+![png](01_linear_model_files/01_linear_model_24_2.png)
     
 
 
@@ -381,7 +388,7 @@ effector.ALE(data=X, model=predict).plot(feature=0, centering=True)
 
 
     
-![png](01_linear_model_files/01_linear_model_25_0.png)
+![png](01_linear_model_files/01_linear_model_26_0.png)
     
 
 
@@ -396,7 +403,7 @@ effector.ALE(data=X, model=predict).plot(feature=0, centering=True, heterogeneit
 
 
     
-![png](01_linear_model_files/01_linear_model_27_0.png)
+![png](01_linear_model_files/01_linear_model_28_0.png)
     
 
 
@@ -435,13 +442,13 @@ ale.plot(feature=0)
 
 
     
-![png](01_linear_model_files/01_linear_model_29_0.png)
+![png](01_linear_model_files/01_linear_model_30_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_29_1.png)
+![png](01_linear_model_files/01_linear_model_30_1.png)
     
 
 
@@ -456,7 +463,7 @@ effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, ce
 
 
     
-![png](01_linear_model_files/01_linear_model_31_0.png)
+![png](01_linear_model_files/01_linear_model_32_0.png)
     
 
 
@@ -487,7 +494,7 @@ effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, ce
 
 
     
-![png](01_linear_model_files/01_linear_model_33_0.png)
+![png](01_linear_model_files/01_linear_model_34_0.png)
     
 
 
@@ -504,7 +511,7 @@ effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, ce
 
 
     
-![png](01_linear_model_files/01_linear_model_35_0.png)
+![png](01_linear_model_files/01_linear_model_36_0.png)
     
 
 
@@ -536,7 +543,7 @@ effector.ShapDP(data=X, model=predict).plot(feature=0, centering=False, show_avg
 
 
     
-![png](01_linear_model_files/01_linear_model_38_0.png)
+![png](01_linear_model_files/01_linear_model_39_0.png)
     
 
 
@@ -562,7 +569,7 @@ effector.ShapDP(data=X, model=predict).plot(feature=0, centering=True, show_avg_
 
 
     
-![png](01_linear_model_files/01_linear_model_40_0.png)
+![png](01_linear_model_files/01_linear_model_41_0.png)
     
 
 
@@ -580,13 +587,13 @@ effector.ShapDP(data=X, model=predict).plot(feature=0, heterogeneity="std")
 
 
     
-![png](01_linear_model_files/01_linear_model_42_0.png)
+![png](01_linear_model_files/01_linear_model_43_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_42_1.png)
+![png](01_linear_model_files/01_linear_model_43_1.png)
     
 
 
