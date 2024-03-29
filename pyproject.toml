@@ -11,7 +11,7 @@ description = "A Python library for global and regional effects"
 authors = [{name = "Vasilis Gkolemis", email = "ntipakos@gmail.com"}]
 requires-python = ">=3.7"
 keywords = ["explainability", "machine learning", "deep learning", "interpretability", "feature effect"]
-version = "0.0.262"
+version = "0.0.264"
 readme = "README.md"
 dependencies = [
     "matplotlib",
@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.urls]
-documentation = "https://https://xai-effector.github.io/"
+documentation = "https://xai-effector.github.io"
 source = "https://github.com/givasile/effector"
 tracker = "https://github.com/givasile/effector/issues"
 

@@ -2,8 +2,8 @@ site_name: Effector Documentation
 
 nav:
   - Home: index.md
-  - Global feature effect: global_effect_intro.md
-  - Regional feature effect: regional_effect_intro.md
+  - Global effect: global_effect_intro.md
+  - Regional effect: regional_effect_intro.md
   - Tutorials:
       - Synthetic Datasets:
           - Linear Model: Tutorials/synthetic-examples/01_linear_model.md

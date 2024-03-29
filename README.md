@@ -1,6 +1,6 @@
 # Effector
 
-[Documenation](https://xai-effector.github.io/) | [Global Effect](https://xai-effector.github.io/Feature%20Effect/01_global_effect_intro/) | [Regional Effect](https://xai-effector.github.io/Feature%20Effect/02_regional_effect_intro/) | [API](https://xai-effector.github.io/api/) | [Tutorials](https://xai-effector.github.io/)
+[Documenation](https://xai-effector.github.io/) | [Global Effect](https://xai-effector.github.io/global_effect_intro/) | [Regional Effect](https://xai-effector.github.io/regional_effect_intro/) | [API](https://xai-effector.github.io/api/) | [Tutorials](https://xai-effector.github.io/)
 
 `Effector` is a python package for global and regional effect analysis.
 
