@@ -1,6 +1,6 @@
 # Home
 
-`Effector` is a python package for [global](./global_effect_intro/) and [regional](.regional_effect_intro/) feature effects.
+`Effector` is a python package for [global](./global_effect_intro/) and [regional](./regional_effect_intro/) feature effects.
 
 ## How to use
 
