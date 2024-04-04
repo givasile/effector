@@ -16,7 +16,6 @@ nav:
       - Guides:
           - Wrap black-models in common ML libraries: Tutorials/Guides/wrap_models.md
   - API: api.md
-  - Contributing: contributing.md
   - References: references.md
 
 

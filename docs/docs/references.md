@@ -1,6 +1,18 @@
 ## Cite `Effector`
 
-TODO: Add citation information
+If you find `Effector` useful in your research, please consider citing the following papers:
+
+```bibtex
+@misc{gkolemis2024effector,
+      title={Effector: A Python package for regional explanations}, 
+      author={Vasilis Gkolemis and Christos Diou and Eirini Ntoutsi and Theodore Dalamagas and Bernd Bischl and Julia Herbinger and Giuseppe Casalicchio},
+      year={2024},
+      eprint={2404.02629},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
+
 
 ## Methods and Publications
 

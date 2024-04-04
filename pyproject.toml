@@ -10,9 +10,16 @@ package-dir = {'effector'='effector'}
 name = "effector"
 description = "A Python library for global and regional effects"
 authors = [{name = "Vasilis Gkolemis", email = "ntipakos@gmail.com"}]
+maintainers = [
+    {name = "Julia Herbinger", email = "julia.herbinger@gmail.com"},
+    {name = "Christos Diou", email = "cdiou@hua.gr"},
+    {name = "Giuseppe Casalicchio", email = "giuseppe.casalicchio@gmail.com"}
+]
+
+license = "MIT"
 requires-python = ">=3.7"
 keywords = ["explainability", "machine learning", "deep learning", "interpretability", "feature effect"]
-version = "0.0.267"
+version = "0.0.268"
 readme = "README.md"
 dependencies = [
     "matplotlib",
