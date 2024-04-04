@@ -15,11 +15,10 @@ maintainers = [
     {name = "Christos Diou", email = "cdiou@hua.gr"},
     {name = "Giuseppe Casalicchio", email = "giuseppe.casalicchio@gmail.com"}
 ]
-
-license = "MIT"
+license = {text = "MIT License"}
 requires-python = ">=3.7"
 keywords = ["explainability", "machine learning", "deep learning", "interpretability", "feature effect"]
-version = "0.0.268"
+version = "0.0.269"
 readme = "README.md"
 dependencies = [
     "matplotlib",
