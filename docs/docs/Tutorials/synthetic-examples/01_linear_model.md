@@ -2,11 +2,11 @@
 
 - Author: [givasile](https://givasile.github.io/)
 - Date created: 2024/04/29
-- Last modified: 2024/05/29
+- Last modified: 2024/04/29
 - **Description**: Apply global effect on a linear model
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/givasile/effector/blob/main/synthetic-examples/01_linear_model.ipynb) 
-[![Show in Github](https://xai-effector.github.io/static/github-mark-white.svg)](https://github.com/givasile/effector/blob/main/synthetic-examples/01_linear_model.ipynb)
+[![Show in Github](https://xai-effector.github.io/static/github-mark.png)](https://github.com/givasile/effector/blob/main/synthetic-examples/01_linear_model.ipynb)
 
 
 

@@ -14,6 +14,9 @@ import numpy as np
 import effector
 ```
 
+    Using `tqdm.autonotebook.tqdm` in notebook mode. Use `tqdm.tqdm` instead to force console mode (e.g. in jupyter console)
+
+
 ## Simulation example
 
 ### Data Generating Distribution
@@ -124,13 +127,13 @@ regional_rhale.fit(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=
 effector.binning_methods.DynamicProgramming()
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 24.75it/s]
+    100%|██████████| 3/3 [00:00<00:00, 21.02it/s]
 
 
 
 
 
-    <effector.binning_methods.DynamicProgramming at 0x7fba4f889dd0>
+    <effector.binning_methods.DynamicProgramming at 0x7515286ff250>
 
 
 
@@ -170,7 +173,7 @@ regional_pdp = effector.RegionalPDP(data=X_uncor_train, model=model, feature_nam
 regional_pdp.fit(features="all", heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=11, centering=True)
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 21.68it/s]
+    100%|██████████| 3/3 [00:00<00:00, 21.16it/s]
 
 
 
@@ -180,12 +183,12 @@ regional_pdp.show_partitioning(features=0)
 
     Feature 0 - Full partition tree:
     Node id: 0, name: x1, heter: 1.74 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.29 || nof_instances:   506 || weight: 0.51
-            Node id: 2, name: x1 | x3  > -0.0, heter: 0.29 || nof_instances:   494 || weight: 0.49
+            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.29 || nof_instances:   482 || weight: 0.48
+            Node id: 2, name: x1 | x3  > -0.0, heter: 0.29 || nof_instances:   518 || weight: 0.52
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     Level 0, heter: 1.74
-            Level 1, heter: 0.29 || heter drop: 1.45 (83.38%)
+            Level 1, heter: 0.29 || heter drop: 1.45 (83.24%)
 
 
 
@@ -212,10 +215,10 @@ regional_pdp.show_partitioning(features=1)
 ```
 
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 1.83 || nof_instances:  1000 || weight: 1.00
+    Node id: 0, name: x2, heter: 1.82 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 1.83
+    Level 0, heter: 1.82
 
 
 
@@ -224,13 +227,13 @@ regional_pdp.show_partitioning(features=2)
 ```
 
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 1.75 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x3 | x1 <= 0.0, heter: 0.88 || nof_instances:   503 || weight: 0.50
-            Node id: 2, name: x3 | x1  > 0.0, heter: 0.87 || nof_instances:   497 || weight: 0.50
+    Node id: 0, name: x3, heter: 1.74 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x3 | x1 <= 0.0, heter: 0.88 || nof_instances:   494 || weight: 0.49
+            Node id: 2, name: x3 | x1  > 0.0, heter: 0.87 || nof_instances:   506 || weight: 0.51
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 1.75
-            Level 1, heter: 0.88 || heter drop: 0.88 (50.05%)
+    Level 0, heter: 1.74
+            Level 1, heter: 0.87 || heter drop: 0.87 (49.73%)
 
 
 
@@ -312,7 +315,7 @@ regional_pdp = effector.RegionalPDP(data=X_cor_train, model=model, feature_names
 regional_pdp.fit(features="all", heter_pcg_drop_thres=0.4, nof_candidate_splits_for_numerical=11)
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 57.57it/s]
+    100%|██████████| 3/3 [00:00<00:00, 55.47it/s]
 
 
 
@@ -322,12 +325,12 @@ regional_pdp.show_partitioning(features=0)
 
     Feature 0 - Full partition tree:
     Node id: 0, name: x1, heter: 1.74 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= 0.0, heter: 0.33 || nof_instances:   474 || weight: 0.47
-            Node id: 2, name: x1 | x3  > 0.0, heter: 0.28 || nof_instances:   526 || weight: 0.53
+            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.30 || nof_instances:   522 || weight: 0.52
+            Node id: 2, name: x1 | x3  > -0.0, heter: 0.28 || nof_instances:   478 || weight: 0.48
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     Level 0, heter: 1.74
-            Level 1, heter: 0.30 || heter drop: 1.44 (82.70%)
+            Level 1, heter: 0.29 || heter drop: 1.45 (83.34%)
 
 
 
@@ -354,13 +357,13 @@ regional_pdp.show_partitioning(features=1)
 ```
 
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 1.03 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x2 | x1 <= 0.55, heter: 0.61 || nof_instances:   760 || weight: 0.76
-            Node id: 2, name: x2 | x1  > 0.55, heter: 0.51 || nof_instances:   240 || weight: 0.24
+    Node id: 0, name: x2, heter: 1.01 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x2 | x1 <= 0.54, heter: 0.61 || nof_instances:   778 || weight: 0.78
+            Node id: 2, name: x2 | x1  > 0.54, heter: 0.54 || nof_instances:   222 || weight: 0.22
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 1.03
-            Level 1, heter: 0.59 || heter drop: 0.45 (43.38%)
+    Level 0, heter: 1.01
+            Level 1, heter: 0.60 || heter drop: 0.41 (41.05%)
 
 
 
@@ -369,13 +372,13 @@ regional_pdp.show_partitioning(features=2)
 ```
 
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 1.73 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x3 | x1 <= 0.0, heter: 0.88 || nof_instances:   474 || weight: 0.47
-            Node id: 2, name: x3 | x1  > 0.0, heter: 0.84 || nof_instances:   526 || weight: 0.53
+    Node id: 0, name: x3, heter: 1.75 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x3 | x1 <= -0.0, heter: 0.89 || nof_instances:   522 || weight: 0.52
+            Node id: 2, name: x3 | x1  > -0.0, heter: 0.85 || nof_instances:   478 || weight: 0.48
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 1.73
-            Level 1, heter: 0.86 || heter drop: 0.87 (50.45%)
+    Level 0, heter: 1.75
+            Level 1, heter: 0.87 || heter drop: 0.88 (50.43%)
 
 
 
@@ -475,7 +478,7 @@ regional_rhale.fit(
 
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 30.15it/s]
+    100%|██████████| 3/3 [00:00<00:00, 25.05it/s]
 
 
 
@@ -484,13 +487,13 @@ regional_rhale.show_partitioning(features=0)
 ```
 
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 5.96 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.00 || nof_instances:   506 || weight: 0.51
-            Node id: 2, name: x1 | x3  > -0.0, heter: 0.00 || nof_instances:   494 || weight: 0.49
+    Node id: 0, name: x1, heter: 5.97 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.00 || nof_instances:   482 || weight: 0.48
+            Node id: 2, name: x1 | x3  > -0.0, heter: 0.00 || nof_instances:   518 || weight: 0.52
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 5.96
-            Level 1, heter: 0.00 || heter drop: 5.96 (100.00%)
+    Level 0, heter: 5.97
+            Level 1, heter: 0.00 || heter drop: 5.97 (100.00%)
 
 
 
@@ -605,7 +608,7 @@ regional_rhale.fit(
 
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 30.33it/s]
+    100%|██████████| 3/3 [00:00<00:00, 34.98it/s]
 
 
 
@@ -614,13 +617,10 @@ regional_rhale.show_partitioning(features=0)
 ```
 
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 0.13 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x2 <= 0.1, heter: 0.00 || nof_instances:   550 || weight: 0.55
-            Node id: 2, name: x1 | x2  > 0.1, heter: 0.00 || nof_instances:   450 || weight: 0.45
+    Node id: 0, name: x1, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 0.13
-            Level 1, heter: 0.00 || heter drop: 0.13 (100.00%)
+    Level 0, heter: 0.00
 
 
 
@@ -701,7 +701,7 @@ regional_shap.fit(
 )
 ```
 
-    100%|██████████| 3/3 [00:03<00:00,  1.02s/it]
+    100%|██████████| 3/3 [00:03<00:00,  1.06s/it]
 
 
 
@@ -710,13 +710,13 @@ regional_shap.show_partitioning(0)
 ```
 
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 0.65 || nof_instances:   100 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= 0.01, heter: 0.00 || nof_instances:    50 || weight: 0.50
-            Node id: 2, name: x1 | x3  > 0.01, heter: 0.00 || nof_instances:    50 || weight: 0.50
+    Node id: 0, name: x1, heter: 0.77 || nof_instances:   100 || weight: 1.00
+            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.00 || nof_instances:    49 || weight: 0.49
+            Node id: 2, name: x1 | x3  > -0.0, heter: 0.00 || nof_instances:    51 || weight: 0.51
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 0.65
-            Level 1, heter: 0.00 || heter drop: 0.65 (100.00%)
+    Level 0, heter: 0.77
+            Level 1, heter: 0.00 || heter drop: 0.77 (100.00%)
 
 
 
@@ -755,10 +755,10 @@ regional_shap.show_partitioning(features=2)
 ```
 
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 0.72 || nof_instances:   100 || weight: 1.00
+    Node id: 0, name: x3, heter: 0.73 || nof_instances:   100 || weight: 1.00
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 0.72
+    Level 0, heter: 0.73
 
 
 #### Conclusion
@@ -820,7 +820,7 @@ regional_shap.fit(
 )
 ```
 
-    100%|██████████| 3/3 [00:03<00:00,  1.03s/it]
+    100%|██████████| 3/3 [00:03<00:00,  1.11s/it]
 
 
 
@@ -853,10 +853,10 @@ regional_shap.show_partitioning(2)
 ```
 
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 0.10 || nof_instances:   100 || weight: 1.00
+    Node id: 0, name: x3, heter: 0.09 || nof_instances:   100 || weight: 1.00
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 0.10
+    Level 0, heter: 0.09
 
 
 #### Conclusion
