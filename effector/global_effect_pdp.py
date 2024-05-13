@@ -33,16 +33,17 @@ class PDPBase(GlobalEffectBase):
             model, nof_instances, axis_limits, avg_output, feature_names, target_name
         )
 
-    def _predict(self, data, xx, feature):
+    def _predict(self, data, xx, feature, use_vectorized=True):
+        method = pdp_1d_vectorized if use_vectorized else pdp_1d_non_vectorized
         if self.method_name == "pdp":
-            y = pdp_1d_vectorized(
+            y = method(
                 self.model, data, xx, feature, False, False, True
             )
         else:
             if self.model_jac is not None:
-                y = pdp_1d_vectorized(self.model_jac, self.data, xx, feature, False, True, True)
+                y = method(self.model_jac, self.data, xx, feature, False, True, True)
             else:
-                y = pdp_1d_vectorized(self.model, self.data, xx, feature, False, False, True, True)
+                y = method(self.model, self.data, xx, feature, False, False, True, True)
         return y
 
     def _fit_feature(
@@ -50,6 +51,7 @@ class PDPBase(GlobalEffectBase):
         feature: int,
         centering: Union[bool, str] = False,
         points_for_centering: int = 100,
+        use_vectorized: bool = True,
     ) -> dict:
 
         # drop points outside of limits
@@ -63,12 +65,12 @@ class PDPBase(GlobalEffectBase):
                 self.axis_limits[1, feature],
                 points_for_centering,
             )
-            y = self._predict(data, xx, feature)
+            y = self._predict(data, xx, feature, use_vectorized)
             norm_const = np.mean(y, axis=0)
             fe = {"norm_const": norm_const}
         elif centering == "zero_start":
             xx = self.axis_limits[0, feature, np.newaxis]
-            y = self._predict(data, xx, feature)
+            y = self._predict(data, xx, feature, use_vectorized)
             fe = {"norm_const": y[0]}
         else:
             fe = {"norm_const": helpers.EMPTY_SYMBOL}
@@ -79,6 +81,7 @@ class PDPBase(GlobalEffectBase):
         features: Union[int, str, list] = "all",
         centering: Union[bool, str] = True,
         points_for_centering: int = 100,
+        use_vectorized: bool = True,
     ):
         """
         Fit the PDP or d-PDP.
@@ -101,6 +104,8 @@ class PDPBase(GlobalEffectBase):
             points_for_centering: number of linspaced points along the feature axis used for centering.
 
                 - If set to `"all"`, all the dataset points will be used.
+                
+            use_vectorized: whether to use the vectorized version of the PDP computation
 
         """
         centering = helpers.prep_centering(centering)
@@ -108,7 +113,7 @@ class PDPBase(GlobalEffectBase):
 
         for s in features:
             self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s, centering, points_for_centering
+                s, centering, points_for_centering, use_vectorized
             )
             self.is_fitted[s] = True
             self.method_args["feature_" + str(s)] = {
@@ -123,6 +128,7 @@ class PDPBase(GlobalEffectBase):
         heterogeneity: bool = False,
         centering: typing.Union[bool, str] = False,
         return_all: bool = False,
+        use_vectorized: bool = True,
     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
 
@@ -147,6 +153,8 @@ class PDPBase(GlobalEffectBase):
 
                 - If `return_all=False`, the function returns the mean effect at the given `xs`
                 - If `return_all=True`, the function returns a `ndarray` of shape `(T, N)` with the `N` ICE plots evaluated at `xs`
+                
+            use_vectorized: whether to use the vectorized version of the PDP computation
 
         Returns:
             the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std)` otherwise
@@ -155,13 +163,13 @@ class PDPBase(GlobalEffectBase):
         centering = helpers.prep_centering(centering)
 
         if self.refit(feature, centering):
-            self.fit(features=feature, centering=centering)
+            self.fit(features=feature, centering=centering, use_vectorized=use_vectorized)
 
         # Check if the lower bound is less than the upper bound
         assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
 
         # new implementation
-        yy = self._predict(self.data, xs, feature)
+        yy = self._predict(self.data, xs, feature, use_vectorized)
 
         if centering:
             norm_consts = np.expand_dims(
@@ -191,6 +199,7 @@ class PDPBase(GlobalEffectBase):
         nof_ice: Union[int, str] = "all",
         show_avg_output: bool = False,
         y_limits: Optional[List] = None,
+        use_vectorized: bool = True,
     ):
         """
         Plot the PDP or d-PDP.
@@ -215,6 +224,7 @@ class PDPBase(GlobalEffectBase):
             nof_ice: number of shap values to show on top of the SHAP curve
             show_avg_output: whether to show the average output of the model
             y_limits: limits of the y-axis
+            use_vectorized: whether to use the vectorized version of the PDP computation
         """
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
@@ -224,7 +234,7 @@ class PDPBase(GlobalEffectBase):
         )
 
         yy = self.eval(
-            feature, x, heterogeneity=False, centering=centering, return_all=True
+            feature, x, heterogeneity=False, centering=centering, return_all=True, use_vectorized=use_vectorized
         )
 
         if show_avg_output:
@@ -410,7 +420,9 @@ def pdp_1d_non_vectorized(
     x: np.ndarray,
     feature: int,
     heterogeneity: bool,
-    is_jac: bool,
+    model_returns_jac: bool,
+    return_all: bool = False,
+    ask_for_derivatives: bool = False,
 ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Computes the unnormalized 1-dimensional PDP, in a non-vectorized way.
 
@@ -424,9 +436,14 @@ def pdp_1d_non_vectorized(
         >>> data = np.random.rand(100, 10)
         >>> x = np.linspace(0.1, 1, 10)
         >>> feature = 0
-        >>> y = pdp_1d_vectorized(model, data, x, feature, heterogeneity=False, model_returns_jac=False)
+        >>> y = pdp_1d_non_vectorized(model, data, x, feature, heterogeneity=False, model_returns_jac=False)
         >>> (y[1:] - y[:-1]) / (x[1:] - x[:-1])
         array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
+        >>> # check the gradient of the PDP of a linear model with heterogeneity
+        >>> dpdp, _, _ = pdp_1d_non_vectorized(model, data, x, feature, heterogeneity=True, model_returns_jac=False, return_all=False, ask_for_derivatives=True)
+        >>> dpdp
+        array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.])
+
 
     Args:
         model: The black-box function (N, D) -> (N)
@@ -434,30 +451,46 @@ def pdp_1d_non_vectorized(
         x: positions to evaluate pdp, (T)
         feature: index of the feature of interest
         heterogeneity: whether to also compute the heterogeneity of the PDP
-        is_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
+        model_returns_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
+        return_all (bool): whether to return all the predictions or only the mean (and std and stderr)
+        ask_for_derivatives (bool): whether to ask the model to return the derivatives wrt the input
 
     Returns:
         The PDP values `y` that correspond to `x`, if heterogeneity is False, `(y, std, stderr)` otherwise
 
     """
-    nof_points = x.shape[0]
-    mean_pdp = []
-    sigma_pdp = []
-    stderr = []
-    for i in range(nof_points):
-        x_new = copy.deepcopy(data)
-        x_new[:, feature] = x[i]
-        y = model(x_new)[:, feature] if is_jac else model(x_new)
-        mean_pdp.append(np.mean(y))
-        if heterogeneity:
-            std = np.std(y)
-            sigma_pdp.append(std)
-            stderr.append(std / np.sqrt(data.shape[0]))
-    return (
-        (np.array(mean_pdp), np.array(sigma_pdp), np.array(stderr))
-        if heterogeneity
-        else np.array(mean_pdp)
-    )
+    nof_instances = x.shape[0]
+
+    y_list = []
+    if ask_for_derivatives and not model_returns_jac:
+        for k in range(nof_instances):
+            x_new = copy.deepcopy(data)
+            x_new[:, feature] = x[k] + 1e-6
+            y_1 = model(x_new)
+            x_new[:, feature] = x[k] - 1e-6
+            y_2 = model(x_new)
+            y = (y_1 - y_2) / (2 * 1e-6)
+            y_list.append(y)
+        y = np.array(y_list)
+    else:
+        for k in range(nof_instances):
+            x_new = copy.deepcopy(data)
+            x_new[:, feature] = x[k]
+            y = model(x_new)[:, feature] if model_returns_jac else model(x_new)
+            y_list.append(y)
+        y = np.array(y_list)
+
+    mean_pdp = np.mean(y, axis=1)
+    if return_all:
+        return y
+
+    if heterogeneity:
+        std = np.std(y, axis=1)
+        sigma_pdp = std
+        stderr = std / np.sqrt(data.shape[0])
+        return mean_pdp, sigma_pdp, stderr
+    else:
+        return mean_pdp
 
 
 def pdp_1d_vectorized(
@@ -496,8 +529,8 @@ def pdp_1d_vectorized(
         feature: index of the feature of interest
         heterogeneity: whether to also compute the heterogeneity of the PDP
         model_returns_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
-        ask_for_derivatives (bool): whether to ask the model to return the derivatives wrt the input
         return_all (bool): whether to return all the predictions or only the mean (and std and stderr)
+        ask_for_derivatives (bool): whether to ask the model to return the derivatives wrt the input
 
     Returns:
         The PDP values `y` that correspond to `x`, if heterogeneity is False, `(y, std, stderr)` otherwise

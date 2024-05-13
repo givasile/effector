@@ -35,7 +35,7 @@ class RegionalPDPBase(RegionalEffectBase):
             feature_names,
             target_name)
 
-    def _create_heterogeneity_function(self, foi, min_points, centering, nof_instances, points_for_centering):
+    def _create_heterogeneity_function(self, foi, min_points, centering, nof_instances, points_for_centering, use_vectorized=True):
         def heter(data) -> float:
             if data.shape[0] < min_points:
                 return BIG_M
@@ -46,7 +46,7 @@ class RegionalPDPBase(RegionalEffectBase):
                 pdp = DerPDP(data, self.model, self.model_jac, self.axis_limits, nof_instances=nof_instances)
 
             try:
-                pdp.fit(features=foi, centering=centering, points_for_centering=points_for_centering)
+                pdp.fit(features=foi, centering=centering, points_for_centering=points_for_centering, use_vectorized=use_vectorized)
             except:
                 return BIG_M
 
@@ -55,7 +55,7 @@ class RegionalPDPBase(RegionalEffectBase):
 
             xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
             try:
-                _, z = pdp.eval(feature=foi, xs=xx, heterogeneity=True)
+                _, z = pdp.eval(feature=foi, xs=xx, heterogeneity=True, use_vectorized=use_vectorized)
             except:
                 return BIG_M
             return np.mean(z)
@@ -75,6 +75,7 @@ class RegionalPDPBase(RegionalEffectBase):
         centering: typing.Union[bool, str] = False,
         nof_instances: int = "all",
         points_for_centering: int = 100,
+        use_vectorized: bool = True,
     ):
         """
         Find the Regional PDP for a list of features.
@@ -93,7 +94,7 @@ class RegionalPDPBase(RegionalEffectBase):
         assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
-            heter = self._create_heterogeneity_function(feat, min_points_per_subregion, centering, nof_instances, points_for_centering)
+            heter = self._create_heterogeneity_function(feat, min_points_per_subregion, centering, nof_instances, points_for_centering, use_vectorized)
 
             self._fit_feature(
                 feat,
