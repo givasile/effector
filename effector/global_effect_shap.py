@@ -258,6 +258,7 @@ class ShapDP(GlobalEffectBase):
         nof_shap_values: Union[int, str] = "all",
         show_avg_output: bool = False,
         y_limits: Optional[List] = None,
+        only_shap_values: bool = False,
     ) -> None:
         """
         Plot the SHAP Dependence Plot (SDP) of the s-th feature.
@@ -282,6 +283,7 @@ class ShapDP(GlobalEffectBase):
             nof_shap_values: number of shap values to show on top of the SHAP curve
             show_avg_output: whether to show the average output of the model
             y_limits: limits of the y-axis
+            only_shap_values: whether to plot only the shap values
         """
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
 
@@ -330,5 +332,6 @@ class ShapDP(GlobalEffectBase):
             avg_output=avg_output,
             feature_names=self.feature_names,
             target_name=self.target_name,
-            y_limits=y_limits
+            y_limits=y_limits,
+            only_shap_values=only_shap_values,
         )

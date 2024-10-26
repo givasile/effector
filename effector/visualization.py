@@ -246,7 +246,8 @@ def plot_shap(
     avg_output: typing.Union[None, float] = None,
     feature_names: typing.Union[None, list] = None,
     target_name: typing.Union[None, str] = None,
-    y_limits: typing.Union[None, tuple] = None
+    y_limits: typing.Union[None, tuple] = None,
+    only_shap_values: bool = False
 ):
 
     fig, ax = plt.subplots()
@@ -254,13 +255,15 @@ def plot_shap(
 
     # scale x-axis
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
-    xx = xx if scale_x is None else trans_affine(xx, scale_x["mean"], scale_x["std"])
+    if xx is not None:
+        xx = xx if scale_x is None else trans_affine(xx, scale_x["mean"], scale_x["std"])
 
     # scale y-axis
     if scale_y is not None:
         y_std = trans_scale(y_std, scale_y["std"], square=False)
         y = trans_affine(y, scale_y["mean"], scale_y["std"])
-        yy = trans_affine(yy, scale_y["mean"], scale_y["std"])
+        if yy is not None:
+            yy = trans_affine(yy, scale_y["mean"], scale_y["std"])
         # if avg_output is not None:
         #     avg_output = trans_scale(avg_output, scale_y["std"], square=False)
 
@@ -278,7 +281,8 @@ def plot_shap(
         ax.plot(xx[0], yy[0], "rx", alpha=0.5, label="SHAP values")
         ax.plot(xx, yy, "rx", alpha=0.5)
 
-    ax.plot(x, y, "b-", label="SHAP curve")
+    if not only_shap_values:
+        ax.plot(x, y, "b-", label="SHAP curve")
 
     if avg_output is not None:
         ax.axhline(y=avg_output, color="black", linestyle="--", label="avg output")
