@@ -30,15 +30,18 @@ class PDPBase(GlobalEffectBase):
         super(PDPBase, self).__init__(
             method_name,
             data,
-            model, nof_instances, axis_limits, avg_output, feature_names, target_name
+            model,
+            nof_instances,
+            axis_limits,
+            avg_output,
+            feature_names,
+            target_name,
         )
 
     def _predict(self, data, xx, feature, use_vectorized=True):
         method = pdp_1d_vectorized if use_vectorized else pdp_1d_non_vectorized
         if self.method_name == "pdp":
-            y = method(
-                self.model, data, xx, feature, False, False, True
-            )
+            y = method(self.model, data, xx, feature, False, False, True)
         else:
             if self.model_jac is not None:
                 y = method(self.model_jac, self.data, xx, feature, False, True, True)
@@ -104,7 +107,7 @@ class PDPBase(GlobalEffectBase):
             points_for_centering: number of linspaced points along the feature axis used for centering.
 
                 - If set to `"all"`, all the dataset points will be used.
-                
+
             use_vectorized: whether to use the vectorized version of the PDP computation
 
         """
@@ -153,7 +156,7 @@ class PDPBase(GlobalEffectBase):
 
                 - If `return_all=False`, the function returns the mean effect at the given `xs`
                 - If `return_all=True`, the function returns a `ndarray` of shape `(T, N)` with the `N` ICE plots evaluated at `xs`
-                
+
             use_vectorized: whether to use the vectorized version of the PDP computation
 
         Returns:
@@ -163,7 +166,9 @@ class PDPBase(GlobalEffectBase):
         centering = helpers.prep_centering(centering)
 
         if self.refit(feature, centering):
-            self.fit(features=feature, centering=centering, use_vectorized=use_vectorized)
+            self.fit(
+                features=feature, centering=centering, use_vectorized=use_vectorized
+            )
 
         # Check if the lower bound is less than the upper bound
         assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
@@ -234,11 +239,18 @@ class PDPBase(GlobalEffectBase):
         )
 
         yy = self.eval(
-            feature, x, heterogeneity=False, centering=centering, return_all=True, use_vectorized=use_vectorized
+            feature,
+            x,
+            heterogeneity=False,
+            centering=centering,
+            return_all=True,
+            use_vectorized=use_vectorized,
         )
 
         if show_avg_output:
-            avg_output = helpers.prep_avg_output(self.data, self.model, self.avg_output, scale_y)
+            avg_output = helpers.prep_avg_output(
+                self.data, self.model, self.avg_output, scale_y
+            )
         else:
             avg_output = None
 
@@ -330,21 +342,29 @@ class PDP(PDPBase):
         """
 
         super(PDP, self).__init__(
-            data, model, None, axis_limits, avg_output, nof_instances, feature_names, target_name, method_name="PDP"
+            data,
+            model,
+            None,
+            axis_limits,
+            avg_output,
+            nof_instances,
+            feature_names,
+            target_name,
+            method_name="PDP",
         )
 
 
 class DerPDP(PDPBase):
     def __init__(
-            self,
-            data: np.ndarray,
-            model: Callable,
-            model_jac: Optional[Callable] = None,
-            axis_limits: Optional[np.ndarray] = None,
-            nof_instances: Union[int, str] = 300,
-            avg_output: Optional[float] = None,
-            feature_names: Optional[List] = None,
-            target_name: Optional[str] = None,
+        self,
+        data: np.ndarray,
+        model: Callable,
+        model_jac: Optional[Callable] = None,
+        axis_limits: Optional[np.ndarray] = None,
+        nof_instances: Union[int, str] = 300,
+        avg_output: Optional[float] = None,
+        feature_names: Optional[List] = None,
+        target_name: Optional[str] = None,
     ):
         """
         Constructor of the DerivativePDP class.
@@ -410,7 +430,15 @@ class DerPDP(PDPBase):
         """
 
         super(DerPDP, self).__init__(
-            data, model, model_jac, axis_limits, avg_output, nof_instances, feature_names, target_name, method_name="d-PDP"
+            data,
+            model,
+            model_jac,
+            axis_limits,
+            avg_output,
+            nof_instances,
+            feature_names,
+            target_name,
+            method_name="d-PDP",
         )
 
 

@@ -4,8 +4,14 @@ import typing
 from effector import helpers
 import effector
 from effector import DerPDP, PDP
-from effector.global_effect_pdp import pdp_1d_vectorized, pdp_1d_non_vectorized, pdp_nd_non_vectorized, pdp_nd_vectorized
+from effector.global_effect_pdp import (
+    pdp_1d_vectorized,
+    pdp_1d_non_vectorized,
+    pdp_nd_non_vectorized,
+    pdp_nd_vectorized,
+)
 import tqdm
+
 
 class HIndex:
     """
@@ -24,13 +30,17 @@ class HIndex:
             nof_instances (int): The number of instances to use for the explanation
         """
         # setters
-        self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
+        self.nof_instances, self.indices = helpers.prep_nof_instances(
+            nof_instances, data.shape[0]
+        )
         self.data = data[self.indices]
         self.model = model
         self.nof_features = self.data.shape[1]
 
         # init
-        self.interaction_matrix = np.ones((self.nof_features, self.nof_features)) * self.empty_symbol
+        self.interaction_matrix = (
+            np.ones((self.nof_features, self.nof_features)) * self.empty_symbol
+        )
         self.one_vs_all_matrix = np.ones((self.nof_features)) * self.empty_symbol
 
         # flags
@@ -103,7 +113,9 @@ class HIndex:
             return self.one_vs_all_matrix[feat]
 
         pdp_1 = self._pdp_1d(feat, self.data[:, feat])
-        pdp_minus_1 = self._pdp_minus_1d(feat, self.data[:, [i for i in range(self.nof_features) if i != feat]])
+        pdp_minus_1 = self._pdp_minus_1d(
+            feat, self.data[:, [i for i in range(self.nof_features) if i != feat]]
+        )
 
         yy = self.model(self.data)
         nom = np.mean(np.square(yy - pdp_minus_1 - pdp_1))
@@ -115,14 +127,28 @@ class HIndex:
 
     def _pdp_1d(self, feature, x):
         # eval normalized pdp for feature at x
-        yy = pdp_1d_vectorized(self.model, self.data, x, feature, uncertainty=False, model_returns_jac=False)
+        yy = pdp_1d_vectorized(
+            self.model,
+            self.data,
+            x,
+            feature,
+            uncertainty=False,
+            model_returns_jac=False,
+        )
         c = np.mean(yy)
         return yy - c
 
     def _pdp_2d(self, feature1, feature2, x1, x2):
         features = [feature1, feature2]
         x = np.stack([x1, x2], axis=-1)
-        yy = pdp_nd_vectorized(self.model, self.data, x, features, uncertainty=False, model_returns_jac=False)
+        yy = pdp_nd_vectorized(
+            self.model,
+            self.data,
+            x,
+            features,
+            uncertainty=False,
+            model_returns_jac=False,
+        )
         c = np.mean(yy)
         return yy - c
 
@@ -131,12 +157,20 @@ class HIndex:
         features = [i for i in range(self.nof_features) if i != feature]
         assert len(features) == x.shape[1]
 
-        yy = pdp_nd_vectorized(self.model, self.data, x, features, uncertainty=False, model_returns_jac=False)
+        yy = pdp_nd_vectorized(
+            self.model,
+            self.data,
+            x,
+            features,
+            uncertainty=False,
+            model_returns_jac=False,
+        )
         c = np.mean(yy)
         return yy - c
 
     def _plot_interaction_matrix(self):
         import matplotlib.pyplot as plt
+
         plt.figure(figsize=(10, 10))
         plt.title("Interaction Matrix")
         # assign the mean to the diagonal values w
@@ -150,30 +184,49 @@ class HIndex:
         # show grid values
         for i in range(self.nof_features):
             for j in range(self.nof_features):
-                plt.text(j, i, round(self.interaction_matrix[i, j], 2), ha="center", va="center", color="w")
+                plt.text(
+                    j,
+                    i,
+                    round(self.interaction_matrix[i, j], 2),
+                    ha="center",
+                    va="center",
+                    color="w",
+                )
 
-        plt.xticks(np.arange(self.nof_features), labels=["feature {}".format(i+1) for i in range(self.nof_features)])
-        plt.yticks(np.arange(self.nof_features), labels=["feature {}".format(i+1) for i in range(self.nof_features)])
+        plt.xticks(
+            np.arange(self.nof_features),
+            labels=["feature {}".format(i + 1) for i in range(self.nof_features)],
+        )
+        plt.yticks(
+            np.arange(self.nof_features),
+            labels=["feature {}".format(i + 1) for i in range(self.nof_features)],
+        )
         plt.show()
 
     def _plot_one_vs_all_matrix(self):
         import matplotlib.pyplot as plt
+
         # plot as horizontal bar chart
         plt.figure(figsize=(10, 10))
         plt.title("H-index for all features")
         plt.barh(np.arange(self.nof_features), self.one_vs_all_matrix)
-        plt.yticks(np.arange(self.nof_features), labels=["feature {}".format(i+1) for i in range(self.nof_features)])
+        plt.yticks(
+            np.arange(self.nof_features),
+            labels=["feature {}".format(i + 1) for i in range(self.nof_features)],
+        )
         plt.xlabel("H-index")
         plt.show()
 
 
 class REPID:
-    """REPID definition of interaction between feature x_j and all the others, i.e. the variance of the dPDP plot
-    """
+    """REPID definition of interaction between feature x_j and all the others, i.e. the variance of the dPDP plot"""
+
     empty_symbol = 1e10
 
     def __init__(self, data, model, model_jac, nof_instances):
-        self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
+        self.nof_instances, self.indices = helpers.prep_nof_instances(
+            nof_instances, data.shape[0]
+        )
         self.data = data[self.indices]
         self.dim = self.data.shape[1]
 
@@ -182,13 +235,18 @@ class REPID:
         self.nof_instances = nof_instances
         self.nof_features = data.shape[1]
 
-        self.interaction_matrix = np.ones((self.nof_features, self.nof_features)) * self.empty_symbol
+        self.interaction_matrix = (
+            np.ones((self.nof_features, self.nof_features)) * self.empty_symbol
+        )
         self.one_vs_all_matrix = np.ones(self.nof_features) * self.empty_symbol
 
         self.fitted_interaction_matrix = False
         self.fitted_one_vs_all_matrix = False
 
-    def fit(self, features: typing.Union[int, str, list] = "all",):
+    def fit(
+        self,
+        features: typing.Union[int, str, list] = "all",
+    ):
         features = helpers.prep_features(features, self.dim)
         for i, feat in enumerate(features):
             print("Feature: ", feat)
@@ -208,7 +266,9 @@ class REPID:
         stop = axis_limits[:, feat][1]
         x = np.linspace(start, stop, 21)
         x = 0.5 * (x[:-1] + x[1:])
-        mu, std, stderr = pdp.eval(feature=feat, xs=x, uncertainty=True, centering="zero_start") # "zero_integral")
+        mu, std, stderr = pdp.eval(
+            feature=feat, xs=x, uncertainty=True, centering="zero_start"
+        )  # "zero_integral")
         interaction = np.mean(std)
 
         # store the interaction index
@@ -220,10 +280,14 @@ class REPID:
             self.fit()
 
         import matplotlib.pyplot as plt
+
         # plot as horizontal bar chart
         plt.figure(figsize=(10, 10))
         plt.title("REPID for all features")
         plt.barh(np.arange(self.nof_features), self.one_vs_all_matrix)
-        plt.yticks(np.arange(self.nof_features), labels=["feature {}".format(i+1) for i in range(self.nof_features)])
+        plt.yticks(
+            np.arange(self.nof_features),
+            labels=["feature {}".format(i + 1) for i in range(self.nof_features)],
+        )
         plt.xlabel("REPID index")
         plt.show()

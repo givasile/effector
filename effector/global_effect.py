@@ -8,15 +8,15 @@ class GlobalEffectBase(ABC):
     empty_symbol = helpers.EMPTY_SYMBOL
 
     def __init__(
-            self,
-            method_name: str,
-            data: np.ndarray,
-            model: Callable,
-            nof_instances: Union[int, str] = 1000,
-            axis_limits: Optional[np.ndarray] = None,
-            avg_output: Optional[float] = None,
-            feature_names: Optional[List] = None,
-            target_name: Optional[str] = None,
+        self,
+        method_name: str,
+        data: np.ndarray,
+        model: Callable,
+        nof_instances: Union[int, str] = 1000,
+        axis_limits: Optional[np.ndarray] = None,
+        avg_output: Optional[float] = None,
+        feature_names: Optional[List] = None,
+        target_name: Optional[str] = None,
     ) -> None:
         """
         Constructor for the FeatureEffectBase class.
@@ -109,13 +109,15 @@ class GlobalEffectBase(ABC):
         raise NotImplementedError
 
     def refit(self, feature, centering):
-        """Checks if refitting is needed.
-        """
+        """Checks if refitting is needed."""
         if not self.is_fitted[feature]:
             return True
         else:
             if centering is not False:
-                if self.method_args["feature_" + str(feature)]["centering"] != centering:
+                if (
+                    self.method_args["feature_" + str(feature)]["centering"]
+                    != centering
+                ):
                     return True
         return False
 

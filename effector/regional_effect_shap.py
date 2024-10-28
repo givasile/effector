@@ -72,10 +72,12 @@ class RegionalShapDP(RegionalEffectBase):
             feature_types,
             cat_limit,
             feature_names,
-            target_name
+            target_name,
         )
 
-    def _create_heterogeneity_function(self, foi, min_points, centering, points_for_centering):
+    def _create_heterogeneity_function(
+        self, foi, min_points, centering, points_for_centering
+    ):
 
         def heterogeneity_function(data) -> float:
             if data.shape[0] < min_points:
@@ -92,17 +94,17 @@ class RegionalShapDP(RegionalEffectBase):
         return heterogeneity_function
 
     def fit(
-            self,
-            features: typing.Union[int, str, list],
-            heter_pcg_drop_thres: float = 0.1,
-            heter_small_enough: float = 0.1,
-            max_depth: int = 1,
-            nof_candidate_splits_for_numerical: int = 20,
-            min_points_per_subregion: int = 10,
-            candidate_conditioning_features: typing.Union["str", list] = "all",
-            split_categorical_features: bool = False,
-            centering: typing.Union[bool, str] = False,
-            points_for_centering: int = 100,
+        self,
+        features: typing.Union[int, str, list],
+        heter_pcg_drop_thres: float = 0.1,
+        heter_small_enough: float = 0.1,
+        max_depth: int = 1,
+        nof_candidate_splits_for_numerical: int = 20,
+        min_points_per_subregion: int = 10,
+        candidate_conditioning_features: typing.Union["str", list] = "all",
+        split_categorical_features: bool = False,
+        centering: typing.Union[bool, str] = False,
+        points_for_centering: int = 100,
     ):
         """
         Fit the regional SHAP.

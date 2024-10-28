@@ -82,7 +82,9 @@ def prep_ale_fit_params(par: dict):
     return par
 
 
-def prep_nof_instances(nof_instances: typing.Union[int, str], N: int) -> typing.Tuple[int, np.ndarray]:
+def prep_nof_instances(
+    nof_instances: typing.Union[int, str], N: int
+) -> typing.Tuple[int, np.ndarray]:
     """Prepares the argument nof_instances
 
     Args
@@ -103,7 +105,11 @@ def prep_nof_instances(nof_instances: typing.Union[int, str], N: int) -> typing.
     # prepare nof_instances
     if nof_instances == "all":
         nof_instances = N
-    indices = np.random.choice(N, nof_instances, replace=False) if nof_instances < N else np.arange(N)
+    indices = (
+        np.random.choice(N, nof_instances, replace=False)
+        if nof_instances < N
+        else np.arange(N)
+    )
     return nof_instances, indices
 
 
@@ -114,11 +120,17 @@ def get_feature_names(dim: int) -> list:
 
 def prep_avg_output(data, model, avg_output, scale_y) -> float:
     avg_output = avg_output if avg_output is not None else np.mean(model(data))
-    avg_output = avg_output * scale_y["std"] + scale_y["mean"] if scale_y is not None else avg_output
+    avg_output = (
+        avg_output * scale_y["std"] + scale_y["mean"]
+        if scale_y is not None
+        else avg_output
+    )
     return avg_output
 
 
-def drop_points_outside_axis_limits(data: np.ndarray, axis_limits: np.ndarray, feature: int) -> np.ndarray:
+def drop_points_outside_axis_limits(
+    data: np.ndarray, axis_limits: np.ndarray, feature: int
+) -> np.ndarray:
     """Drop points outside the axis limits"""
     data = data[data[:, feature] >= axis_limits[0, feature]]
     data = data[data[:, feature] <= axis_limits[1, feature]]

@@ -9,7 +9,6 @@ import copy
 from typing import Callable, Optional, Union, List
 
 
-
 BIG_M = helpers.BIG_M
 
 
@@ -46,7 +45,6 @@ class RegionalRHALE(RegionalEffectBase):
             else:
                 instance_effects = utils.compute_jacobian_numerically(model, data)
 
-
         super(RegionalRHALE, self).__init__(
             "rhale",
             data,
@@ -58,19 +56,25 @@ class RegionalRHALE(RegionalEffectBase):
             feature_types,
             cat_limit,
             feature_names,
-            target_name
+            target_name,
         )
 
-    def _create_heterogeneity_function(self, foi, binning_method, min_points, centering):
+    def _create_heterogeneity_function(
+        self, foi, binning_method, min_points, centering
+    ):
         binning_method = prep_binning_method(binning_method)
 
         def heter(data, instance_effects=None) -> float:
             if data.shape[0] < min_points:
                 return BIG_M
 
-            rhale = RHALE(data, self.model, self.model_jac, "all", None, instance_effects)
+            rhale = RHALE(
+                data, self.model, self.model_jac, "all", None, instance_effects
+            )
             try:
-                rhale.fit(features=foi, binning_method=binning_method, centering=centering)
+                rhale.fit(
+                    features=foi, binning_method=binning_method, centering=centering
+                )
             except:
                 return BIG_M
 
@@ -93,10 +97,10 @@ class RegionalRHALE(RegionalEffectBase):
         candidate_conditioning_features: typing.Union["str", list] = "all",
         split_categorical_features: bool = False,
         binning_method: typing.Union[
-                str,
-                binning_methods.Fixed,
-                binning_methods.DynamicProgramming,
-                binning_methods.Greedy,
+            str,
+            binning_methods.Fixed,
+            binning_methods.DynamicProgramming,
+            binning_methods.Greedy,
         ] = "greedy",
         centering: typing.Union[bool, str] = False,
     ):
@@ -144,22 +148,28 @@ class RegionalRHALE(RegionalEffectBase):
                 "binning_method": binning_method,
             }
 
-    def plot(self,
-             feature,
-             node_idx,
-             heterogeneity=False,
-             centering=False,
-             scale_x_list=None,
-             scale_y=None,
-             y_limits=None,
-             dy_limits=None):
+    def plot(
+        self,
+        feature,
+        node_idx,
+        heterogeneity=False,
+        centering=False,
+        scale_x_list=None,
+        scale_y=None,
+        y_limits=None,
+        dy_limits=None,
+    ):
 
         # get data from the node
         self.refit(feature)
 
         if scale_x_list is not None:
-            self.tree_full_scaled["feature_{}".format(feature)] = self.partitioners["feature_{}".format(feature)].splits_to_tree(False, scale_x_list)
-            self.tree_pruned_scaled["feature_{}".format(feature)] = self.partitioners["feature_{}".format(feature)].splits_to_tree(True, scale_x_list)
+            self.tree_full_scaled["feature_{}".format(feature)] = self.partitioners[
+                "feature_{}".format(feature)
+            ].splits_to_tree(False, scale_x_list)
+            self.tree_pruned_scaled["feature_{}".format(feature)] = self.partitioners[
+                "feature_{}".format(feature)
+            ].splits_to_tree(True, scale_x_list)
 
         data, data_effect, name = self.get_node_info(feature, node_idx)
         feature_names = copy.deepcopy(self.feature_names)
@@ -167,11 +177,29 @@ class RegionalRHALE(RegionalEffectBase):
 
         # define the method and fit
         self.method_args["feature_" + str(feature)]["heterogeneity"] = heterogeneity
-        rhale = RHALE(data, self.model, self.model_jac, self.nof_instances, None, data_effect, feature_names=feature_names)
-        binning_method = prep_binning_method(self.method_args["feature_" + str(feature)]["binning_method"])
+        rhale = RHALE(
+            data,
+            self.model,
+            self.model_jac,
+            self.nof_instances,
+            None,
+            data_effect,
+            feature_names=feature_names,
+        )
+        binning_method = prep_binning_method(
+            self.method_args["feature_" + str(feature)]["binning_method"]
+        )
         rhale.fit(features=feature, binning_method=binning_method, centering=centering)
         scale_x = scale_x_list[feature] if scale_x_list is not None else None
-        rhale.plot(feature=feature, heterogeneity=heterogeneity, centering=centering, scale_x=scale_x, scale_y=scale_y, y_limits=y_limits, dy_limits=dy_limits)
+        rhale.plot(
+            feature=feature,
+            heterogeneity=heterogeneity,
+            centering=centering,
+            scale_x=scale_x,
+            scale_y=scale_y,
+            y_limits=y_limits,
+            dy_limits=dy_limits,
+        )
 
 
 class RegionalALE(RegionalEffectBase):
@@ -209,20 +237,24 @@ class RegionalALE(RegionalEffectBase):
             feature_types,
             cat_limit,
             feature_names,
-            target_name
+            target_name,
         )
 
-    def _create_heterogeneity_function(self, foi, binning_method, min_points, centering):
+    def _create_heterogeneity_function(
+        self, foi, binning_method, min_points, centering
+    ):
         binning_method = prep_binning_method(binning_method)
         isinstance(binning_method, binning_methods.Fixed)
-        
+
         def heter(data, instance_effects=None) -> float:
             if data.shape[0] < min_points:
                 return BIG_M
 
             ale = ALE(data, self.model, "all", None, instance_effects)
             try:
-                ale.fit(features=foi, binning_method=binning_method, centering=centering)
+                ale.fit(
+                    features=foi, binning_method=binning_method, centering=centering
+                )
             except:
                 return BIG_M
 
@@ -244,7 +276,9 @@ class RegionalALE(RegionalEffectBase):
         min_points_per_subregion: int = 10,
         candidate_conditioning_features: typing.Union["str", list] = "all",
         split_categorical_features: bool = False,
-        binning_method: typing.Union[str, binning_methods.Fixed] = binning_methods.Fixed(nof_bins=20, min_points_per_bin=0),
+        binning_method: typing.Union[
+            str, binning_methods.Fixed
+        ] = binning_methods.Fixed(nof_bins=20, min_points_per_bin=0),
         centering: typing.Union[bool, str] = False,
     ):
         """
@@ -292,22 +326,28 @@ class RegionalALE(RegionalEffectBase):
                 "centering": centering,
             }
 
-    def plot(self,
-             feature,
-             node_idx,
-             heterogeneity=False,
-             centering=False,
-             scale_x_list=None,
-             scale_y=None,
-             y_limits=None,
-             dy_limits=None):
+    def plot(
+        self,
+        feature,
+        node_idx,
+        heterogeneity=False,
+        centering=False,
+        scale_x_list=None,
+        scale_y=None,
+        y_limits=None,
+        dy_limits=None,
+    ):
 
         # get data from the node
         self.refit(feature)
 
         if scale_x_list is not None:
-            self.tree_full_scaled["feature_{}".format(feature)] = self.partitioners["feature_{}".format(feature)].splits_to_tree(False, scale_x_list)
-            self.tree_pruned_scaled["feature_{}".format(feature)] = self.partitioners["feature_{}".format(feature)].splits_to_tree(True, scale_x_list)
+            self.tree_full_scaled["feature_{}".format(feature)] = self.partitioners[
+                "feature_{}".format(feature)
+            ].splits_to_tree(False, scale_x_list)
+            self.tree_pruned_scaled["feature_{}".format(feature)] = self.partitioners[
+                "feature_{}".format(feature)
+            ].splits_to_tree(True, scale_x_list)
 
         data, data_effect, name = self.get_node_info(feature, node_idx)
         feature_names = copy.deepcopy(self.feature_names)
@@ -315,15 +355,38 @@ class RegionalALE(RegionalEffectBase):
 
         # define the method and fit
         self.method_args["feature_" + str(feature)]["heterogeneity"] = heterogeneity
-        rhale = RHALE(data, self.model, self.model_jac, self.nof_instances, None, data_effect, feature_names=feature_names)
-        binning_method = prep_binning_method(self.method_args["feature_" + str(feature)]["binning_method"])
+        rhale = RHALE(
+            data,
+            self.model,
+            self.model_jac,
+            self.nof_instances,
+            None,
+            data_effect,
+            feature_names=feature_names,
+        )
+        binning_method = prep_binning_method(
+            self.method_args["feature_" + str(feature)]["binning_method"]
+        )
         rhale.fit(features=feature, binning_method=binning_method, centering=centering)
         scale_x = scale_x_list[feature] if scale_x_list is not None else None
-        rhale.plot(feature=feature, heterogeneity=heterogeneity, centering=centering, scale_x=scale_x, scale_y=scale_y, y_limits=y_limits, dy_limits=dy_limits)
+        rhale.plot(
+            feature=feature,
+            heterogeneity=heterogeneity,
+            centering=centering,
+            scale_x=scale_x,
+            scale_y=scale_y,
+            y_limits=y_limits,
+            dy_limits=dy_limits,
+        )
 
 
 def prep_binning_method(method):
-    assert method in ["greedy", "dp", "fixed"] or isinstance(method, binning_methods.Fixed) or isinstance(method, binning_methods.DynamicProgramming) or isinstance(method, binning_methods.Greedy)
+    assert (
+        method in ["greedy", "dp", "fixed"]
+        or isinstance(method, binning_methods.Fixed)
+        or isinstance(method, binning_methods.DynamicProgramming)
+        or isinstance(method, binning_methods.Greedy)
+    )
 
     if method == "greedy":
         return binning_methods.Greedy()

@@ -166,9 +166,11 @@ class Regions:
         # list with len(foc) elements
         # each element is a list with the split positions for the corresponding feature of conditioning
         candidate_split_positions = [
-            self.find_positions_cat(data, foc_i)
-            if foc_types[i] == "cat"
-            else self.find_positions_cont(data, foc_i, nof_splits)
+            (
+                self.find_positions_cat(data, foc_i)
+                if foc_types[i] == "cat"
+                else self.find_positions_cont(data, foc_i, nof_splits)
+            )
             for i, foc_i in enumerate(foc)
         ]
 
@@ -347,7 +349,7 @@ class Regions:
             "nof_instances": self.splits[0]["nof_instances"][0],
             "data": self.data,
             "data_effect": self.data_effect,
-            "weight": 1.
+            "weight": 1.0,
         }
 
         feature_name = self.feature_names[self.feature]
@@ -368,9 +370,9 @@ class Regions:
 
             # find parent
             for j in range(nodes_to_add):
-                parent_name = parent_level_nodes[int(j/2)]
-                parent_data = parent_level_data[int(j/2)]
-                parent_data_effect = parent_level_data_effect[int(j/2)]
+                parent_name = parent_level_nodes[int(j / 2)]
+                parent_data = parent_level_data[int(j / 2)]
+                parent_data_effect = parent_level_data_effect[int(j / 2)]
 
                 # prepare data
 
@@ -386,9 +388,13 @@ class Regions:
 
                 pos_small = pos_scaled.round(2)
 
-                data_1, data_2 = self.split_dataset(parent_data, None, foc, pos, split["type"])
+                data_1, data_2 = self.split_dataset(
+                    parent_data, None, foc, pos, split["type"]
+                )
                 if self.data_effect is not None:
-                    data_effect_1, data_effect_2 = self.split_dataset(parent_data, parent_data_effect, foc, pos, split["type"])
+                    data_effect_1, data_effect_2 = self.split_dataset(
+                        parent_data, parent_data_effect, foc, pos, split["type"]
+                    )
                 else:
                     data_effect_1, data_effect_2 = None, None
 
@@ -409,23 +415,27 @@ class Regions:
                         name = foc_name + "  > {}".format(pos_small)
                         comparison = ">"
 
-                name = parent_name + " | " + name if nodes_to_add == 2 else parent_name + " and " + name
+                name = (
+                    parent_name + " | " + name
+                    if nodes_to_add == 2
+                    else parent_name + " and " + name
+                )
 
                 data = {
-                "heterogeneity": split["heterogeneity"][j],
-                "weight": float(data_new.shape[0]) / nof_instances,
-                "position": split["position"],
-                "feature": split["feature"],
-                "feature_type": split["type"],
-                "range": split["range"],
-                "candidate_split_positions": split["candidate_split_positions"],
-                "nof_instances": split["nof_instances"][j],
-                "data": data_new,
-                "data_effect": data_effect_new,
-                "comparison": comparison,
+                    "heterogeneity": split["heterogeneity"][j],
+                    "weight": float(data_new.shape[0]) / nof_instances,
+                    "position": split["position"],
+                    "feature": split["feature"],
+                    "feature_type": split["type"],
+                    "range": split["range"],
+                    "candidate_split_positions": split["candidate_split_positions"],
+                    "nof_instances": split["nof_instances"][j],
+                    "data": data_new,
+                    "data_effect": data_effect_new,
+                    "comparison": comparison,
                 }
 
-                tree.add_node(name, parent_name=parent_name, data=data, level=i+1)
+                tree.add_node(name, parent_name=parent_name, data=data, level=i + 1)
 
                 new_parent_level_nodes.append(name)
                 new_parent_level_data.append(data_new)
@@ -455,13 +465,20 @@ class Node:
         self.foc_type = data["feature_type"] if "feature_type" in data else None
         self.foc_position = data["position"] if "position" in data else None
         self.comparison = data["comparison"] if "comparison" in data else None
-        self.candidate_split_positions = data["candidate_split_positions"] if "candidate_split_positions" in data else None
+        self.candidate_split_positions = (
+            data["candidate_split_positions"]
+            if "candidate_split_positions" in data
+            else None
+        )
         self.range = data["range"] if "range" in data else None
 
     def show(self, show_data=False):
         print("Node id: ", self.idx)
         print("name: ", self.name)
-        print("parent name: ", self.parent_node.name if self.parent_node is not None else None)
+        print(
+            "parent name: ",
+            self.parent_node.name if self.parent_node is not None else None,
+        )
         print("level: ", self.level)
 
         print("heterogeneity: ", self.heterogeneity)
@@ -559,8 +576,18 @@ class Tree:
         if node is None:
             node = self.get_root()
 
-        indent = node.level*2
-        print("    " * indent + "Node id: %d, name: %s, heter: %.2f || nof_instances: %5d || weight: %.2f" % (node.idx, node.name, node.data['heterogeneity'], node.data['nof_instances'], node.data['weight']))
+        indent = node.level * 2
+        print(
+            "    " * indent
+            + "Node id: %d, name: %s, heter: %.2f || nof_instances: %5d || weight: %.2f"
+            % (
+                node.idx,
+                node.name,
+                node.data["heterogeneity"],
+                node.data["nof_instances"],
+                node.data["weight"],
+            )
+        )
         children = self.get_children(node.name)
         for child in children:
             self.show_full_tree(child)
@@ -568,13 +595,25 @@ class Tree:
     def show_level_stats(self, node=None):
         max_level = max([node.level for node in self.nodes])
         prev_heter = 0
-        for lev in range(max_level+1):
+        for lev in range(max_level + 1):
             level_stats = self.get_level_stats(lev)
             if lev == 0:
-                print("    " * lev*2 + "Level %.d, heter: %.2f" % (lev, level_stats['heterogeneity']))
+                print(
+                    "    " * lev * 2
+                    + "Level %.d, heter: %.2f" % (lev, level_stats["heterogeneity"])
+                )
             else:
-                print("    " * lev*2 + "Level %.d, heter: %.2f || heter drop: %.2f (%.2f%%)" % (lev, level_stats['heterogeneity'], prev_heter - level_stats['heterogeneity'], 100*(prev_heter - level_stats['heterogeneity'])/prev_heter))
-            prev_heter = level_stats['heterogeneity']
+                print(
+                    "    " * lev * 2
+                    + "Level %.d, heter: %.2f || heter drop: %.2f (%.2f%%)"
+                    % (
+                        lev,
+                        level_stats["heterogeneity"],
+                        prev_heter - level_stats["heterogeneity"],
+                        100 * (prev_heter - level_stats["heterogeneity"]) / prev_heter,
+                    )
+                )
+            prev_heter = level_stats["heterogeneity"]
 
 
 class DataTransformer:

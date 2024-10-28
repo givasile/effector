@@ -34,7 +34,7 @@ def ale_plot(
     feature_names: typing.Union[None, list] = None,
     target_name: typing.Union[None, str] = None,
     y_limits: typing.Union[None, tuple] = None,
-    dy_limits: typing.Union[None, tuple] = None
+    dy_limits: typing.Union[None, tuple] = None,
 ):
     """
 
@@ -150,7 +150,7 @@ def plot_pdp_ice(
     target_name: typing.Union[None, str] = None,
     is_derivative: bool = False,
     nof_ice: typing.Union[str, int] = "all",
-    y_limits: typing.Union[None, tuple] = None
+    y_limits: typing.Union[None, tuple] = None,
 ):
 
     fig, ax = plt.subplots()
@@ -208,7 +208,16 @@ def plot_pdp_ice(
             label="std_err",
         )
     elif confidence_interval == "ice":
-        y_ice_outputs = y_ice_outputs if nof_ice == "all" else y_ice_outputs[:, np.random.choice(range(y_ice_outputs.shape[1]), size=nof_ice, replace=False)]
+        y_ice_outputs = (
+            y_ice_outputs
+            if nof_ice == "all"
+            else y_ice_outputs[
+                :,
+                np.random.choice(
+                    range(y_ice_outputs.shape[1]), size=nof_ice, replace=False
+                ),
+            ]
+        )
         ax.plot(x, y_ice_outputs[:, 0], color="red", alpha=0.1, label=y_ice_label)
         ax.plot(x, y_ice_outputs, color="red", alpha=0.1)
 
@@ -247,7 +256,7 @@ def plot_shap(
     feature_names: typing.Union[None, list] = None,
     target_name: typing.Union[None, str] = None,
     y_limits: typing.Union[None, tuple] = None,
-    only_shap_values: bool = False
+    only_shap_values: bool = False,
 ):
 
     fig, ax = plt.subplots()
@@ -256,7 +265,9 @@ def plot_shap(
     # scale x-axis
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
     if xx is not None:
-        xx = xx if scale_x is None else trans_affine(xx, scale_x["mean"], scale_x["std"])
+        xx = (
+            xx if scale_x is None else trans_affine(xx, scale_x["mean"], scale_x["std"])
+        )
 
     # scale y-axis
     if scale_y is not None:

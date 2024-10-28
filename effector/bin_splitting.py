@@ -9,11 +9,13 @@ import matplotlib.pyplot as plt
 class BinBase:
     big_M = helpers.BIG_M
 
-    def __init__(self,
-                 feature: int,
-                 data: typing.Union[None, np.ndarray],
-                 data_effect: typing.Union[None, np.ndarray],
-                 axis_limits: typing.Union[None, np.ndarray]):
+    def __init__(
+        self,
+        feature: int,
+        data: typing.Union[None, np.ndarray],
+        data_effect: typing.Union[None, np.ndarray],
+        axis_limits: typing.Union[None, np.ndarray],
+    ):
         """Initializer.
 
         Parameters
@@ -25,8 +27,16 @@ class BinBase:
         """
         # set immediately
         self.feature: int = feature
-        self.xs_min: float = axis_limits[0, feature] if axis_limits is not None else data[:, feature].min()
-        self.xs_max: float = axis_limits[1, feature] if axis_limits is not None else data[:, feature].max()
+        self.xs_min: float = (
+            axis_limits[0, feature]
+            if axis_limits is not None
+            else data[:, feature].min()
+        )
+        self.xs_max: float = (
+            axis_limits[1, feature]
+            if axis_limits is not None
+            else data[:, feature].max()
+        )
         self.data: np.ndarray = data
         self.data_effect: np.ndarray = data_effect
 
@@ -68,10 +78,12 @@ class BinBase:
 
         xs = self.data[:, self.feature]
         # dy_dxs = self.data_effect[:, self.feature]
-        filtered_points, _ = utils.filter_points_in_bin(xs, None, np.array([start, stop]))
+        filtered_points, _ = utils.filter_points_in_bin(
+            xs, None, np.array([start, stop])
+        )
         valid = filtered_points.size >= min_points
         return valid
-        
+
     def _none_valid_binning(self):
         """Check if it is impossible to create any binning
 
@@ -118,18 +130,23 @@ class BinBase:
             # set unique values as the center of the bins
             uniq = np.sort(np.unique(self.data[:, self.feature]))
             dx = [uniq[i + 1] - uniq[i] for i in range(len(uniq) - 1)]
-            lims = np.array([uniq[0] - dx[0] / 2] + [uniq[i] + dx[i] / 2 for i in range(len(uniq) - 1)] + [uniq[-1] + dx[-1] / 2])
+            lims = np.array(
+                [uniq[0] - dx[0] / 2]
+                + [uniq[i] + dx[i] / 2 for i in range(len(uniq) - 1)]
+                + [uniq[-1] + dx[-1] / 2]
+            )
 
             # if all limits are valid, then set them
-            if np.all([self._bin_valid(lims[i], lims[i + 1]) for i in range(len(lims) - 1)]):
+            if np.all(
+                [self._bin_valid(lims[i], lims[i + 1]) for i in range(len(lims) - 1)]
+            ):
                 self.limits = lims
             else:
                 self.limits = False
         return is_cat
 
     def find(self, *args):
-        """Find the optimal binning for the feature.
-        """
+        """Find the optimal binning for the feature."""
         return NotImplementedError
 
     def plot(self, feature=0, block=False):
@@ -157,11 +174,14 @@ class Greedy(BinBase):
     """
     Greedy binning algorithm
     """
-    def __init__(self, 
-                 data: np.ndarray, 
-                 data_effect: np.ndarray, 
-                 feature: int, 
-                 axis_limits: typing.Union[None, np.ndarray]):
+
+    def __init__(
+        self,
+        data: np.ndarray,
+        data_effect: np.ndarray,
+        feature: int,
+        axis_limits: typing.Union[None, np.ndarray],
+    ):
         super(Greedy, self).__init__(feature, data, data_effect, axis_limits)
 
     def find(
@@ -179,7 +199,6 @@ class Greedy(BinBase):
             "cat_limit": cat_limit,
         }
 
-
         xs_min = self.xs_min
         xs_max = self.xs_max
 
@@ -191,8 +210,10 @@ class Greedy(BinBase):
             self.limits = np.array([self.xs_min, self.xs_max])
         else:
             # limits with high resolution
-            limits, _ = np.linspace(xs_min, xs_max, num=init_nof_bins + 1, endpoint=True, retstep=True)
-            
+            limits, _ = np.linspace(
+                xs_min, xs_max, num=init_nof_bins + 1, endpoint=True, retstep=True
+            )
+
             # merging
             i = 0
             merged_limits = [limits[0]]
@@ -227,11 +248,11 @@ class Greedy(BinBase):
                     else:
                         # if either invalid, keep open
                         close_bin = False
-                
+
                 # if close_bin, then add the next limit to the merged_limits
                 if close_bin:
                     merged_limits.append(limits[i + 1])
-                
+
                 i += 1
 
             # if last bin is without enough points, merge it with the previous
@@ -273,7 +294,9 @@ class DP(BinBase):
         return cost
 
     def _argmatrix_to_limits(self, K):
-        assert "argmatrix" in self.method_outputs, "argmatrix not found in method_outputs"
+        assert (
+            "argmatrix" in self.method_outputs
+        ), "argmatrix not found in method_outputs"
         argmatrix = self.method_outputs["argmatrix"]
         dx = (self.xs_max - self.xs_min) / K
 
@@ -299,10 +322,21 @@ class DP(BinBase):
         )
         return limits, dx_list
 
-    def find(self, max_nof_bins: int = 30, min_points: int = 10, discount: float = 0.3, cat_limit: int = 10):
+    def find(
+        self,
+        max_nof_bins: int = 30,
+        min_points: int = 10,
+        discount: float = 0.3,
+        cat_limit: int = 10,
+    ):
         """Find the optimal binning."""
 
-        self.method_args = {"max_nof_bins": max_nof_bins, "min_points": min_points, "discount": discount, "cat_limit": cat_limit}
+        self.method_args = {
+            "max_nof_bins": max_nof_bins,
+            "min_points": min_points,
+            "discount": discount,
+            "cat_limit": cat_limit,
+        }
 
         self.min_points = min_points
         big_M = self.big_M
@@ -359,8 +393,17 @@ class Fixed(BinBase):
     def __init__(self, data, data_effect, feature, axis_limits):
         super(Fixed, self).__init__(feature, data, data_effect, axis_limits)
 
-    def find(self, nof_bins: int, min_points: typing.Union[None, int] = 10, cat_limit: int = 10):
-        self.method_args = {"nof_bins": nof_bins, "min_points": min_points, "cat_limit": cat_limit}
+    def find(
+        self,
+        nof_bins: int,
+        min_points: typing.Union[None, int] = 10,
+        cat_limit: int = 10,
+    ):
+        self.method_args = {
+            "nof_bins": nof_bins,
+            "min_points": min_points,
+            "cat_limit": cat_limit,
+        }
 
         if self._none_valid_binning():
             self.limits = False
@@ -368,13 +411,15 @@ class Fixed(BinBase):
         if self._is_categorical(cat_limit):
             return self.limits
 
-        limits, dx = np.linspace(self.xs_min, self.xs_max, num=nof_bins + 1, endpoint=True, retstep=True)
+        limits, dx = np.linspace(
+            self.xs_min, self.xs_max, num=nof_bins + 1, endpoint=True, retstep=True
+        )
         if min_points is not None:
-            limits_valid = all(self._bin_valid(limits[i], limits[i + 1]) for i in range(nof_bins))
+            limits_valid = all(
+                self._bin_valid(limits[i], limits[i + 1]) for i in range(nof_bins)
+            )
             self.limits = limits if limits_valid else False
         else:
             self.limits = limits
 
         return self.limits
-
-

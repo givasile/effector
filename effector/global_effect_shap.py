@@ -10,14 +10,14 @@ from scipy.interpolate import UnivariateSpline
 
 class ShapDP(GlobalEffectBase):
     def __init__(
-            self,
-            data: np.ndarray,
-            model: Callable,
-            axis_limits: Optional[np.ndarray] = None,
-            nof_instances: Union[int, str] = 100,
-            avg_output: Optional[float] = None,
-            feature_names: Optional[List[str]] = None,
-            target_name: Optional[str] = None,
+        self,
+        data: np.ndarray,
+        model: Callable,
+        axis_limits: Optional[np.ndarray] = None,
+        nof_instances: Union[int, str] = 100,
+        avg_output: Optional[float] = None,
+        feature_names: Optional[List[str]] = None,
+        target_name: Optional[str] = None,
     ):
         """
         Constructor of the SHAPDependence class.
@@ -91,7 +91,14 @@ class ShapDP(GlobalEffectBase):
         data = data[self.indices, :]
 
         super(ShapDP, self).__init__(
-            "SHAP DP", data, model, nof_instances, axis_limits, avg_output, feature_names, target_name
+            "SHAP DP",
+            data,
+            model,
+            nof_instances,
+            axis_limits,
+            avg_output,
+            feature_names,
+            target_name,
         )
 
     def _fit_feature(
@@ -146,10 +153,10 @@ class ShapDP(GlobalEffectBase):
         return ret_dict
 
     def fit(
-            self,
-            features: Union[int, str, List] = "all",
-            centering: Union[bool, str] = False,
-            points_for_centering: Union[int, str] = 100,
+        self,
+        features: Union[int, str, List] = "all",
+        centering: Union[bool, str] = False,
+        points_for_centering: Union[int, str] = 100,
     ) -> None:
         """Fit the SHAP Dependence Plot to the data.
 
@@ -315,7 +322,9 @@ class ShapDP(GlobalEffectBase):
         )
 
         if show_avg_output:
-            avg_output = helpers.prep_avg_output(self.data, self.model, self.avg_output, scale_y)
+            avg_output = helpers.prep_avg_output(
+                self.data, self.model, self.avg_output, scale_y
+            )
         else:
             avg_output = None
 

@@ -419,7 +419,9 @@ def compute_ale_params(xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray) -
     return parameters
 
 
-def get_feature_types(data: np.ndarray, categorical_limit: int = 10) -> typing.List[str]:
+def get_feature_types(
+    data: np.ndarray, categorical_limit: int = 10
+) -> typing.List[str]:
     """Determine the type of each feature.
 
     Notes:
