@@ -29,7 +29,6 @@ setup-conda-env-generic:
 		conda run -n $(PROJECT_NAME)-$(ENV) pip install -r requirements-$(ENV).txt; \
 	fi
 
-
 # Targets to set up specific environments
 .PHONY: setup-conda-env setup-conda-env-dev setup-conda-env-test
 setup-conda-env:

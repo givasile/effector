@@ -52,7 +52,7 @@ def compute_local_effects(
     # for each point, find the bin-index it belongs to
     limits[-1] += EPS
     ind = np.digitize(data[:, feature], limits)
-    assert np.alltrue(ind > 0)
+    assert np.all(ind > 0)
 
     # compute effect
     right_lim = copy.deepcopy(data)
@@ -137,13 +137,13 @@ def compute_bin_effect(
         bin_effects: The average effect per bin, (K)
         points_per_bin: The number of points per bin, (K)
     """
-    empty_symbol = np.NaN
+    empty_symbol = np.nan
 
     # find bin-index of points
     limits_enh = copy.deepcopy(limits).astype(float)
     limits_enh[-1] += EPS
     ind = np.digitize(xs, limits_enh)
-    # assert np.alltrue(ind > 0)
+    # assert np.all(ind > 0)
 
     # bin effect is the mean of all points that lie in the bin
     nof_bins = limits.shape[0] - 1
@@ -194,7 +194,7 @@ def compute_bin_variance(
         >>> xs = np.ones(4) * 0.5
         >>> df_dxs = np.array([1.0, 3.0, 3.0, 5.0])
         >>> limits = np.array([0, 1, 2.0])
-        >>> bin_effect_mean = np.array([np.mean(df_dxs), np.NaN])
+        >>> bin_effect_mean = np.array([np.mean(df_dxs), np.nan])
         >>> compute_bin_variance(xs, df_dxs, limits, bin_effect_mean)
         (array([ 2., nan]), array([0.5, nan]))
 
@@ -209,14 +209,14 @@ def compute_bin_variance(
         bin_estimator_variance: The variance of the estimator in each bin, (K, )
 
     """
-    empty_symbol = np.NaN
+    empty_symbol = np.nan
 
     # find bin-index of points
     eps = 1e-8
     limits_enh = copy.deepcopy(limits).astype(float)
     limits_enh[-1] += eps
     ind = np.digitize(xs, limits_enh)
-    # assert np.alltrue(ind > 0)
+    # assert np.all(ind > 0)
 
     # variance of the effect in each bin
     variance_per_point = (df_dxs - bin_effect_mean[ind - 1]) ** 2
@@ -248,15 +248,15 @@ def fill_nans(x: np.ndarray) -> np.ndarray:
     """Replace NaNs with interpolated values.
 
     Examples:
-        >>> x = np.array([1.0, np.NaN, 2.0])
+        >>> x = np.array([1.0, np.nan, 2.0])
         >>> fill_nans(x)
         array([1. , 1.5, 2. ])
 
-        >>> x = np.array([1.0, np.NaN, np.NaN, np.NaN, 2.0])
+        >>> x = np.array([1.0, np.nan, np.nan, np.nan, 2.0])
         >>> fill_nans(x)
         array([1.  , 1.25, 1.5 , 1.75, 2.  ])
 
-        >>> x = np.array([0.5, 1.0, np.NaN, np.NaN, np.NaN])
+        >>> x = np.array([0.5, 1.0, np.nan, np.nan, np.nan])
         >>> fill_nans(x)
         array([0.5, 1. , 1. , 1. , 1. ])
 
