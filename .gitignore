@@ -145,3 +145,5 @@ paper.prv
 out/
 
 docs/site/
+
+.venv-*

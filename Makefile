@@ -1,45 +1,56 @@
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
+SHELL := /bin/bash
 
 PROJECT_NAME = effector
-PYTHON_VERSION = 3.10
+PYTHON ?= 3.10
+ENV ?= sandbox
 
-#################################################################################
-# COMMANDS                                                                      #
-#################################################################################
-.PHONY: setup-conda-env-generic
-setup-conda-env-generic:
-	# if conda is not installed, halt
-	@conda --version
+REQUIREMENTS := $(if $(findstring sandbox,$(ENV)),requirements.txt,requirements-$(ENV).txt)
 
-	# if environment exists, remove it
-	@conda env list | grep -q "^$(PROJECT_NAME)-$(ENV) " && conda env remove --name $(PROJECT_NAME)-$(ENV) -y || echo "Environment $(PROJECT_NAME)-$(ENV) does not exist, no need to remove it."
+# Conda related commands
+.PHONY: remove-conda-env
+remove-conda-env:
+	@conda env list | grep -q "^$(PROJECT_NAME)-$(ENV) " && conda env remove --name $(PROJECT_NAME)-$(ENV) -y || echo "Environment $(PROJECT_NAME)-$(ENV) does not exist, skipping removal."
 
-	# create environment
-	@conda create --name $(PROJECT_NAME)-$(ENV) python=$(PYTHON_VERSION) -y
+.PHONY: create-conda-env
+create-conda-env:
+	@conda create --name $(PROJECT_NAME)-$(ENV) python=$(PYTHON) -y
 
-	# populate environment
+.PHONY: install-conda-requirements
+install-conda-requirements:
 	@conda run -n $(PROJECT_NAME)-$(ENV) pip install --upgrade pip
+	@conda run -n $(PROJECT_NAME)-$(ENV) pip install -r $(REQUIREMENTS)
 
-	# if env=sandbox, install requirements.txt
-	@if [ "$(ENV)" = "sandbox" ]; then \
-		conda run -n $(PROJECT_NAME)-$(ENV) pip install -r requirements.txt; \
-	else \
-		conda run -n $(PROJECT_NAME)-$(ENV) pip install -r requirements-$(ENV).txt; \
-	fi
+.PHONY: conda-init
+conda-init: remove-conda-env create-conda-env install-conda-requirements
 
-# Targets to set up specific environments
-.PHONY: setup-conda-env setup-conda-env-dev setup-conda-env-test
-setup-conda-env:
-	$(MAKE) setup-conda-env-generic ENV=sandbox
-setup-conda-env-dev:
-	$(MAKE) setup-conda-env-generic ENV=dev
-setup-conda-env-test:
-	$(MAKE) setup-conda-env-generic ENV=test
+.PHONY: conda-update
+conda-update: install-conda-requirements
+
+# Pip related commands
+.PHONY: remove-venv
+remove-venv:
+	rm -rf .venv-$(ENV)
+
+.PHONY: create-venv
+create-venv:
+	python -m venv .venv-$(ENV)
+
+.PHONY: install-venv-requirements
+install-venv-requirements:
+	source .venv-$(ENV)/bin/activate && python -m pip install --upgrade pip
+	source .venv-$(ENV)/bin/activate && python -m pip install -r $(REQUIREMENTS)
+
+.PHONY: venv-init
+venv-init: remove-venv create-venv install-venv-requirements
+
+.PHONY: venv-update
+venv-update: install-venv-requirements
 
 
-## Delete all compiled Python files
+# Delete all compiled Python files
 .PHONY: clean
 clean:
 	find . -type f -name "*.py[co]" -delete
