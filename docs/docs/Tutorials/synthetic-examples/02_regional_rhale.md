@@ -37,9 +37,7 @@ X_cor = generate_dataset_correlated(N)
 ### Black-box function
 
 We will use the following linear model with a subgroup-specific interaction term:
- $$ y = 3x_1I_{x_3>0} - 3x_1I_{x_3\leq0} + x_3$$ 
-
-The presence of interaction terms ($3x_1I_{x_3>0}$, $3x_1I_{x_3\leq0}$) makes it impossible to define a solid ground truth effect. However, under some mild assumptions, we can agree tha
+ $$ y = 3x_1I_{x_3>0} - 3x_1I_{x_3\leq0} + x_3$$.
 
 ## Ground truth effect (uncorrelated setting)
 

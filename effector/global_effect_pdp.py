@@ -119,7 +119,7 @@ class PDPBase(GlobalEffectBase):
                 s, centering, points_for_centering, use_vectorized
             )
             self.is_fitted[s] = True
-            self.method_args["feature_" + str(s)] = {
+            self.fit_args["feature_" + str(s)] = {
                 "centering": centering,
                 "points_for_centering": points_for_centering,
             }
@@ -165,7 +165,7 @@ class PDPBase(GlobalEffectBase):
         """
         centering = helpers.prep_centering(centering)
 
-        if self.refit(feature, centering):
+        if self.requires_refit(feature, centering):
             self.fit(
                 features=feature, centering=centering, use_vectorized=use_vectorized
             )

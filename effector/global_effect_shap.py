@@ -201,7 +201,7 @@ class ShapDP(GlobalEffectBase):
                 s, centering, points_for_centering
             )
             self.is_fitted[s] = True
-            self.method_args["feature_" + str(s)] = {
+            self.fit_args["feature_" + str(s)] = {
                 "centering": centering,
                 "points_for_centering": points_for_centering,
             }
@@ -236,7 +236,7 @@ class ShapDP(GlobalEffectBase):
         """
         centering = helpers.prep_centering(centering)
 
-        if self.refit(feature, centering):
+        if self.requires_refit(feature, centering):
             self.fit(features=feature, centering=centering)
 
         # Check if the lower bound is less than the upper bound

@@ -83,14 +83,14 @@ class GlobalEffectBase(ABC):
         self.is_fitted: np.ndarray = np.ones([self.dim]) < 1
 
         # parameters used when fitting the feature effect
-        self.method_args: dict = {}
+        self.fit_args: dict = {}
 
-        # dictionary with all the information required for plotting or evaluating the feature effect
+        # dict, like {"feature_i": {"quantity_1": value_1, "quantity_2": value_2, ...}} for the i-th
         self.feature_effect: dict = {}
 
     @abstractmethod
     def fit(self, features: Union[int, str, list] = "all", **kwargs) -> None:
-        """Fit the feature effect for the given features.
+        """Fit, i.e., compute the quantities that are necessary for evaluating and plotting the feature effect, for the given features.
 
         Args:
             features: the features to fit. If set to "all", all the features will be fitted.
@@ -108,14 +108,16 @@ class GlobalEffectBase(ABC):
         """
         raise NotImplementedError
 
-    def refit(self, feature, centering):
-        """Checks if refitting is needed."""
+    def requires_refit(self, feature, centering):
+        """Check if refitting is needed
+           TODO: generalize this method using the method_args, instead of centering
+        """
         if not self.is_fitted[feature]:
             return True
         else:
             if centering is not False:
                 if (
-                    self.method_args["feature_" + str(feature)]["centering"]
+                    self.fit_args["feature_" + str(feature)]["centering"]
                     != centering
                 ):
                     return True
@@ -128,6 +130,7 @@ class GlobalEffectBase(ABC):
         xs: np.ndarray,
         heterogeneity: bool = False,
         centering: Union[bool, str] = False,
+        **kwargs,
     ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
 
