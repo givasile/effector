@@ -144,6 +144,11 @@
          members:
            - __init__
 
+## Models
+### ::: effector.models
+      options:
+        show_rooting_heading: False
+        show_symbol_type_toc: True
 
 ## Utils
 ### ::: effector.utils

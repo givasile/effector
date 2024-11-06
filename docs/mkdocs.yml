@@ -3,18 +3,21 @@ site_name: effector
 nav:
   - Home: index.md
   - Installation: installation.md
-  - Global effect: global_effect_intro.md
-  - Regional effect: regional_effect_intro.md
-  - Main Example:
+  - Getting Started:
+    - Global effect: global_effect_intro.md
+    - Regional effect: regional_effect_intro.md
+  - Real Examples:
+      - Bike Sharing: Tutorials/real-examples/01_bike_sharing_dataset.md
+  - Advanced Tutorial (1):
+      - Global Effect: Tutorials/synthetic-examples/05_conditional_interaction_independent_uniform.md
+  - Advanced Tutorial (2):
       - PDP: Tutorials/synthetic-examples/02_regional_pdp.md
       - RHALE: Tutorials/synthetic-examples/02_regional_rhale.md
       - SHAP-DP: Tutorials/synthetic-examples/02_regional_shapdp.md
-  - Synthetic Datasets:
+  - Other Tutorials:
       - Linear Model: Tutorials/synthetic-examples/01_linear_model.md
       - Global Effect - Methods Comparison: Tutorials/synthetic-examples/02_global_effect_methods_comparison.md
       - Regional Effect in depth (b): Tutorials/synthetic-examples/04_regional_effects_real_f.md
-  - Real Datasets:
-      - Bike Sharing: Tutorials/real-examples/01_bike_sharing_dataset.md
   - Guides:
       - Wrap black-models in common ML libraries: Tutorials/Guides/wrap_models.md
   - API: api.md

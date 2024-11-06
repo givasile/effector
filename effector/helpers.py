@@ -1,5 +1,6 @@
 import typing
 import numpy as np
+import re
 
 
 BIG_M = 1e8
@@ -135,3 +136,7 @@ def drop_points_outside_axis_limits(
     data = data[data[:, feature] >= axis_limits[0, feature]]
     data = data[data[:, feature] <= axis_limits[1, feature]]
     return data
+
+def camel_to_snake(name: str) -> str:
+    """Convert CamelCase to snake_case."""
+    return '_'.join(re.findall(r'[A-Z][a-z]*|\d+', name)).lower()
