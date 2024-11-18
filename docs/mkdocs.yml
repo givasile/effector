@@ -6,6 +6,8 @@ nav:
   - Getting Started:
     - Global effect: global_effect_intro.md
     - Regional effect: regional_effect_intro.md
+    - Effector: Tutorials/getting-started/tutorial_effector.md
+    - Methods: tutorial_methods.md
   - Real Examples:
       - Bike Sharing: Tutorials/real-examples/01_bike_sharing_dataset.md
   - Advanced Tutorial (1):

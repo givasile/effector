@@ -53,6 +53,7 @@ venv-update: venv-install-requirements
 docs-update:
 	@source .venv-dev/bin/activate && jupyter nbconvert --to markdown ./notebooks/real-examples/* --output-dir docs/docs/Tutorials/real-examples/
 	@source .venv-dev/bin/activate && jupyter nbconvert --to markdown ./notebooks/synthetic-examples/* --output-dir docs/docs/Tutorials/synthetic-examples/
+	@source .venv-dev/bin/activate && jupyter nbconvert --to markdown ./notebooks/getting-started/* --output-dir docs/docs/Tutorials/getting-started/
 
 docs-serve:
 	@source .venv-dev/bin/activate && cd docs/ && mkdocs serve
