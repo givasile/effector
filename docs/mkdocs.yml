@@ -11,7 +11,9 @@ nav:
   - Real Examples:
       - Bike Sharing: Tutorials/real-examples/01_bike_sharing_dataset.md
   - Advanced Tutorial (1):
-      - Global Effect: Tutorials/synthetic-examples/05_conditional_interaction_independent_uniform.md
+      - Global Effect: Tutorials/synthetic-examples/05_conditional_interaction_independent_uniform_global.md
+      - Heterogeneity: Tutorials/synthetic-examples/05_conditional_interaction_independent_uniform_heter.md
+      - Regional Effect: Tutorials/synthetic-examples/05_conditional_interaction_independent_uniform_regional.md
   - Advanced Tutorial (2):
       - PDP: Tutorials/synthetic-examples/02_regional_pdp.md
       - RHALE: Tutorials/synthetic-examples/02_regional_rhale.md
