@@ -174,24 +174,23 @@ class PDPBase(GlobalEffectBase):
         assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
 
         # new implementation
-        yy = self._predict(self.data, xs, feature, use_vectorized)
-
+        y_ice = self._predict(self.data, xs, feature, use_vectorized)
         if centering:
             norm_consts = np.expand_dims(
                 self.feature_effect["feature_" + str(feature)]["norm_const"], axis=0
             )
-            yy = yy - norm_consts
+            y_ice = y_ice - norm_consts
 
-        y_pdp = np.mean(yy, axis=1)
+        y_mean = np.mean(y_ice, axis=1)
 
         if return_all:
-            return yy
+            return y_ice
 
         if heterogeneity:
-            std = np.std(yy, axis=1)
-            return y_pdp, std
+            y_var = np.var(y_ice, axis=1)
+            return y_mean, y_var
         else:
-            return y_pdp
+            return y_mean
 
     def plot(
         self,

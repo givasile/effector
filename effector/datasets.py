@@ -47,4 +47,5 @@ class IndependentUniform(Base):
         """
         np.random.seed(seed)
         x = np.random.uniform(self.axis_limits[0, :], self.axis_limits[1, :], (n, self.dim))
+        np.random.shuffle(x)
         return x
