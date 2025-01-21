@@ -131,7 +131,7 @@ class GlobalEffectBase(ABC):
         heterogeneity: bool = False,
         centering: Union[bool, str] = False,
         **kwargs,
-    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
 
         Notes:
@@ -155,7 +155,7 @@ class GlobalEffectBase(ABC):
                 - If `centering` is `zero_start`, the PDP starts from `y=0`.
 
         Returns:
-            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std, estimator_var)` otherwise
+            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, heterogeneity)` otherwise
 
         Notes:
             * If `centering` is `False`, the plot is not centered

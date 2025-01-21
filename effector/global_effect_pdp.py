@@ -41,12 +41,9 @@ class PDPBase(GlobalEffectBase):
     def _predict(self, data, xx, feature, use_vectorized=True):
         method = ice_vectorized if use_vectorized else ice_non_vectorized
         if self.method_name == "pdp":
-            y = method(self.model, data, xx, feature, False, False)
+            y = method(self.model, None, data, xx, feature, False)
         else:
-            if self.model_jac is not None:
-                y = method(self.model_jac, self.data, xx, feature, True, False)
-            else:
-                y = method(self.model, self.data, xx, feature, False, True)
+            y = method(self.model, self.model_jac, self.data, xx, feature, True)
         return y
 
     def _fit_feature(
