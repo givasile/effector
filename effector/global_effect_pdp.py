@@ -39,14 +39,14 @@ class PDPBase(GlobalEffectBase):
         )
 
     def _predict(self, data, xx, feature, use_vectorized=True):
-        method = pdp_1d_vectorized if use_vectorized else pdp_1d_non_vectorized
+        method = ice_vectorized if use_vectorized else ice_non_vectorized
         if self.method_name == "pdp":
-            y = method(self.model, data, xx, feature, False, False, True)
+            y = method(self.model, data, xx, feature, False, False)
         else:
             if self.model_jac is not None:
-                y = method(self.model_jac, self.data, xx, feature, False, True, True)
+                y = method(self.model_jac, self.data, xx, feature, True, False)
             else:
-                y = method(self.model, self.data, xx, feature, False, False, True, True)
+                y = method(self.model, self.data, xx, feature, False, True)
         return y
 
     def _fit_feature(
@@ -287,20 +287,36 @@ class PDP(PDPBase):
         Constructor of the PDP class.
 
         Definition:
-            PDP is defined as:
+            PDP:
             $$
-            \hat{f}^{PDP}(x_s) = {1 \over N} \sum_{i=1}^N f(x_s, x_C^{(i)})b
-            $$
-
-            The ICE plots are:
-            $$
-            \hat{f}^{(i)}(x_s) = f(x_s, x_C^{(i)}), \quad i=1, \dots, N
+            PDP(x_s) = {1 \over N} \sum_{i=1}^N f(x_s, \mathbf{x}_c^i)
             $$
 
-            The heterogeneity is:
+            centered-PDP:
             $$
-            \mathcal{H}^{PDP}(x_s) = \sqrt {{1 \over N} \sum_{i=1}^N ( \hat{f}^{(i)}(x_s) - \hat{f}^{PDP}(x_s) )^2}
+            PDP_c(x_s) = PDP(x_s) - c, \quad c = {1 \over M} \sum_{j=1}^M PDP(x_s^j)
             $$
+
+            ICE:
+            $$
+            ICE^i(x_s) = f(x_s, \mathbf{x}_c^i), \quad i=1, \dots, N
+            $$
+
+            centered-ICE:
+            $$
+            ICE_c^i(x_s) = ICE^i(x_s) - c_i, \quad c_i = {1 \over M} \sum_{j=1}^M ICE^i(x_s^j)
+            $$
+
+            heterogeneity function:
+            $$
+            h(x_s) = {1 \over N} \sum_{i=1}^N ( ICE_c^i(x_s) - PDP_c(x_s) )^2
+            $$
+
+            The heterogeneity value is:
+            $$
+            \mathcal{H}(x_s) = {1 \over M} \sum_{j=1}^M h(x_s^j),
+            $$
+            where $x_s^j$ are an equally spaced grid of points in $[x_s^{\min}, x_s^{\max}]$.
 
         Notes:
             The required parameters are `data` and `model`. The rest are optional.
@@ -312,7 +328,7 @@ class PDP(PDPBase):
             model: the black-box model. Must be a `Callable` with:
 
                 - input: `ndarray` of shape `(N, D)`
-                - output: `ndarray` of shape `(N, )`
+                - output: `ndarray` of shape `(N,)`
 
             axis_limits: The limits of the feature effect plot along each axis
 
@@ -369,20 +385,36 @@ class DerPDP(PDPBase):
         Constructor of the DerivativePDP class.
 
         Definition:
-            d-PDP is defined as:
+            d-PDP:
             $$
-            \hat{f}^{d-PDP}(x_s) = {1 \over N} \sum_{i=1}^N {df \over d x_s} (x_s, x_C^i)
-            $$
-
-            The d-ICE plots are:
-            $$
-            \hat{f}^i(x_s) = {df \over d x_s}(x_s, x_C^i), \quad i=1, \dots, N
+            dPDP(x_s) = {1 \over N} \sum_{i=1}^N {\partial f \over \partial x_s}(x_s, \mathbf{x}_c^i)
             $$
 
-            The heterogeneity is:
+            centered-PDP:
             $$
-            \mathcal{H}^{d-PDP}(x_s) = \sqrt {{1 \over N} \sum_{i=1}^N ( \hat{f}^i(x_s) - \hat{f}^{d-PDP}(x_s) )^2}
+            dPDP_c(x_s) = dPDP(x_s) - c, \quad c = {1 \over M} \sum_{j=1}^M dPDP(x_s^j)
             $$
+
+            ICE:
+            $$
+            dICE^i(x_s) = {\partial f \over \partial x_s}(x_s, \mathbf{x}_c^i), \quad i=1, \dots, N
+            $$
+
+            centered-ICE:
+            $$
+            dICE_c^i(x_s) = dICE^i(x_s) - c_i, \quad c_i = {1 \over M} \sum_{j=1}^M dICE^i(x_s^j)
+            $$
+
+            heterogeneity function:
+            $$
+            h(x_s) = {1 \over N} \sum_{i=1}^N ( dICE_c^i(x_s) - dPDP_c(x_s) )^2
+            $$
+
+            The heterogeneity value is:
+            $$
+            \mathcal{H}(x_s) = {1 \over M} \sum_{j=1}^M h(x_s^j),
+            $$
+            where $x_s^j$ are an equally spaced grid of points in $[x_s^{\min}, x_s^{\max}]$.
 
         Notes:
             - The required parameters are `data` and `model`. The rest are optional.
@@ -441,15 +473,13 @@ class DerPDP(PDPBase):
         )
 
 
-def pdp_1d_non_vectorized(
+def ice_non_vectorized(
     model: callable,
+    model_jac: Optional[callable],
     data: np.ndarray,
     x: np.ndarray,
     feature: int,
-    heterogeneity: bool,
-    model_returns_jac: bool,
-    return_all: bool = False,
-    ask_for_derivatives: bool = False,
+    return_d_ice: bool = False,
 ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Computes the unnormalized 1-dimensional PDP, in a non-vectorized way.
 
@@ -463,24 +493,24 @@ def pdp_1d_non_vectorized(
         >>> data = np.random.rand(100, 10)
         >>> x = np.linspace(0.1, 1, 10)
         >>> feature = 0
-        >>> y = pdp_1d_non_vectorized(model, data, x, feature, heterogeneity=False, model_returns_jac=False)
+        >>> y = ice_non_vectorized(model, data, x, feature, heterogeneity=False, model_returns_jac=False)
         >>> (y[1:] - y[:-1]) / (x[1:] - x[:-1])
         array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
         >>> # check the gradient of the PDP of a linear model with heterogeneity
-        >>> dpdp, _, _ = pdp_1d_non_vectorized(model, data, x, feature, heterogeneity=True, model_returns_jac=False, return_all=False, ask_for_derivatives=True)
+        >>> dpdp, _, _ = ice_non_vectorized(model, data, x, feature, heterogeneity=True, model_returns_jac=False, return_all=False, return_d_ice=True)
         >>> dpdp
         array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.])
 
 
     Args:
-        model: The black-box function (N, D) -> (N)
+        model: The black-box function (N, D) -> (N) or the Jacobian wrt the input (N, D) -> (N, D)
         data: The design matrix, (N, D)
         x: positions to evaluate pdp, (T)
         feature: index of the feature of interest
         heterogeneity: whether to also compute the heterogeneity of the PDP
         model_returns_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
         return_all (bool): whether to return all the predictions or only the mean (and std and stderr)
-        ask_for_derivatives (bool): whether to ask the model to return the derivatives wrt the input
+        return_d_ice (bool): whether to ask the model to return the derivatives wrt the input
 
     Returns:
         The PDP values `y` that correspond to `x`, if heterogeneity is False, `(y, std, stderr)` otherwise
@@ -489,48 +519,43 @@ def pdp_1d_non_vectorized(
     nof_instances = x.shape[0]
 
     y_list = []
-    if ask_for_derivatives and not model_returns_jac:
-        for k in range(nof_instances):
-            x_new = copy.deepcopy(data)
-            x_new[:, feature] = x[k] + 1e-6
-            y_1 = model(x_new)
-            x_new[:, feature] = x[k] - 1e-6
-            y_2 = model(x_new)
-            y = (y_1 - y_2) / (2 * 1e-6)
-            y_list.append(y)
-        y = np.array(y_list)
+    if return_d_ice:
+        if model_jac is None:
+            for k in range(nof_instances):
+                x_new = copy.deepcopy(data)
+                x_new[:, feature] = x[k] + 1e-6
+                y_1 = model(x_new)
+                x_new[:, feature] = x[k] - 1e-6
+                y_2 = model(x_new)
+                y = (y_1 - y_2) / (2 * 1e-6)
+                y_list.append(y)
+            y = np.array(y_list)
+        else:
+            for k in range(nof_instances):
+                x_new = copy.deepcopy(data)
+                x_new[:, feature] = x[k]
+                y = model_jac(x_new)[:, feature]
+                y_list.append(y)
+            y = np.array(y_list)
     else:
         for k in range(nof_instances):
             x_new = copy.deepcopy(data)
             x_new[:, feature] = x[k]
-            y = model(x_new)[:, feature] if model_returns_jac else model(x_new)
+            y = model(x_new)
             y_list.append(y)
         y = np.array(y_list)
 
-    mean_pdp = np.mean(y, axis=1)
-    if return_all:
-        return y
+    return y
 
-    if heterogeneity:
-        std = np.std(y, axis=1)
-        sigma_pdp = std
-        stderr = std / np.sqrt(data.shape[0])
-        return mean_pdp, sigma_pdp, stderr
-    else:
-        return mean_pdp
-
-
-def pdp_1d_vectorized(
+def ice_vectorized(
     model: callable,
+    model_jac: Optional[callable],
     data: np.ndarray,
     x: np.ndarray,
     feature: int,
-    heterogeneity: bool,
-    model_returns_jac: bool,
-    return_all: bool = False,
-    ask_for_derivatives: bool = False,
-) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
-    """Computes the unnormalized 1-dimensional PDP, in a vectorized way.
+    return_d_ice: bool = False,
+) -> np.ndarray:
+    """Compute ICE plots (array of shape (T, N)) for each instance in the dataset, in positions `x`.
 
     Notes:
         The vectorized version is faster than the non-vectorized one, but it requires more memory.
@@ -545,22 +570,20 @@ def pdp_1d_vectorized(
         >>> data = np.random.rand(100, 10)
         >>> x = np.linspace(0.1, 1, 10)
         >>> feature = 0
-        >>> y = pdp_1d_vectorized(model, data, x, feature, heterogeneity=False, model_returns_jac=False)
+        >>> y = ice_vectorized(model, None, data, x, feature, return_d_ice=False)
         >>> (y[1:] - y[:-1]) / (x[1:] - x[:-1])
         array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
 
     Args:
         model: The black-box function (N, D) -> (N)
+        model_jac: The black-box function Jacobian (N, D) -> (N, D) or None
         data: The design matrix, (N, D)
         x: positions to evaluate pdp, (T)
         feature: index of the feature of interest
-        heterogeneity: whether to also compute the heterogeneity of the PDP
-        model_returns_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
-        return_all (bool): whether to return all the predictions or only the mean (and std and stderr)
-        ask_for_derivatives (bool): whether to ask the model to return the derivatives wrt the input
+        return_d_ice (bool): whether to ask the model to return the derivatives wrt the input
 
     Returns:
-        The PDP values `y` that correspond to `x`, if heterogeneity is False, `(y, std, stderr)` otherwise
+        y: Array of shape (T, N) with the PDP values that correspond to `x` for each instance in the dataset
 
     """
 
@@ -569,158 +592,34 @@ def pdp_1d_vectorized(
     x_new = np.expand_dims(x_new, axis=0)
     x_new = np.repeat(x_new, x.shape[0], axis=0)
 
-    if ask_for_derivatives and not model_returns_jac:
-        x_new_1 = copy.deepcopy(x_new)
-        x_new_1[:, :, feature] = np.expand_dims(x, axis=-1) + 1e-6
-        x_new_1 = np.reshape(
-            x_new_1, (x_new_1.shape[0] * x_new_1.shape[1], x_new_1.shape[2])
-        )
+    if return_d_ice:
+        if model_jac is None:
+            x_new_1 = copy.deepcopy(x_new)
+            x_new_1[:, :, feature] = np.expand_dims(x, axis=-1) + 1e-6
+            x_new_1 = np.reshape(
+                x_new_1, (x_new_1.shape[0] * x_new_1.shape[1], x_new_1.shape[2])
+            )
 
-        x_new_2 = copy.deepcopy(x_new)
-        x_new_2[:, :, feature] = np.expand_dims(x, axis=-1) - 1e-6
-        x_new_2 = np.reshape(
-            x_new_2, (x_new_2.shape[0] * x_new_2.shape[1], x_new_2.shape[2])
-        )
+            x_new_2 = copy.deepcopy(x_new)
+            x_new_2[:, :, feature] = np.expand_dims(x, axis=-1) - 1e-6
+            x_new_2 = np.reshape(
+                x_new_2, (x_new_2.shape[0] * x_new_2.shape[1], x_new_2.shape[2])
+            )
 
-        y_1 = model(x_new_1)
-        y_2 = model(x_new_2)
-        y = (y_1 - y_2) / (2 * 1e-6)
-        y = np.reshape(y, (x.shape[0], nof_instances))
+            y_1 = model(x_new_1)
+            y_2 = model(x_new_2)
+            y = (y_1 - y_2) / (2 * 1e-6)
+            y = np.reshape(y, (x.shape[0], nof_instances))
+        else:
+            x_new[:, :, feature] = np.expand_dims(x, axis=-1)
+            x_new = np.reshape(x_new, (x_new.shape[0] * x_new.shape[1], x_new.shape[2]))
+            y = model_jac(x_new)[:, feature]
+            y = np.reshape(y, (x.shape[0], nof_instances))
     else:
         x_new[:, :, feature] = np.expand_dims(x, axis=-1)
         x_new = np.reshape(x_new, (x_new.shape[0] * x_new.shape[1], x_new.shape[2]))
-        y = model(x_new)[:, feature] if model_returns_jac else model(x_new)
+        y = model(x_new)
         y = np.reshape(y, (x.shape[0], nof_instances))
-
-    mean_pdp = np.mean(y, axis=1)
-    if return_all:
-        return y
-
-    if heterogeneity:
-        std = np.std(y, axis=1)
-        sigma_pdp = std
-        stderr = std / np.sqrt(data.shape[0])
-        return mean_pdp, sigma_pdp, stderr
-    else:
-        return mean_pdp
+    return y
 
 
-# TODO: check this implementation
-def pdp_nd_non_vectorized(
-    model: callable,
-    data: np.ndarray,
-    x: np.ndarray,
-    features: list,
-    heterogeneity: bool,
-    is_jac: bool,
-) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
-    """Computes the unnormalized n-dimensional PDP, in a non-vectorized way.
-
-    Args:
-        model (callable): model to be explained
-        data (np.ndarray): dataset, shape (N, D)
-        x (np.ndarray): values of the features to be explained, shape (K, D)
-        features (list): indices of the features to be explained
-        heterogeneity (bool): whether to compute the heterogeneity of the PDP
-        is_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
-
-    Returns:
-        if heterogeneity is False:
-            np.ndarray: unnormalized n-dimensional PDP
-        if heterogeneity is True:
-            a tuple of three np.ndarray: (unnormalized n-dimensional PDP, standard deviation, standard error)
-    """
-    assert len(features) == x.shape[1]
-
-    # nof positions to evaluate the PDP
-    K = x.shape[0]
-
-    mean_pdp = []
-    sigma_pdp = []
-    stderr = []
-    for k in range(K):
-        # take all dataset
-        x_new = copy.deepcopy(data)
-
-        # set the features of all datapoints to the values of the k-th position
-        for j, feat in features:
-            x_new[:, feat] = x[k, j]
-
-        # compute the prediction or the Jacobian wrt the input
-        y = model(x_new)[:, features] if is_jac else model(x_new)
-
-        # compute the mean of the prediction or the Jacobian wrt the input
-        mean_pdp.append(np.mean(y))
-
-        # if uncertaitny, compute also the std and the stderr
-        if heterogeneity:
-            std = np.std(y)
-            sigma_pdp.append(std)
-            stderr.append(std / np.sqrt(data.shape[0]))
-    return (
-        (np.array(mean_pdp), np.array(sigma_pdp), np.array(stderr))
-        if heterogeneity
-        else np.array(mean_pdp)
-    )
-
-
-# TODO: check this implementation
-def pdp_nd_vectorized(
-    model: callable,
-    data: np.ndarray,
-    x: np.ndarray,
-    features: list,
-    heterogeneity: bool,
-    model_returns_jac: bool,
-) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray, np.ndarray]]:
-    """Computes the unnormalized n-dimensional PDP, in a vectorized way.
-
-    Notes:
-        The vectorized version is faster than the non-vectorized one, but it requires more memory.
-        Be careful when using it with large datasets, since it creates an internal dataset of shape (T, N, D)
-        where T is the number of positions to evaluate the PDP, N is the number of instances in the dataset
-        and D is the number of features.
-
-    Examples:
-        >>> # check the gradient of the PDP of a linear model
-        >>> import numpy as np
-        >>> model = lambda x: x
-        >>> data = np.random.rand(100, 10)
-        >>> x = np.stack([np.linspace(0.1, 1, 10)] * 2, axis=-1)
-        >>> x.shape[1]
-        >>> features = [0, 1]
-        >>> y = pdp_nd_vectorized(model, data, x, features, heterogeneity=False, model_returns_jac=False)
-        >>> (y[1:] - y[:-1]) / (x[1:] - x[:-1])
-        array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
-
-    Args:
-        model: The black-box function (N, D) -> (N)
-        data: The design matrix, (N, D)
-        x: positions to evaluate pdp, (T)
-        features: indices of the features of interest
-        heterogeneity: whether to also compute the heterogeneity of the PDP
-        model_returns_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
-
-    Returns:
-        The PDP values `y` that correspond to `x`, if heterogeneity is False, `(y, std, stderr)` otherwise
-
-    """
-
-    assert len(features) == x.shape[1]
-    nof_instances = data.shape[0]
-    x_new = copy.deepcopy(data)
-    x_new = np.expand_dims(x_new, axis=0)
-    x_new = np.repeat(x_new, x.shape[0], axis=0)
-    for j in range(len(features)):
-        x_new[:, :, features[j]] = np.expand_dims(x[:, j], axis=-1)
-    x_new = np.reshape(x_new, (x_new.shape[0] * x_new.shape[1], x_new.shape[2]))
-    y = model(x_new)[:, features] if model_returns_jac else model(x_new)
-    y = np.reshape(y, (x.shape[0], nof_instances))
-    mean_pdp = np.mean(y, axis=1)
-    if heterogeneity:
-        std = np.std(y, axis=1)
-        sigma_pdp = std
-        stderr = std / np.sqrt(data.shape[0])
-        return (mean_pdp, sigma_pdp, stderr)
-    else:
-        return mean_pdp

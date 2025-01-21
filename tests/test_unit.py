@@ -30,7 +30,7 @@ def test_pdp_1d_vectorized():
     x = np.linspace(0, 1, T)
 
     # test the finite difference version
-    data_effect = effector.global_effect_pdp.pdp_1d_vectorized(
+    data_effect = effector.global_effect_pdp.ice_vectorized(
         model,
         data,
         x,
@@ -38,13 +38,13 @@ def test_pdp_1d_vectorized():
         heterogeneity=False,
         model_returns_jac=False,
         return_all=False,
-        ask_for_derivatives=True)
+        return_d_ice=True)
 
     diff = np.abs(data_effect - 2 * x)
     assert np.all(diff < 1e-6)
 
     # test the jacobian version
-    data_effect = effector.global_effect_pdp.pdp_1d_vectorized(
+    data_effect = effector.global_effect_pdp.ice_vectorized(
         model_jac,
         data,
         x,
@@ -52,13 +52,13 @@ def test_pdp_1d_vectorized():
         heterogeneity=False,
         model_returns_jac=True,
         return_all=False,
-        ask_for_derivatives=True)
+        return_d_ice=True)
 
     diff = np.abs(data_effect - 2 * x)
     assert np.all(diff < 1e-6)
 
     # test the pdp version
-    data_effect = effector.global_effect_pdp.pdp_1d_vectorized(
+    data_effect = effector.global_effect_pdp.ice_vectorized(
         model,
         data,
         x,
@@ -66,7 +66,7 @@ def test_pdp_1d_vectorized():
         heterogeneity=False,
         model_returns_jac=False,
         return_all=False,
-        ask_for_derivatives=False)
+        return_d_ice=False)
 
     diff = np.abs(data_effect - x**2)
     assert np.all(diff < 1e-6)
