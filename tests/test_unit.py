@@ -1,4 +1,6 @@
 import numpy as np
+from pandas.core.ops import make_flex_doc
+
 import effector
 
 
@@ -29,46 +31,46 @@ def test_pdp_1d_vectorized():
 
     x = np.linspace(0, 1, T)
 
-    # test the finite difference version
-    data_effect = effector.global_effect_pdp.ice_vectorized(
-        model,
-        data,
-        x,
-        feature=1,
-        heterogeneity=False,
-        model_returns_jac=False,
-        return_all=False,
-        return_d_ice=True)
+    # test the pdp version
+    yy = effector.global_effect_pdp.ice_vectorized(
+        model=model,
+        model_jac=None,
+        data=data,
+        x=x,
+        feature=1
+    )
 
-    diff = np.abs(data_effect - 2 * x)
+    # ground truth
+    yy_gt = np.stack([x**2 for _ in range(N + 1)], axis=1)
+    diff = np.abs(yy - yy_gt)
+
     assert np.all(diff < 1e-6)
 
     # test the jacobian version
-    data_effect = effector.global_effect_pdp.ice_vectorized(
-        model_jac,
-        data,
-        x,
+    yy = effector.global_effect_pdp.ice_vectorized(
+        model=model,
+        model_jac=model_jac,
+        data=data,
+        x=x,
         feature=1,
-        heterogeneity=False,
-        model_returns_jac=True,
-        return_all=False,
-        return_d_ice=True)
+        return_d_ice=True
+    )
 
-    diff = np.abs(data_effect - 2 * x)
+    yy_gt = np.stack([2*x for _ in range(N + 1)], axis=1)
+    diff = np.abs(yy_gt - yy)
     assert np.all(diff < 1e-6)
 
-    # test the pdp version
-    data_effect = effector.global_effect_pdp.ice_vectorized(
-        model,
-        data,
-        x,
+    # test the finite difference version
+    yy = effector.global_effect_pdp.ice_vectorized(
+        model=model,
+        model_jac=None,
+        data=data,
+        x=x,
         feature=1,
-        heterogeneity=False,
-        model_returns_jac=False,
-        return_all=False,
-        return_d_ice=False)
-
-    diff = np.abs(data_effect - x**2)
+        return_d_ice=True,
+    )
+    yy_gt = np.stack([2*x for _ in range(N + 1)], axis=1)
+    diff = np.abs(yy - yy_gt)
     assert np.all(diff < 1e-6)
 
 
