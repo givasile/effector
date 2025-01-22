@@ -1,11 +1,10 @@
 import typing
-from typing import Callable, List, Optional, Union, Tuple
+from typing import Callable, List, Optional, Union
 import copy
 import numpy as np
 import effector.visualization as vis
 import effector.helpers as helpers
 from effector.global_effect import GlobalEffectBase
-import matplotlib.pyplot as plt
 
 
 class PDPBase(GlobalEffectBase):
@@ -501,16 +500,14 @@ def ice_non_vectorized(
 
     Args:
         model: The black-box function (N, D) -> (N) or the Jacobian wrt the input (N, D) -> (N, D)
+        model_jac: The black-box function Jacobian (N, D) -> (N, D) or None
         data: The design matrix, (N, D)
         x: positions to evaluate pdp, (T)
         feature: index of the feature of interest
-        heterogeneity: whether to also compute the heterogeneity of the PDP
-        model_returns_jac (bool): whether the model returns the prediction (False) or the Jacobian wrt the input (True)
-        return_all (bool): whether to return all the predictions or only the mean (and std and stderr)
-        return_d_ice (bool): whether to ask the model to return the derivatives wrt the input
+        return_d_ice (bool): whether to return the derivatives wrt the input
 
     Returns:
-        The PDP values `y` that correspond to `x`, if heterogeneity is False, `(y, std, stderr)` otherwise
+        y: Array of shape (T, N) with the PDP values that correspond to `x` for each instance in the dataset
 
     """
     nof_instances = x.shape[0]
