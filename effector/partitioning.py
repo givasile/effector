@@ -458,13 +458,14 @@ class Node:
             info: dict,
             level: int,
     ):
-        """
+        """A node in the tree.
 
         Args:
             idx: Index, unique for each node in the tree
             name: Name of the node, e.g. "x1 | x2 <= 0.5"
             parent_node: Parent node
             info: A dictionary with the following keys
+
                 - heterogeneity: Heterogeneity of the node
                 - weight: Weight of the node
                 - position: float, position of conditioning, e.g. 0.5

@@ -132,6 +132,15 @@
               - predict
               - plot
 
+### ::: effector.partitioning.Node
+            options:
+                show_root_heading: True
+                show_symbol_type_toc: True
+                members:
+                - __init__
+                - show
+
+
 ## Binning Methods
 ### ::: effector.binning_methods.Fixed
        options:
