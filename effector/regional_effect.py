@@ -162,8 +162,8 @@ class RegionalEffectBase:
         node = [node for node in tree.nodes if node.idx == node_idx][0]
 
         # get data
-        data = node.data["data"]
-        data_effect = node.data["data_effect"]
+        data = node.info["data"]
+        data_effect = node.info["data_effect"]
         name = node.name
         return data, data_effect, name
 

@@ -22,19 +22,24 @@ X = np.random.uniform(-1, 1, (N, D))
 
 #%%
 # ALE
-ale = effector.ALE(
+ale = effector.RegionalALE(
     data=X,
     model=f,
     feature_names=["x1", "x2", "x3"],
-    nof_instances=M,
-    axis_limits=None,
-    avg_output=None,
+    nof_instances=N,
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]),
     target_name="y"
 )
-binning_method = effector.binning_methods.Fixed(10)
-ale.fit(features="all", binning_method=binning_method)
-y, h = ale.eval(feature=0, xs=np.linspace(-1, 1, 1000), heterogeneity=True, centering=True)
 
-import matplotlib.pyplot as plt
-plt.plot(np.linspace(-1, 1, 1000), h)
-plt.show()
+ale.fit(features=0)
+ale.tree_full["feature_0"]
+
+
+
+# binning_method = effector.binning_methods.Fixed(10)
+# ale.fit(features="all", binning_method=binning_method)
+# y, h = ale.eval(feature=0, xs=np.linspace(-1, 1, 1000), heterogeneity=True, centering=True)
+#
+# import matplotlib.pyplot as plt
+# plt.plot(np.linspace(-1, 1, 1000), h)
+# plt.show()

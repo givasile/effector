@@ -450,47 +450,75 @@ class Regions:
 
 
 class Node:
-    def __init__(self, idx, name, parent_node, data, level):
+    def __init__(
+            self,
+            idx: int,
+            name: str,
+            parent_node: typing.Union[None, "Node"],
+            info: dict,
+            level: int,
+    ):
+        """
+
+        Args:
+            idx: Index, unique for each node in the tree
+            name: Name of the node, e.g. "x1 | x2 <= 0.5"
+            parent_node: Parent node
+            info: A dictionary with the following keys
+                - heterogeneity: Heterogeneity of the node
+                - weight: Weight of the node
+                - position: float, position of conditioning, e.g. 0.5
+                - feature: index (zero-based) of the feature of conditioning, e.g. 1
+                - feature_type: type of the feature of conditioning, e.g. "cont" or "cat"
+                - range: list with two elements, min and max of the feature of conditioning
+                - candidate_split_positions: list with the candidate split positions
+                - nof_instances: Number of instances in the node
+                - data: the data in the node
+                - data_effect: the effect data in the node
+                - comparison: the comparison operator, e.g. "<="
+            level: Level of the node in the tree
+        """
         self.idx = idx
         self.name = name
         self.parent_node = parent_node
-        self.data = data
+        self.info = info
         self.level = level
 
-        self.heterogeneity = data["heterogeneity"]
-        self.weight = data["weight"]
-        self.nof_instances = data["nof_instances"]
+        self.heterogeneity = info.get("heterogeneity")
+        self.weight = info.get("weight")
+        self.nof_instances = info.get("nof_instances")
 
-        self.foc = data["feature"] if "feature" in data else None
-        self.foc_type = data["feature_type"] if "feature_type" in data else None
-        self.foc_position = data["position"] if "position" in data else None
-        self.comparison = data["comparison"] if "comparison" in data else None
-        self.candidate_split_positions = (
-            data["candidate_split_positions"]
-            if "candidate_split_positions" in data
-            else None
-        )
-        self.range = data["range"] if "range" in data else None
+        self.foc_index = info.get("feature")
+        self.foc_type = info.get("feature_type")
+        self.foc_position = info.get("position")
+        self.foc_comparison_operator = info.get("comparison")
+        self.foc_candidate_split_values = info.get("candidate_split_positions")
+        self.foc_range = info.get("range")
 
-    def show(self, show_data=False):
+    def show(self, show_extensive_info: bool = False):
+        """
+
+        Args:
+            show_extensive_info: Whether to show extensive information, e.g. candidate split positions,
+
+        Returns:
+
+        """
         print("Node id: ", self.idx)
         print("name: ", self.name)
-        print(
-            "parent name: ",
-            self.parent_node.name if self.parent_node is not None else None,
-        )
+        print("parent name: ", getattr(self.parent_node, "name", None))
         print("level: ", self.level)
 
         print("heterogeneity: ", self.heterogeneity)
         print("weight: ", self.weight)
         print("nof_instances: ", self.nof_instances)
 
-        print("foc: ", self.foc)
+        print("foc_index: ", self.foc_index)
         print("foc_type: ", self.foc_type)
         print("foc_position: ", self.foc_position)
-        print("comparison: ", self.comparison)
+        print("fox_comparison_operator: ", self.foc_comparison_operator)
 
-        print("data: ", self.data) if show_data else None
+        print("info: ", self.info) if show_extensive_info else None
 
 
 class Tree:
