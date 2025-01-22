@@ -547,7 +547,13 @@ class Tree:
             name = new_string
         return name
 
-    def add_node(self, name, parent_name, data, level):
+    def add_node(
+            self,
+            name: str,
+            parent_name: typing.Union[None, str],
+            data: dict,
+            level: int
+            ):
         if parent_name is None:
             parent_node = None
         else:
