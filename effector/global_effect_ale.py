@@ -98,14 +98,15 @@ class ALEBase(GlobalEffectBase):
             x, limits=params["limits"], bin_effect=params["bin_effect"], dx=params["dx"]
         )
         if heterogeneity:
-            std = utils.compute_accumulated_effect(
-                x,
-                limits=params["limits"],
-                bin_effect=np.sqrt(params["bin_variance"]),
-                dx=params["dx"],
-            )
+            var = utils.apply_bin_value(x=x, bin_limits=params["limits"], bin_value=params["bin_variance"])
+            # std = utils.compute_accumulated_effect(
+            #     x,
+            #     limits=params["limits"],
+            #     bin_effect=np.sqrt(params["bin_variance"]),
+            #     dx=params["dx"],
+            # )
 
-            return y, std
+            return y, var
         else:
             return y
 
@@ -115,7 +116,7 @@ class ALEBase(GlobalEffectBase):
         xs: np.ndarray,
         heterogeneity: bool = False,
         centering: typing.Union[bool, str] = False,
-    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray]]:
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """Evalueate the (RH)ALE feature effect of feature `feature` at points `xs`.
 
         Notes:

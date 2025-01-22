@@ -276,6 +276,42 @@ def fill_nans(x: np.ndarray) -> np.ndarray:
     return bin_effect_1
 
 
+def apply_bin_value(
+        x: np.ndarray,
+        bin_limits: np.ndarray,
+        bin_value: np.ndarray,
+):
+    """Apply the bin effect to the points.
+
+    Args:
+        x: A np.array of points, shape (T,)
+        bin_limits: The bin limits, shape (K+1,)
+        bin_value: The bin value, shape (K,)
+
+    Returns:
+
+    """
+    # assertions
+    assert x.ndim == 1
+    assert bin_limits.ndim == 1
+    assert bin_value.ndim == 1
+    assert bin_value.shape[0] == bin_limits.shape[0] - 1
+
+    # find where each point belongs to
+    ind = np.digitize(x, bin_limits)
+
+    # add the first and last bin value to the bin value
+    bin_value = np.concatenate(
+        [
+            bin_value[0, np.newaxis],
+            bin_value,
+            bin_value[-1, np.newaxis]
+        ]
+    )
+
+    # for each point return the bin effect
+    return bin_value[ind]
+
 def compute_accumulated_effect(
     x: np.ndarray,
     limits: np.ndarray,

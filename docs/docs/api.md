@@ -121,6 +121,16 @@
                 - __init__
                 - fit
 
+## Subregion Detection Methods
+### ::: effector.partitioning.Regions
+         options:
+            show_root_heading: True
+            show_symbol_type_toc: True
+            members:
+              - __init__
+              - fit
+              - predict
+              - plot
 
 ## Binning Methods
 ### ::: effector.binning_methods.Fixed

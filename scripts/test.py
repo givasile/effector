@@ -21,33 +21,20 @@ M = 1_000
 X = np.random.uniform(-1, 1, (N, D))
 
 #%%
-# Global effect PDP - more control
-pdp = effector.PDP(
-    X,
-    f,
-    nof_instances="all"
+# ALE
+ale = effector.ALE(
+    data=X,
+    model=f,
+    feature_names=["x1", "x2", "x3"],
+    nof_instances=M,
+    axis_limits=None,
+    avg_output=None,
+    target_name="y"
 )
+binning_method = effector.binning_methods.Fixed(10)
+ale.fit(features="all", binning_method=binning_method)
+y, h = ale.eval(feature=0, xs=np.linspace(-1, 1, 1000), heterogeneity=True, centering=True)
 
-tic = timeit.default_timer()
-pdp.fit(
-    features="all",
-    centering="zero_integral",
-    points_for_centering=M,
-    use_vectorized=True
-)
-toc = timeit.default_timer()
-
-print(f"Time: {toc - tic:.2f} s")
-
-
-#%%
-tic = timeit.default_timer()
-pdp.fit(
-    features="all",
-    centering="zero_integral",
-    points_for_centering=M,
-    use_vectorized=False
-)
-toc = timeit.default_timer()
-
-print(f"Time: {toc - tic:.2f} s")
+import matplotlib.pyplot as plt
+plt.plot(np.linspace(-1, 1, 1000), h)
+plt.show()
