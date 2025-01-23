@@ -39,6 +39,38 @@ scale_x_list = [
 
 tree.show_full_tree(None, scale_x_list)
 
+
+ale.summary(features=0, only_important=True, scale_x_list=scale_x_list)
+
+ale.plot(
+    feature=0,
+    node_idx=0,
+    heterogeneity=True
+)
+
+ale.plot(
+    feature=0,
+    node_idx=1,
+    heterogeneity=True
+)
+
+
+ale.plot(
+    feature=0,
+    node_idx=3,
+    heterogeneity=True
+)
+
+ale.plot(
+    feature=0,
+    node_idx=6,
+    heterogeneity=True,
+    scale_x_list=scale_x_list
+)
+
+
+
+
 # binning_method = effector.binning_methods.Fixed(10)
 # ale.fit(features="all", binning_method=binning_method)
 # y, h = ale.eval(feature=0, xs=np.linspace(-1, 1, 1000), heterogeneity=True, centering=True)
