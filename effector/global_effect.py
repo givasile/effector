@@ -89,38 +89,60 @@ class GlobalEffectBase(ABC):
         self.feature_effect: dict = {}
 
     @abstractmethod
-    def fit(self, features: Union[int, str, list] = "all", **kwargs) -> None:
+    def fit(
+            self,
+            features: Union[int, str, list] = "all",
+            centering: Union[bool, str] = False,
+            **kwargs
+    ) -> None:
         """Fit, i.e., compute the quantities that are necessary for evaluating and plotting the feature effect, for the given features.
 
         Args:
             features: the features to fit. If set to "all", all the features will be fitted.
+            centering: whether to center the feature effect plot
+
+                    - If `centering` is `False`, the plot is not centered
+                    - If `centering` is `True` or `zero_integral`, the plot is centered around the `y` axis.
+                    - If `centering` is `zero_start`, the plot starts from zero.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def plot(self, feature: int, *args) -> None:
+    def plot(
+            self,
+            feature: int,
+            heterogeneity: Union[bool, str] = False,
+            centering: Union[bool, str] = False,
+            **kwargs
+    ) -> None:
         """
 
         Parameters
         ----------
         feature: index of the feature to plot
-        *args: all other plot-specific arguments
+        heterogeneity: whether to plot the heterogeneity measures
+
+            - If `heterogeneity=False`, the plot shows only the mean effect
+            - If `heterogeneity=True`, the plot additionally shows the heterogeneity with the default visualization, e.g., ICE plots for PDPs
+            - If `heterogeneity=<str>`, the plot shows the heterogeneity using the specified method
+
+        centering: whether to center the PDP
+
+                - If `centering` is `False`, the PDP not centered
+                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
+                - If `centering` is `zero_start`, the PDP starts from `y=0`.
+        **kwargs: all other plot-specific arguments
         """
         raise NotImplementedError
 
     def requires_refit(self, feature, centering):
         """Check if refitting is needed
-           TODO: generalize this method using the method_args, instead of centering
         """
         if not self.is_fitted[feature]:
             return True
         else:
-            if centering is not False:
-                if (
-                    self.fit_args["feature_" + str(feature)]["centering"]
-                    != centering
-                ):
-                    return True
+            if centering is not False and centering != self.fit_args["feature_" + str(feature)]["centering"]:
+                return True
         return False
 
     @abstractmethod
