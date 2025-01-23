@@ -1,5 +1,4 @@
 import numpy as np
-import effector.binning_methods as binning_methods
 import effector.helpers as helpers
 import effector.utils as utils
 from effector.partitioning import Regions, Tree
@@ -8,7 +7,6 @@ from effector.global_effect_pdp import PDP, DerPDP
 from effector.global_effect_shap import ShapDP
 import typing
 from typing import Callable, Optional, Union, List
-from tqdm import tqdm
 import copy
 
 BIG_M = helpers.BIG_M
@@ -84,8 +82,6 @@ class RegionalEffectBase:
         self.partitioners: typing.Dict[str, Regions] = {}
         self.tree_full: typing.Dict[str, Tree] = {}
         self.tree_pruned: typing.Dict[str, Tree] = {}
-        self.tree_full_scaled: typing.Dict[str, Tree] = {}
-        self.tree_pruned_scaled: typing.Dict[str, Tree] = {}
 
     def _fit_feature(
         self,
@@ -136,36 +132,6 @@ class RegionalEffectBase:
     def refit(self, feature):
         if not self.is_fitted[feature]:
             self.fit(feature)
-
-    def get_node_info(self, feature, node_idx):
-        assert self.is_fitted[feature], "Feature {} has not been fitted yet".format(
-            feature
-        )
-        assert (
-            self.tree_pruned["feature_{}".format(feature)] is not None
-        ), "Feature {} has no splits".format(feature)
-
-        if (
-            self.tree_pruned_scaled is not None
-            and "feature_{}".format(feature) in self.tree_pruned_scaled.keys()
-        ):
-            tree = self.tree_pruned_scaled["feature_{}".format(feature)]
-        else:
-            tree = self.tree_pruned["feature_{}".format(feature)]
-
-        # assert node id exists
-        assert node_idx in [
-            node.idx for node in tree.nodes
-        ], "Node {} does not exist".format(node_idx)
-
-        # find the node
-        node = [node for node in tree.nodes if node.idx == node_idx][0]
-
-        # get data
-        data = node.info["data"]
-        data_effect = node.info["data_effect"]
-        name = node.name
-        return data, data_effect, name
 
     def _create_fe_object(self, feature, node_idx, scale_x_list):
         feature_tree = self.tree_pruned["feature_{}".format(feature)]
