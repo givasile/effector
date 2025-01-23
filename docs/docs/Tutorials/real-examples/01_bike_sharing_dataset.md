@@ -517,10 +517,8 @@ regional_rhale.fit(
 
     100%|██████████| 1/1 [00:09<00:00,  9.37s/it]
 
-
-
 ```python
-regional_rhale.show_partitioning(features=3, only_important=True, scale_x_list=scale_x_list)
+regional_rhale.summary(features=3, only_important=True, scale_x_list=scale_x_list)
 ```
 
     Feature 3 - Full partition tree:
@@ -578,10 +576,8 @@ regional_pdp.fit(
 
     100%|██████████| 1/1 [00:04<00:00,  4.02s/it]
 
-
-
 ```python
-regional_pdp.show_partitioning(features=3, only_important=True, scale_x_list=scale_x_list)
+regional_pdp.summary(features=3, only_important=True, scale_x_list=scale_x_list)
 ```
 
     Feature 3 - Full partition tree:

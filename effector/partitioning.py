@@ -529,29 +529,9 @@ class Tree:
         self.nodes = []
         self.idx = 0
 
-    def rename_nodes(self, scale_x_per_feature):
-        nodes = self.nodes
-
-        for node in nodes:
-            node.name = self._rename_node(node.name, scale_x_per_feature)
-
-    def _rename_node(self, name, scale):
-        pattern = r"(x_\d+) (==|!=|<=|<|>=|>) ([\d\.]+)"
-        for match in re.finditer(pattern, name):
-            var_name = match.group(1)
-            symb = match.group(2)
-            orig_value = match.group(3)
-            feat_i = int(var_name[2:])
-            std = scale["feature_" + str(feat_i)]["std"]
-            mean = scale["feature_" + str(feat_i)]["mean"]
-            scaled_value = std * float(orig_value) + mean
-            new_string = name.replace(orig_value, str(scaled_value))
-            name = new_string
-        return name
-
     def scale_node_name(self, name, scale_x_list):
 
-        node = self.get_node(name)
+        node = self.get_node_by_name(name)
 
         # get all parents
         parents = []
@@ -572,13 +552,13 @@ class Tree:
                     foc = parent.info["feature"]
                     foc_name = parent.info["foc_name"]
                     pos = parent.info["position"]
-                    scaled_pos = scale_x_list[foc]["std"] * pos + scale_x_list[foc]["mean"]
+                    scaled_pos = scale_x_list[foc]["std"] * pos + scale_x_list[foc]["mean"] if scale_x_list is not None else pos
                     conditioning_string = "{} {} {:.2f} and ".format(foc_name, parent.info["comparison"], scaled_pos)
                     new_name = new_name + conditioning_string
             foc = node.info["feature"]
             foc_name = node.info["foc_name"]
             pos = node.info["position"]
-            scaled_pos = scale_x_list[foc]["std"] * pos + scale_x_list[foc]["mean"]
+            scaled_pos = scale_x_list[foc]["std"] * pos + scale_x_list[foc]["mean"] if scale_x_list is not None else pos
             conditioning_string = "{} {} {:.2f}".format(foc_name, node.info["comparison"], scaled_pos)
             new_name = new_name + conditioning_string
         return new_name
@@ -594,17 +574,25 @@ class Tree:
             parent_node = None
         else:
             assert parent_name in [node.name for node in self.nodes]
-            parent_node = self.get_node(parent_name)
+            parent_node = self.get_node_by_name(parent_name)
 
         idx = self.idx
         self.idx += 1
         node = Node(idx, name, parent_node, data, level)
         self.nodes.append(node)
 
-    def get_node(self, name):
+    def get_node_by_name(self, name):
         node = None
         for node_i in self.nodes:
             if node_i.name == name:
+                node = node_i
+                break
+        return node
+
+    def get_node_by_idx(self, idx):
+        node = None
+        for node_i in self.nodes:
+            if node_i.idx == idx:
                 node = node_i
                 break
         return node

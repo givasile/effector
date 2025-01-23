@@ -162,44 +162,17 @@ class RegionalRHALE(RegionalEffectBase):
 
         # get data from the node
         self.refit(feature)
-
-        if scale_x_list is not None:
-            self.tree_full_scaled["feature_{}".format(feature)] = self.partitioners[
-                "feature_{}".format(feature)
-            ].splits_to_tree(False, scale_x_list)
-            self.tree_pruned_scaled["feature_{}".format(feature)] = self.partitioners[
-                "feature_{}".format(feature)
-            ].splits_to_tree(True, scale_x_list)
-
-        data, data_effect, name = self.get_node_info(feature, node_idx)
-        feature_names = copy.deepcopy(self.feature_names)
-        feature_names[feature] = name
-
-        # define the method and fit
-        self.method_args["feature_" + str(feature)]["heterogeneity"] = heterogeneity
-        rhale = RHALE(
-            data,
-            self.model,
-            self.model_jac,
-            self.nof_instances,
-            None,
-            data_effect,
-            feature_names=feature_names,
-        )
-        binning_method = prep_binning_method(
-            self.method_args["feature_" + str(feature)]["binning_method"]
-        )
-        rhale.fit(features=feature, binning_method=binning_method, centering=centering)
-        scale_x = scale_x_list[feature] if scale_x_list is not None else None
-        rhale.plot(
+        re_method = self._create_fe_object(feature, node_idx=node_idx, scale_x_list=scale_x_list)
+        re_method.plot(
             feature=feature,
             heterogeneity=heterogeneity,
             centering=centering,
-            scale_x=scale_x,
+            scale_x=scale_x_list[feature] if scale_x_list is not None else None,
             scale_y=scale_y,
             y_limits=y_limits,
             dy_limits=dy_limits,
         )
+
 
 
 class RegionalALE(RegionalEffectBase):
@@ -340,40 +313,12 @@ class RegionalALE(RegionalEffectBase):
 
         # get data from the node
         self.refit(feature)
-
-        if scale_x_list is not None:
-            self.tree_full_scaled["feature_{}".format(feature)] = self.partitioners[
-                "feature_{}".format(feature)
-            ].splits_to_tree(False, scale_x_list)
-            self.tree_pruned_scaled["feature_{}".format(feature)] = self.partitioners[
-                "feature_{}".format(feature)
-            ].splits_to_tree(True, scale_x_list)
-
-        data, data_effect, name = self.get_node_info(feature, node_idx)
-        feature_names = copy.deepcopy(self.feature_names)
-        feature_names[feature] = name
-
-        # define the method and fit
-        self.method_args["feature_" + str(feature)]["heterogeneity"] = heterogeneity
-        rhale = RHALE(
-            data,
-            self.model,
-            self.model_jac,
-            self.nof_instances,
-            None,
-            data_effect,
-            feature_names=feature_names,
-        )
-        binning_method = prep_binning_method(
-            self.method_args["feature_" + str(feature)]["binning_method"]
-        )
-        rhale.fit(features=feature, binning_method=binning_method, centering=centering)
-        scale_x = scale_x_list[feature] if scale_x_list is not None else None
-        rhale.plot(
+        re_method = self._create_fe_object(feature, node_idx=node_idx, scale_x_list=scale_x_list)
+        re_method.plot(
             feature=feature,
             heterogeneity=heterogeneity,
             centering=centering,
-            scale_x=scale_x,
+            scale_x=scale_x_list[feature] if scale_x_list is not None else None,
             scale_y=scale_y,
             y_limits=y_limits,
             dy_limits=dy_limits,

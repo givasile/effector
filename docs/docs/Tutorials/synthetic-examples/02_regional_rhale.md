@@ -165,10 +165,8 @@ regional_rhale.fit(
 
     100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00,  5.44it/s]
 
-
-
 ```python
-regional_rhale.show_partitioning(features=0)
+regional_rhale.summary(features=0)
 ```
 
     Feature 0 - Full partition tree:
@@ -196,12 +194,9 @@ regional_rhale.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, 
 
     
 ![png](02_regional_rhale_files/02_regional_rhale_14_1.png)
-    
-
-
 
 ```python
-regional_rhale.show_partitioning(features=1)
+regional_rhale.summary(features=1)
 ```
 
     Feature 1 - Full partition tree:
@@ -210,10 +205,8 @@ regional_rhale.show_partitioning(features=1)
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.00
 
-
-
 ```python
-regional_rhale.show_partitioning(features=2)
+regional_rhale.summary(features=2)
 ```
 
     Feature 2 - Full partition tree:
@@ -299,10 +292,8 @@ regional_rhale.fit(
 
     100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00,  5.57it/s]
 
-
-
 ```python
-regional_rhale.show_partitioning(features=0)
+regional_rhale.summary(features=0)
 ```
 
     Feature 0 - Full partition tree:
@@ -311,10 +302,8 @@ regional_rhale.show_partitioning(features=0)
     Feature 0 - Statistics per tree level:
     Level 0, heter: 0.00
 
-
-
 ```python
-regional_rhale.show_partitioning(features=1)
+regional_rhale.summary(features=1)
 ```
 
     Feature 1 - Full partition tree:
@@ -323,10 +312,8 @@ regional_rhale.show_partitioning(features=1)
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.00
 
-
-
 ```python
-regional_rhale.show_partitioning(features=2)
+regional_rhale.summary(features=2)
 ```
 
     Feature 2 - Full partition tree:

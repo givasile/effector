@@ -581,10 +581,8 @@ regional_pdp.fit(features="all", heter_pcg_drop_thres=0.3, nof_candidate_splits_
 
     100%|██████████| 3/3 [00:00<00:00,  5.94it/s]
 
-
-
 ```python
-regional_pdp.show_partitioning(features=0)
+regional_pdp.summary(features=0)
 ```
 
     Feature 0 - Full partition tree:
@@ -612,12 +610,9 @@ regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", y_limits=[-5, 5])
 
     
 ![png](04_regional_effects_real_f_files/04_regional_effects_real_f_14_1.png)
-    
-
-
 
 ```python
-regional_pdp.show_partitioning(features=1)
+regional_pdp.summary(features=1)
 ```
 
     Feature 1 - Full partition tree:
@@ -626,10 +621,8 @@ regional_pdp.show_partitioning(features=1)
     Feature 1 - Statistics per tree level:
     Level 0, heter: 1.81
 
-
-
 ```python
-regional_pdp.show_partitioning(features=2)
+regional_pdp.summary(features=2)
 ```
 
     Feature 2 - Full partition tree:
@@ -721,10 +714,8 @@ regional_pdp.fit(features="all", heter_pcg_drop_thres=0.4, nof_candidate_splits_
 
     100%|██████████| 3/3 [00:00<00:00,  5.85it/s]
 
-
-
 ```python
-regional_pdp.show_partitioning(features=0)
+regional_pdp.summary(features=0)
 ```
 
     Feature 0 - Full partition tree:
@@ -752,12 +743,9 @@ regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", centering=True, y_
 
     
 ![png](04_regional_effects_real_f_files/04_regional_effects_real_f_25_1.png)
-    
-
-
 
 ```python
-regional_pdp.show_partitioning(features=1)
+regional_pdp.summary(features=1)
 ```
 
     Feature 1 - Full partition tree:
@@ -766,10 +754,8 @@ regional_pdp.show_partitioning(features=1)
     Feature 1 - Statistics per tree level:
     Level 0, heter: 1.28
 
-
-
 ```python
-regional_pdp.show_partitioning(features=2)
+regional_pdp.summary(features=2)
 ```
 
     Feature 2 - Full partition tree:
@@ -881,10 +867,8 @@ regional_rhale.fit(
 
     100%|██████████| 3/3 [00:00<00:00,  9.01it/s]
 
-
-
 ```python
-regional_rhale.show_partitioning(features=0)
+regional_rhale.summary(features=0)
 ```
 
     Feature 0 - Full partition tree:
@@ -912,12 +896,9 @@ regional_rhale.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, 
 
     
 ![png](04_regional_effects_real_f_files/04_regional_effects_real_f_37_1.png)
-    
-
-
 
 ```python
-regional_rhale.show_partitioning(features=1)
+regional_rhale.summary(features=1)
 ```
 
     Feature 1 - Full partition tree:
@@ -926,10 +907,8 @@ regional_rhale.show_partitioning(features=1)
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.29
 
-
-
 ```python
-regional_rhale.show_partitioning(features=2)
+regional_rhale.summary(features=2)
 ```
 
     Feature 2 - Full partition tree:
@@ -1000,10 +979,8 @@ regional_rhale.fit(
 
     100%|██████████| 3/3 [00:00<00:00,  6.31it/s]
 
-
-
 ```python
-regional_rhale.show_partitioning(features=0)
+regional_rhale.summary(features=0)
 ```
 
     Feature 0 - Full partition tree:
@@ -1012,10 +989,8 @@ regional_rhale.show_partitioning(features=0)
     Feature 0 - Statistics per tree level:
     Level 0, heter: 1.91
 
-
-
 ```python
-regional_rhale.show_partitioning(features=1)
+regional_rhale.summary(features=1)
 ```
 
     Feature 1 - Full partition tree:
@@ -1024,10 +999,8 @@ regional_rhale.show_partitioning(features=1)
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.13
 
-
-
 ```python
-regional_rhale.show_partitioning(features=2)
+regional_rhale.summary(features=2)
 ```
 
     Feature 2 - Full partition tree:
@@ -1092,10 +1065,8 @@ regional_shap.fit(
 
     100%|██████████| 3/3 [00:27<00:00,  9.30s/it]
 
-
-
 ```python
-regional_shap.show_partitioning(0)
+regional_shap.summary(0)
 ```
 
     Feature 0 - Full partition tree:
@@ -1123,12 +1094,9 @@ regional_shap.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, y
 
     
 ![png](04_regional_effects_real_f_files/04_regional_effects_real_f_55_1.png)
-    
-
-
 
 ```python
-regional_shap.show_partitioning(features=1)
+regional_shap.summary(features=1)
 ```
 
     Feature 1 - Full partition tree:
@@ -1137,10 +1105,8 @@ regional_shap.show_partitioning(features=1)
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.01
 
-
-
 ```python
-regional_shap.show_partitioning(features=2)
+regional_shap.summary(features=2)
 ```
 
     Feature 2 - Full partition tree:
@@ -1205,12 +1171,10 @@ regional_shap.fit(
 
     100%|██████████| 3/3 [00:26<00:00,  8.68s/it]
 
-
-
 ```python
-regional_shap.show_partitioning(0)
-regional_shap.show_partitioning(1)
-regional_shap.show_partitioning(2)
+regional_shap.summary(0)
+regional_shap.summary(1)
+regional_shap.summary(2)
 ```
 
     Feature 0 - Full partition tree:

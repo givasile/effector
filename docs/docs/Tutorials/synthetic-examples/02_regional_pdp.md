@@ -162,10 +162,8 @@ regional_pdp.fit(features="all", heter_pcg_drop_thres=0.3, nof_candidate_splits_
 
     100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 14.93it/s]
 
-
-
 ```python
-regional_pdp.show_partitioning(features=0)
+regional_pdp.summary(features=0)
 ```
 
     Feature 0 - Full partition tree:
@@ -193,12 +191,9 @@ regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", centering=True, y_
 
     
 ![png](02_regional_pdp_files/02_regional_pdp_15_1.png)
-    
-
-
 
 ```python
-regional_pdp.show_partitioning(features=1)
+regional_pdp.summary(features=1)
 ```
 
     Feature 1 - Full partition tree:
@@ -207,10 +202,8 @@ regional_pdp.show_partitioning(features=1)
     Feature 1 - Statistics per tree level:
     Level 0, heter: 1.78
 
-
-
 ```python
-regional_pdp.show_partitioning(features=2)
+regional_pdp.summary(features=2)
 ```
 
     Feature 2 - Full partition tree:
@@ -292,10 +285,8 @@ regional_pdp.fit(features="all", heter_pcg_drop_thres=0.4, nof_candidate_splits_
 
     100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 40.24it/s]
 
-
-
 ```python
-regional_pdp.show_partitioning(features=0)
+regional_pdp.summary(features=0)
 ```
 
     Feature 0 - Full partition tree:
@@ -323,12 +314,9 @@ regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", centering=True, y_
 
     
 ![png](02_regional_pdp_files/02_regional_pdp_26_1.png)
-    
-
-
 
 ```python
-regional_pdp.show_partitioning(features=1)
+regional_pdp.summary(features=1)
 ```
 
     Feature 1 - Full partition tree:
@@ -340,10 +328,8 @@ regional_pdp.show_partitioning(features=1)
     Level 0, heter: 1.04
             Level 1, heter: 0.58 || heter drop: 0.47 (44.85%)
 
-
-
 ```python
-regional_pdp.show_partitioning(features=2)
+regional_pdp.summary(features=2)
 ```
 
     Feature 2 - Full partition tree:

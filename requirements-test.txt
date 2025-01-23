@@ -9,3 +9,4 @@ mkdocs
 mkdocstrings
 mkdocstrings-python
 mkdocs-material
+jupyter
