@@ -282,27 +282,15 @@ class RegionalEffectBase:
         for feat in features:
             self.refit(feat)
 
-            if scale_x_list is not None:
-                tree_full_scaled = self.partitioners[
-                    "feature_{}".format(feat)
-                ].splits_to_tree(True, scale_x_list)
-                tree_pruned_scaled = self.partitioners[
-                    "feature_{}".format(feat)
-                ].splits_to_tree(False, scale_x_list)
-                tree_dict = tree_full_scaled if only_important else tree_pruned_scaled
-            else:
-                tree_dict = (
-                    self.tree_pruned["feature_{}".format(feat)]
-                    if only_important
-                    else self.tree_full["feature_{}".format(feat)]
-                )
+            feat_str = "feature_{}".format(feat)
+            tree_dict = self.tree_pruned[feat_str] if only_important else self.tree_full[feat_str]
 
             print("Feature {} - Full partition tree:".format(feat))
 
             if tree_dict is None:
                 print("No splits found for feature {}".format(feat))
             else:
-                tree_dict.show_full_tree()
+                tree_dict.show_full_tree(node=None, scale_x_list=scale_x_list)
 
             print("-" * 50)
             print("Feature {} - Statistics per tree level:".format(feat))
@@ -312,82 +300,82 @@ class RegionalEffectBase:
             else:
                 tree_dict.show_level_stats()
 
-    def describe_subregions(
-        self,
-        features,
-        only_important=True,
-        scale_x_list: typing.Union[None, typing.List[dict]] = None,
-    ):
-        features = helpers.prep_features(features, self.dim)
-        for feature in features:
-            self.refit(feature)
-
-            # it means it a categorical feature
-            if self.tree_full["feature_{}".format(feature)] is None:
-                continue
-
-            feature_name = self.feature_names[feature]
-            if only_important:
-                tree = self.tree_pruned["feature_{}".format(feature)]
-                if len(tree.nodes) == 1:
-                    print("No important splits found for feature {}".format(feature))
-                    continue
-                else:
-                    print("Important splits for feature {}".format(feature_name))
-            else:
-                print("All splits for feature {}".format(feature_name))
-                tree = self.tree_full["feature_{}".format(feature)]
-
-            max_level = max([node.level for node in tree.nodes])
-            for level in range(1, max_level + 1):
-                previous_level_nodes = tree.get_level_nodes(level - 1)
-                level_nodes = tree.get_level_nodes(level)
-                type_of_split_feature = level_nodes[0].data["feature_type"]
-                foc_name = self.feature_names[level_nodes[0].data["feature"]]
-                print("- On feature {} ({})".format(foc_name, type_of_split_feature))
-
-                position_split_formatted = (
-                    "{:.2f}".format(level_nodes[0].data["position"])
-                    if scale_x_list is None
-                    else "{:.2f}".format(
-                        level_nodes[0].data["position"]
-                        * scale_x_list[level_nodes[0].data["feature"]]["std"]
-                        + scale_x_list[level_nodes[0].data["feature"]]["mean"]
-                    )
-                )
-                print("  - Position of split: {}".format(position_split_formatted))
-
-                weight_heter_before = np.sum(
-                    [
-                        node.data["weight"] * node.data["heterogeneity"]
-                        for node in previous_level_nodes
-                    ]
-                )
-                print(
-                    "  - Heterogeneity before split: {:.2f}".format(weight_heter_before)
-                )
-
-                weight_heter = np.sum(
-                    [
-                        node.data["weight"] * node.data["heterogeneity"]
-                        for node in level_nodes
-                    ]
-                )
-                print("  - Heterogeneity after split: {:.2f}".format(weight_heter))
-                weight_heter_drop = weight_heter_before - weight_heter
-                print(
-                    "  - Heterogeneity drop: {:.2f} ({:.2f} %)".format(
-                        weight_heter_drop, weight_heter_drop / weight_heter_before * 100
-                    )
-                )
-
-                nof_instances_before = [
-                    nod.data["nof_instances"] for nod in previous_level_nodes
-                ]
-                print(
-                    "  - Number of instances before split: {}".format(
-                        nof_instances_before
-                    )
-                )
-                nof_instances = [nod.data["nof_instances"] for nod in level_nodes]
-                print("  - Number of instances after split: {}".format(nof_instances))
+    # def describe_subregions(
+    #     self,
+    #     features,
+    #     only_important=True,
+    #     scale_x_list: typing.Union[None, typing.List[dict]] = None,
+    # ):
+    #     features = helpers.prep_features(features, self.dim)
+    #     for feature in features:
+    #         self.refit(feature)
+    #
+    #         # it means it a categorical feature
+    #         if self.tree_full["feature_{}".format(feature)] is None:
+    #             continue
+    #
+    #         feature_name = self.feature_names[feature]
+    #         if only_important:
+    #             tree = self.tree_pruned["feature_{}".format(feature)]
+    #             if len(tree.nodes) == 1:
+    #                 print("No important splits found for feature {}".format(feature))
+    #                 continue
+    #             else:
+    #                 print("Important splits for feature {}".format(feature_name))
+    #         else:
+    #             print("All splits for feature {}".format(feature_name))
+    #             tree = self.tree_full["feature_{}".format(feature)]
+    #
+    #         max_level = max([node.level for node in tree.nodes])
+    #         for level in range(1, max_level + 1):
+    #             previous_level_nodes = tree.get_level_nodes(level - 1)
+    #             level_nodes = tree.get_level_nodes(level)
+    #             type_of_split_feature = level_nodes[0].data["feature_type"]
+    #             foc_name = self.feature_names[level_nodes[0].data["feature"]]
+    #             print("- On feature {} ({})".format(foc_name, type_of_split_feature))
+    #
+    #             position_split_formatted = (
+    #                 "{:.2f}".format(level_nodes[0].data["position"])
+    #                 if scale_x_list is None
+    #                 else "{:.2f}".format(
+    #                     level_nodes[0].data["position"]
+    #                     * scale_x_list[level_nodes[0].data["feature"]]["std"]
+    #                     + scale_x_list[level_nodes[0].data["feature"]]["mean"]
+    #                 )
+    #             )
+    #             print("  - Position of split: {}".format(position_split_formatted))
+    #
+    #             weight_heter_before = np.sum(
+    #                 [
+    #                     node.data["weight"] * node.data["heterogeneity"]
+    #                     for node in previous_level_nodes
+    #                 ]
+    #             )
+    #             print(
+    #                 "  - Heterogeneity before split: {:.2f}".format(weight_heter_before)
+    #             )
+    #
+    #             weight_heter = np.sum(
+    #                 [
+    #                     node.data["weight"] * node.data["heterogeneity"]
+    #                     for node in level_nodes
+    #                 ]
+    #             )
+    #             print("  - Heterogeneity after split: {:.2f}".format(weight_heter))
+    #             weight_heter_drop = weight_heter_before - weight_heter
+    #             print(
+    #                 "  - Heterogeneity drop: {:.2f} ({:.2f} %)".format(
+    #                     weight_heter_drop, weight_heter_drop / weight_heter_before * 100
+    #                 )
+    #             )
+    #
+    #             nof_instances_before = [
+    #                 nod.data["nof_instances"] for nod in previous_level_nodes
+    #             ]
+    #             print(
+    #                 "  - Number of instances before split: {}".format(
+    #                     nof_instances_before
+    #                 )
+    #             )
+    #             nof_instances = [nod.data["nof_instances"] for nod in level_nodes]
+    #             print("  - Number of instances after split: {}".format(nof_instances))

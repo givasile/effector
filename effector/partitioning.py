@@ -425,6 +425,7 @@ class Regions:
                     "heterogeneity": split["heterogeneity"][j],
                     "weight": float(data_new.shape[0]) / nof_instances,
                     "position": split["position"],
+                    "foc_name": foc_name,
                     "feature": split["feature"],
                     "feature_type": split["type"],
                     "range": split["range"],
@@ -490,6 +491,7 @@ class Node:
         self.nof_instances = info.get("nof_instances")
 
         self.foc_index = info.get("feature")
+        self.foc_name = info.get("foc_name")
         self.foc_type = info.get("feature_type")
         self.foc_position = info.get("position")
         self.foc_comparison_operator = info.get("comparison")
@@ -547,6 +549,40 @@ class Tree:
             name = new_string
         return name
 
+    def scale_node_name(self, name, scale_x_list):
+
+        node = self.get_node(name)
+
+        # get all parents
+        parents = []
+        cur_node = node
+        while cur_node.parent_node is not None:
+            parents.append(cur_node.parent_node)
+            cur_node = cur_node.parent_node
+
+        if len(parents) == 0:
+            new_name = name
+        else:
+            parents.reverse()
+            new_name = ""
+            for ii, parent in enumerate(parents):
+                if ii == 0:
+                    new_name = new_name + parent.name + " | "
+                else:
+                    foc = parent.info["feature"]
+                    foc_name = parent.info["foc_name"]
+                    pos = parent.info["position"]
+                    scaled_pos = scale_x_list[foc]["std"] * pos + scale_x_list[foc]["mean"]
+                    conditioning_string = "{} {} {:.2f} and ".format(foc_name, parent.info["comparison"], scaled_pos)
+                    new_name = new_name + conditioning_string
+            foc = node.info["feature"]
+            foc_name = node.info["foc_name"]
+            pos = node.info["position"]
+            scaled_pos = scale_x_list[foc]["std"] * pos + scale_x_list[foc]["mean"]
+            conditioning_string = "{} {} {:.2f}".format(foc_name, node.info["comparison"], scaled_pos)
+            new_name = new_name + conditioning_string
+        return new_name
+
     def add_node(
             self,
             name: str,
@@ -599,15 +635,15 @@ class Tree:
 
     def get_level_stats(self, level):
         level_nodes = self.get_level_nodes(level)
-        nof_instances = self.get_root().data["nof_instances"]
+        nof_instances = self.get_root().info["nof_instances"]
 
         w_heter = 0
         for nod in level_nodes:
-            w_heter += nod.data["heterogeneity"] * nod.data["weight"]
+            w_heter += nod.info["heterogeneity"] * nod.info["weight"]
 
         return {"heterogeneity": w_heter}
 
-    def show_full_tree(self, node=None):
+    def show_full_tree(self, node=None, scale_x_list=None):
         if node is None:
             node = self.get_root()
 
@@ -617,17 +653,17 @@ class Tree:
             + "Node id: %d, name: %s, heter: %.2f || nof_instances: %5d || weight: %.2f"
             % (
                 node.idx,
-                node.name,
-                node.data["heterogeneity"],
-                node.data["nof_instances"],
-                node.data["weight"],
+                node.name if scale_x_list is None else self.scale_node_name(node.name, scale_x_list),
+                node.info["heterogeneity"],
+                node.info["nof_instances"],
+                node.info["weight"],
             )
         )
         children = self.get_children(node.name)
         for child in children:
-            self.show_full_tree(child)
+            self.show_full_tree(child, scale_x_list)
 
-    def show_level_stats(self, node=None):
+    def show_level_stats(self):
         max_level = max([node.level for node in self.nodes])
         prev_heter = 0
         for lev in range(max_level + 1):

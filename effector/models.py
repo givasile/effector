@@ -53,5 +53,54 @@ class ConditionalInteraction(Base):
         y[ind, 0] = -2*x[ind, 0]
         y[~ind, 0] = 2*x[~ind, 0]
         return y
+
+class DoubleConditionalInteraction(Base):
+    def __init__(self):
+        """Define a simple model.
+
+        $f(x_1, x_2, x_3) = -x_1^2\mathbb{1}_{x_2 < 0}\mathbb{1}_{x_3 < 0} +
+                            +x_1^2\mathbb{1}_{x_2 < 0}\mathbb{1}_{x_3 \geq 0}
+                            -e^{x_1}\mathbb{1}_{x_2 \geq 0}\mathbb{1}_{x_3 < 0}
+                            +e^{x_1}\mathbb{1}_{x_2 \geq 0}\mathbb{1}_{x_3 \geq 0}$
+                            $
+
+        """
+        super().__init__(name=self.__class__.__name__)
+
+    def predict(self, x: np.ndarray) -> np.ndarray:
+        """Predict.
+
+        Args:
+            x : Input data, shape (N, 3)
+
+        Returns:
+            Output of the model, shape (N,)
+        """
+        y = np.zeros(x.shape[0])
+        ind1 = x[:, 1] < 0
+        ind2 = x[:, 2] < 0
+        y[ind1 & ind2] = -x[ind1 & ind2, 0]**2
+        y[ind1 & ~ind2] = x[ind1 & ~ind2, 0]**2
+        y[~ind1 & ind2] = -np.exp(x[~ind1 & ind2, 0])
+        y[~ind1 & ~ind2] = np.exp(x[~ind1 & ~ind2, 0])
+        return y
+
+    def jacobian(self, x: np.ndarray) -> np.ndarray:
+        """Calculate the Jacobian of the model.
+
+        Args:
+            x : Input data, shape (N, 3)
+
+        Returns:
+            Jacobian of the model, shape (N, 3)
+        """
+        y = np.zeros_like(x)
+        ind1 = x[:, 1] < 0
+        ind2 = x[:, 2] < 0
+        y[ind1 & ind2, 0] = -2*x[ind1 & ind2, 0]
+        y[ind1 & ~ind2, 0] = 2*x[ind1 & ~ind2, 0]
+        y[~ind1 & ind2, 0] = -np.exp(x[~ind1 & ind2, 0])
+        y[~ind1 & ~ind2, 0] = np.exp(x[~ind1 & ~ind2, 0])
+        return y
         
 
