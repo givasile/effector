@@ -80,9 +80,11 @@ class RegionalRHALE(RegionalEffectBase):
 
             # heterogeneity is the accumulated std at the end of the curve
             axis_limits = helpers.axis_limits_from_data(data)
-            stop = np.array([axis_limits[:, foi][1]])
-            _, z = rhale.eval(feature=foi, xs=stop, heterogeneity=True)
-            return z.item()
+            xs = np.linspace(axis_limits[0, foi], axis_limits[1, foi], 100)
+            _, z = rhale.eval(feature=foi, xs=xs, heterogeneity=True)
+
+            # mean
+            return np.mean(z)
 
         return heter
 
@@ -213,9 +215,7 @@ class RegionalALE(RegionalEffectBase):
             target_name,
         )
 
-    def _create_heterogeneity_function(
-        self, foi, binning_method, min_points, centering
-    ):
+    def _create_heterogeneity_function(self, foi, binning_method, min_points):
         binning_method = prep_binning_method(binning_method)
         isinstance(binning_method, binning_methods.Fixed)
 
@@ -223,19 +223,21 @@ class RegionalALE(RegionalEffectBase):
             if data.shape[0] < min_points:
                 return BIG_M
 
-            ale = ALE(data, self.model, "all", None, instance_effects)
+            ale = ALE(data, self.model, "all", self.axis_limits, instance_effects)
             try:
-                ale.fit(
-                    features=foi, binning_method=binning_method, centering=centering
-                )
-            except:
+                ale.fit(features=foi, binning_method=binning_method, centering=False)
+            except utils.AllBinsHaveAtMostOnePointError as e:
+                print(f"Error: {e}")
+                return BIG_M
+            except Exception as e:
+                print(f"Unexpected error during ALE fitting: {e}")
                 return BIG_M
 
-            # heterogeneity is the accumulated std at the end of the curve
             axis_limits = helpers.axis_limits_from_data(data)
-            stop = np.array([axis_limits[:, foi][1]])
-            _, z = ale.eval(feature=foi, xs=stop, heterogeneity=True)
-            return z.item()
+            xs = np.linspace(axis_limits[0, foi], axis_limits[1, foi], 100)
+            _, z = ale.eval(feature=foi, xs=xs, heterogeneity=True)
+            return np.mean(z)
+
 
         return heter
 
@@ -252,28 +254,65 @@ class RegionalALE(RegionalEffectBase):
         binning_method: typing.Union[
             str, binning_methods.Fixed
         ] = binning_methods.Fixed(nof_bins=20, min_points_per_bin=0),
-        centering: typing.Union[bool, str] = False,
     ):
         """
-        Find the Regional RHALE for a list of features.
+        Find subregions by minimizing the ALE-based heterogeneity.
 
         Args:
-            features: list of features to fit
+            features: for which features to search for subregions
+
+                - use `"all"`, for all features, e.g. `features="all"`
+                - use an `int`, for a single feature, e.g. `features=0`
+                - use a `list`, for multiple features, e.g. `features=[0, 1, 2]`
+
             heter_pcg_drop_thres: heterogeneity drop threshold for a split to be considered important
-            heter_small_enough: heterogeneity threshold for a region to be considered homogeneous (splitting stops)
-            binning_method: binning method to use
-            max_depth: maximum number of splits to perform (depth of the tree)
-            nof_candidate_splits_for_numerical: number of candidate splits to consider for numerical features
-            min_points_per_subregion: minimum allowed number of points in a subregion (otherwise the split is not considered as valid)
-            candidate_conditioning_features: list of features to consider as conditioning features for the candidate splits
+
+                - use a `float`, e.g. `heter_pcg_drop_thres=0.1`
+                - The heterogeity drop is expressed as percentage ${(H_{\mathtt{before\_split}} - H_{\mathtt{after\_split}}) \over H_{\mathtt{before\_split}}}$
+
+            heter_small_enough: heterogeneity threshold for a split to be considered already small enough
+
+                - if the current split has an heterogeneity smaller than this value, it is not further split
+                - use a `float`, e.g. `heter_small_enough=0.01`
+
+            max_depth: maximum depth of the tree
+
+            nof_candidate_splits_for_numerical: number of candidate splits for numerical features
+
+                - use an `int`, e.g. `nof_candidate_splits_for_numerical=20`
+                - The candidate splits are uniformly distributed between the minimum and maximum values of the feature
+                - e.g. if range is [0, 1] and `nof_candidate_splits_for_numerical=3`, the candidate splits are [0.25, 0.5, 0.75]
+
+            min_points_per_subregion: minimum number of points per subregion
+
+                - use an `int`, e.g. `min_points_per_subregion=10`
+                - if a subregion has less than `min_points_per_subregion` instances, it is discarded
+
+            candidate_conditioning_features: list of features to consider as conditioning features
+
+                - use `"all"`, for all features, e.g. `candidate_conditioning_features="all"`
+                - use a `list`, for multiple features, e.g. `candidate_conditioning_features=[0, 1, 2]`
+                - it means that for each feature in the `feature` list, the algorithm will consider applying a split
+                conditioned on each feature in the `candidate_conditioning_features` list
+
+            split_categorical_features: whether to find subregions for categorical features
+
+               - It indicates whether to create a splitting tree for categorical features
+               - It does not mean whether the conditioning feature can be categorical (it can be)
+
+            binning_method:
+
+                - If set to `"fixed"`, the ALE plot will be computed with the  default values, which are
+                `20` bins with at least `0` points per bin
+                - If you want to change the parameters of the method, you pass an instance of the
+                class `effector.binning_methods.Fixed` with the desired parameters.
+                For example: `Fixed(nof_bins=20, min_points_per_bin=0, cat_limit=10)`
         """
 
         assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
-            heter = self._create_heterogeneity_function(
-                feat, binning_method, min_points_per_subregion, centering
-            )
+            heter = self._create_heterogeneity_function(feat, binning_method, min_points_per_subregion)
 
             self._fit_feature(
                 feat,
@@ -296,7 +335,6 @@ class RegionalALE(RegionalEffectBase):
                 "candidate_conditioning_features": candidate_conditioning_features,
                 "split_categorical_features": split_categorical_features,
                 "binning_method": binning_method,
-                "centering": centering,
             }
 
     def plot(

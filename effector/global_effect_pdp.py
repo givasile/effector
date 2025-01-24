@@ -101,10 +101,7 @@ class PDPBase(GlobalEffectBase):
                 - `zero_start` starts the plot from `y=0`.
 
             points_for_centering: number of linspaced points along the feature axis used for centering.
-
-                - If set to `"all"`, all the dataset points will be used.
-
-            use_vectorized: whether to use the vectorized version of the PDP computation
+            use_vectorized: whether to use vectorized operations for the PDP and ICE curves
 
         """
         centering = helpers.prep_centering(centering)

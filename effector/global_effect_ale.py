@@ -99,13 +99,6 @@ class ALEBase(GlobalEffectBase):
         )
         if heterogeneity:
             var = utils.apply_bin_value(x=x, bin_limits=params["limits"], bin_value=params["bin_variance"])
-            # std = utils.compute_accumulated_effect(
-            #     x,
-            #     limits=params["limits"],
-            #     bin_effect=np.sqrt(params["bin_variance"]),
-            #     dx=params["dx"],
-            # )
-
             return y, var
         else:
             return y
@@ -376,7 +369,7 @@ class ALE(ALEBase):
             binning_method:
 
                 - If set to `"fixed"`, the ALE plot will be computed with the  default values, which are
-                `20` bins with at least `10` points per bin and the featue is considered as categorical if it has
+                `20` bins with at least `10` points per bin and the feature is considered as categorical if it has
                 less than `15` unique values.
                 - If you want to change the parameters of the method, you pass an instance of the
                 class `effector.binning_methods.Fixed` with the desired parameters.

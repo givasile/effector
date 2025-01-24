@@ -7,6 +7,11 @@ BIG_M = helpers.BIG_M
 EPS = helpers.EPS
 
 
+class AllBinsHaveAtMostOnePointError(ValueError):
+    """Custom exception raised when all values in the input are NaN."""
+    pass
+
+
 def compute_local_effects(
     data: np.ndarray, model: typing.Callable, limits: np.ndarray, feature: int
 ) -> np.ndarray:
@@ -266,6 +271,14 @@ def fill_nans(x: np.ndarray) -> np.ndarray:
     Returns:
         x: Time-series values without NaNs, (T)
     """
+    if np.all(np.isnan(x)):
+        raise AllBinsHaveAtMostOnePointError(
+            "Input array contains only NaN values. "
+            "This is probably because in all bins there is at most one point, "
+            "which is not enough to compute the bin variance. "
+            "Please consider decreasing the number of bins or changing the bin splitting strategy."
+        )
+
     bin_effect_1 = copy.deepcopy(x)
 
     def nan_helper(y):

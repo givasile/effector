@@ -247,6 +247,7 @@ class RegionalEffectBase:
             feat_str = "feature_{}".format(feat)
             tree_dict = self.tree_pruned[feat_str] if only_important else self.tree_full[feat_str]
 
+            print("\n")
             print("Feature {} - Full partition tree:".format(feat))
 
             if tree_dict is None:
@@ -261,3 +262,4 @@ class RegionalEffectBase:
                 print("No splits found for feature {}".format(feat))
             else:
                 tree_dict.show_level_stats()
+            print("\n")

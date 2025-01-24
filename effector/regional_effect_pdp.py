@@ -50,41 +50,24 @@ class RegionalPDPBase(RegionalEffectBase):
                 return BIG_M
 
             if self.method_name == "pdp":
-                pdp = PDP(
-                    data, self.model, self.axis_limits, nof_instances=nof_instances
-                )
+                pdp = PDP(data, self.model, self.axis_limits, nof_instances="all")
             else:
-                pdp = DerPDP(
-                    data,
-                    self.model,
-                    self.model_jac,
-                    self.axis_limits,
-                    nof_instances=nof_instances,
-                )
+                pdp = DerPDP(data, self.model, self.model_jac, self.axis_limits, nof_instances="all")
 
-            try:
-                pdp.fit(
-                    features=foi,
-                    centering=centering,
-                    points_for_centering=points_for_centering,
-                    use_vectorized=use_vectorized,
-                )
-            except:
-                return BIG_M
-
-            # heterogeneity is the mean heterogeneity over the curve
+            pdp.fit(
+                features=foi,
+                centering=centering,
+                points_for_centering=points_for_centering,
+                use_vectorized=use_vectorized,
+            )
             axis_limits = helpers.axis_limits_from_data(data)
-
             xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
-            try:
-                _, z = pdp.eval(
+            _, z = pdp.eval(
                     feature=foi,
                     xs=xx,
                     heterogeneity=True,
                     use_vectorized=use_vectorized,
                 )
-            except:
-                return BIG_M
             return np.mean(z)
 
         return heter
@@ -100,34 +83,76 @@ class RegionalPDPBase(RegionalEffectBase):
         candidate_conditioning_features: typing.Union["str", list] = "all",
         split_categorical_features: bool = False,
         centering: typing.Union[bool, str] = False,
-        nof_instances: int = "all",
         points_for_centering: int = 100,
         use_vectorized: bool = True,
     ):
         """
-        Find the Regional PDP for a list of features.
+        Find subregions by minimizing the PDP-based heterogeneity.
 
         Args:
-            features: list of features to fit
+            features: for which features to search for subregions
+
+                - use `"all"`, for all features, e.g. `features="all"`
+                - use an `int`, for a single feature, e.g. `features=0`
+                - use a `list`, for multiple features, e.g. `features=[0, 1, 2]`
+
             heter_pcg_drop_thres: heterogeneity drop threshold for a split to be considered important
-            heter_small_enough: heterogeneity threshold for a region to be considered homogeneous (splitting stops)
-            max_depth: maximum number of splits to perform (depth of the tree)
-            nof_candidate_splits_for_numerical: number of candidate splits to consider for numerical features
-            min_points_per_subregion: minimum allowed number of points in a subregion (otherwise the split is not considered as valid)
-            candidate_conditioning_features: list of features to consider as conditioning features for the candidate splits
-            split_categorical_features
+
+                - use a `float`, e.g. `heter_pcg_drop_thres=0.1`
+                - The heterogeity drop is expressed as percentage ${(H_{\mathtt{before\_split}} - H_{\mathtt{after\_split}}) \over H_{\mathtt{before\_split}}}$
+
+            heter_small_enough: heterogeneity threshold for a split to be considered already small enough
+
+                - if the current split has an heterogeneity smaller than this value, it is not further split
+                - use a `float`, e.g. `heter_small_enough=0.01`
+
+            max_depth: maximum depth of the tree
+
+            nof_candidate_splits_for_numerical: number of candidate splits for numerical features
+
+                - use an `int`, e.g. `nof_candidate_splits_for_numerical=20`
+                - The candidate splits are uniformly distributed between the minimum and maximum values of the feature
+                - e.g. if range is [0, 1] and `nof_candidate_splits_for_numerical=3`, the candidate splits are [0.25, 0.5, 0.75]
+
+            min_points_per_subregion: minimum number of points per subregion
+
+                - use an `int`, e.g. `min_points_per_subregion=10`
+                - if a subregion has less than `min_points_per_subregion` instances, it is discarded
+
+            candidate_conditioning_features: list of features to consider as conditioning features
+
+                - use `"all"`, for all features, e.g. `candidate_conditioning_features="all"`
+                - use a `list`, for multiple features, e.g. `candidate_conditioning_features=[0, 1, 2]`
+                - it means that for each feature in the `feature` list, the algorithm will consider applying a split
+                conditioned on each feature in the `candidate_conditioning_features` list
+
+            split_categorical_features: whether to find subregions for categorical features
+
+               - It indicates whether to create a splitting tree for categorical features
+               - It does not mean whether the conditioning feature can be categorical (it can be)
+
+            centering: whether to center the PDP and ICE curves, before computing the heterogeneity
+
+                - If `centering` is `False`, the PDP not centered
+                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
+                - If `centering` is `zero_start`, the PDP starts from `y=0`.
+
+            points_for_centering: number of equidistant points along the feature axis used for centering.
+            use_vectorized: whether to use vectorized operations for the PDP and ICE curves
+
+
         """
 
         assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
             heter = self._create_heterogeneity_function(
-                feat,
-                min_points_per_subregion,
-                centering,
-                nof_instances,
-                points_for_centering,
-                use_vectorized,
+                foi = feat,
+                min_points=min_points_per_subregion,
+                centering=centering,
+                nof_instances=self.nof_instances,
+                points_for_centering=points_for_centering,
+                use_vectorized=use_vectorized,
             )
 
             self._fit_feature(
@@ -157,6 +182,64 @@ class RegionalPDP(RegionalPDPBase):
         feature_names: typing.Union[list, None] = None,
         target_name: typing.Union[str, None] = None,
     ):
+        """
+        Constructor of the PDP class.
+
+        Definition:
+            Finds subregions by minimizing the PDP-based heterogeneity:
+            $$
+            H_{x_s} = {1 \over M} \sum_{j=1}^M h(x_s^j), \quad h(x_s) = {1 \over N} \sum_{i=1}^N ( ICE_c^i(x_s) - PDP_c(x_s) )^2
+            $$
+
+            where $x_s^j$ are an equally spaced grid of points in the axis, i.e.,  $[x_s^{\min}, x_s^{\max}]$.
+
+        Notes:
+            The required parameters are `data` and `model`. The rest are optional.
+
+        Args:
+            data: the design matrix
+
+                - shape: `(N,D)`
+
+            model: the black-box model. Must be a `Callable` with:
+
+                - input: `ndarray` of shape `(N, D)`
+                - output: `ndarray` of shape `(N,)`
+
+            nof_instances: maximum number of instances to be used for the analysis.
+                           The selection is done at the beginning of the analysis.
+                           If there are less instances, all will be used.
+
+                - use `"all"`, for using all instances.
+                - use an `int`, for using `nof_instances` instances.
+
+            axis_limits: The limits of the feature effect plot along each axis
+
+                - use a `ndarray` of shape `(2, D)`, to specify them manually
+                - use `None`, to be inferred from the data
+
+            feature_types: The type of each feature
+
+                - use `"cont"` for continuous and `"cat"` for categorical
+                - e.g. `["cont", "cont", "cat", ... ]
+
+            cat_limit: The number of individual values to consider a feature as categorical
+
+                - if `feature_types` is provided, this argument remains unused
+                - if `feature_types` is `None`, features with less than `cat_limit` unique values will
+                be considered `categorical`, while the rest `numerical`
+
+            feature_names: The names of the features
+
+                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
+                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
+
+            target_name: The name of the target variable
+
+                - use a `str`, to specify it name manually. For example: `"price"`
+                - use `None`, to keep the default name: `"y"`
+        """
+
         super(RegionalPDP, self).__init__(
             "pdp",
             data,

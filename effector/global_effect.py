@@ -71,9 +71,12 @@ class GlobalEffectBase(ABC):
             avg_output if avg_output is not None else np.mean(self.model(self.data))
         )
 
-        axis_limits = (
-            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
-        )
+        if axis_limits is not None:
+            assert axis_limits.shape == (2, self.dim)
+            assert np.all(axis_limits[0, :] <= axis_limits[1, :])
+        else:
+           axis_limits = helpers.axis_limits_from_data(data)
+
         self.axis_limits: np.ndarray = axis_limits
 
         self.feature_names: Union[None, list] = feature_names

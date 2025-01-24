@@ -278,7 +278,7 @@ class Regions:
         elif self.splits[0]["weighted_heter"] == BIG_M:
             optimal_splits = {}
         # if initial heterogeneity is small right from the beginning, skip
-        elif self.splits[0]["weighted_heter"] < self.heter_small_enough:
+        elif self.splits[0]["weighted_heter"] <= self.heter_small_enough:
             optimal_splits = {}
         else:
             splits = self.splits
@@ -664,7 +664,7 @@ class Tree:
             else:
                 print(
                     "    " * lev * 2
-                    + "Level %.d, heter: %.2f || heter drop: %.2f (%.2f%%)"
+                    + "Level %.d, heter: %.2f || heter drop : %.2f (units), %.2f%% (pcg)"
                     % (
                         lev,
                         level_stats["heterogeneity"],

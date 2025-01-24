@@ -1,144 +1,124 @@
 # API reference
 
-## Feature Effect Methods
-
-### ::: effector.global_effect_ale.ALEBase
-       options:
-         show_root_heading: True
-         show_symbol_type_toc: True
-         members:
-           - eval
-           - plot
+## Global Effect
 
 ### ::: effector.global_effect_ale.ALE
-       options:
-         show_root_heading: True
-         show_symbol_type_toc: True
-         members:
-           - __init__
-           - fit
-
-### ::: effector.global_effect_ale.RHALE
-       options:
-         show_root_heading: True
-         show_symbol_type_toc: True
-         members:
-           - __init__
-           - fit
-
-### ::: effector.global_effect_pdp.PDPBase
-       options:
-         show_root_heading: True
-         show_symbol_type_toc: True
-         members:
+      options:
+        show_root_heading: True
+        show_symbol_type_toc: True
+        inherited_members: True
+        members:
+          - __init__
           - fit
           - eval
           - plot
 
+### ::: effector.global_effect_ale.RHALE
+      options:
+        show_root_heading: True
+        show_symbol_type_toc: True
+        inherited_members: True
+        members:
+          - __init__
+          - fit
+          - eval
+          - plot
 
 ### ::: effector.global_effect_pdp.PDP
       options:
         show_root_heading: True
         show_symbol_type_toc: True
-        members:
-          - __init__
-
-### ::: effector.global_effect_pdp.DerPDP
-      options:
-        show_root_heading: True
-        show_symbol_type_toc: True
-        members:
-          - __init__
-
-### ::: effector.global_effect_shap.ShapDP
-      options:
-        show_root_heading: True
-        show_symbol_type_toc: True
+        inherited_members: True
         members:
           - __init__
           - fit
           - eval
           - plot
 
-## Regional Effect Methods
+### ::: effector.global_effect_pdp.DerPDP
+      options:
+        show_root_heading: True
+        show_symbol_type_toc: True
+        inherited_members: True
+        members:
+          - __init__
+          - fit
+          - eval
+          - plot
 
-### ::: effector.regional_effect.RegionalEffectBase
-       options:
-         show_root_heading: True
-         show_symbol_type_toc: True
-         members:
-           - eval
-           - plot
-           - print_tree
-           - print_level_stats
-           - get_node_info           
-           - describe_regions
+### ::: effector.global_effect_shap.ShapDP
+      options:
+        show_root_heading: True
+        show_symbol_type_toc: True
+        inherited_members: True
+        members:
+          - __init__
+          - fit
+          - eval
+          - plot
 
+## Regional Effect
 
 ### ::: effector.regional_effect_ale.RegionalALE
        options:
          show_root_heading: True
          show_symbol_type_toc: True
+         inherited_members: True
          members:
-            - __init__
-            - fit
-
+           - __init__
+           - fit
+           - eval
+           - plot
+           - summary
 
 ### ::: effector.regional_effect_ale.RegionalRHALE
        options:
          show_root_heading: True
          show_symbol_type_toc: True
+         inherited_members: True
          members:
-            - __init__
-            - fit
+           - __init__
+           - fit
+           - eval
+           - plot
+           - summary
 
-### ::: effector.regional_effect_pdp.RegionalPDPBase
-       options:
-         show_root_heading: True
-         show_symbol_type_toc: True
-         members:
-            - fit
 
 ### ::: effector.regional_effect_pdp.RegionalPDP
        options:
          show_root_heading: True
          show_symbol_type_toc: True
+         inherited_members: True
          members:
-            - __init__
+           - __init__
+           - fit
+           - eval
+           - plot
+           - summary
 
 ### ::: effector.regional_effect_pdp.RegionalDerPDP
        options:
          show_root_heading: True
          show_symbol_type_toc: True
+         inherited_members: True
          members:
-            - __init__
+           - __init__
+           - fit
+           - eval
+           - plot
+           - summary
 
 ### ::: effector.regional_effect_shap.RegionalShapDP
        options:
-            show_root_heading: True
-            show_symbol_type_toc: True
-            members:
-                - __init__
-                - fit
-
-## Subregion Detection Methods
-### ::: effector.partitioning.Regions
-         options:
-            show_root_heading: True
-            show_symbol_type_toc: True
-            members:
-              - __init__
-              - fit
-              - predict
-              - plot
-
-### ::: effector.partitioning.Node
-            options:
-                show_root_heading: True
-                show_symbol_type_toc: True
-                members:
-                - __init__
-                - show
+         show_root_heading: True
+         show_symbol_type_toc: True
+         inherited_members: True
+         members:
+           - __init__
+           - fit
+           - eval
+           - plot
+           - summary
 
 
 ## Binning Methods
@@ -169,7 +149,8 @@
         show_rooting_heading: False
         show_symbol_type_toc: True
 
-## Utils
-### ::: effector.utils
+## Datasets
+### ::: effector.datasets
       options:
-        show_root_heading: False
+        show_rooting_heading: False
+        show_symbol_type_toc: True
