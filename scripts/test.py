@@ -1,16 +1,40 @@
 import effector
 import numpy as np
 import timeit
+import time
+
 
 np.random.seed(21)
 
-model = effector.models.DoubleConditionalInteraction()
 
-N = 10_000
+def predict(x):
+    time.sleep(0.01)
+    model = effector.models.DoubleConditionalInteraction()
+    return model.predict(x)
+
+def jacobian(x):
+    model = effector.models.DoubleConditionalInteraction()
+    return model.jacobian(x)
+
+
+N = 1_000
 D = 3
 M = 1_000
 
 X = np.random.uniform(-1, 1, (N, D))
+
+# PDP
+pdp = effector.PDP(
+    data=X,
+    model=predict,
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
+    feature_names=["x1", "x2", "x3"],
+    target_name="y"
+)
+
+print(timeit.timeit(lambda: pdp.fit("all", centering=True, points_for_centering=100, use_vectorized=False), number=5))
+print(timeit.timeit(lambda: pdp.fit("all", centering=True, points_for_centering=100, use_vectorized=True), number=5))
+
 
 #%%
 # # PDP
@@ -59,25 +83,25 @@ X = np.random.uniform(-1, 1, (N, D))
 # reg_ale.summary(features="all")
 
 
-#%%# RHALE
-reg_rhale = effector.RegionalRHALE(
-    data=X,
-    model=model.predict,
-    model_jac=model.jacobian,
-    feature_names=["x1", "x2", "x3"],
-    nof_instances="all",
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
-    target_name="y"
-)
+# #%%# RHALE
+# reg_rhale = effector.RegionalRHALE(
+#     data=X,
+#     model=model.predict,
+#     model_jac=model.jacobian,
+#     feature_names=["x1", "x2", "x3"],
+#     nof_instances="all",
+#     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
+#     target_name="y"
+# )
 
-reg_rhale.fit(
-    features="all",
-    heter_pcg_drop_thres=.1,
-    heter_small_enough=0.,
-    max_depth=2,
-    nof_candidate_splits_for_numerical=11,
-    min_points_per_subregion=10,
-    binning_method="greedy"
-)
+# reg_rhale.fit(
+#     features="all",
+#     heter_pcg_drop_thres=.1,
+#     heter_small_enough=0.,
+#     max_depth=2,
+#     nof_candidate_splits_for_numerical=11,
+#     min_points_per_subregion=10,
+#     binning_method="greedy"
+# )
 
-reg_rhale.summary(features="all")
+# reg_rhale.summary(features="all")

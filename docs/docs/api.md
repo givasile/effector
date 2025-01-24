@@ -121,7 +121,7 @@
            - summary
 
 
-## Binning Methods
+## (RH)ALE Binning Methods
 ### ::: effector.binning_methods.Fixed
        options:
          show_root_heading: True
@@ -146,11 +146,11 @@
 ## Models
 ### ::: effector.models
       options:
-        show_rooting_heading: False
+        show_rooting_heading: True
         show_symbol_type_toc: True
 
 ## Datasets
 ### ::: effector.datasets
       options:
-        show_rooting_heading: False
+        show_rooting_heading: True
         show_symbol_type_toc: True
