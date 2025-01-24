@@ -30,9 +30,17 @@ class RegionalRHALE(RegionalEffectBase):
         Regional RHALE constructor.
 
         Args:
-            data: X matrix (N,D).
-            model: the black-box model (N,D) -> (N, )
-            model_jac: the black-box model Jacobian (N,D) -> (N,D)
+            data: the dataset, shape (N,D)
+            model: the black-box model, Callable (N,D) -> (N,)
+            model_jac: a function that returns the jacobian of the black-box model, Callable (N,D) -> (N,D)
+            instance_effects: the jacobian of the black-box model applied on `data`, shape (N,D)
+
+                - if None, it is computed as `model_jac(data)`
+            nof_instances : the maximum number of instances to use for the analysis. The selection is done randomly at the beginning of the analysis.
+
+                - if "all", all instances are used
+                - if an integer, `nof_instances` instances are randomly selected from the data
+
             axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
             feature_types: list of feature types (categorical or numerical)
             cat_limit: the minimum number of unique values for a feature to be considered categorical
