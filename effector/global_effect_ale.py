@@ -68,7 +68,7 @@ class ALEBase(GlobalEffectBase):
             z = partial_eval(np.array([start])).item()
         return z
 
-    def _fit_loop(self, features, binning_method, centering):
+    def _fit_loop(self, features, binning_method, centering, points_for_centering=100):
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
         for s in features:
@@ -80,7 +80,7 @@ class ALEBase(GlobalEffectBase):
             # append the "norm_const" to the feature effect if centering is not False
             if centering is not False:
                 self.feature_effect["feature_" + str(s)]["norm_const"] = (
-                    self._compute_norm_const(s, method=centering)
+                    self._compute_norm_const(s, method=centering, nof_points=points_for_centering)
                 )
             else:
                 self.feature_effect["feature_" + str(s)][
@@ -360,6 +360,7 @@ class ALE(ALEBase):
         features: typing.Union[int, str, list] = "all",
         binning_method: typing.Union[str, bm.Fixed] = "fixed",
         centering: typing.Union[bool, str] = "zero_integral",
+        points_for_centering: int = 100
     ) -> None:
         """Fit the ALE plot.
 
@@ -380,12 +381,14 @@ class ALE(ALEBase):
                 - `False` means no centering
                 - `True` or `zero_integral` centers around the `y` axis.
                 - `zero_start` starts the plot from `y=0`.
+
+            - points_for_centering: the number of points to use for centering the plot. Default is 100.
         """
         assert binning_method == "fixed" or isinstance(
             binning_method, bm.Fixed
         ), "ALE can work only with the fixed binning method!"
 
-        self._fit_loop(features, binning_method, centering)
+        self._fit_loop(features, binning_method, centering, points_for_centering)
 
 
 class RHALE(ALEBase):
@@ -542,6 +545,7 @@ class RHALE(ALEBase):
             str, bm.DynamicProgramming, bm.Greedy, bm.Fixed
         ] = "greedy",
         centering: typing.Union[bool, str] = False,
+        points_for_centering: int = 100
     ) -> None:
         """Fit the model.
 
@@ -564,6 +568,8 @@ class RHALE(ALEBase):
                 - `False` means no centering
                 - `True` or `zero_integral` centers around the `y` axis
                 - `zero_start` starts the plot from `y=0`
+
+            points_for_centering: the number of points to use for centering the plot. Default is 100.
         """
         assert (
             binning_method in ["greedy", "dynamic", "fixed"]
@@ -572,4 +578,4 @@ class RHALE(ALEBase):
             or isinstance(binning_method, bm.Fixed)
         ), "Unknown binning method!"
 
-        self._fit_loop(features, binning_method, centering)
+        self._fit_loop(features, binning_method, centering, points_for_centering)
