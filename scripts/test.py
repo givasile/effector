@@ -44,29 +44,29 @@ reg_pdp.fit(
     centering=True,
 )
 
-# reg_pdp.summary(features="all")
+reg_pdp.summary(features="all")
 
 #%%
-# # ALE
-# reg_ale = effector.RegionalALE(
-#     data=X,
-#     model=model.predict,
-#     feature_names=["x1", "x2", "x3"],
-#     nof_instances="all",
-#     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
-#     target_name="y"
-# )
+# ALE
+reg_ale = effector.RegionalALE(
+    data=X,
+    model=model.predict,
+    feature_names=["x1", "x2", "x3"],
+    nof_instances="all",
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
+    target_name="y"
+)
 
-# reg_ale.fit(
-#     features="all",
-#     heter_pcg_drop_thres=.2,
-#     heter_small_enough=0.,
-#     max_depth=2,
-#     nof_candidate_splits_for_numerical=11,
-#     min_points_per_subregion=10,
-# )
+reg_ale.fit(
+    features="all",
+    heter_pcg_drop_thres=.2,
+    heter_small_enough=0.,
+    max_depth=2,
+    nof_candidate_splits_for_numerical=11,
+    min_points_per_subregion=10,
+)
 
-# reg_ale.summary(features="all")
+reg_ale.summary(features="all")
 
 
 # #%%# RHALE

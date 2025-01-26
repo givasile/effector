@@ -95,7 +95,7 @@ class Regions:
 
             # initialize x_list, x_jac_list, splits
             x_list = [self.data]
-            x_jac_list = [self.data_effect] if self.data_effect is not None else None
+            x_jac_list = [self.data_effect] if self.data_effect is not None else [None]
             active_indices_list = [np.ones((self.data.shape[0]))]
             splits = [
                 {
@@ -116,25 +116,15 @@ class Regions:
 
                 # find optimal split
                 split = self.single_level_splits(
-                    x_list, x_jac_list, splits[-1]["heterogeneity"]
+                    x_list,
+                    x_jac_list,
+                    splits[-1]["heterogeneity"],
+                    active_indices_list
                 )
-                # # split data and data_effect based on the optimal split found above
-                # feat, pos, typ = split["feature"], split["position"], split["type"]
-
-                # if x_jac_list is not None:
-                #     x_jac_list = self.flatten_list(
-                #         [
-                #             self.split_dataset(x, x_jac, feat, pos, typ)
-                #             for x, x_jac in zip(x_list, x_jac_list)
-                #         ]
-                #     )
-
-                # x_list = self.flatten_list(
-                #     [self.split_dataset(x, None, feat, pos, typ) for x in x_list]
-                # )
 
                 x_list = split["x_list"]
                 x_jac_list = split["x_jac_list"]
+                active_indices_list = split["active_indices_list"]
                 splits.append(split)
 
             self.splits = splits
@@ -148,6 +138,7 @@ class Regions:
         x_list: list,
         x_jac_list: typing.Union[list, None],
         heter_before: list,
+        active_indices_list: typing.Union[list, None] = None,
     ):
         """Find all splits for a single level."""
         foc_types = self.foc_types
@@ -182,23 +173,15 @@ class Regions:
         # exhaustive search on all split positions
         for i, foc_i in enumerate(foc):
             for j, position in enumerate(candidate_split_positions[i]):
-                # split datasets
-                x_list_2 = self.flatten_list(
-                    [
-                        self.split_dataset(x, None, foc_i, position, foc_types[i])
-                        for x in x_list
-                    ]
-                )
-                if x_jac_list is not None:
-                    x_jac_list_2 = self.flatten_list(
-                        [
-                            self.split_dataset(x, x_jac, foc_i, position, foc_types[i])
-                            for x, x_jac in zip(x_list, x_jac_list)
-                        ]
-                    )
+                tmp = [
+                    self.split_dataset(x, x_jac, foc_i, position, foc_types[i], active_indices)
+                    for x, x_jac, active_indices in zip(x_list, x_jac_list, active_indices_list)
+                ]
+                x_list_2 = self.flatten_list([x for x, _, _ in tmp])
+                x_jac_list_2 = self.flatten_list([x_jac for _, x_jac, _ in tmp])
 
                 # sub_heter: list with the heterogeneity after split of foc_i at position j
-                if x_jac_list is None:
+                if x_jac_list[0] is None:
                     sub_heter = [heter_func(x) for x in x_list_2]
                 else:
                     sub_heter = [
@@ -235,28 +218,21 @@ class Regions:
         split_positions = candidate_split_positions[i]
 
         # how many instances in each dataset after the min split
-        x_list_2 = self.flatten_list(
-            [
-                self.split_dataset(x, None, foc[i], position, foc_types[i])
-                for x in x_list
-            ]
-        )
+        tmp = [
+            self.split_dataset(x, None, foc[i], position, foc_types[i], active_indices)
+            for x, active_indices in zip(x_list, active_indices_list)
+        ]
+        x_list_2 = self.flatten_list([x for x, _, _ in tmp])
+        x_jac_list_2 = self.flatten_list([x_jac for _, x_jac, _ in tmp])
+        active_indices_list_2 = self.flatten_list([k for _, _, k in tmp])
 
         nof_instances = [len(x) for x in x_list_2]
-        if x_jac_list is None:
+        if x_jac_list[0] is None:
             sub_heter = [heter_func(x) for x in x_list_2]
         else:
-            x_jac_list_2 = self.flatten_list(
-                [
-                    self.split_dataset(x, x_jac, foc[i], position, foc_types[i])
-                    for x, x_jac in zip(x_list, x_jac_list)
-                ]
-            )
-
             sub_heter = [
                 heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
             ]
-
         split = {
             "feature": feature,
             "position": position,
@@ -271,7 +247,8 @@ class Regions:
             "weighted_heter_drop": weighted_heter_drop[i, j],
             "weighted_heter": weighted_heter[i, j],
             "x_list": x_list_2,
-            "x_jac_list": x_jac_list_2 if x_jac_list is not None else None,
+            "x_jac_list": x_jac_list_2,
+            "active_indices_list": active_indices_list_2,
         }
         return split
 
@@ -316,7 +293,7 @@ class Regions:
         self.important_splits = optimal_splits
         return optimal_splits
 
-    def split_dataset(self, x, x_jac, feature, position, feat_type):
+    def split_dataset(self, x, x_jac, feature, position, feat_type, active_indices=None):
         if feat_type == "cat":
             ind_1 = x[:, feature] == position
             ind_2 = x[:, feature] != position
@@ -324,14 +301,23 @@ class Regions:
             ind_1 = x[:, feature] < position
             ind_2 = x[:, feature] >= position
 
-        if x_jac is None:
-            X1 = x[ind_1, :]
-            X2 = x[ind_2, :]
-        else:
-            X1 = x_jac[ind_1, :]
-            X2 = x_jac[ind_2, :]
+        X1 = x[ind_1, :]
+        X2 = x[ind_2, :]
 
-        return X1, X2
+        if x_jac is not None:
+            x1_jac = x_jac[ind_1, :]
+            x2_jac = x_jac[ind_2, :]
+        else:
+            x1_jac = None
+            x2_jac = None
+
+        # active indices is a (N,) array with 1s and 0s, where N is the number of the total instances
+        # all instances in x and x_jac have a 1 in active_indices, else 0
+        active_indices_1 = np.copy(active_indices)
+        active_indices_2 = np.copy(active_indices)
+        active_indices_1[active_indices_1 == 1] = ind_1
+        active_indices_2[active_indices_2 == 1] = ind_2
+        return (X1, X2), (x1_jac, x2_jac), (active_indices_1, active_indices_2)
 
     def find_positions_cat(self, x, feature):
         return np.unique(x[:, feature])
@@ -364,6 +350,7 @@ class Regions:
         parent_level_nodes = [feature_name]
         parent_level_data = [self.data]
         parent_level_data_effect = [self.data_effect]
+        parent_level_active_indices = [np.ones((self.data.shape[0]))]
         splits = self.important_splits if only_important else self.splits[1:]
 
         for i, split in enumerate(splits):
@@ -374,12 +361,14 @@ class Regions:
             new_parent_level_nodes = []
             new_parent_level_data = []
             new_parent_level_data_effect = []
+            new_parent_level_active_indices = []
 
             # find parent
             for j in range(nodes_to_add):
                 parent_name = parent_level_nodes[int(j / 2)]
                 parent_data = parent_level_data[int(j / 2)]
                 parent_data_effect = parent_level_data_effect[int(j / 2)]
+                parent_active_indices = parent_level_active_indices[int(j / 2)]
 
                 # prepare data
 
@@ -395,18 +384,19 @@ class Regions:
 
                 pos_small = pos_scaled.round(2)
 
-                data_1, data_2 = self.split_dataset(
-                    parent_data, None, foc, pos, split["type"]
-                )
-                if self.data_effect is not None:
-                    data_effect_1, data_effect_2 = self.split_dataset(
-                        parent_data, parent_data_effect, foc, pos, split["type"]
+                tmp = self.split_dataset(
+                    parent_data,
+                    parent_data_effect,
+                    foc, pos, split["type"],
+                    parent_active_indices
                     )
-                else:
-                    data_effect_1, data_effect_2 = None, None
+                data_1, data_2 = tmp[0]
+                data_effect_1, data_effect_2 = tmp[1]
+                active_indices_1, active_indices_2 = tmp[2]
 
                 data_new = data_1 if j % 2 == 0 else data_2
                 data_effect_new = data_effect_1 if j % 2 == 0 else data_effect_2
+                active_indices_new = active_indices_1 if j % 2 == 0 else active_indices_2
                 if j % 2 == 0:
                     if split["type"] == "cat":
                         name = foc_name + " == {}".format(pos_small)
@@ -440,6 +430,7 @@ class Regions:
                     "nof_instances": split["nof_instances"][j],
                     "data": data_new,
                     "data_effect": data_effect_new,
+                    "active_indices": active_indices_new,
                     "comparison": comparison,
                 }
 
@@ -448,11 +439,13 @@ class Regions:
                 new_parent_level_nodes.append(name)
                 new_parent_level_data.append(data_new)
                 new_parent_level_data_effect.append(data_effect_new)
+                new_parent_level_active_indices.append(active_indices_new)
 
             # update parent_level_nodes
             parent_level_nodes = new_parent_level_nodes
             parent_level_data = new_parent_level_data
             parent_level_data_effect = new_parent_level_data
+            parent_level_active_indices = new_parent_level_active_indices
 
         return tree
 
