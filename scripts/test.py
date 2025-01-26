@@ -8,7 +8,7 @@ np.random.seed(21)
 
 
 def predict(x):
-    time.sleep(0.01)
+    # time.sleep(0.01)
     model = effector.models.DoubleConditionalInteraction()
     return model.predict(x)
 
@@ -24,39 +24,25 @@ M = 1_000
 X = np.random.uniform(-1, 1, (N, D))
 
 # PDP
-pdp = effector.PDP(
+reg_pdp = effector.RegionalPDP(
     data=X,
     model=predict,
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
     feature_names=["x1", "x2", "x3"],
+    nof_instances="all",
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
     target_name="y"
 )
 
-print(timeit.timeit(lambda: pdp.fit("all", centering=True, points_for_centering=100, use_vectorized=False), number=5))
-print(timeit.timeit(lambda: pdp.fit("all", centering=True, points_for_centering=100, use_vectorized=True), number=5))
-
-
-#%%
-# # PDP
-# reg_pdp = effector.RegionalPDP(
-#     data=X,
-#     model=model.predict,
-#     feature_names=["x1", "x2", "x3"],
-#     nof_instances="all",
-#     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
-#     target_name="y"
-# )
-
-# reg_pdp.fit(
-#     features="all",
-#     heter_pcg_drop_thres=.2,
-#     heter_small_enough=0.,
-#     max_depth=2,
-#     nof_candidate_splits_for_numerical=51,
-#     min_points_per_subregion=10,
-#     use_vectorized=True,
-#     centering=True,
-# )
+reg_pdp.fit(
+    features="all",
+    heter_pcg_drop_thres=.2,
+    heter_small_enough=0.,
+    max_depth=2,
+    nof_candidate_splits_for_numerical=51,
+    min_points_per_subregion=10,
+    use_vectorized=True,
+    centering=True,
+)
 
 # reg_pdp.summary(features="all")
 

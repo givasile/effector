@@ -96,6 +96,7 @@ class Regions:
             # initialize x_list, x_jac_list, splits
             x_list = [self.data]
             x_jac_list = [self.data_effect] if self.data_effect is not None else None
+            active_indices_list = [np.ones((self.data.shape[0]))]
             splits = [
                 {
                     "heterogeneity": [heter_init],
@@ -107,7 +108,9 @@ class Regions:
                 }
             ]
             for lev in range(self.max_split_levels):
-                # if any subregion has less than min_points, stop
+                # TODO: check this, as it seems redundant;
+                # if any subregion had less than min_points, the
+                # specific split should not have been selected
                 if any([len(x) < self.min_points for x in x_list]):
                     break
 
@@ -115,24 +118,26 @@ class Regions:
                 split = self.single_level_splits(
                     x_list, x_jac_list, splits[-1]["heterogeneity"]
                 )
+                # # split data and data_effect based on the optimal split found above
+                # feat, pos, typ = split["feature"], split["position"], split["type"]
+
+                # if x_jac_list is not None:
+                #     x_jac_list = self.flatten_list(
+                #         [
+                #             self.split_dataset(x, x_jac, feat, pos, typ)
+                #             for x, x_jac in zip(x_list, x_jac_list)
+                #         ]
+                #     )
+
+                # x_list = self.flatten_list(
+                #     [self.split_dataset(x, None, feat, pos, typ) for x in x_list]
+                # )
+
+                x_list = split["x_list"]
+                x_jac_list = split["x_jac_list"]
                 splits.append(split)
 
-                # split data and data_effect based on the optimal split found above
-                feat, pos, typ = split["feature"], split["position"], split["type"]
-
-                if x_jac_list is not None:
-                    x_jac_list = self.flatten_list(
-                        [
-                            self.split_dataset(x, x_jac, feat, pos, typ)
-                            for x, x_jac in zip(x_list, x_jac_list)
-                        ]
-                    )
-
-                x_list = self.flatten_list(
-                    [self.split_dataset(x, None, feat, pos, typ) for x in x_list]
-                )
-
-                self.splits = splits
+            self.splits = splits
 
         # update state
         self.split_found = True
@@ -265,6 +270,8 @@ class Regions:
             "foc": foc,
             "weighted_heter_drop": weighted_heter_drop[i, j],
             "weighted_heter": weighted_heter[i, j],
+            "x_list": x_list_2,
+            "x_jac_list": x_jac_list_2 if x_jac_list is not None else None,
         }
         return split
 
