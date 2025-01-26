@@ -45,10 +45,11 @@ class RegionalPDPBase(RegionalEffectBase):
         points_for_centering,
         use_vectorized=True,
     ):
-        def heter(data) -> float:
-            if data.shape[0] < min_points:
+        def heter(active_indices) -> float:
+            if np.sum(active_indices) < min_points:
                 return BIG_M
 
+            data = self.data[active_indices.astype(bool), :]
             if self.method_name == "pdp":
                 pdp = PDP(data, self.model, self.axis_limits, nof_instances="all")
             else:

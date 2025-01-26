@@ -72,10 +72,15 @@ class RegionalRHALE(RegionalEffectBase):
     ):
         binning_method = prep_binning_method(binning_method)
 
-        def heter(data, instance_effects=None) -> float:
-            if data.shape[0] < min_points:
+        def heter(active_indices) -> float:
+            if np.sum(active_indices) < min_points:
                 return BIG_M
 
+            data = self.data[active_indices.astype(bool), :]
+            if self.instance_effects is not None:
+                instance_effects = self.instance_effects[active_indices.astype(bool), :]
+            else:
+                instance_effects = None
             rhale = RHALE(
                 data, self.model, self.model_jac, "all", None, instance_effects
             )
@@ -227,11 +232,12 @@ class RegionalALE(RegionalEffectBase):
         binning_method = prep_binning_method(binning_method)
         isinstance(binning_method, binning_methods.Fixed)
 
-        def heter(data, instance_effects=None) -> float:
-            if data.shape[0] < min_points:
+        def heter(active_indices) -> float:
+            if np.sum(active_indices) < min_points:
                 return BIG_M
 
-            ale = ALE(data, self.model, "all", self.axis_limits, instance_effects)
+            data = self.data[active_indices.astype(bool), :]
+            ale = ALE(data, self.model, "all", self.axis_limits)
             try:
                 ale.fit(features=foi, binning_method=binning_method, centering=False)
             except utils.AllBinsHaveAtMostOnePointError as e:

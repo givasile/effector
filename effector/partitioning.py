@@ -86,17 +86,19 @@ class Regions:
                 self.foc
             ), "nof_levels must be smaller than len(foc)"
 
+            active_indices = np.ones((self.data.shape[0]))
             # initialize heterogeneity
-            heter_init = (
-                self.heter_func(self.data, self.data_effect)
-                if self.data_effect is not None
-                else self.heter_func(self.data)
-            )
+            # heter_init = (
+            #     self.heter_func(self.data, self.data_effect)
+            #     if self.data_effect is not None
+            #     else self.heter_func(self.data)
+            # )
+            heter_init = self.heter_func(active_indices)
 
             # initialize x_list, x_jac_list, splits
             x_list = [self.data]
             x_jac_list = [self.data_effect] if self.data_effect is not None else [None]
-            active_indices_list = [np.ones((self.data.shape[0]))]
+            active_indices_list = [active_indices]
             splits = [
                 {
                     "heterogeneity": [heter_init],
@@ -179,14 +181,16 @@ class Regions:
                 ]
                 x_list_2 = self.flatten_list([x for x, _, _ in tmp])
                 x_jac_list_2 = self.flatten_list([x_jac for _, x_jac, _ in tmp])
+                active_indices_list_2 = self.flatten_list([k for _, _, k in tmp])
 
                 # sub_heter: list with the heterogeneity after split of foc_i at position j
-                if x_jac_list[0] is None:
-                    sub_heter = [heter_func(x) for x in x_list_2]
-                else:
-                    sub_heter = [
-                        heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
-                    ]
+                # if x_jac_list[0] is None:
+                #     sub_heter = [heter_func(x) for x in x_list_2]
+                # else:
+                #     sub_heter = [
+                #         heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
+                #     ]
+                sub_heter = [heter_func(x) for x in active_indices_list_2]
 
                 # heter_drop: list with the heterogeneity drop after split of foc_i at position j
                 heter_drop = np.array(
@@ -227,12 +231,13 @@ class Regions:
         active_indices_list_2 = self.flatten_list([k for _, _, k in tmp])
 
         nof_instances = [len(x) for x in x_list_2]
-        if x_jac_list[0] is None:
-            sub_heter = [heter_func(x) for x in x_list_2]
-        else:
-            sub_heter = [
-                heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
-            ]
+        # if x_jac_list[0] is None:
+        #     sub_heter = [heter_func(x) for x in x_list_2]
+        # else:
+        #     sub_heter = [
+        #         heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
+        #     ]
+        sub_heter = [heter_func(x) for x in active_indices_list_2]
         split = {
             "feature": feature,
             "position": position,

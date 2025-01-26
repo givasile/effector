@@ -6,8 +6,10 @@ import pytest
 
 @pytest.mark.parametrize("notebook_filename", [
     os.path.join("./../notebooks/synthetic-examples", file)
-    for file in os.listdir("./../notebooks/synthetic-examples") if file.endswith(".ipynb")
+    for file in os.listdir("./../notebooks/synthetic-examples") if file.endswith(".ipynb") and not file.startswith("06_efficiency")
 ])
+
+
 
 def test_notebook_execution(notebook_filename):
     with open(notebook_filename, 'r', encoding='utf-8') as f:

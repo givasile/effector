@@ -79,10 +79,11 @@ class RegionalShapDP(RegionalEffectBase):
         self, foi, min_points, centering, points_for_centering
     ):
 
-        def heterogeneity_function(data) -> float:
-            if data.shape[0] < min_points:
+        def heterogeneity_function(active_indices) -> float:
+            if np.sum(active_indices) < min_points:
                 return self.big_m
 
+            data = self.data[active_indices.astype(bool), :]
             axis_limits = helpers.axis_limits_from_data(data)
             xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
 
