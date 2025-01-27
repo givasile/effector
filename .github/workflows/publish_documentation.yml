@@ -13,7 +13,7 @@ jobs:
 
     steps:
     - name: Checkout current repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -32,7 +32,7 @@ jobs:
         cd ..
 
     - name: Save site site as artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: docs-site
         path: docs/site
@@ -46,13 +46,13 @@ jobs:
 
     steps:
     - name: Download the site as artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v4
       with:
         name: docs-site
         path: site
 
     - name: Clone xai-effector.github.io and checkout gh-pages branch
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
           repository: xai-effector/xai-effector.github.io
           ref: gh-pages
