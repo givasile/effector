@@ -9,9 +9,6 @@ import typing
 from typing import Callable, Optional, Union, List
 import copy
 
-BIG_M = helpers.BIG_M
-
-
 class RegionalEffectBase:
     empty_symbol = helpers.EMPTY_SYMBOL
 
@@ -22,7 +19,7 @@ class RegionalEffectBase:
         model: Callable,
         model_jac: Optional[Callable] = None,
         data_effect: Optional[np.ndarray] = None,
-        nof_instances: Union[int, str] = 100,
+        nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
         feature_types: Optional[List] = None,
         cat_limit: Optional[int] = 10,
@@ -32,36 +29,38 @@ class RegionalEffectBase:
         """
         Constructor for the RegionalEffect class.
         """
+        assert data.ndim == 2
+
         self.method_name = method_name.lower()
         self.model = model
         self.model_jac = model_jac
 
-        # select nof_instances from the data
-        self.nof_instances, self.indices = helpers.prep_nof_instances(
-            nof_instances, data.shape[0]
-        )
-        self.data = data[self.indices, :]
-        self.instance_effects = (
-            data_effect[self.indices, :] if data_effect is not None else None
-        )
-        self.dim = self.data.shape[1]
+        self.dim = data.shape[1]
 
-        # set axis_limits
-        axis_limits = (
-            helpers.axis_limits_from_data(data) if axis_limits is None else axis_limits
-        )
+        # data preprocessing (i): if axis_limits passed manually,
+        # keep only the points within,
+        # otherwise, compute the axis limits from the data
+        if axis_limits is not None:
+            assert axis_limits.shape == (2, self.dim)
+            assert np.all(axis_limits[0, :] <= axis_limits[1, :])
+
+            # drop points outside of limits
+            accept_indices = helpers.indices_within_limits(data, axis_limits)
+            data = data[accept_indices, :]
+            data_effect = data_effect[accept_indices, :] if data_effect is not None else None
+        else:
+            axis_limits = helpers.axis_limits_from_data(data)
         self.axis_limits: np.ndarray = axis_limits
 
-        # drop points outside of limits
-        accept_indices = np.ones([self.data.shape[0]]) > 0
-        for feature in range(self.dim):
-            accept_left = self.data[:, feature] >= axis_limits[0, feature]
-            accept_right = self.data[:, feature] <= axis_limits[1, feature]
-            accept_indices = np.logical_and(accept_indices, accept_left)
-            accept_indices = np.logical_and(accept_indices, accept_right)
-        self.data = self.data[accept_indices, :]
-        if self.instance_effects is not None:
-            self.instance_effects = self.instance_effects[accept_indices, :]
+
+        # data preprocessing (ii): select nof_instances from the remaining data
+        self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
+        data = data[self.indices, :]
+        data_effect = data_effect[self.indices, :] if data_effect is not None else None
+
+        # store the data
+        self.data: np.ndarray = data
+        self.data_effect: Optional[np.ndarray] = data_effect
 
         # set feature types
         self.cat_limit = cat_limit
@@ -114,7 +113,7 @@ class RegionalEffectBase:
             feature,
             heter_func,
             self.data,
-            self.instance_effects,
+            self.data_effect,
             self.feature_types,
             self.feature_names,
             self.target_name,

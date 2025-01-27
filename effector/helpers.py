@@ -129,13 +129,16 @@ def prep_avg_output(data, model, avg_output, scale_y) -> float:
     return avg_output
 
 
-def drop_points_outside_axis_limits(
-    data: np.ndarray, axis_limits: np.ndarray, feature: int
-) -> np.ndarray:
-    """Drop points outside the axis limits"""
-    data = data[data[:, feature] >= axis_limits[0, feature]]
-    data = data[data[:, feature] <= axis_limits[1, feature]]
-    return data
+def indices_within_limits(data: np.ndarray, axis_limits: np.ndarray) -> np.ndarray:
+    """Return the indices of the points insi"""
+    accept_indices = np.ones([data.shape[0]]) > 0
+    dim = data.shape[1]
+    for feature in range(dim):
+        accept_left = data[:, feature] >= axis_limits[0, feature]
+        accept_right = data[:, feature] <= axis_limits[1, feature]
+        accept_indices = np.logical_and.reduce([accept_indices, accept_left, accept_right])
+    assert np.sum(accept_indices) > 0
+    return accept_indices
 
 def camel_to_snake(name: str) -> str:
     """Convert CamelCase to snake_case."""

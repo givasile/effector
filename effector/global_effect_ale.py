@@ -1,5 +1,5 @@
 import typing
-from typing import Callable, List, Optional, Union, Tuple
+from typing import List, Optional, Union, Tuple
 import effector.utils as utils
 import effector.visualization as vis
 import effector.binning_methods as bm
@@ -18,7 +18,7 @@ class ALEBase(GlobalEffectBase):
         model: callable,
         model_jac: typing.Union[None, callable] = None,
         data_effect: typing.Optional[np.ndarray] = None,
-        nof_instances: Union[int, str] = "all",
+        nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
         avg_output: Optional[float] = None,
         feature_names: Optional[List] = None,
@@ -113,6 +113,7 @@ class ALEBase(GlobalEffectBase):
         xs: np.ndarray,
         heterogeneity: bool = False,
         centering: typing.Union[bool, str] = False,
+        **kwargs
     ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """Evalueate the (RH)ALE feature effect of feature `feature` at points `xs`.
 
@@ -245,7 +246,7 @@ class ALE(ALEBase):
         self,
         data: np.ndarray,
         model: callable,
-        nof_instances: Union[int, str] = "all",
+        nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
         avg_output: Optional[float] = None,
         feature_names: Optional[List] = None,
@@ -388,7 +389,7 @@ class ALE(ALEBase):
                 - `True` or `zero_integral` centers around the `y` axis.
                 - `zero_start` starts the plot from `y=0`.
 
-            - points_for_centering: the number of points to use for centering the plot. Default is 100.
+            points_for_centering: the number of points to use for centering the plot. Default is 100.
         """
         assert binning_method == "fixed" or isinstance(
             binning_method, bm.Fixed
@@ -403,7 +404,7 @@ class RHALE(ALEBase):
         data: np.ndarray,
         model: callable,
         model_jac: typing.Union[None, callable] = None,
-        nof_instances: typing.Union[int, str] = "all",
+        nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Optional[np.ndarray] = None,
         data_effect: typing.Optional[np.ndarray] = None,
         avg_output: typing.Optional[float] = None,
@@ -480,7 +481,7 @@ class RHALE(ALEBase):
             model,
             model_jac,
             data_effect,
-            "all",
+            nof_instances,
             axis_limits,
             avg_output,
             feature_names,

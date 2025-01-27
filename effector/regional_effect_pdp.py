@@ -15,7 +15,7 @@ class RegionalPDPBase(RegionalEffectBase):
         data: np.ndarray,
         model: callable,
         model_jac: typing.Union[None, callable] = None,
-        nof_instances: typing.Union[int, str] = 100,
+        nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
         cat_limit: typing.Union[int, None] = 10,
@@ -41,35 +41,10 @@ class RegionalPDPBase(RegionalEffectBase):
         self,
         foi,
         min_points,
-        centering,
-        nof_instances,
-        points_for_centering,
-        use_vectorized=True,
     ):
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return BIG_M
-
-            # data = self.data[active_indices.astype(bool), :]
-            # if self.method_name == "pdp":
-            #     pdp = PDP(data, self.model, self.axis_limits, nof_instances="all")
-            # else:
-            #     pdp = DerPDP(data, self.model, self.model_jac, self.axis_limits, nof_instances="all")
-            #
-            # pdp.fit(
-            #     features=foi,
-            #     centering=centering,
-            #     points_for_centering=points_for_centering,
-            #     use_vectorized=use_vectorized,
-            # )
-            # axis_limits = helpers.axis_limits_from_data(data)
-            # xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
-            # _, z = pdp.eval(
-            #         feature=foi,
-            #         xs=xx,
-            #         heterogeneity=True,
-            #         use_vectorized=use_vectorized,
-            #     )
             yy = self.y_ice["feature_" + str(foi)][active_indices.astype(bool), :]
             z = np.var(yy, axis=0)
             return np.mean(z)
@@ -87,7 +62,8 @@ class RegionalPDPBase(RegionalEffectBase):
         candidate_conditioning_features: typing.Union["str", list] = "all",
         split_categorical_features: bool = False,
         centering: typing.Union[bool, str] = False,
-        points_for_centering: int = 100,
+        points_for_centering: int = 50,
+        points_for_mean_heterogeneity: int = 50,
         use_vectorized: bool = True,
     ):
         """
@@ -141,7 +117,8 @@ class RegionalPDPBase(RegionalEffectBase):
                 - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
                 - If `centering` is `zero_start`, the PDP starts from `y=0`.
 
-            points_for_centering: number of equidistant points along the feature axis used for centering.
+            points_for_centering: number of equidistant points along the feature axis used for centering ICE plots
+            points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
             use_vectorized: whether to use vectorized operations for the PDP and ICE curves
 
 
@@ -163,7 +140,7 @@ class RegionalPDPBase(RegionalEffectBase):
                 use_vectorized=use_vectorized,
             )
 
-            xx = np.linspace(self.axis_limits[:, feat][0], self.axis_limits[:, feat][1], 20)
+            xx = np.linspace(self.axis_limits[:, feat][0], self.axis_limits[:, feat][1], points_for_mean_heterogeneity)
             y_ice = pdp.eval(
                     feature=feat,
                     xs=xx,
@@ -176,10 +153,6 @@ class RegionalPDPBase(RegionalEffectBase):
             heter = self._create_heterogeneity_function(
                 foi = feat,
                 min_points=min_points_per_subregion,
-                centering=centering,
-                nof_instances=self.nof_instances,
-                points_for_centering=points_for_centering,
-                use_vectorized=use_vectorized,
             )
 
             self._fit_feature(
@@ -194,7 +167,7 @@ class RegionalPDPBase(RegionalEffectBase):
                 split_categorical_features,
             )
 
-            # todo add methdod args
+            # todo add method args
 
 
 class RegionalPDP(RegionalPDPBase):
@@ -202,7 +175,7 @@ class RegionalPDP(RegionalPDPBase):
         self,
         data: np.ndarray,
         model: callable,
-        nof_instances: typing.Union[int, str] = 1000,
+        nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
         cat_limit: typing.Union[int, None] = 10,
@@ -287,7 +260,7 @@ class RegionalDerPDP(RegionalPDPBase):
         data: np.ndarray,
         model: callable,
         model_jac: typing.Union[None, callable] = None,
-        nof_instances: typing.Union[int, str] = 1000,
+        nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
         cat_limit: typing.Union[int, None] = 10,

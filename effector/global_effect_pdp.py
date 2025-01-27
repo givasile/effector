@@ -15,7 +15,7 @@ class PDPBase(GlobalEffectBase):
         model_jac: Optional[Callable] = None,
         axis_limits: Optional[np.ndarray] = None,
         avg_output: Optional[float] = None,
-        nof_instances: Union[int, str] = 300,
+        nof_instances: Union[int, str] = 10_000,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
         method_name: str = "PDP",
@@ -161,15 +161,15 @@ class PDPBase(GlobalEffectBase):
                 features=feature, centering=centering, use_vectorized=use_vectorized
             )
 
-        # check for cache
-        data = self.retrieve_from_cache(feature, xs, {"centering": centering})
-        if data is not None:
-            if return_all:
-                return data["ice"]
-            if heterogeneity:
-                return data["pdp"], data["heterogeneity"]
-            else:
-                return data["pdp"]
+        # # check for cache
+        # data = self.retrieve_from_cache(feature, xs, {"centering": centering})
+        # if data is not None:
+        #     if return_all:
+        #         return data["ice"]
+        #     if heterogeneity:
+        #         return data["pdp"], data["heterogeneity"]
+        #     else:
+        #         return data["pdp"]
 
         # Check if the lower bound is less than the upper bound
         assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
@@ -184,10 +184,10 @@ class PDPBase(GlobalEffectBase):
 
         # update cache
         y_mean = np.mean(y_ice, axis=1)
-        y_var = np.var(y_ice, axis=1)
-        data = {"pdp": y_mean, "heterogeneity": y_var, "ice": y_ice}
-        parameters = {"centering": centering}
-        self.update_cache(feature, xs, data, parameters)
+        # y_var = np.var(y_ice, axis=1)
+        # data = {"pdp": y_mean, "heterogeneity": y_var, "ice": y_ice}
+        # parameters = {"centering": centering}
+        # self.update_cache(feature, xs, data, parameters)
 
         if return_all:
             return y_ice
