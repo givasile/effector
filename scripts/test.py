@@ -8,7 +8,7 @@ np.random.seed(21)
 
 
 def predict(x):
-    # time.sleep(0.01)
+    time.sleep(0.01)
     model = effector.models.DoubleConditionalInteraction()
     return model.predict(x)
 
@@ -17,27 +17,51 @@ def jacobian(x):
     return model.jacobian(x)
 
 
-N = 1_000
-D = 3
+N = 10_000
+D = 15
 M = 1_000
 
 X = np.random.uniform(-1, 1, (N, D))
 
+# # Global PDP
+# pdp = effector.PDP(
+#     data=X,
+#     model=predict,
+#     feature_names=["x1", "x2", "x3"],
+#     nof_instances="all",
+#     target_name="y"
+# )
+
+# pdp.fit(
+#     features="all",
+#     centering=True
+# )
+
+# tic = timeit.default_timer()
+# pdp.eval(
+#     feature=0,
+#     xs=np.linspace(-1, 1, 100),
+#     centering=True,
+#     heterogeneity=True,
+# )
+# toc = timeit.default_timer()
+# print(f"Global PDP: {toc - tic:.6f} sec")
+
 # PDP
+axis_limits = (np.ones((D, 2)) * np.array([-1, 1])).T
+
 reg_pdp = effector.RegionalPDP(
     data=X,
     model=predict,
-    feature_names=["x1", "x2", "x3"],
     nof_instances="all",
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
-    target_name="y"
+    axis_limits=axis_limits
 )
 
 reg_pdp.fit(
     features="all",
     heter_pcg_drop_thres=.2,
     heter_small_enough=0.,
-    max_depth=2,
+    max_depth=3,
     nof_candidate_splits_for_numerical=51,
     min_points_per_subregion=10,
     use_vectorized=True,

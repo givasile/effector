@@ -22,6 +22,7 @@ class RegionalPDPBase(RegionalEffectBase):
         feature_names: typing.Union[list, None] = None,
         target_name: typing.Union[str, None] = None,
     ):
+        self.y_ice = {}
         super(RegionalPDPBase, self).__init__(
             method_name,
             data,
@@ -49,26 +50,28 @@ class RegionalPDPBase(RegionalEffectBase):
             if np.sum(active_indices) < min_points:
                 return BIG_M
 
-            data = self.data[active_indices.astype(bool), :]
-            if self.method_name == "pdp":
-                pdp = PDP(data, self.model, self.axis_limits, nof_instances="all")
-            else:
-                pdp = DerPDP(data, self.model, self.model_jac, self.axis_limits, nof_instances="all")
-
-            pdp.fit(
-                features=foi,
-                centering=centering,
-                points_for_centering=points_for_centering,
-                use_vectorized=use_vectorized,
-            )
-            axis_limits = helpers.axis_limits_from_data(data)
-            xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
-            _, z = pdp.eval(
-                    feature=foi,
-                    xs=xx,
-                    heterogeneity=True,
-                    use_vectorized=use_vectorized,
-                )
+            # data = self.data[active_indices.astype(bool), :]
+            # if self.method_name == "pdp":
+            #     pdp = PDP(data, self.model, self.axis_limits, nof_instances="all")
+            # else:
+            #     pdp = DerPDP(data, self.model, self.model_jac, self.axis_limits, nof_instances="all")
+            #
+            # pdp.fit(
+            #     features=foi,
+            #     centering=centering,
+            #     points_for_centering=points_for_centering,
+            #     use_vectorized=use_vectorized,
+            # )
+            # axis_limits = helpers.axis_limits_from_data(data)
+            # xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
+            # _, z = pdp.eval(
+            #         feature=foi,
+            #         xs=xx,
+            #         heterogeneity=True,
+            #         use_vectorized=use_vectorized,
+            #     )
+            yy = self.y_ice["feature_" + str(foi)][active_indices.astype(bool), :]
+            z = np.var(yy, axis=0)
             return np.mean(z)
 
         return heter
@@ -147,6 +150,29 @@ class RegionalPDPBase(RegionalEffectBase):
         assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
+            # define the global method
+            if self.method_name == "pdp":
+                pdp = PDP(self.data, self.model, self.axis_limits, nof_instances="all")
+            else:
+                pdp = DerPDP(self.data, self.model, self.model_jac, self.axis_limits, nof_instances="all")
+
+            pdp.fit(
+                features=feat,
+                centering=centering,
+                points_for_centering=points_for_centering,
+                use_vectorized=use_vectorized,
+            )
+
+            xx = np.linspace(self.axis_limits[:, feat][0], self.axis_limits[:, feat][1], 20)
+            y_ice = pdp.eval(
+                    feature=feat,
+                    xs=xx,
+                    heterogeneity=True,
+                    use_vectorized=use_vectorized,
+                    return_all=True
+                )
+            self.y_ice["feature_" + str(feat)] = y_ice.T
+
             heter = self._create_heterogeneity_function(
                 foi = feat,
                 min_points=min_points_per_subregion,

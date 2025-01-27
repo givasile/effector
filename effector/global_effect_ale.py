@@ -16,6 +16,8 @@ class ALEBase(GlobalEffectBase):
         self,
         data: np.ndarray,
         model: callable,
+        model_jac: typing.Union[None, callable] = None,
+        data_effect: typing.Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = "all",
         axis_limits: Optional[np.ndarray] = None,
         avg_output: Optional[float] = None,
@@ -28,6 +30,8 @@ class ALEBase(GlobalEffectBase):
             method_name,
             data,
             model,
+            model_jac,
+            data_effect,
             nof_instances,
             axis_limits,
             avg_output,
@@ -306,6 +310,8 @@ class ALE(ALEBase):
         super(ALE, self).__init__(
             data,
             model,
+            None,
+            None,
             nof_instances,
             axis_limits,
             avg_output,
@@ -469,19 +475,11 @@ class RHALE(ALEBase):
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
         """
-        self.model_jac = model_jac
-
-        # select nof_instances from the data
-        nof_instances, indices = helpers.prep_nof_instances(
-            nof_instances, data.shape[0]
-        )
-        data = data[indices, :]
-        data_effect = data_effect[indices, :] if data_effect is not None else None
-        self.data_effect = data_effect
-
         super(RHALE, self).__init__(
             data,
             model,
+            model_jac,
+            data_effect,
             "all",
             axis_limits,
             avg_output,

@@ -52,6 +52,17 @@ class RegionalEffectBase:
         )
         self.axis_limits: np.ndarray = axis_limits
 
+        # drop points outside of limits
+        accept_indices = np.ones([self.data.shape[0]]) > 0
+        for feature in range(self.dim):
+            accept_left = self.data[:, feature] >= axis_limits[0, feature]
+            accept_right = self.data[:, feature] <= axis_limits[1, feature]
+            accept_indices = np.logical_and(accept_indices, accept_left)
+            accept_indices = np.logical_and(accept_indices, accept_right)
+        self.data = self.data[accept_indices, :]
+        if self.instance_effects is not None:
+            self.instance_effects = self.instance_effects[accept_indices, :]
+
         # set feature types
         self.cat_limit = cat_limit
         feature_types = (

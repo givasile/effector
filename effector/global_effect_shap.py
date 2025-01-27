@@ -94,6 +94,8 @@ class ShapDP(GlobalEffectBase):
             "SHAP DP",
             data,
             model,
+            None,
+            None,
             nof_instances,
             axis_limits,
             avg_output,
