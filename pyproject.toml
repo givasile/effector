@@ -20,7 +20,7 @@ maintainers = [
 license = {text = "MIT License"}
 requires-python = ">=3.7"
 keywords = ["explainability", "machine learning", "deep learning", "interpretability", "feature effect"]
-version = "0.0.273"
+version = "0.0.274"
 readme = "README.md"
 dependencies = [
     "matplotlib",
