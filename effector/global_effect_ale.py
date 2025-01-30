@@ -8,6 +8,7 @@ import effector.utils_integrate as utils_integrate
 from effector.global_effect import GlobalEffectBase
 import numpy as np
 from abc import abstractmethod
+import time
 
 
 class ALEBase(GlobalEffectBase):
@@ -322,7 +323,6 @@ class ALE(ALEBase):
         )
 
     def _fit_feature(self, feature: int, binning_method="fixed") -> typing.Dict:
-
         # drop points outside of limits
         ind = np.logical_and(
             self.data[:, feature] >= self.axis_limits[0, feature],
@@ -496,13 +496,7 @@ class RHALE(ALEBase):
         elif self.data_effect is None and self.model_jac is None:
             self.data_effect = utils.compute_jacobian_numerically(self.model, self.data)
 
-    def _fit_feature(
-        self,
-        feature: int,
-        binning_method: Union[
-            str, bm.DynamicProgramming, bm.Greedy, bm.Fixed
-        ] = "greedy",
-    ) -> typing.Dict:
+    def _fit_feature(self, feature: int, binning_method: Union[str, bm.DynamicProgramming, bm.Greedy, bm.Fixed] = "greedy") -> typing.Dict:
         if self.data_effect is None:
             self.compile()
 
@@ -534,6 +528,7 @@ class RHALE(ALEBase):
         dale_params = utils.compute_ale_params(
             data[:, feature], data_effect[:, feature], bin_est.limits
         )
+
         dale_params["alg_params"] = binning_method
         return dale_params
 

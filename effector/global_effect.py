@@ -55,9 +55,9 @@ class GlobalEffectBase(ABC):
         self.data: np.ndarray = data
         self.data_effect: Optional[np.ndarray] = data_effect
 
-        self.avg_output = (
-            avg_output if avg_output is not None else np.mean(self.model(self.data))
-        )
+        # self.avg_output = (
+        #     avg_output if avg_output is not None else np.mean(self.model(self.data))
+        # )
 
         # set feature names
         feature_names: list[str] = (
