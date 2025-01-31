@@ -299,7 +299,7 @@ class RegionalALE(RegionalEffectBase):
         features: typing.Union[int, str, list],
         heter_pcg_drop_thres: float = 0.1,
         heter_small_enough: float = 0.,
-        max_depth: int = 1,
+        max_depth: int = 2,
         nof_candidate_splits_for_numerical: int = 20,
         min_points_per_subregion: int = 10,
         candidate_conditioning_features: typing.Union["str", list] = "all",
