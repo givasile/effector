@@ -100,7 +100,7 @@ class RegionalEffectBase:
         heter_pcg_drop_thres: float = 0.1,
         heter_small_enough: float = 0.1,
         max_split_levels: int = 2,
-        candidate_positions_for_numerical: int = 20,
+        candidate_positions_for_numerical: int = 10,
         min_points_per_subregion: int = 10,
         candidate_foc: Union[str, List] = "all",
         split_categorical_features: bool = False,
@@ -114,6 +114,7 @@ class RegionalEffectBase:
             heter_func,
             self.data,
             self.data_effect,
+            self.axis_limits,
             self.feature_types,
             self.feature_names,
             self.target_name,
@@ -126,7 +127,6 @@ class RegionalEffectBase:
             heter_small_enough,
             split_categorical_features,
         )
-
         # apply partitioning
         regions.search_all_splits()
         regions.choose_important_splits()

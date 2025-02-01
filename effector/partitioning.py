@@ -15,6 +15,7 @@ class Regions:
         heter_func: callable,
         data: np.ndarray,
         data_effect: typing.Union[None, np.ndarray],
+        axis_limits: np.ndarray,
         feature_types: typing.Union[list, None],
         feature_names: typing.List[str],
         target_name: str,
@@ -31,6 +32,7 @@ class Regions:
         self.feature = feature
         self.data = data
         self.dim = self.data.shape[1]
+        self.axis_limits = axis_limits
         self.cat_limit = categorical_limit
         self.data_effect = data_effect
         self.feature_names = feature_names
@@ -82,9 +84,11 @@ class Regions:
         ):
             self.splits = []
         else:
-            assert self.max_split_levels <= len(
-                self.foc
-            ), "nof_levels must be smaller than len(foc)"
+            # assert self.max_split_levels <= len(
+            #     self.foc
+            # ), "nof_levels must be smaller than len(foc)"
+            if self.max_split_levels > len(self.foc):
+                self.max_split_levels = len(self.foc)
 
             active_indices = np.ones((self.data.shape[0]))
             # initialize heterogeneity
@@ -328,8 +332,10 @@ class Regions:
         return np.unique(x[:, feature])
 
     def find_positions_cont(self, x, feature, nof_splits):
-        step = (np.max(x[:, feature]) - np.min(x[:, feature])) / nof_splits
-        return np.min(x[:, feature]) + (np.arange(nof_splits) + 0.5) * step
+        start = self.axis_limits[0, feature]
+        stop = self.axis_limits[1, feature]
+        pos = np.linspace(start, stop, nof_splits+1)
+        return pos[1:-1]
 
     def flatten_list(self, l):
         return [item for sublist in l for item in sublist]

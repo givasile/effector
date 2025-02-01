@@ -23,29 +23,29 @@ M = 1_000
 
 X = np.random.uniform(-1, 1, (N, D))
 
-# # Global PDP
-# pdp = effector.PDP(
-#     data=X,
-#     model=predict,
-#     feature_names=["x1", "x2", "x3"],
-#     nof_instances="all",
-#     target_name="y"
-# )
+# Global ALE
+ale = effector.ALE(
+    data=X,
+    model=predict,
+    feature_names=["x1", "x2", "x3"],
+    nof_instances="all",
+    target_name="y"
+)
 
-# pdp.fit(
-#     features="all",
-#     centering=True
-# )
+ale.fit(
+    features="all",
+    centering=True
+)
 
-# tic = timeit.default_timer()
-# pdp.eval(
-#     feature=0,
-#     xs=np.linspace(-1, 1, 100),
-#     centering=True,
-#     heterogeneity=True,
-# )
-# toc = timeit.default_timer()
-# print(f"Global PDP: {toc - tic:.6f} sec")
+tic = timeit.default_timer()
+ale.eval(
+    feature=0,
+    xs=np.linspace(-1, 1, 100),
+    centering=True,
+    heterogeneity=True,
+)
+toc = timeit.default_timer()
+print(f"Global PDP: {toc - tic:.6f} sec")
 
 # PDP
 axis_limits = (np.ones((D, 2)) * np.array([-1, 1])).T

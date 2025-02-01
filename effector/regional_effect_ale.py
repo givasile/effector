@@ -47,11 +47,11 @@ class RegionalRHALE(RegionalEffectBase):
             target_name: the name of the target variable
         """
 
-        if data_effect is None:
-            if model_jac is not None:
-                data_effect = model_jac(data)
-            else:
-                data_effect = utils.compute_jacobian_numerically(model, data)
+        # if data_effect is None:
+        #     if model_jac is not None:
+        #         data_effect = model_jac(data)
+        #     else:
+        #         data_effect = utils.compute_jacobian_numerically(model, data)
 
         super(RegionalRHALE, self).__init__(
             "rhale",
@@ -66,6 +66,14 @@ class RegionalRHALE(RegionalEffectBase):
             feature_names,
             target_name,
         )
+
+
+    def compile(self):
+        """Prepare everything for fitting, i.e., compute the gradients on data points."""
+        if self.data_effect is None and self.model_jac is not None:
+            self.data_effect = self.model_jac(self.data)
+        elif self.data_effect is None and self.model_jac is None:
+            self.data_effect = utils.compute_jacobian_numerically(self.model, self.data)
 
     def _create_heterogeneity_function(
         self, foi, binning_method, min_points
@@ -172,6 +180,8 @@ class RegionalRHALE(RegionalEffectBase):
 
             points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
         """
+        if self.data_effect is None:
+            self.compile()
 
         assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
@@ -368,8 +378,12 @@ class RegionalALE(RegionalEffectBase):
         assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
+            # fit global method
+
+            # create heterogeneity function
             heter = self._create_heterogeneity_function(feat, binning_method, min_points_per_subregion)
 
+            # fit feature
             self._fit_feature(
                 feat,
                 heter,

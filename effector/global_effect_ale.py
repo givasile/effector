@@ -323,12 +323,13 @@ class ALE(ALEBase):
         )
 
     def _fit_feature(self, feature: int, binning_method="fixed") -> typing.Dict:
-        # drop points outside of limits
-        ind = np.logical_and(
-            self.data[:, feature] >= self.axis_limits[0, feature],
-            self.data[:, feature] <= self.axis_limits[1, feature],
-        )
-        data = self.data[ind, :]
+        # # drop points outside of limits
+        # ind = np.logical_and(
+        #     self.data[:, feature] >= self.axis_limits[0, feature],
+        #     self.data[:, feature] <= self.axis_limits[1, feature],
+        # )
+        # data = self.data[ind, :]
+        data = self.data
 
         # assertion
         assert binning_method == "fixed" or isinstance(
@@ -354,7 +355,7 @@ class ALE(ALEBase):
         data_effect = utils.compute_local_effects(
             data, self.model, bin_est.limits, feature
         )
-
+        breakpoint()
         # compute the bin effect
         dale_params = utils.compute_ale_params(
             data[:, feature], data_effect, bin_est.limits
@@ -501,12 +502,14 @@ class RHALE(ALEBase):
             self.compile()
 
         # drop points outside of limits
-        ind = np.logical_and(
-            self.data[:, feature] >= self.axis_limits[0, feature],
-            self.data[:, feature] <= self.axis_limits[1, feature],
-        )
-        data = self.data[ind, :]
-        data_effect = self.data_effect[ind, :]
+        # ind = np.logical_and(
+        #     self.data[:, feature] >= self.axis_limits[0, feature],
+        #     self.data[:, feature] <= self.axis_limits[1, feature],
+        # )
+        # data = self.data[ind, :]
+        # data_effect = self.data_effect[ind, :]
+        data = self.data
+        data_effect = self.data_effect
 
         # bin estimation
         bin_est = bm.find_limits(

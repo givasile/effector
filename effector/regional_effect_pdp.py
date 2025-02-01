@@ -48,7 +48,6 @@ class RegionalPDPBase(RegionalEffectBase):
             yy = self.y_ice["feature_" + str(foi)][active_indices.astype(bool), :]
             z = np.var(yy, axis=0)
             return np.mean(z)
-
         return heter
 
     def fit(
@@ -166,7 +165,6 @@ class RegionalPDPBase(RegionalEffectBase):
                 candidate_conditioning_features,
                 split_categorical_features,
             )
-
             # todo add method args
 
 

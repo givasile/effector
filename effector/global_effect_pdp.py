@@ -382,7 +382,7 @@ class DerPDP(PDPBase):
         model: Callable,
         model_jac: Optional[Callable] = None,
         axis_limits: Optional[np.ndarray] = None,
-nof_instances: Union[int, str] = 10_000,
+        nof_instances: Union[int, str] = 10_000,
         avg_output: Optional[float] = None,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
