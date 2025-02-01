@@ -106,13 +106,7 @@ PDP(x_3) &\propto \frac{1}{N} \sum_{i=1}^{n} f(x_3, x_{/3}^i) \\
 &\propto e^{x_3} + c\\
 \end{align}
 
-### Conclusions
-
-Are the PDP effects intuitive?
-
-* For $x_1$ the effect is zero. The terms related to $x_1$ are $-x_1^2 \mathbb{1}_{x_2 <0}$ and $x_1^2 \mathbb{1}_{x_2 \geq 0}$. Both terms involve an interaction with $x_2$. Since $x_2 \sim \mathcal{U}(-1,1)$, almost half of the instances have $x_2^i < 0$ and the the other half $x_2^i \geq 0$, so the the two terms cancel out.
-* For $x_2$, the effect is constant when $x_2 < 0$ or $x_2>0$ but has a positive jump of $\frac{2}{3}$ when moving from $x_2^-$ to $x_2^+$. It makes sense; when $x_2 < 0$ the active term is $-(x_1^i)^2 \mathbb{1}_{x_2 < 0} $ which adds a negative quantity to the output and when $x_2 \geq 0$ the active term is $(x_1^i)^2 \mathbb{1}_{x_2 \geq 0}$ that adds something postive. Therefore in the transmission we observe a non-linearity.
-* For $x_3$, the effect is  $e^{x_3}$, as expected, since only the this term corresponds to $x_3$ and has no interaction with other variables.
+### Tests
 
 
 ```python
@@ -163,9 +157,17 @@ plt.show()
 ```
 
 
-    
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_13_0.png)
-    
+    ---------------------------------------------------------------------------
+
+    NameError                                 Traceback (most recent call last)
+
+    Cell In[2], line 1
+    ----> 1 xx = np.linspace(-1, 1, 100)
+          2 y_pdp = []
+          3 for feature in [0, 1, 2]:
+
+
+    NameError: name 'np' is not defined
 
 
 
@@ -177,6 +179,29 @@ for feature in [0, 1, 2]:
     y_gt = pdp_ground_truth(feature, xx)
     np.testing.assert_allclose(y_pdp, y_gt, atol=1e-1)
 ```
+
+
+    ---------------------------------------------------------------------------
+
+    NameError                                 Traceback (most recent call last)
+
+    Cell In[3], line 2
+          1 # make a test
+    ----> 2 xx = np.linspace(-1, 1, 100)
+          3 for feature in [0, 1, 2]:
+          4     y_pdp = pdp.eval(feature=feature, xs=xx, centering=True)
+
+
+    NameError: name 'np' is not defined
+
+
+### Conclusions
+
+Are the PDP effects intuitive?
+
+* For $x_1$ the effect is zero. The terms related to $x_1$ are $-x_1^2 \mathbb{1}_{x_2 <0}$ and $x_1^2 \mathbb{1}_{x_2 \geq 0}$. Both terms involve an interaction with $x_2$. Since $x_2 \sim \mathcal{U}(-1,1)$, almost half of the instances have $x_2^i < 0$ and the the other half $x_2^i \geq 0$, so the the two terms cancel out.
+* For $x_2$, the effect is constant when $x_2 < 0$ or $x_2>0$ but has a positive jump of $\frac{2}{3}$ when moving from $x_2^-$ to $x_2^+$. It makes sense; when $x_2 < 0$ the active term is $-(x_1^i)^2 \mathbb{1}_{x_2 < 0} $ which adds a negative quantity to the output and when $x_2 \geq 0$ the active term is $(x_1^i)^2 \mathbb{1}_{x_2 \geq 0}$ that adds something postive. Therefore in the transmission we observe a non-linearity.
+* For $x_3$, the effect is  $e^{x_3}$, as expected, since only the this term corresponds to $x_3$ and has no interaction with other variables.
 
 ## ALE
 
@@ -195,19 +220,19 @@ for feature in [0, 1, 2]:
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_17_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_18_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_17_1.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_18_1.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_17_2.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_18_2.png)
     
 
 
@@ -251,6 +276,8 @@ ALE(x_3) &\propto \sum_{k=1}^{k_{x_3}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(
 &\propto \sum_{k=1}^{k_{x_3}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(i)} \in \mathcal{S}_k} \left [ e^{z_k} - e^{z_{k-1}} \right ] \\
 &\approx e^{x_3}
 \end{align}
+
+### Tests
 
 
 ```python
@@ -297,7 +324,7 @@ plt.show()
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_24_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_26_0.png)
     
 
 
@@ -342,19 +369,19 @@ for feature in [0, 1, 2]:
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_28_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_30_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_28_1.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_30_1.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_28_2.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_30_2.png)
     
 
 
@@ -433,7 +460,7 @@ plt.show()
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_35_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_37_0.png)
     
 
 

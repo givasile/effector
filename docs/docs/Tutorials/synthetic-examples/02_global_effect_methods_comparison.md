@@ -10,9 +10,6 @@ import effector
 import matplotlib.pyplot as plt
 ```
 
-    Using `tqdm.autonotebook.tqdm` in notebook mode. Use `tqdm.tqdm` instead to force console mode (e.g. in jupyter console)
-
-
 ## Problem setup
 
 We will generate $N=60$ examples with $D=3$ features, as described in the following table. Observe that $x_3$ is highly-dependent on $x_1$, i.e., $x_3 \approx x_1$.; this will later help us to compute the ground truth ALE effect.

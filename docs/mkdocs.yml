@@ -3,13 +3,16 @@ site_name: effector
 nav:
   - Home: index.md
   - Install: installation.md
-  - Getting Started:
+  - Quickstart: Tutorials/getting-started/tutorial_effector.md
+  - Intro to Feature Effects:
     - Global Effects: global_effect_intro.md
     - Regional Effects: regional_effect_intro.md
-  - Guides:
-      - Quickstart: Tutorials/getting-started/tutorial_effector.md
+  - Intro to Effector:
       - Use Effector with ML libraries: Tutorials/Guides/wrap_models.md
       - Methods Explained: tutorial_methods.md
+  - Efficiency:
+      - Global Effect: Tutorials/synthetic-examples/06_efficiency_global.md
+      - Regional Effect: Tutorials/synthetic-examples/06_efficiency_regional.md
   - Synthetic Examples:
       - Conditional Interaction (1):
           - Global Effect: Tutorials/synthetic-examples/05_conditional_interaction_independent_uniform_global.md

@@ -136,6 +136,8 @@ regional_shap.fit(
 
     100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:03<00:00,  1.33s/it]
 
+
+
 ```python
 regional_shap.summary(0)
 ```
@@ -165,6 +167,9 @@ regional_shap.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, y
 
     
 ![png](02_regional_shapdp_files/02_regional_shapdp_13_1.png)
+    
+
+
 
 ```python
 regional_shap.summary(features=1)
@@ -175,6 +180,8 @@ regional_shap.summary(features=1)
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.00
+
+
 
 ```python
 regional_shap.summary(features=2)
@@ -248,6 +255,8 @@ regional_shap.fit(
 
     100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:04<00:00,  1.37s/it]
 
+
+
 ```python
 regional_shap.summary(0)
 ```
@@ -258,6 +267,8 @@ regional_shap.summary(0)
     Feature 0 - Statistics per tree level:
     Level 0, heter: 0.09
 
+
+
 ```python
 regional_shap.summary(1)
 ```
@@ -267,6 +278,8 @@ regional_shap.summary(1)
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.00
+
+
 
 ```python
 regional_shap.summary(2)

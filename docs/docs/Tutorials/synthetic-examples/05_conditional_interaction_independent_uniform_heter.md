@@ -1,12 +1,6 @@
 # Model with conditional interaction
 
-In this example, we show global effects of a model with conditional interactions using PDP, ALE, and RHALE.
-In particular, we:
-
-1. show how to use `effector` to estimate the global effects using PDP, ALE, and RHALE
-2. provide the analytical formulas for the global effects
-3. test that (1) and (2) match
-
+In this example, we show the heterogeneity of the global effects, using PDP, ALE, and RHALE, on a model with conditional interactions.
 We will use the following model: 
 
 $$ 
@@ -14,16 +8,13 @@ f(x_1, x_2, x_3) = -x_1^2 \mathbb{1}_{x_2 <0} + x_1^2 \mathbb{1}_{x_2 \geq 0} + 
 $$
 
 where the features $x_1, x_2, x_3$ are independent and uniformly distributed in the interval $[-1, 1]$.
-
-
 The model has an _interaction_ between $x_1$ and $x_2$ caused by the terms: 
 $f_{1,2}(x_1, x_2) = -x_1^2 \mathbb{1}_{x_2 <0} + x_1^2 \mathbb{1}_{x_2 \geq 0}$.
 This means that the effect of $x_1$ on the output $y$ depends on the value of $x_2$ and vice versa.
-Therefore, there is no golden standard on how to split the effect of $f_{1,2}$ to two parts, one that corresponds to $x_1$ and one to $x_2$.
-Each global effect method has a different strategy to handle this issue.
-Below we will see how PDP, ALE, and RHALE handle this interaction.
+Terms like this introduce heterogeneity.
+Each global effect method has a different formula for qunatifying such heterogeneity; below, we will see how PDP, ALE, and RHALE handles it.
 
-In contrast, $x_3$ does not interact with any other feature, so its effect can be easily computed as $e^{x_3}$.
+In contrast, $x_3$ does not interact with any other feature, so its global effect has zero heterogeneity.
 
 
 ```python
@@ -35,21 +26,45 @@ np.random.seed(21)
 
 model = effector.models.ConditionalInteraction()
 dataset = effector.datasets.IndependentUniform(dim=3, low=-1, high=1)
-x = dataset.generate_data(1_000)
+x = dataset.generate_data(10_000)
 ```
 
 ## PDP
 
 ### Effector
 
-Let's see below the PDP effects for each feature, using `effector`.
+Let's see below the PDP heterogeneity for each feature, using `effector`.
 
 
 ```python
 pdp = effector.PDP(x, model.predict, dataset.axis_limits)
 pdp.fit(features="all", centering=True)
 for feature in [0, 1, 2]:
-    pdp.plot(feature=feature, centering=True, y_limits=[-2, 2])
+    pdp.plot(feature=feature, centering=True, heterogeneity=True, y_limits=[-2, 2])
+```
+
+
+    
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_4_0.png)
+    
+
+
+
+    
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_4_1.png)
+    
+
+
+
+    
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_4_2.png)
+    
+
+
+
+```python
+for feature in [0, 1, 2]:
+    pdp.plot(feature=feature, centering=True, heterogeneity="ice", y_limits=[-2, 2])
 ```
 
 
@@ -70,112 +85,94 @@ for feature in [0, 1, 2]:
     
 
 
-PDP states that:
 
-* $x_1$ has a zero average effect on the model output
-* $x_2$ has a constant effect when $x_2 <0$ or $x_2 >0$, but when moving from $x_2^-$ to $x_2^+$ it adds (on average) $+\frac{2}{3}$ units to $y$
-* $x_3$ has an effect of $e^{x_3}$
+```python
+pdp = effector.PDP(x, model.predict, dataset.axis_limits, nof_instances="all")
+pdp.fit(features="all", centering=True)
+heter_per_feat = []
+for feature in [0, 1, 2]:
+    y_mean, y_var = pdp.eval(feature=feature, xs=np.linspace(-1, 1, 100), centering=True, heterogeneity=True)
+    print(f"Heterogeneity of x_{feature}: {y_var.mean():.3f}")
+    heter_per_feat.append(y_var.mean())
+```
+
+    Heterogeneity of x_0: 0.092
+    Heterogeneity of x_1: 0.088
+    Heterogeneity of x_2: 0.000
+
+
+Conclusions:
+
+* The global effect of $x_1$ arises from heterogenous local effects, as $h(x_1) > 0$ for all $x_1$. The std margins (red area of height $\pm h(x_1)$ around the global effect) musleadingly suggest that the heterogeneity is minimized at $x_1 = \pm \frac{2}{3}$. ICE provide a clearer picture; they reveal two groups of effects, $-x_1^2 + c_1$ and $x_1^2 + c_2$. The heterogeneity as a scalar value is $H_{x_1} \approx 0.9$.
+* Similar to $x_1$, the global effect of $x_2$ arises from heterogeneous local effects. However, unlike $x_1$, both std margins and ICE plots indicate a constant heterogeneity along all the axis, i.e., $h(x_2) \approx 0.9 \forall x_2$. ICE plots further show a smooth range of varying local effects around the global effect, without distinct groups. The heterogeneity as a scalar is $ H_{x_2} \approx 0.9 $, which is identical to $ H_{x_1} $. This is consistent, as heterogeneity measures the interaction between a feature and all other features. In this case, since only $ x_1 $ and $ x_2 $ interact, their heterogeneity values should be the same.
+* $x_3$ shows no heteregeneity; all local effects align perfectly with the global effect.
 
 ### Derivations
 
-How PDP leads to these explanations? Are they meaningfull? Let's have some analytical derivations.
-If you don't care about the derivations, skip the following three cells and go directly to the coclusions.
+How PDP (and effector) reached such hetergoneity functions?
 
 For $x_1$:
 
+The average effect is $f^{PDP}(x_1) = 0$. ICE plots are: $-x_1^2 + \frac{1}{3} $ when $x_2^i <0$ and $x_1^2 - \frac{1}{3} $ when $x_2^i \geq 0$. Due to the square, they both create the same deviation from the average effect: $ \left ( x_1^2 - \frac{1}{3} \right )^2 $.
+
 \begin{align}
-PDP(x_1) &\propto \frac{1}{N} \sum_{i=1}^{n} f(x_1, \mathbf{x}^i_{/1}) \\
-&\propto \frac{1}{N} \sum_{i=1}^{N} -x_1^2 \mathbb{1}_{x_2^i <0} + x_1^2 \mathbb{1}_{x_2^i \geq 0} + e^{x_3^i} \\
-&\propto x_1^2 \frac{1}{N}\sum_{i=1}^{n} ( - \mathbb{1}_{x_2^i < 0} + \mathbb{1}_{x_2^i \geq 0}) \\
-&\approx c
+h(x_1) &= \frac{1}{N} \sum_i^N \left ( f^{ICE,i}_c(x_1) - f^{PDP}_c(x_1) \right )^2 \\
+&= \frac{1}{N} \sum_i^N \left ( x_1^2 - \frac{1}{3} \right )^2 \\
+&=  x_1^4 - \frac{2}{3} x_1^2 + \frac{1}{9} \\
+\end{align}
+
+The heterogeneity as a scalar is simply the mean of the heterogeneity function:
+
+\begin{align}
+H_{x_1} &= \frac{ \int_{-1}^{1} \left ( x_1^4 - \frac{2}{3} x_1^2 + \frac{1}{9} \right ) \partial x_1}{2} = \frac{4}{45} \approx 0.9
 \end{align}
 
 For $x_2$:
 
-\begin{align}
-PDP(x_2) &\propto \frac{1}{N} \sum_{i=1}^{n} f(x_2, \mathbf{x}_{/2}^i) \\
-&\propto \frac{1}{N} \sum_{i=1}^{n} \left [ (-x_1^i)^2 \mathbb{1}_{x_2 < 0} + (x_1^i)^2 \mathbb{1}_{x_2 \geq 0} + e^{x_3^i} \right ] \\
-&\propto \left [ \frac{1}{N} \sum_i^N -x_{i,1}^2 \right ] \mathbb{1}_{x_2 <0}  + \left [ \frac{1}{N} \sum_i^N x_{i,1}^2\right ] \mathbb{1}_{x_2 \geq 0}  \\
-&\approx -\frac{1}{3} \mathbb{1}_{x_2 < 0} + \frac{1}{3} \mathbb{1}_{x_2 \geq 0} + c
-\end{align}
-
-For $x_3$:
+The average effect is $f^{PDP}(x_2) = -\frac{1}{3} \mathbb{1}_{x_2 < 0} + \frac{1}{3} \mathbb{1}_{x_2 \geq 0}$ and the ICE plots are $f^{ICE,i}(x_2) = - (x_1^i)^2 \mathbb{1}_{x_2 < 0} + (x_1^i)^2 \mathbb{1}_{x_2 \geq 0}$.
 
 \begin{align}
-PDP(x_3) &\propto \frac{1}{N} \sum_{i=1}^{n} f(x_3, x_{/3}^i) \\
-&\propto e^{x_3} + c\\
+h(x_2)  &= \frac{1}{N} \sum_i^N \left ( f^{ICE,i}_c(x_2) - f^{PDP}_c(x_2) \right )^2 \\
+&= \frac{1}{N} \sum_i^N \left ( \mathbb{1}_{x_2 < 0} \left ( -\frac{1}{3} + (x_1^i)^2 \right )^2 + \mathbb{1}_{x_2 \geq 0} \left ( -\frac{1}{3} + (x_1^i)^2 \right )^2 \right ) \\
+&= \frac{1}{N} \sum_i^N  \left ( -\frac{1}{3} + (x_1^i)^2 \right )^2 \\
+&= \frac{4}{45} \approx 0.9
 \end{align}
+
+The heterogeneity as a scalar is simply the mean of the heterogeneity function, so:
+
+$$H_{x_2} \approx 0.9$$.
+
+For $x_3$, there is no heterogeneity so $h(x_3)=0$ and $H_{x_3} = 0$.
 
 ### Conclusions
+PDP heterogeneity provides intuitive insights:
 
-Are the PDP effects intuitive?
-
-* For $x_1$ the effect is zero. The terms related to $x_1$ are $-x_1^2 \mathbb{1}_{x_2 <0}$ and $x_1^2 \mathbb{1}_{x_2 \geq 0}$. Both terms involve an interaction with $x_2$. Since $x_2 \sim \mathcal{U}(-1,1)$, almost half of the instances have $x_2^i < 0$ and the the other half $x_2^i \geq 0$, so the the two terms cancel out.
-* For $x_2$, the effect is constant when $x_2 < 0$ or $x_2>0$ but has a positive jump of $\frac{2}{3}$ when moving from $x_2^-$ to $x_2^+$. It makes sense; when $x_2 < 0$ the active term is $-(x_1^i)^2 \mathbb{1}_{x_2 < 0} $ which adds a negative quantity to the output and when $x_2 \geq 0$ the active term is $(x_1^i)^2 \mathbb{1}_{x_2 \geq 0}$ that adds something postive. Therefore in the transmission we observe a non-linearity.
-* For $x_3$, the effect is  $e^{x_3}$, as expected, since only the this term corresponds to $x_3$ and has no interaction with other variables.
+- The global effects of $x_1$ and $x_2$ arise from heterogeneous local effects, while $x_3$ shows no heterogeneity.
+- The heterogeneity of $x_1$ and $x_2$ is quantified at the same level (0.99), which makes sense since only these two features interact.
+- However, the heterogeneity of $x_1$ appears misleading when centering ICE plots, as it falsely suggests minimized heterogeneity at $\pm \frac{2}{3}$, which is not accurate.
 
 
 ```python
-def compute_centering_constant(func, start, stop, nof_points):
-    x = np.linspace(start, stop, nof_points)
-    y = func(x)
-    return np.mean(y)
-
-
 def pdp_ground_truth(feature, xs):
     if feature == 0:
-        ff = lambda x: np.zeros_like(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
+        ff = lambda x: x**4 - 2/3*x**2 + 1/9
+        return ff(xs)
     elif feature == 1:
-        ff = lambda x: -1 / 3 * (x < 0) + 1 / 3 * (x >= 0)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
+        ff = lambda x: np.ones_like(x) * 0.088
+        return ff(xs)
     elif feature == 2:
-        ff = lambda x: np.exp(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
+        ff = lambda x: np.zeros_like(x)
+        return ff(xs)
 ```
-
-
-```python
-xx = np.linspace(-1, 1, 100)
-y_pdp = []
-for feature in [0, 1, 2]:
-    y_pdp.append(pdp_ground_truth(feature, xx))
-
-plt.figure()
-plt.title("PDP effects (ground truth)")
-color_pallette = ["blue", "red", "green"]
-for feature in [0, 1, 2]:
-    plt.plot(
-        xx, 
-        y_pdp[feature], 
-        color=color_pallette[feature], 
-        linestyle="--",
-        label=f"feature {feature + 1}"
-    )
-plt.legend()
-plt.xlim([-1.1, 1.1])
-plt.ylim([-2, 2])
-plt.show()
-
-```
-
-
-    
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_13_0.png)
-    
-
 
 
 ```python
 # make a test
 xx = np.linspace(-1, 1, 100)
 for feature in [0, 1, 2]:
-    y_pdp = pdp.eval(feature=feature, xs=xx, centering=True)
-    y_gt = pdp_ground_truth(feature, xx)
-    np.testing.assert_allclose(y_pdp, y_gt, atol=1e-1)
+    pdp_mean, pdp_heter = pdp.eval(feature=feature, xs=xx, centering=True, heterogeneity=True)
+    y_heter = pdp_ground_truth(feature, xx)
+    np.testing.assert_allclose(pdp_heter, y_heter, atol=1e-1)
 ```
 
 ## ALE
@@ -190,140 +187,164 @@ ale = effector.ALE(x, model.predict, axis_limits=dataset.axis_limits)
 ale.fit(features="all", centering=True, binning_method=effector.binning_methods.Fixed(nof_bins=31))
 
 for feature in [0, 1, 2]:
-    ale.plot(feature=feature, centering=True, y_limits=[-2, 2])
+    ale.plot(feature=feature, centering=True, heterogeneity=True, y_limits=[-2, 2])
 ```
 
 
     
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_17_0.png)
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_14_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_17_1.png)
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_14_1.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_17_2.png)
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_14_2.png)
     
 
 
 ALE states that:
-- $x_1$ has a zero average effect on the model output (same as PDP)
-- $x_2$ has a constant effect when $x_2 <0$ or $x_2 >0$, but when moving from $x_2^-$ to $x_2^+$ it adds (on average) $+\frac{2}{3}$ units to $y$ (same as PDP)
-- $x_3$ has an effect of $e^{x_3}$ (same as PDP)
+
+- **Feature $x_1$**:  
+  The heterogeneity varies across all values of $x_1$. It starts large at $x_1 = -1$, decreases until it becomes zero at $x_1 = 0$, and then increases again until $x_1 = 1$.  
+  This behavior contrasts with the heterogeneity observed in the PDP, which has two zero-points at $x_1 = \pm \frac{2}{3}$.  
+
+- **Feature $x_2$**:  
+  Heterogeneity is observed only around $x_2 = 0$. This behavior also contrasts PDP's heterogeneity which is constant for all values of $x_2$
+
+- **Feature $x_3$**:  
+  No heterogeneity is present for this feature.  
+
+
+
+```python
+ale.feature_effect["feature_1"]
+```
+
+
+
+
+    {'limits': array([-1.        , -0.93548387, -0.87096774, -0.80645161, -0.74193548,
+            -0.67741935, -0.61290323, -0.5483871 , -0.48387097, -0.41935484,
+            -0.35483871, -0.29032258, -0.22580645, -0.16129032, -0.09677419,
+            -0.03225806,  0.03225806,  0.09677419,  0.16129032,  0.22580645,
+             0.29032258,  0.35483871,  0.41935484,  0.48387097,  0.5483871 ,
+             0.61290323,  0.67741935,  0.74193548,  0.80645161,  0.87096774,
+             0.93548387,  1.00000001]),
+     'dx': array([0.06451613, 0.06451613, 0.06451613, 0.06451613, 0.06451613,
+            0.06451613, 0.06451613, 0.06451613, 0.06451613, 0.06451613,
+            0.06451613, 0.06451613, 0.06451613, 0.06451613, 0.06451613,
+            0.06451613, 0.06451613, 0.06451613, 0.06451613, 0.06451613,
+            0.06451613, 0.06451613, 0.06451613, 0.06451613, 0.06451613,
+            0.06451613, 0.06451613, 0.06451613, 0.06451613, 0.06451613,
+            0.06451614]),
+     'points_per_bin': array([320, 339, 318, 345, 313, 312, 331, 311, 293, 326, 309, 294, 314,
+            312, 335, 318, 354, 328, 312, 331, 315, 307, 341, 320, 330, 336,
+            312, 368, 325, 294, 337]),
+     'bin_effect': array([0.        , 0.        , 0.        , 0.        , 0.        ,
+            0.        , 0.        , 0.        , 0.        , 0.        ,
+            0.        , 0.        , 0.        , 0.        , 0.        ,
+            9.93884099, 0.        , 0.        , 0.        , 0.        ,
+            0.        , 0.        , 0.        , 0.        , 0.        ,
+            0.        , 0.        , 0.        , 0.        , 0.        ,
+            0.        ]),
+     'bin_variance': array([ 0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
+             0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
+             0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
+            82.51292593,  0.        ,  0.        ,  0.        ,  0.        ,
+             0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
+             0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
+             0.        ]),
+     'bin_estimator_variance': array([0.        , 0.        , 0.        , 0.        , 0.        ,
+            0.        , 0.        , 0.        , 0.        , 0.        ,
+            0.        , 0.        , 0.        , 0.        , 0.        ,
+            0.25947461, 0.        , 0.        , 0.        , 0.        ,
+            0.        , 0.        , 0.        , 0.        , 0.        ,
+            0.        , 0.        , 0.        , 0.        , 0.        ,
+            0.        ]),
+     'alg_params': 'fixed',
+     'norm_const': np.float64(0.32060777402612833)}
+
 
 
 ### Derivations
 
-\begin{align}
-ALE(x_1) &\propto \sum_{k=1}^{k_{x_1}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^i \in \mathcal{S}_k} \left [  f(z_k, x^i_2, x^i_3) - f(z_{k-1}, x^i_2, x^i_3) \right ] \\
-&\propto \sum_{k=1}^{k_{x_1}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(i)} \in \mathcal{S}_k} \left [ -z_k^2 \mathbb{1}_{x_2^i <0} + z_k^2 \mathbb{1}_{x_2^i \geq 0} + e^{x_3^i} - (-z_{k-1}^2 \mathbb{1}_{x_2^i <0} + z_{k-1}^2 \mathbb{1}_{x_2^i \geq 0} + e^{x_3^i} ) \right ] \\
-&\propto \sum_{k=1}^{k_{x_1}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(i)} \in \mathcal{S}_k} \left [ -z_k^2 \underbrace{(\mathbb{1}_{x_2^i <0} - \mathbb{1}_{x_2^i \geq 0})}_{\approx 0} + z_{k-1}^2 \underbrace{(\mathbb{1}_{x_2^i <0} - \mathbb{1}_{x_2^i \geq 0})}_{\approx 0} \right ] \\
-&\approx \sum_{k=1}^{k_{x_1}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(i)} \in \mathcal{S}_k} 0 \\
-&\approx 0
-\end{align}
+For x_1:
+
+The $x_1$-axis is divided into $K$ equal bins, indexed by $k = 1, \ldots, K$, with the center of the $k$-th bin denoted as $c_k$. 
+In each bin: if $x_2 < 0$, the local effects is $-2c_k$, and if $x_2 \geq 0$ the local effect is $2 c_k$. 
+This gives a variance of $4c_k^2$ within each bin.
+Therefore, $h(x_1) = 4c_k^2$ where $k$ is the index of the bin that contains $x_1$. 
 
 \begin{align}
-ALE(x_2) &\propto \sum_{k=1}^{k_{x_2}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(i)} \in \mathcal{S}_k} \left [  f(x_i^1, z_k, x^i_3) - f(x_i^1, z_{k-1}, x^i_3 \right ] \\
-&\propto \sum_{k=1}^{k_{x_2}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(i)} \in \mathcal{S}_k} \left [ -(x^i_1)^2 \mathbb{1}_{z_k <0} + (x^i_1)^2 \mathbb{1}_{z_k \geq 0} - (-(x^i_1)^2 \mathbb{1}_{z_{k-1} <0} + (x^i_1)^2 \mathbb{1}_{z_{k-1} \geq 0}) \right ] \\
+h(x_1) &= \frac{1}{|\mathcal{S}_k|} \sum_{\mathbf{x}^i \in \mathcal{S}_k} \left ( \frac{f(z_k, x_2^i, x_3^i) - f(z_{k-1}, x_2^i, x_3^i)}{z_k - z_{k-1}} - \hat{\mu}_k^{ALE}  \right )^2 \\
+&=  \frac{1}{|\mathcal{S}_k|} \sum_{\mathbf{x}^i \in \mathcal{S}_k} \left ( \frac{-2c_k(z_k - z_{k-1}) \mathbb{1}_{x_2^i < 0} + 2c_k(z_k - z_{k-1}) \mathbb{1}_{x_2^i \geq 0}}{z_k - z_{k-1}} \right )^2 \\
+&=  \frac{1}{|\mathcal{S}_k|} \sum_{\mathbf{x}^i \in \mathcal{S}_k} 4 c_k^2 \\
+&=  4 c_k^2
 \end{align}
 
-For all bins, except the central, it holds that bin limits are either both negative or both positive, so the effects cancel out.
-For central bin, i.e., the one from $-\frac{2}{K}$ to $\frac{2}{K}$, the effect is $\frac{(2x^i_1)^2}{| \mathcal{S}_k |} = \frac{2}{3} \frac{K}{2} = \frac{K}{3}$.
-Therefore, the ALE effect is:
+For $x_2$:
 
-\begin{equation}
-ALE(x_2) \approx
-\cases{
--\frac{1}{3} \text{ if } x_2 < -\frac{2}{K} \\
-\frac{1}{3} \text{ if } x_2 > \frac{2}{K} \\
-\text{a linear segment from $-\frac{1}{3}$ to $\frac{1}{3}$ in between}}
-\end{equation}
-
-
+In all bins except the central one, the local effects are zero. In the central bin, however, the local effects are $ 2(x_1^i)^2 $, which introduces some heterogeneity.
+So, if $ x_2 $ is not in the central bin $ k = K/2 $, $h(x_2) = 0$.
+If $ x_2 $ is in the central bin $ k = K/2 $:
 
 \begin{align}
-ALE(x_3) &\propto \sum_{k=1}^{k_{x_3}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(i)} \in \mathcal{S}_k} \left [  f(x^i_1, x^i_2, z_k) - f(x^i_1, x^i_2, z_{k-1}) \right ] \\
-&\propto \sum_{k=1}^{k_{x_3}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(i)} \in \mathcal{S}_k} \left [ e^{z_k} - e^{z_{k-1}} \right ] \\
-&\approx e^{x_3}
+h(x_2) &= \frac{1}{|\mathcal{S}_k|} \sum_{\mathbf{x}^i \in \mathcal{S}_k} \left( \frac{f(z_k, x_2^i, x_3^i) - f(z_{k-1}, x_2^i, x_3^i)}{z_k - z_{k-1}} - \hat{\mu}_k^{ALE} \right)^2 \\
+&= \frac{2}{z_k - z_{k-1}} \frac{1}{|\mathcal{S}_k|} \sum_{\mathbf{x}^i \in \mathcal{S}_k} (x_1^i)^2 \\
+&= \frac{2}{3}(z_k - z_{k-1}) \\
+&\approx 10 \text{ for } K=31
 \end{align}
+
+So: 
+\begin{align}
+h(x_2)
+&=  \begin{cases} 
+0, & \text{if } x_2 \text{ is not in the central bin (}\ k = K/2\text{)}, \\
+\frac{31}{3} \approx 10 & \text{if } x_2 \text{ is in the central bin (}\ k = K/2\text{)}. 
+\end{cases} \\
+\end{align}
+
+For $x_3$:
+
+The effect is zero everywehere.
 
 
 ```python
-def ale_ground_truth(feature, xs):
+def ale_ground_truth(feature):
+    K = 31
+    bin_centers = np.linspace(-1 + 1/K, 1 - 1/K, K)
     if feature == 0:
-        ff = lambda x: np.zeros_like(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
+        return 4*bin_centers**2
     elif feature == 1:
-        K = 51
-        ff = lambda x: -1/3 * (x < 0) + 1/3 * (x >= 0)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
+        y = np.zeros_like(bin_centers)
+        y[15] = None
+        return y
     elif feature == 2:
-        ff = lambda x: np.exp(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
+        return np.zeros_like(bin_centers)
 ```
 
 
 ```python
-xx = np.linspace(-1, 1, 100)
-y_ale = []
+# make a test
+K = 31
+bin_centers = np.linspace(-1 + 1/K, 1 - 1/K, K)
 for feature in [0, 1, 2]:
-    y_ale.append(ale_ground_truth(feature, xx))
-    
-plt.figure()
-plt.title("ALE effects (ground truth)")
-color_pallette = ["blue", "red", "green"]
-for feature in [0, 1, 2]:
-    plt.plot(
-        xx, 
-        y_ale[feature], 
-        color=color_pallette[feature], 
-        linestyle="--",
-        label=f"feature {feature + 1}"
-    )
-plt.legend()
-plt.xlim([-1.1, 1.1])
-plt.ylim([-2, 2])
-plt.show()
-    
-```
-
-
-    
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_24_0.png)
-    
-
-
-
-```python
-xx = np.linspace(-1, 1, 100)
-for feature in [1]:# [0, 1, 2]:
-    y_ale = ale.eval(feature=feature, xs=xx, centering=True)
-    y_gt = ale_ground_truth(feature, xx)
-    
-    # hack to remove the effect at undefined region
-    if feature == 1:
-        K = 31
-        ind = np.logical_and(xx > -1/K, xx < 1/K)
-        y_ale[ind] = 0
-        y_gt[ind] = 0
-    
-    np.testing.assert_allclose(y_ale, y_gt, atol=1e-1)
-    
+    bin_var = ale.feature_effect[f"feature_{feature}"]["bin_variance"]
+    gt_var = ale_ground_truth(feature)
+    mask = ~np.isnan(gt_var)
+    np.testing.assert_allclose(bin_var[mask], gt_var[mask], atol=1e-1)
 ```
 
 ### Conclusions
 
-Are the ALE effects intuitive?
-
-ALE effects are identical to PDP effects which, as discussed above, can be considered intutive.
+Is the heterogeneity implied by the ALE plots meaningful?
+It is
 
 ## RHALE
 
@@ -337,117 +358,58 @@ rhale = effector.RHALE(x, model.predict, model.jacobian, axis_limits=dataset.axi
 rhale.fit(features="all", centering=True)
 
 for feature in [0, 1, 2]:
-    rhale.plot(feature=feature, centering=True, y_limits=[-2, 2])
+    rhale.plot(feature=feature, centering=True, heterogeneity=True, y_limits=[-2, 2])
 ```
 
 
     
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_28_0.png)
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_23_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_28_1.png)
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_23_1.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_28_2.png)
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_23_2.png)
     
 
 
 RHALE states that:
-- $x_1$ has a zero average effect on the model output (same as PDP)
-- $x_2$ has a zero average effect on the model output (different than PDP and ALE)
-- $x_3$ has an effect of $e^{x_3}$ (same as PDP)
+
+- **Feature $x_1$**:
+  As in ALE, the heterogeneity varies across all values of $x_1$. It starts large at $x_1 = -1$, decreases until it becomes zero at $x_1 = 0$, and then increases again until $x_1 = 1$.  
+
+- **Feature $x_2$**:  
+  No heterogeneity is present for this feature.
+
+- **Feature $x_3$**:  
+  No heterogeneity is present for this feature.  
 
 
 ### Derivations
 
 \begin{align}
-RHALE(x_1) &\propto \sum_{k=1}^{k_{x_1}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k-1}) \sum_{i: x^i \in \mathcal{S}_k} \left [  \frac{\partial f}{\partial x_1}(\mathbf{x}^i) \right ] \\
-&\propto \sum_{k=1}^{k_{x_1}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k-1}) \sum_{i: x^{(i)} \in \mathcal{S}_k} \left [ -2x_1 \mathbb{1}_{x_2^i <0} + 2x_1 \mathbb{1}_{x_2^i \geq 0}  \right ] \\
-&\propto \sum_{k=1}^{k_{x_1}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k-1}) \sum_{i: x^{(i)} \in \mathcal{S}_k} \left [ -2x_1 \underbrace{(\mathbb{1}_{x_2^i <0} - \mathbb{1}_{x_2^i \geq 0})}_{\approx 0} \right ] \\
-&\approx \sum_{k=1}^{k_{x_1}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(i)} \in \mathcal{S}_k} 0 \\
-&\approx 0
+H(x_1) &\approx
 \end{align}
 
 \begin{align}
-RHALE(x_2) &\propto \sum_{k=1}^{k_{x_2}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k-1}) \sum_{i: x^i \in \mathcal{S}_k} \left [  \frac{\partial f}{\partial x_2}(\mathbf{x}^i) \right ] \\
-&\propto \sum_{k=1}^{k_{x_2}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k-1}) \sum_{i: x^i \in \mathcal{S}_k} \cases{0 \text{ if $x_2 <0$} \\ 0 \text{ if $x_2 \geq 0$}}  \\
-&\propto 0
+H(x_2) &\approx
 \end{align}
 
 \begin{align}
-RHALE(x_3) &\propto \sum_{k=1}^{k_{x_3}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k-1}) \sum_{i: x^i \in \mathcal{S}_k} \left [  \frac{\partial f}{\partial x_3}(\mathbf{x}^i) \right ] \\
-&\propto \sum_{k=1}^{k_{x_3}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k-1}) \sum_{i: x^i \in \mathcal{S}_k} \left [ e^{x_3} \right ] \\
-&\approx e^{x_3}
+H(x_3) &\approx
 \end{align}
-
-
-```python
-def rhale_ground_truth(feature, xs):
-    if feature == 0:
-        ff = lambda x: np.zeros_like(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-    elif feature == 1:
-        K = 31
-        ff = lambda x: np.zeros_like(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-    elif feature == 2:
-        ff = lambda x: np.exp(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-
-```
-
-
-```python
-xx = np.linspace(-1, 1, 100)
-y_rhale = []
-for feature in [0, 1, 2]:
-    y_rhale.append(rhale_ground_truth(feature, xx))
-    
-plt.figure()
-plt.title("RHALE effects (ground truth)")
-color_pallette = ["blue", "red", "green"]
-for feature in [0, 1, 2]:
-    plt.plot(
-        xx, 
-        y_rhale[feature], 
-        color=color_pallette[feature], 
-        linestyle="-" if feature == 0 else "--",
-        label=f"feature {feature + 1}"
-    )
-plt.legend()
-plt.xlim([-1.1, 1.1])
-plt.ylim([-2, 2])
-plt.show()
-
-
-```
-
-
-    
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_35_0.png)
-    
-
-
-
-```python
-for feature in [0, 1, 2]:
-    y_ale = rhale.eval(feature=feature, xs=xx, centering=True)
-    y_gt = rhale_ground_truth(feature, xx)
-    np.testing.assert_allclose(y_ale, y_gt, atol=1e-1)
-```
 
 ### Conclusions
 
 Are the RHALE effects intuitive?
 
-RHALE does not add something new, compared to ALE and PDP, for features $x_1$ and $x_3$. 
-For $x_2$, however, it does not capture the abrupt increase by $+\frac{2}{3}$ units when moving from $x_2^-$ to $x_2^+$, which can be considered as an error mode of RHALE. In fact, RHALE requires a differentiable black box model, and since $f$ is not differentiable with respect to $x_2$, that is why we get a slightly misleading result.
+
+```python
+
+```

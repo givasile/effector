@@ -175,6 +175,8 @@ regional_pdp.fit(features="all", heter_pcg_drop_thres=0.3, nof_candidate_splits_
 
     100%|██████████| 3/3 [00:00<00:00, 21.16it/s]
 
+
+
 ```python
 regional_pdp.summary(features=0)
 ```
@@ -204,6 +206,9 @@ regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", centering=True, y_
 
     
 ![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_14_1.png)
+    
+
+
 
 ```python
 regional_pdp.summary(features=1)
@@ -214,6 +219,8 @@ regional_pdp.summary(features=1)
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 1.82
+
+
 
 ```python
 regional_pdp.summary(features=2)
@@ -310,6 +317,8 @@ regional_pdp.fit(features="all", heter_pcg_drop_thres=0.4, nof_candidate_splits_
 
     100%|██████████| 3/3 [00:00<00:00, 55.47it/s]
 
+
+
 ```python
 regional_pdp.summary(features=0)
 ```
@@ -339,6 +348,9 @@ regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", centering=True, y_
 
     
 ![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_25_1.png)
+    
+
+
 
 ```python
 regional_pdp.summary(features=1)
@@ -352,6 +364,8 @@ regional_pdp.summary(features=1)
     Feature 1 - Statistics per tree level:
     Level 0, heter: 1.01
             Level 1, heter: 0.60 || heter drop: 0.41 (41.05%)
+
+
 
 ```python
 regional_pdp.summary(features=2)
@@ -466,6 +480,8 @@ regional_rhale.fit(
 
     100%|██████████| 3/3 [00:00<00:00, 25.05it/s]
 
+
+
 ```python
 regional_rhale.summary(features=0)
 ```
@@ -495,6 +511,9 @@ regional_rhale.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, 
 
     
 ![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_36_1.png)
+    
+
+
 
 ```python
 regional_rhale.summary(features=1)
@@ -505,6 +524,8 @@ regional_rhale.summary(features=1)
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.00
+
+
 
 ```python
 regional_rhale.summary(features=2)
@@ -589,6 +610,8 @@ regional_rhale.fit(
 
     100%|██████████| 3/3 [00:00<00:00, 34.98it/s]
 
+
+
 ```python
 regional_rhale.summary(features=0)
 ```
@@ -599,6 +622,8 @@ regional_rhale.summary(features=0)
     Feature 0 - Statistics per tree level:
     Level 0, heter: 0.00
 
+
+
 ```python
 regional_rhale.summary(features=1)
 ```
@@ -608,6 +633,8 @@ regional_rhale.summary(features=1)
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.00
+
+
 
 ```python
 regional_rhale.summary(features=2)
@@ -676,6 +703,8 @@ regional_shap.fit(
 
     100%|██████████| 3/3 [00:03<00:00,  1.06s/it]
 
+
+
 ```python
 regional_shap.summary(0)
 ```
@@ -705,6 +734,9 @@ regional_shap.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, y
 
     
 ![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_55_1.png)
+    
+
+
 
 ```python
 regional_shap.summary(features=1)
@@ -715,6 +747,8 @@ regional_shap.summary(features=1)
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.00
+
+
 
 ```python
 regional_shap.summary(features=2)
@@ -788,6 +822,8 @@ regional_shap.fit(
 
     100%|██████████| 3/3 [00:03<00:00,  1.11s/it]
 
+
+
 ```python
 regional_shap.summary(0)
 ```
@@ -798,6 +834,8 @@ regional_shap.summary(0)
     Feature 0 - Statistics per tree level:
     Level 0, heter: 0.09
 
+
+
 ```python
 regional_shap.summary(1)
 ```
@@ -807,6 +845,8 @@ regional_shap.summary(1)
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.00
+
+
 
 ```python
 regional_shap.summary(2)
