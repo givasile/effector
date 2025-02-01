@@ -309,6 +309,8 @@ class ALE(ALEBase):
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
         """
+        self.bin_limits = {}
+        self.data_effect_ale = {}
         super(ALE, self).__init__(
             data,
             model,
@@ -355,7 +357,9 @@ class ALE(ALEBase):
         data_effect = utils.compute_local_effects(
             data, self.model, bin_est.limits, feature
         )
-        breakpoint()
+        self.data_effect_ale["feature_" + str(feature)] = data_effect
+        self.bin_limits["feature_" + str(feature)] = bin_est.limits
+
         # compute the bin effect
         dale_params = utils.compute_ale_params(
             data[:, feature], data_effect, bin_est.limits

@@ -265,6 +265,8 @@ class RegionalALE(RegionalEffectBase):
             feature_names: list of feature names
             target_name: the name of the target variable
         """
+        self.global_bin_limits = {}
+        self.global_data_effect = {}
         super(RegionalALE, self).__init__(
             "ale",
             data,
@@ -279,29 +281,20 @@ class RegionalALE(RegionalEffectBase):
             target_name,
         )
 
-    def _create_heterogeneity_function(self, foi, binning_method, min_points):
-        binning_method = prep_binning_method(binning_method)
-        isinstance(binning_method, binning_methods.Fixed)
-
+    def _create_heterogeneity_function(self, foi, min_points):
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return BIG_M
 
-            data = self.data[active_indices.astype(bool), :]
-            ale = ALE(data, self.model, "all", self.axis_limits)
-            try:
-                ale.fit(features=foi, binning_method=binning_method, centering=False)
-            except utils.AllBinsHaveAtMostOnePointError as e:
-                print(f"Error: {e}")
-                return BIG_M
-            except Exception as e:
-                print(f"Unexpected error during ALE fitting: {e}")
-                return BIG_M
+            data_effect = self.global_data_effect["feature_" + str(foi)][active_indices.astype(bool)]
+            data = self.data[active_indices.astype(bool), foi]
+            bin_limits = self.global_bin_limits["feature_" + str(foi)]
 
-            axis_limits = helpers.axis_limits_from_data(data)
-            xs = np.linspace(axis_limits[0, foi], axis_limits[1, foi], 100)
-            _, z = ale.eval(feature=foi, xs=xs, heterogeneity=True, centering=False)
-            return np.mean(z)
+            params = utils.compute_ale_params(data, data_effect, bin_limits)
+
+            xx = np.linspace(params["limits"][0], params["limits"][-1], 100)
+            var = utils.apply_bin_value(x=xx, bin_limits=params["limits"], bin_value=params["bin_variance"])
+            return np.mean(var)
         return heter
 
     def fit(
@@ -379,9 +372,13 @@ class RegionalALE(RegionalEffectBase):
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
             # fit global method
+            global_ale = ALE(self.data, self.model, nof_instances="all", axis_limits=self.axis_limits)
+            global_ale.fit(features=feat, binning_method=binning_method, centering=False)
+            self.global_data_effect["feature_" + str(feat)] = global_ale.data_effect_ale["feature_" + str(feat)]
+            self.global_bin_limits["feature_" + str(feat)] = global_ale.bin_limits["feature_" + str(feat)]
 
             # create heterogeneity function
-            heter = self._create_heterogeneity_function(feat, binning_method, min_points_per_subregion)
+            heter = self._create_heterogeneity_function(feat, min_points_per_subregion)
 
             # fit feature
             self._fit_feature(
