@@ -85,11 +85,7 @@ class ShapDP(GlobalEffectBase):
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
         """
-        self.nof_instances, self.indices = helpers.prep_nof_instances(
-            nof_instances, data.shape[0]
-        )
-        data = data[self.indices, :]
-
+        self.shap_values = None
         super(ShapDP, self).__init__(
             "SHAP DP",
             data,
@@ -110,17 +106,14 @@ class ShapDP(GlobalEffectBase):
         points_for_centering: int = 100,
     ) -> typing.Dict:
 
-        # drop points outside of limits
-        self.data = self.data[self.data[:, feature] >= self.axis_limits[0, feature]]
-        self.data = self.data[self.data[:, feature] <= self.axis_limits[1, feature]]
-
-        # compute shap values
         data = self.data
-        shap_explainer = shap.Explainer(self.model, data)
-        explanation = shap_explainer(data)
+        if self.shap_values is None:
+            med = np.median(data, axis=0).reshape(1, -1)
+            shap_explainer = shap.Explainer(self.model, data)
+            self.shap_values = shap_explainer(data).values
 
         # extract x and y pais
-        yy = explanation.values[:, feature]
+        yy = self.shap_values[:, feature]
         xx = data[:, feature]
 
         # make xx monotonic
@@ -132,8 +125,8 @@ class ShapDP(GlobalEffectBase):
         spline_mean = UnivariateSpline(xx, yy)
 
         # fit spline_mean to the sqrt of the residuals
-        yy_std = np.abs(yy - spline_mean(xx))
-        spline_std = UnivariateSpline(xx, yy_std)
+        yy_var = (yy - spline_mean(xx)) ** 2
+        spline_var = UnivariateSpline(xx, yy_var)
 
         # compute norm constant
         if centering == "zero_integral":
@@ -147,7 +140,7 @@ class ShapDP(GlobalEffectBase):
 
         ret_dict = {
             "spline_mean": spline_mean,
-            "spline_std": spline_std,
+            "spline_std": spline_var,
             "xx": xx,
             "yy": yy,
             "norm_const": norm_const,
@@ -251,8 +244,8 @@ class ShapDP(GlobalEffectBase):
             yy = yy - norm_const
 
         if heterogeneity:
-            yy_std = self.feature_effect["feature_" + str(feature)]["spline_std"](xs)
-            return yy, yy_std
+            yy_var = self.feature_effect["feature_" + str(feature)]["spline_std"](xs)
+            return yy, yy_var
         else:
             return yy
 
@@ -303,7 +296,7 @@ class ShapDP(GlobalEffectBase):
         # get the SHAP curve
         y = self.eval(feature, x, heterogeneity=False, centering=centering)
         y_std = (
-            self.feature_effect["feature_" + str(feature)]["spline_std"](x)
+            np.sqrt(self.feature_effect["feature_" + str(feature)]["spline_std"](x))
             if heterogeneity == "std" or True
             else None
         )

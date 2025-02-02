@@ -58,6 +58,7 @@ jobs:
           ref: gh-pages
           token: ${{ secrets.EFFECTOR_GITHUB_API_KEY }}
           path: xai-effector.github.io
+          persist-credentials: false
 
     - name: rm old site and copy new site
       run: |

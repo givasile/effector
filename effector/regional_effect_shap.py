@@ -1,10 +1,13 @@
 import typing
+
+import effector
 from effector.regional_effect import RegionalEffectBase
 from effector import helpers
 import numpy as np
-from effector.global_effect_shap import ShapDP
 from tqdm import tqdm
 from typing import Callable, Optional, Union, List
+from scipy.interpolate import UnivariateSpline
+
 
 
 class RegionalShapDP(RegionalEffectBase):
@@ -61,6 +64,7 @@ class RegionalShapDP(RegionalEffectBase):
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
         """
+        self.global_shap_values = None
         super(RegionalShapDP, self).__init__(
             "shap",
             data,
@@ -75,37 +79,39 @@ class RegionalShapDP(RegionalEffectBase):
             target_name,
         )
 
-    def _create_heterogeneity_function(
-        self, foi, min_points, centering, points_for_centering
-    ):
+    def _create_heterogeneity_function(self, foi, min_points):
 
         def heterogeneity_function(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return self.big_m
 
-            data = self.data[active_indices.astype(bool), :]
-            axis_limits = helpers.axis_limits_from_data(data)
-            xx = np.linspace(axis_limits[:, foi][0], axis_limits[:, foi][1], 10)
+            xx = self.data[active_indices.astype(bool), foi]
+            yy = self.global_shap_values[active_indices.astype(bool), foi]
 
-            shap = ShapDP(data, self.model, None, self.nof_instances)
-            shap.fit(foi, centering, points_for_centering)
-            _, z = shap.eval(foi, xx, heterogeneity=True)
-            return np.mean(z)
+            # make xx monotonic
+            idx = np.argsort(xx)
+            xx = xx[idx]
+            yy = yy[idx]
+
+            # fit spline_mean to xx, yy pairs
+            spline_mean = UnivariateSpline(xx, yy)
+
+            # fit spline_mean to the sqrt of the residuals
+            yy_var = np.mean((yy - spline_mean(xx))**2)
+            return yy_var
 
         return heterogeneity_function
 
     def fit(
         self,
         features: typing.Union[int, str, list],
-        heter_pcg_drop_thres: float = 0.1,
-        heter_small_enough: float = 0.1,
-        max_depth: int = 1,
+        heter_pcg_drop_thres: float = 0.2,
+        heter_small_enough: float = 0.,
+        max_depth: int = 2,
         nof_candidate_splits_for_numerical: int = 20,
         min_points_per_subregion: int = 10,
         candidate_conditioning_features: typing.Union["str", list] = "all",
         split_categorical_features: bool = False,
-        centering: typing.Union[bool, str] = False,
-        points_for_centering: int = 100,
     ):
         """
         Fit the regional SHAP.
@@ -121,15 +127,17 @@ class RegionalShapDP(RegionalEffectBase):
             min_points_per_subregion: minimum allowed number of points in a subregion (otherwise the split is not considered as valid)
             candidate_conditioning_features: list of features to consider as conditioning features for the candidate splits
             split_categorical_features: whether to search for subregions in categorical features
-            centering: whether to center the SHAP dependence plots before estimating the heterogeneity
-            points_for_centering: number of points to use for centering
         """
         assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
-            heter = self._create_heterogeneity_function(
-                feat, min_points_per_subregion, centering, points_for_centering
-            )
+            # assert global SHAP values are available
+            if self.global_shap_values is None:
+                global_shap_dp = effector.ShapDP(self.data, self.model, self.axis_limits, "all")
+                global_shap_dp.fit(feat, centering=False)
+                self.global_shap_values = global_shap_dp.shap_values
+
+            heter = self._create_heterogeneity_function(feat, min_points_per_subregion)
 
             self._fit_feature(
                 feat,
@@ -151,6 +159,4 @@ class RegionalShapDP(RegionalEffectBase):
                 "min_points_per_subregion": min_points_per_subregion,
                 "candidate_conditioning_features": candidate_conditioning_features,
                 "split_categorical_features": split_categorical_features,
-                "centering": centering,
-                "points_for_centering": points_for_centering,
             }
