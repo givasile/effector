@@ -72,4 +72,5 @@ jobs:
           git config --global user.name "ntipakos"
           git add .
           git commit -m "Update site from ntipakos/effector"
-          git push --force origin gh-pages
+          git push --force https://x-access-token:${{ secrets.EFFECTOR_GITHUB_API_KEY }}@github.com/xai-effector/xai-effector.github.io.git gh-pages
+#          git push --force origin gh-pages
