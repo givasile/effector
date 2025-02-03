@@ -16,7 +16,6 @@ class GlobalEffectBase(ABC):
         data_effect: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
-        avg_output: Optional[float] = None,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
     ) -> None:
@@ -155,13 +154,30 @@ class GlobalEffectBase(ABC):
         raise NotImplementedError
 
     def requires_refit(self, feature, centering):
-        """Check if refitting is needed
-        """
+        """Check if refitting is needed."""
+        feature_key = f"feature_{feature}"
+
+        # if the state variable is not set, refit
         if not self.is_fitted[feature]:
             return True
-        else:
-            if centering is not False and centering != self.fit_args["feature_" + str(feature)]["centering"]:
-                return True
+
+        # if the feature info does not exist, refit
+        if self.feature_effect.get(feature_key) is None:
+            return True
+
+        # if the above are ok and centering is False, no need to refit
+        if not centering:
+            return False
+
+        # if centering is not None and the norm_const is not set, refit
+        norm_const = self.feature_effect.get(feature_key, {}).get("norm_const")
+        if norm_const is None:
+            return True
+
+        # if centering is not None and is different from the centering when fitting, refit
+        if self.fit_args.get(feature_key, {}).get("centering") != centering:
+            return True
+
         return False
 
     @abstractmethod

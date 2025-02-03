@@ -86,7 +86,9 @@ class RegionalEffectBase:
         self.is_fitted: np.ndarray = np.ones([self.dim]) < 0
 
         # parameters used when fitting the regional effect
-        self.method_args: typing.Dict = {}
+        # self.method_args: typing.Dict = {}
+        self.kwargs_subregion_detection: typing.Dict = {} # subregion specific arguments
+        self.kwargs_fitting: typing.Dict = {} # fitting specific arguments
 
         # dictionary with all the information required for plotting or evaluating the regional effects
         self.partitioners: typing.Dict[str, Regions] = {}
@@ -150,6 +152,7 @@ class RegionalEffectBase:
         name = feature_tree.scale_node_name(node.name, scale_x_list)
         data = node.info["data"]
         data_effect = node.info["data_effect"]
+        active_indices = node.info["active_indices"]
         feature_names = copy.deepcopy(self.feature_names)
         feature_names[feature] = name
 
@@ -158,6 +161,7 @@ class RegionalEffectBase:
                 data,
                 self.model,
                 self.model_jac,
+                nof_instances="all",
                 data_effect=data_effect,
                 feature_names=feature_names,
                 target_name=self.target_name,
@@ -166,6 +170,7 @@ class RegionalEffectBase:
             return ALE(
                 data,
                 self.model,
+                nof_instances="all",
                 feature_names=feature_names,
                 target_name=self.target_name,
             )
@@ -173,13 +178,16 @@ class RegionalEffectBase:
             return ShapDP(
                 data,
                 self.model,
+                nof_instances="all",
                 feature_names=feature_names,
                 target_name=self.target_name,
+                shap_values=self.global_shap_values[active_indices.astype(bool), :],
             )
         elif self.method_name == "pdp":
             return PDP(
                 data,
                 self.model,
+                nof_instances="all",
                 feature_names=feature_names,
                 target_name=self.target_name,
             )
@@ -188,6 +196,7 @@ class RegionalEffectBase:
                 data,
                 self.model,
                 self.model_jac,
+                nof_instances="all",
                 feature_names=feature_names,
                 target_name=self.target_name,
             )
@@ -219,34 +228,37 @@ class RegionalEffectBase:
         """
         self.refit(feature)
         centering = helpers.prep_centering(centering)
+
+        kwargs = copy.deepcopy(self.kwargs_fitting)
+        kwargs['centering'] = centering
+
+        # select only the three out of all
         fe_method = self._create_fe_object(feature, node_idx, None)
+        fe_method.fit(features=feature, **kwargs)
         return fe_method.eval(feature, xs, heterogeneity, centering)
 
     def fit(self, *args, **kwargs):
         raise NotImplementedError
 
-    def plot(
-        self,
-        feature,
-        node_idx,
-        heterogeneity=False,
-        centering=False,
-        scale_x_list=None,
-        scale_y=None,
-        y_limits=None,
-    ):
+    def _plot(self, kwargs):
+        # assert "feature", "node_idx" are in the dict
+        assert "feature" in kwargs, "feature not found in kwargs"
+        assert "node_idx" in kwargs, "node_idx not found in kwargs"
 
-        self.refit(feature)
-        fe_method = self._create_fe_object(feature, node_idx, scale_x_list)
+        self.refit(kwargs["feature"])
 
-        return fe_method.plot(
-            feature=feature,
-            heterogeneity=heterogeneity,
-            centering=centering,
-            scale_x=scale_x_list[feature] if scale_x_list is not None else None,
-            scale_y=scale_y,
-            y_limits=y_limits,
-        )
+        # select only the three out of all kwargs
+        fe_method = self._create_fe_object(kwargs["feature"], kwargs["node_idx"], kwargs["scale_x_list"])
+
+        kwargs_fitting = copy.deepcopy(self.kwargs_fitting)
+        kwargs_fitting['centering'] = kwargs["centering"]
+        fe_method.fit(features=kwargs["feature"], **kwargs_fitting)
+
+        plot_kwargs = copy.deepcopy(kwargs)
+        plot_kwargs["scale_x"] = kwargs["scale_x_list"][kwargs["feature"]] if kwargs["scale_x_list"] is not None else None
+        plot_kwargs.pop("scale_x_list")
+        plot_kwargs.pop("node_idx")
+        return fe_method.plot(**plot_kwargs)
 
     def summary(self, features, only_important=True, scale_x_list=None):
         features = helpers.prep_features(features, self.dim)

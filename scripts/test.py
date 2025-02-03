@@ -1,91 +1,60 @@
-import effector
 import numpy as np
-import timeit
-import time
+import effector
 
 
 np.random.seed(21)
 
+N = 1000
+T = 1000
 
-def predict(x):
-    time.sleep(0.00001)
-    model = effector.models.DoubleConditionalInteraction()
-    return model.predict(x)
+# create data, model
+data = np.stack(
+    [
+        np.random.uniform(-1, 1, N),
+        np.random.uniform(-1, 1, N),
+        np.random.randint(0, 2, N)
+    ],
+    axis=1)
 
-def jacobian(x):
-    model = effector.models.DoubleConditionalInteraction()
-    return model.jacobian(x)
+axis_limits = np.stack([[-1]*3, [1]*3], axis=0)
 
+def model(x):
+    y = np.zeros_like(x[:, 0])
+    ind = np.logical_and(x[:, 1] > 0, x[:, 2] == 0)
+    y[ind] = 5*x[ind, 0]
+    return y
 
-N = 1_000
-D = 3
-M = 1_000
+def model_jac(x):
+    y = np.zeros_like(x)
+    ind = np.logical_and(x[:, 1] > 0, x[:, 2] == 0)
+    y[ind, 0] = 5
+    return y
 
-X = np.random.uniform(-1, 1, (N, D))
+xs = np.linspace(-1, 1, T)
+methods = ["pdp", "d-pdp", "ale", "rhale", "shap"]
+for method in ["shap"]:
+    if method == "pdp":
+        reg_eff = effector.RegionalPDP(data, model, nof_instances=1000)
+    elif method == "d-pdp":
+        reg_eff = effector.RegionalDerPDP(data, model, model_jac, nof_instances=1000)
+    elif method == "ale":
+        reg_eff = effector.RegionalALE(data, model, nof_instances=1000)
+    elif method == "rhale":
+        reg_eff = effector.RegionalRHALE(data, model, model_jac, nof_instances=1000)
+    else:
+        reg_eff = effector.RegionalShapDP(data, model, axis_limits=axis_limits, nof_instances=1000)
 
-# Global SHAPDP
-shap_dp = effector.ShapDP(
-    data=X,
-    model=predict,
-    feature_names=["x1", "x2", "x3"],
-    nof_instances="all",
-    target_name="y"
-)
-
-shap_dp.fit(
-    features="all",
-    centering=False
-)
-
-shap_dp.plot(0, heterogeneity="shap_values")
-
-# Regional SHAPDP
-reg_shap_dp = effector.RegionalShapDP(
-    data=X,
-    model=predict,
-    nof_instances=1000,
-    target_name="y"
-)
-
-reg_shap_dp.fit(
-    features="all",
-)
-
-reg_shap_dp.summary(0)
-
-
+    reg_eff.fit(0,
+                heter_pcg_drop_thres=0.1,
+                max_depth=2,
+                nof_candidate_splits_for_numerical=10,
+                candidate_conditioning_features="all",
+                split_categorical_features=True)
 
 
-# # Global ALE
-# ale = effector.ALE(
-#     data=X,
-#     model=predict,
-#     feature_names=["x1", "x2", "x3"],
-#     nof_instances="all",
-#     target_name="y"
-# )
+    # y, std = reg_eff.eval(0, 5, xs, heterogeneity=True, centering=True)
+    # np.allclose(y, 5*xs, atol=0.1, rtol=0.1)
+    # np.allclose(std, 0, atol=0.1, rtol=0.1)
 
-# ale.fit(
-#     features="all",
-#     centering=True
-# )
-# ale.plot(0)
 
-# # ALE
-# reg_ale = effector.RegionalALE(
-#     data=X,
-#     model=predict,
-#     nof_instances="all",
-#     target_name="y"
-# )
-
-# reg_ale.fit(
-#     features="all",
-#     heter_pcg_drop_thres=.2,
-#     heter_small_enough=0.,
-#     max_depth=2,
-#     nof_candidate_splits_for_numerical=11,
-#     min_points_per_subregion=10,
-# )
-
-# reg_ale.summary(features="all")
+reg_eff.plot(0, 0, heterogeneity="shap_values")

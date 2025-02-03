@@ -14,18 +14,11 @@ class PDPBase(GlobalEffectBase):
         model: Callable,
         model_jac: Optional[Callable] = None,
         axis_limits: Optional[np.ndarray] = None,
-        avg_output: Optional[float] = None,
         nof_instances: Union[int, str] = 10_000,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
         method_name: str = "PDP",
     ):
-        """
-        Constructor of the PDPBase class.
-        """
-
-        self.model_jac = model_jac
-
         super(PDPBase, self).__init__(
             method_name,
             data,
@@ -34,7 +27,6 @@ class PDPBase(GlobalEffectBase):
             None,
             nof_instances,
             axis_limits,
-            avg_output,
             feature_names,
             target_name,
         )
@@ -70,7 +62,7 @@ class PDPBase(GlobalEffectBase):
             y = self._predict(data, xx, feature, use_vectorized)
             fe = {"norm_const": y[0]}
         else:
-            fe = {"norm_const": helpers.EMPTY_SYMBOL}
+            fe = {"norm_const": np.nan}
         return fe
 
     def fit(
@@ -81,7 +73,7 @@ class PDPBase(GlobalEffectBase):
         use_vectorized: bool = True,
     ):
         """
-        Fit the PDP or d-PDP.
+        Fit the Feature effect to the data.
 
         Notes:
             You can use `.eval` or `.plot` without calling `.fit` explicitly.
@@ -148,7 +140,7 @@ class PDPBase(GlobalEffectBase):
                 - If `return_all=False`, the function returns the mean effect at the given `xs`
                 - If `return_all=True`, the function returns a `ndarray` of shape `(T, N)` with the `N` ICE plots evaluated at `xs`
 
-            use_vectorized: whether to use the vectorized version of the PDP computation
+            use_vectorized: whether to use the vectorized version of the computation
 
         Returns:
             the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std)` otherwise
@@ -161,16 +153,6 @@ class PDPBase(GlobalEffectBase):
                 features=feature, centering=centering, use_vectorized=use_vectorized
             )
 
-        # # check for cache
-        # data = self.retrieve_from_cache(feature, xs, {"centering": centering})
-        # if data is not None:
-        #     if return_all:
-        #         return data["ice"]
-        #     if heterogeneity:
-        #         return data["pdp"], data["heterogeneity"]
-        #     else:
-        #         return data["pdp"]
-
         # Check if the lower bound is less than the upper bound
         assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
 
@@ -182,12 +164,7 @@ class PDPBase(GlobalEffectBase):
             )
             y_ice = y_ice - norm_consts
 
-        # update cache
         y_mean = np.mean(y_ice, axis=1)
-        # y_var = np.var(y_ice, axis=1)
-        # data = {"pdp": y_mean, "heterogeneity": y_var, "ice": y_ice}
-        # parameters = {"centering": centering}
-        # self.update_cache(feature, xs, data, parameters)
 
         if return_all:
             return y_ice
@@ -198,7 +175,7 @@ class PDPBase(GlobalEffectBase):
         else:
             return y_mean
 
-    def plot(
+    def _plot(
         self,
         feature: int,
         heterogeneity: Union[bool, str] = False,
@@ -211,31 +188,6 @@ class PDPBase(GlobalEffectBase):
         y_limits: Optional[List] = None,
         use_vectorized: bool = True,
     ):
-        """
-        Plot the PDP or d-PDP.
-
-        Args:
-            feature: index of the plotted feature
-            heterogeneity: whether to output the heterogeneity of the SHAP values
-
-                - If `heterogeneity` is `False`, no heterogeneity is plotted
-                - If `heterogeneity` is `True` or `"std"`, the standard deviation of the shap values is plotted
-                - If `heterogeneity` is `ice`, the ICE plots are plotted
-
-            centering: whether to center the PDP
-
-                - If `centering` is `False`, the PDP not centered
-                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the PDP starts from `y=0`.
-
-            nof_points: number of points to evaluate the SDP plot
-            scale_x: dictionary with keys "mean" and "std" for scaling the x-axis
-            scale_y: dictionary with keys "mean" and "std" for scaling the y-axis
-            nof_ice: number of shap values to show on top of the SHAP curve
-            show_avg_output: whether to show the average output of the model
-            y_limits: limits of the y-axis
-            use_vectorized: whether to use the vectorized version of the PDP computation
-        """
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
 
@@ -285,7 +237,6 @@ class PDP(PDPBase):
         model: Callable,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
-        avg_output: Optional[float] = None,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
     ):
@@ -341,19 +292,14 @@ class PDP(PDPBase):
                 - use a `ndarray` of shape `(2, D)`, to specify them manually
                 - use `None`, to be inferred from the data
 
-            nof_instances: maximum number of instances to be used for PDP.
+            nof_instances: maximum number of instances to be used
 
                 - use "all", for using all instances.
-                - use an `int`, for using `nof_instances` instances.
-
-            avg_output: The average output of the model.
-
-                - use a `float`, to specify it manually
-                - use `None`, to be inferred as `np.mean(model(data))`
+                - use an `int`, for selecting `nof_instances` instances randomly.
 
             feature_names: The names of the features
 
-                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
+                - use a `list` of `str`, to specify the name manually. For example: `["age", "weight", ...]`
                 - use `None`, to keep the default names: `["x_0", "x_1", ...]`
 
             target_name: The name of the target variable
@@ -367,12 +313,77 @@ class PDP(PDPBase):
             model,
             None,
             axis_limits,
-            avg_output,
             nof_instances,
             feature_names,
             target_name,
             method_name="PDP",
         )
+
+    def plot(
+        self,
+        feature: int,
+        heterogeneity: Union[bool, str] = False,
+        centering: Union[bool, str] = False,
+        nof_points: int = 30,
+        scale_x: Optional[dict] = None,
+        scale_y: Optional[dict] = None,
+        nof_ice: Union[int, str] = "all",
+        show_avg_output: bool = False,
+        y_limits: Optional[List] = None,
+        use_vectorized: bool = True,
+    ):
+        """
+        Plot the feature effect.
+
+        Parameters:
+            feature: the feature to plot
+            heterogeneity: whether to plot the heterogeneity
+
+                  - `False`, plot only the mean effect
+                  - `True` or `std`, plot the standard deviation of the ICE curves
+                  - `ice`, also plot the ICE curves
+
+            centering: whether to center the plot
+
+                - `False` means no centering
+                - `True` or `zero_integral` centers around the `y` axis.
+                - `zero_start` starts the plot from `y=0`.
+
+            nof_points: the grid size for the PDP plot
+
+            scale_x: None or Dict with keys ['std', 'mean']
+
+                - If set to None, no scaling will be applied.
+                - If set to a dict, the x-axis will be scaled `x = (x + mean) * std`
+
+            scale_y: None or Dict with keys ['std', 'mean']
+
+                - If set to None, no scaling will be applied.
+                - If set to a dict, the y-axis will be scaled `y = (y + mean) * std`
+
+            nof_ice: number of ICE plots to show on top of the SHAP curve
+            show_avg_output: whether to show the average output of the model
+
+            y_limits: None or tuple, the limits of the y-axis
+
+                - If set to None, the limits of the y-axis are set automatically
+                - If set to a tuple, the limits are manually set
+
+            use_vectorized: whether to use the vectorized version of the PDP computation
+        """
+        self._plot(
+            feature,
+            heterogeneity,
+            centering,
+            nof_points,
+            scale_x,
+            scale_y,
+            nof_ice,
+            show_avg_output,
+            y_limits,
+            use_vectorized,
+        )
+
 
 
 class DerPDP(PDPBase):
@@ -383,7 +394,6 @@ class DerPDP(PDPBase):
         model_jac: Optional[Callable] = None,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
-        avg_output: Optional[float] = None,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
     ):
@@ -450,11 +460,6 @@ class DerPDP(PDPBase):
                 - use "all", for using all instances.
                 - use an `int`, for using `nof_instances` instances.
 
-            avg_output: The average output of the model.
-
-                - use a `float`, to specify it manually
-                - use `None`, to be inferred as `np.mean(model(data))`
-
             feature_names: The names of the features
 
                 - use a `list` of `str`, to specify the name manually. For example: `["age", "weight", ...]`
@@ -471,11 +476,75 @@ class DerPDP(PDPBase):
             model,
             model_jac,
             axis_limits,
-            avg_output,
             nof_instances,
             feature_names,
             target_name,
             method_name="d-PDP",
+        )
+
+    def plot(
+        self,
+        feature: int,
+        heterogeneity: Union[bool, str] = False,
+        centering: Union[bool, str] = False,
+        nof_points: int = 30,
+        scale_x: Optional[dict] = None,
+        scale_y: Optional[dict] = None,
+        nof_ice: Union[int, str] = "all",
+        show_avg_output: bool = False,
+        dy_limits: Optional[List] = None,
+        use_vectorized: bool = True,
+    ):
+        """
+        Plot the feature effect.
+
+        Parameters:
+            feature: the feature to plot
+            heterogeneity: whether to plot the heterogeneity
+
+                  - `False`, plot only the mean effect
+                  - `True` or `std`, plot the standard deviation of the ICE curves
+                  - `ice`, also plot the ICE curves
+
+            centering: whether to center the plot
+
+                - `False` means no centering
+                - `True` or `zero_integral` centers around the `y` axis.
+                - `zero_start` starts the plot from `y=0`.
+
+            nof_points: the grid size for the PDP plot
+
+            scale_x: None or Dict with keys ['std', 'mean']
+
+                - If set to None, no scaling will be applied.
+                - If set to a dict, the x-axis will be scaled `x = (x + mean) * std`
+
+            scale_y: None or Dict with keys ['std', 'mean']
+
+                - If set to None, no scaling will be applied.
+                - If set to a dict, the y-axis will be scaled `y = (y + mean) * std`
+
+            nof_ice: number of ICE plots to show on top of the SHAP curve
+            show_avg_output: whether to show the average output of the model
+
+            dy_limits: None or tuple, the limits of the y-axis for the derivative PDP
+
+                - If set to None, the limits of the y-axis are set automatically
+                - If set to a tuple, the limits are manually set
+
+            use_vectorized: whether to use the vectorized version of the PDP computation
+        """
+        self._plot(
+            feature,
+            heterogeneity,
+            centering,
+            nof_points,
+            scale_x,
+            scale_y,
+            nof_ice,
+            show_avg_output,
+            dy_limits,
+            use_vectorized,
         )
 
 
@@ -598,6 +667,7 @@ def ice_vectorized(
 
     if return_d_ice:
         if model_jac is None:
+            # TODO: needs test, something is wrong
             x_new_1 = copy.deepcopy(x_new)
             x_new_1[:, :, feature] = np.expand_dims(x, axis=-1) + 1e-6
             x_new_1 = np.reshape(

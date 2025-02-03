@@ -354,6 +354,7 @@ class Regions:
             "data": self.data,
             "data_effect": self.data_effect,
             "weight": 1.0,
+            "active_indices": np.ones((self.data.shape[0])),
         }
 
         feature_name = self.feature_names[self.feature]

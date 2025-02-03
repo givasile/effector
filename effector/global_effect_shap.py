@@ -5,7 +5,10 @@ import effector.helpers as helpers
 from effector.global_effect import GlobalEffectBase
 import numpy as np
 import shap
-from scipy.interpolate import UnivariateSpline
+import scipy
+import effector.binning_methods as bm
+import effector.utils as utils
+from scipy.interpolate import UnivariateSpline, interp1d
 
 
 class ShapDP(GlobalEffectBase):
@@ -15,9 +18,9 @@ class ShapDP(GlobalEffectBase):
         model: Callable,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 100,
-        avg_output: Optional[float] = None,
         feature_names: Optional[List[str]] = None,
         target_name: Optional[str] = None,
+        shap_values: Optional[np.ndarray] = None,
     ):
         """
         Constructor of the SHAPDependence class.
@@ -84,8 +87,13 @@ class ShapDP(GlobalEffectBase):
 
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
+
+            shap_values: The SHAP values of the model
+
+                - if shap values are already computed, they can be passed here
+                - if `None`, the SHAP values will be computed using the `shap` package
         """
-        self.shap_values = None
+        self.shap_values = shap_values if shap_values is not None else None
         super(ShapDP, self).__init__(
             "SHAP DP",
             data,
@@ -94,7 +102,6 @@ class ShapDP(GlobalEffectBase):
             None,
             nof_instances,
             axis_limits,
-            avg_output,
             feature_names,
             target_name,
         )
@@ -102,45 +109,81 @@ class ShapDP(GlobalEffectBase):
     def _fit_feature(
         self,
         feature: int,
+        binning_method: Union[str, bm.Greedy, bm.Fixed] = "greedy",
         centering: typing.Union[bool, str] = False,
         points_for_centering: int = 100,
     ) -> typing.Dict:
 
         data = self.data
         if self.shap_values is None:
-            med = np.median(data, axis=0).reshape(1, -1)
             shap_explainer = shap.Explainer(self.model, data)
             self.shap_values = shap_explainer(data).values
 
-        # extract x and y pais
+        # extract x and y
         yy = self.shap_values[:, feature]
         xx = data[:, feature]
 
-        # make xx monotonic
+        # sort based on xz
         idx = np.argsort(xx)
         xx = xx[idx]
         yy = yy[idx]
 
         # fit spline_mean to xx, yy pairs
-        spline_mean = UnivariateSpline(xx, yy)
+        # bin estimation
+        bin_est = bm.find_limits(data, self.shap_values, feature, self.axis_limits, binning_method)
+        bin_name = bin_est.__class__.__name__
+        # assert bins can be computed else raise error
+        assert bin_est.limits is not False, (
+            "Impossible to compute bins with enough points for feature with index: i="
+            + str(feature + 1)
+            + " and binning strategy: "
+            + bin_name
+            + ". Change bin strategy or "
+            "the parameters of the method"
+        )
+        limits = bin_est.limits
+        # compute the bin effect
+        feature_effect_dict = utils.compute_ale_params(data[:, feature], self.shap_values[:, feature], limits)
+        feature_effect_dict["alg_params"] = binning_method
 
-        # fit spline_mean to the sqrt of the residuals
-        yy_var = (yy - spline_mean(xx)) ** 2
-        spline_var = UnivariateSpline(xx, yy_var)
+        # Compute bin edges and bin centers
+        # bin_edges = np.linspace(xx.min(), xx.max(), K + 1)
+        bin_centers = (bin_est.limits[:-1] + bin_est.limits[1:]) / 2
+
+        # Compute mean y-values in each bin
+        bin_means, _, _ = scipy.stats.binned_statistic(xx, yy, statistic='mean', bins=limits)
+        bin_vars, _, _ = scipy.stats.binned_statistic(xx, yy, statistic='std', bins=limits)
+
+        # Create piecewise linear interpolation
+        mean_spline = interp1d(bin_centers, bin_means, kind='linear', fill_value="extrapolate")
+        var_spline = interp1d(bin_centers, bin_vars, kind='linear', fill_value="extrapolate")
+
+        # # Generate dense x values for smooth plotting
+        # x_dense = np.linspace(xx.min(), xx.max(), 200)
+
+        # # Plot original data and piecewise linear spline
+        # import matplotlib.pyplot as plt
+        # plt.scatter(xx, yy, s=10, label="Data", color="red", alpha=0.5)
+        # plt.plot(x_dense, mean_spline(x_dense), label="Piecewise Linear Spline (K=10)", linestyle="--", color="blue")
+        # plt.xlabel("x")
+        # plt.ylabel("y")
+        # plt.legend()
+        # plt.title("Piecewise Linear Spline with Binned Averages")
+        # plt.show()
 
         # compute norm constant
         if centering == "zero_integral":
             x_norm = np.linspace(xx[0], xx[-1], points_for_centering)
-            y_norm = spline_mean(x_norm)
+            y_norm = mean_spline(x_norm)
             norm_const = np.trapz(y_norm, x_norm) / (xx[-1] - xx[0])
         elif centering == "zero_start":
-            norm_const = spline_mean(xx[0])
+            norm_const = mean_spline(xx[0])
         else:
             norm_const = helpers.EMPTY_SYMBOL
 
         ret_dict = {
-            "spline_mean": spline_mean,
-            "spline_std": spline_var,
+            "spline_mean": mean_spline,
+            "spline_std": var_spline,
             "xx": xx,
             "yy": yy,
             "norm_const": norm_const,
@@ -152,6 +195,7 @@ class ShapDP(GlobalEffectBase):
         features: Union[int, str, List] = "all",
         centering: Union[bool, str] = False,
         points_for_centering: Union[int, str] = 100,
+        binning_method: Union[str, bm.Greedy, bm.Fixed] = "greedy",
     ) -> None:
         """Fit the SHAP Dependence Plot to the data.
 
@@ -193,7 +237,7 @@ class ShapDP(GlobalEffectBase):
         # new implementation
         for s in features:
             self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s, centering, points_for_centering
+                s, binning_method, centering, points_for_centering,
             )
             self.is_fitted[s] = True
             self.fit_args["feature_" + str(s)] = {

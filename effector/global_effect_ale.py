@@ -21,7 +21,6 @@ class ALEBase(GlobalEffectBase):
         data_effect: typing.Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
-        avg_output: Optional[float] = None,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
         method_name: str = "ALE",
@@ -35,7 +34,6 @@ class ALEBase(GlobalEffectBase):
             data_effect,
             nof_instances,
             axis_limits,
-            avg_output,
             feature_names,
             target_name,
         )
@@ -233,7 +231,7 @@ class ALEBase(GlobalEffectBase):
             error=heterogeneity,
             scale_x=scale_x,
             scale_y=scale_y,
-            title=self.method_name + " plot",
+            title=self.method_name.upper(),
             avg_output=avg_output,
             feature_names=self.feature_names,
             target_name=self.target_name,
@@ -249,7 +247,6 @@ class ALE(ALEBase):
         model: callable,
         nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
-        avg_output: Optional[float] = None,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
     ):
@@ -294,11 +291,6 @@ class ALE(ALEBase):
                 - use a `ndarray` of shape `(2, D)`, to specify them manually
                 - use `None`, to be inferred from the data
 
-            avg_output: the average output of the model on the data
-
-                - use a `float`, to specify it manually
-                - use `None`, to be inferred as `np.mean(model(data))`
-
             feature_names: The names of the features
 
                 - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
@@ -318,7 +310,6 @@ class ALE(ALEBase):
             None,
             nof_instances,
             axis_limits,
-            avg_output,
             feature_names,
             target_name,
             "ALE",
@@ -332,7 +323,6 @@ class ALE(ALEBase):
         # )
         # data = self.data[ind, :]
         data = self.data
-
         # assertion
         assert binning_method == "fixed" or isinstance(
             binning_method, bm.Fixed
@@ -412,7 +402,6 @@ class RHALE(ALEBase):
         nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Optional[np.ndarray] = None,
         data_effect: typing.Optional[np.ndarray] = None,
-        avg_output: typing.Optional[float] = None,
         feature_names: typing.Optional[list] = None,
         target_name: typing.Optional[str] = None,
     ):
@@ -466,11 +455,6 @@ class RHALE(ALEBase):
                 - if np.ndarray, the model Jacobian computed on the `data`
                 - if None, the Jacobian will be computed using model_jac
 
-            avg_output: the average output of the model on the data
-
-                - use a `float`, to specify it manually
-                - use `None`, to be inferred as `np.mean(model(data))`
-
             feature_names: The names of the features
 
                 - use a `list` of `str`, to specify the name manually. For example: `["age", "weight", ...]`
@@ -488,11 +472,11 @@ class RHALE(ALEBase):
             data_effect,
             nof_instances,
             axis_limits,
-            avg_output,
             feature_names,
             target_name,
             "RHALE",
         )
+
 
     def compile(self):
         """Prepare everything for fitting, i.e., compute the gradients on data points."""
@@ -505,13 +489,6 @@ class RHALE(ALEBase):
         if self.data_effect is None:
             self.compile()
 
-        # drop points outside of limits
-        # ind = np.logical_and(
-        #     self.data[:, feature] >= self.axis_limits[0, feature],
-        #     self.data[:, feature] <= self.axis_limits[1, feature],
-        # )
-        # data = self.data[ind, :]
-        # data_effect = self.data_effect[ind, :]
         data = self.data
         data_effect = self.data_effect
 

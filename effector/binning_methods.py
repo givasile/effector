@@ -89,7 +89,7 @@ def find_limits(
         )
     elif binning_method == "greedy":
         bin_est = be.Greedy(data, data_effect, feature=feature, axis_limits=axis_limits)
-        bin_est.find(min_points=0, init_nof_bins=100, discount=0.3, cat_limit=15)
+        bin_est.find(min_points=0, init_nof_bins=20, discount=0.3, cat_limit=15)
     elif isinstance(binning_method, DynamicProgramming):
         bin_est = be.DP(data, data_effect, feature=feature, axis_limits=axis_limits)
         bin_est.find(

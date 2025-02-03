@@ -2,89 +2,205 @@
 
 `Effector` is a python package for [global](./global_effect_intro/) and [regional](./regional_effect_intro/) feature effects.
 
-## How to use
+## Setup
 
-???+ success "You need a dataset"
-     Must be a `np.ndarray` with shape `(n_samples, n_features)`.
+To use `Effector`, you need:
 
-=== "Code"
+- a dataset, normally the test set
+- a black-box model 
+- (optionally) the jacobian of the black-box model
+
+### Dataset
+
+???+ note "A dataset, typically the test set"
+     Must be a `np.ndarray` with shape `(N, D)`. 
+
+=== "synthetic example"
+     
+     ```python
+     Ν = 100
+     D = 2
+     X_test = np.random.uniform(-1, 1, (N, D))
+     ```
+
+=== "a real case"
+
+    Example with bike-sharing dataset:
 
     ```python
-    X = np.random.uniform(-1, 1, (100, 2))
+    from ucimlrepo import fetch_ucirepo 
+
+    # fetch dataset 
+    bike_sharing_dataset = fetch_ucirepo(id=275) 
+  
+    # data (as pandas dataframes) 
+    X = bike_sharing_dataset.data.features 
+    y = bike_sharing_dataset.data.targets 
+
+    # split data
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
     ```
 
-=== "Plot"
+### Black-box model
 
-    ```python
-    plt.scatter(X[:, 0], X[:, 1], c="red", marker="x")
-    plt.xlabel("Feature 1")
-    plt.ylabel("Feature 2")
-    plt.xlim(-1.5, 1.5)
-    plt.ylim(-1.5, 1.5)
-    plt.show()
-    ```
+???+ note "A trained black-box model"
 
-=== "Output"
-    
-    ![Dataset](./static/concept_example_dataset.png)
+     Must be a `Callable` with signature `X: np.ndarray[N, D]) -> np.ndarray[N]`. 
 
-???+ success "And a model"
-     The black-box model you want to interpret.
+     
 
-     Must be a `callable` with signature `model(X: np.ndarray[n_samples, n_features]) -> np.ndarray[n_samples]`.
+=== "synthetic example"
 
-
-=== "Code"
-
-    ```python
-    def predict(x):
+     ```python
+     def predict(x):
+        '''y = 10*x[0] if x[1] > 0 else -10*x[0] + noise'''
         y = np.zeros(x.shape[0])
         ind = x[:, 1] > 0
         y[ind] = 10*x[ind, 0]
         y[~ind] = -10*x[~ind, 0]
         return y + np.random.normal(0, 1, x.shape[0])
-    ```
+     ```
 
-=== "Plot"
+=== "scikit-learn"
+
+     If you have a sklearn `model`, use `model.predict`.
+
+     ```python
+     # X = ... (the training data)
+     # y = ... (the training labels)
+     # model = sklearn.ensemble.RandomForestRegressor().fit(X, y)
+
+     def predict(x):
+        return model.predict(x)
+     ```
+
+=== "tensorflow"
+
+     If you have a tensorflow model, use `model.predict`.
+
+     ```python
+     # X = ... (the training data)
+     # y = ... (the training labels)
+     # model = ... (a keras model, e.g., keras.Sequential)
+
+     def predict(x):
+        return model.predict(x)
+     ```
+
+=== "pytorch"
+
+     If you have a pytorch model, use `model.forward`.
+
+     ```python
+     # X = ... (the training data)
+     # y = ... (the training labels)
+     # model = ... (a pytorch model, e.g., torch.nn.Sequential)
+
+     def predict(x):
+        return model.forward(x).detach().numpy()
+     ```
+
+### Jacobian (optional)
+
+???+ note "Optional: The jacobian of the model's output w.r.t. the input"
+    
+    Must be a `Callable` with signature `X: np.ndarray[N, D]) -> np.ndarray[N, D]`.     
+    It is not required, but for some methods (`RHALE` and `DerPDP`), it accelerates the computation.
+
+=== "synthetic example"
+
+     ```python
+     def jacobian(x):
+       '''dy/dx = 10 if x[1] > 0 else -10'''
+       y = np.zeros_like(x)
+       ind = x[:, 1] > 0
+       y[ind, 0] = 10
+       y[~ind, 0] = -10
+       return y
+     ```
+
+=== "scikit-learn"
+    
+    Not available.
+
+=== "tensorflow"
+
+     ```python
+     # X = ... (the training data)
+     # y = ... (the training labels)
+     # model = ... (a keras model, e.g., keras.Sequential)
+
+     def jacobian(x):
+        with tf.GradientTape() as tape:
+            tape.watch(x)
+            y = model(x)
+        return tape.jacobian(y, x)
+     ```
+
+=== "pytorch"
 
     ```python
-    plt.scatter(X[:, 0], X[:, 1], c=predict(X), cmap="coolwarm", marker="x")
-    plt.xlabel("Feature 1")
-    plt.ylabel("Feature 2")
-    plt.xlim(-1.5, 1.5)
-    plt.ylim(-1.5, 1.5)
-    plt.colorbar()
-    plt.show()
+     # X = ... (the training data)
+     # y = ... (the training labels)
+     # model = ... (a pytorch model, e.g., torch.nn.Sequential)
+
+     def jacobian(x):
+        x = torch.tensor(x, requires_grad=True)
+        y = model(x)
+        y.backward(torch.eye(y.shape[0]))
+        return x.grad.numpy()
     ```
 
-=== "Output"
 
-    ![Model](./static/concept_example_black_box.png)
+## Global Effect
 
-=== "$f(x)$"
-   
-    $$f(x) = \begin{cases} 10x_1 + \epsilon, & \text{if } x_2 > 0 \\ -10x_1 + \epsilon, & \text{otherwise} \end{cases}$$    
+???+ success "Global effect: how each feature affects the model's output, **on average**"
 
-???+ success "Global Effect"
+    `Effector` offers many methods to visualize the global effect, all under a similar API.
 
-    As you do not know the model's form, you want to understand how `Feature 1` relates to the model's output. 
-    You can use `Effector`:
-
-=== "Global Effect"
+=== "PDP"
 
     ```python
     effector.PDP(data=X, model=predict).plot(feature=0, heterogeneity="ice")
     ```
+    ![Global-PDP](./static/homepage_example_5_0.png){ align=center }
 
-=== "Plot"
+=== "RHALE"
 
-    ![Global Effect](./static/concept_example_global_effect_feat_1_pdp.png)
+    ```python
+    effector.RHALE(data=X, model=predict, model_jac=jacobian).plot(feature=0, heterogeneity=True)
+    ```
+    ![Global-RHALE](./static/homepage_example_7_0.png){ align=center }
+
+=== "ALE"
+
+    ```python
+    effector.ALE(data=X, model=predict).plot(feature=0, heterogeneity=True)
+    ```
+    ![Global-RHALE](./static/homepage_example_8_0.png){ align=center }
+
+=== "d-PDP"
+
+    ```python
+    effector.DerPDP(data=X, model=predict, model_jac=jacobian).plot(feature=0, heterogeneity="d-ice")
+    ```
+    ![Global-DPDP](./static/homepage_example_6_0.png){ align=center }
+
+=== "SHAP-DP"
+
+    ```python
+    effector.PDP(data=X, model=predict).plot(feature=0, heterogeneity="shap_values")
+    ```
+    ![Global-RHALE](./static/homepage_example_9_0.png){ align=center }
+
+## Regional Effect Plots
 
 ???+ success "Regional Effect"
 
     The plot implies that the global effect of `Feature 1` on the model's output is zero,
     but there is heterogeneity in the effect.
     You want to further investigate the sources of heterogeneity:
+
 
 === "Code"
 
@@ -117,6 +233,42 @@
 === "when $x_1 > 0.04$"
 
     ![Regional Effect](./static/concept_example_regional_effect_feat_1_index_2_pdp.png)
+
+
+lalalala 
+
+=== "Code"
+
+    ```python
+    reg_pdp = effector.RegionalPDP(data=X, model=predict)
+    reg_pdp.show_partitioning(feature=0)
+
+    reg_pdp.plot(feature=0, node_idx=0, heterogeneity="ice", y_limits=(-13, 13))
+    reg_pdp.plot(feature=0, node_idx=1, heterogeneity="ice", y_limits=(-13, 13))
+    reg_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", y_limits=(-13, 13))
+    ```
+
+=== "Show Partitioning"
+    
+    ```
+    Feature 0 - Full partition tree:
+        Node id: 0, name: x_0, heter: 5.57 || nof_instances:   100 || weight: 1.00
+                Node id: 1, name: x_0 | x_1 <= 0.04, heter: 2.78 || nof_instances:    50 || weight: 0.50
+                Node id: 2, name: x_0 | x_1  > 0.04, heter: 1.03 || nof_instances:    50 || weight: 0.50
+    --------------------------------------------------
+    Feature 0 - Statistics per tree level:
+        Level 0, heter: 5.57
+                Level 1, heter: 1.90 || heter drop: 3.67 (65.85%)
+    ```
+
+=== "when $x_1 <= 0.04$"
+
+    ![Regional Effect](./static/concept_example_regional_effect_feat_1_index_1_pdp.png)
+
+=== "when $x_1 > 0.04$"
+
+    ![Regional Effect](./static/concept_example_regional_effect_feat_1_index_2_pdp.png)
+
 
 ## Dive in
 

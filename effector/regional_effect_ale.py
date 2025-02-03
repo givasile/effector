@@ -202,16 +202,14 @@ class RegionalRHALE(RegionalEffectBase):
                 split_categorical_features,
             )
 
-            self.method_args["feature_" + str(feat)] = {
-                "heter_pcg_drop_thres": heter_pcg_drop_thres,
-                "heter_small_enough": heter_small_enough,
-                "max_depth": max_depth,
-                "nof_candidate_splits_for_numerical": nof_candidate_splits_for_numerical,
-                "min_points_per_subregion": min_points_per_subregion,
-                "candidate_conditioning_features": candidate_conditioning_features,
-                "split_categorical_features": split_categorical_features,
-                "binning_method": binning_method,
-            }
+        all_arguments = locals()
+        all_arguments.pop("self")
+
+        # region splitting arguments are the first 8 arguments
+        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:8]}
+
+        # centering, points_for_centering, use_vectorized
+        self.kwargs_fitting = {k: v for k, v in all_arguments.items() if k in ["binnning_method"]}
 
     def plot(
         self,
@@ -225,18 +223,10 @@ class RegionalRHALE(RegionalEffectBase):
         dy_limits=None,
     ):
 
-        # get data from the node
-        self.refit(feature)
-        re_method = self._create_fe_object(feature, node_idx=node_idx, scale_x_list=scale_x_list)
-        re_method.plot(
-            feature=feature,
-            heterogeneity=heterogeneity,
-            centering=centering,
-            scale_x=scale_x_list[feature] if scale_x_list is not None else None,
-            scale_y=scale_y,
-            y_limits=y_limits,
-            dy_limits=dy_limits,
-        )
+        kwargs = locals()
+        kwargs.pop("self")
+        self._plot(kwargs)
+
 
 
 
@@ -393,16 +383,14 @@ class RegionalALE(RegionalEffectBase):
                 split_categorical_features,
             )
 
-            self.method_args["feature_" + str(feat)] = {
-                "heter_pcg_drop_thres": heter_pcg_drop_thres,
-                "heter_small_enough": heter_small_enough,
-                "max_depth": max_depth,
-                "nof_candidate_splits_for_numerical": nof_candidate_splits_for_numerical,
-                "min_points_per_subregion": min_points_per_subregion,
-                "candidate_conditioning_features": candidate_conditioning_features,
-                "split_categorical_features": split_categorical_features,
-                "binning_method": binning_method,
-            }
+        all_arguments = locals()
+        all_arguments.pop("self")
+
+        # region splitting arguments are the first 8 arguments
+        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:8]}
+
+        # centering, points_for_centering, use_vectorized
+        self.kwargs_fitting = {k:v for k,v in all_arguments.items() if k in ["binnning_method"]}
 
     def plot(
         self,
@@ -415,19 +403,22 @@ class RegionalALE(RegionalEffectBase):
         y_limits=None,
         dy_limits=None,
     ):
+        kwargs = locals()
+        kwargs.pop("self")
+        self._plot(kwargs)
 
-        # get data from the node
-        self.refit(feature)
-        re_method = self._create_fe_object(feature, node_idx=node_idx, scale_x_list=scale_x_list)
-        re_method.plot(
-            feature=feature,
-            heterogeneity=heterogeneity,
-            centering=centering,
-            scale_x=scale_x_list[feature] if scale_x_list is not None else None,
-            scale_y=scale_y,
-            y_limits=y_limits,
-            dy_limits=dy_limits,
-        )
+        # # get data from the node
+        # self.refit(feature)
+        # re_method = self._create_fe_object(feature, node_idx=node_idx, scale_x_list=scale_x_list)
+        # re_method.plot(
+        #     feature=feature,
+        #     heterogeneity=heterogeneity,
+        #     centering=centering,
+        #     scale_x=scale_x_list[feature] if scale_x_list is not None else None,
+        #     scale_y=scale_y,
+        #     y_limits=y_limits,
+        #     dy_limits=dy_limits,
+        # )
 
 
 def prep_binning_method(method):

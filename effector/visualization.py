@@ -90,7 +90,7 @@ def ale_plot(
     # PLOT
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
     if title is None:
-        ax1.set_title("ALE plot")
+        ax1.set_title("ALE")
     else:
         ax1.set_title(title)
 
@@ -260,7 +260,7 @@ def plot_shap(
 ):
 
     fig, ax = plt.subplots()
-    ax.set_title("SHAP Dependence Plot")
+    ax.set_title("SHAP-DP")
 
     # scale x-axis
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
@@ -293,7 +293,7 @@ def plot_shap(
         ax.plot(xx, yy, "rx", alpha=0.5)
 
     if not only_shap_values:
-        ax.plot(x, y, "b-", label="SHAP curve")
+        ax.plot(x, y, "b-", label="SHAP-DP")
 
     if avg_output is not None:
         ax.axhline(y=avg_output, color="black", linestyle="--", label="avg output")

@@ -165,7 +165,16 @@ class RegionalPDPBase(RegionalEffectBase):
                 candidate_conditioning_features,
                 split_categorical_features,
             )
-            # todo add method args
+
+        all_arguments = locals()
+        all_arguments.pop("self")
+
+        # region splitting arguments are the first 8 arguments
+        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:8]}
+
+        # centering, points_for_centering, use_vectorized
+        self.kwargs_fitting = {k:v for k,v in all_arguments.items() if k in ["centering", "points_for_centering", "use_vectorized"]}
+
 
 
 class RegionalPDP(RegionalPDPBase):
@@ -251,6 +260,24 @@ class RegionalPDP(RegionalPDPBase):
             target_name,
         )
 
+    def plot(
+        self,
+        feature: int,
+        node_idx: int = 0,
+        heterogeneity: bool = False,
+        centering: typing.Union[bool, str] = False,
+        nof_points: int = 100,
+        scale_x_list: typing.Union[None, list] = None,
+        scale_y: typing.Union[None, list] = None,
+        nof_ice: int = 100,
+        show_avg_output: bool = False,
+        y_limits: typing.Union[None, list] = None,
+        use_vectorized: bool = True,
+    ):
+        kwargs = locals()
+        kwargs.pop("self")
+        self._plot(kwargs)
+
 
 class RegionalDerPDP(RegionalPDPBase):
     def __init__(
@@ -277,3 +304,21 @@ class RegionalDerPDP(RegionalPDPBase):
             feature_names,
             target_name,
         )
+
+    def plot(
+        self,
+        feature: int,
+        node_idx: int = 0,
+        heterogeneity: bool = False,
+        centering: typing.Union[bool, str] = False,
+        nof_points: int = 100,
+        scale_x_list: typing.Union[None, list] = None,
+        scale_y: typing.Union[None, list] = None,
+        nof_ice: int = 100,
+        show_avg_output: bool = False,
+        dy_limits: typing.Union[None, list] = None,
+        use_vectorized: bool = True,
+    ):
+        kwargs = locals()
+        kwargs.pop("self")
+        self._plot(kwargs)

@@ -6,7 +6,9 @@ from effector import helpers
 import numpy as np
 from tqdm import tqdm
 from typing import Callable, Optional, Union, List
-from scipy.interpolate import UnivariateSpline
+from effector import binning_methods as bm
+from effector import utils
+
 
 
 
@@ -79,26 +81,29 @@ class RegionalShapDP(RegionalEffectBase):
             target_name,
         )
 
-    def _create_heterogeneity_function(self, foi, min_points):
+    def _create_heterogeneity_function(self, foi, min_points, binning_method):
 
         def heterogeneity_function(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return self.big_m
 
-            xx = self.data[active_indices.astype(bool), foi]
-            yy = self.global_shap_values[active_indices.astype(bool), foi]
+            data = self.data[active_indices.astype(bool), :]
+            shap_values = self.global_shap_values[active_indices.astype(bool), :]
+            shap_dp = effector.ShapDP(data, self.model, self.axis_limits, "all", shap_values=shap_values)
 
-            # make xx monotonic
-            idx = np.argsort(xx)
-            xx = xx[idx]
-            yy = yy[idx]
+            try:
+                shap_dp.fit(features=foi, binning_method=binning_method, centering=False)
+            except utils.AllBinsHaveAtMostOnePointError as e:
+                print(f"Error: {e}")
+                return self.big_m
+            except Exception as e:
+                print(f"Unexpected error during RHALE fitting: {e}")
+                return self.big_m
 
-            # fit spline_mean to xx, yy pairs
-            spline_mean = UnivariateSpline(xx, yy)
+            mean_spline = shap_dp.feature_effect["feature_" + str(foi)]["spline_mean"]
 
-            # fit spline_mean to the sqrt of the residuals
-            yy_var = np.mean((yy - spline_mean(xx))**2)
-            return yy_var
+            residuals = (shap_values[:, foi] - mean_spline(data[:, foi]))**2
+            return np.mean(residuals)
 
         return heterogeneity_function
 
@@ -112,6 +117,7 @@ class RegionalShapDP(RegionalEffectBase):
         min_points_per_subregion: int = 10,
         candidate_conditioning_features: typing.Union["str", list] = "all",
         split_categorical_features: bool = False,
+        binning_method: Union[str, bm.Greedy, bm.Fixed] = "greedy",
     ):
         """
         Fit the regional SHAP.
@@ -130,14 +136,15 @@ class RegionalShapDP(RegionalEffectBase):
         """
         assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
+
         for feat in tqdm(features):
             # assert global SHAP values are available
             if self.global_shap_values is None:
                 global_shap_dp = effector.ShapDP(self.data, self.model, self.axis_limits, "all")
-                global_shap_dp.fit(feat, centering=False)
+                global_shap_dp.fit(feat, centering=False, binning_method=binning_method)
                 self.global_shap_values = global_shap_dp.shap_values
 
-            heter = self._create_heterogeneity_function(feat, min_points_per_subregion)
+            heter = self._create_heterogeneity_function(feat, min_points_per_subregion, binning_method)
 
             self._fit_feature(
                 feat,
@@ -151,12 +158,45 @@ class RegionalShapDP(RegionalEffectBase):
                 split_categorical_features,
             )
 
-            self.method_args["feature_" + str(feat)] = {
-                "heter_pcg_drop_thres": heter_pcg_drop_thres,
-                "heter_small_enough": heter_small_enough,
-                "max_depth": max_depth,
-                "nof_candidate_splits_for_numerical": nof_candidate_splits_for_numerical,
-                "min_points_per_subregion": min_points_per_subregion,
-                "candidate_conditioning_features": candidate_conditioning_features,
-                "split_categorical_features": split_categorical_features,
-            }
+        all_arguments = locals()
+        all_arguments.pop("self")
+
+        # region splitting arguments are the first 8 arguments
+        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:8]}
+
+        # fit kwargs
+        self.kwargs_fitting = {"binning_method": binning_method}
+
+    def plot(self,
+             feature,
+             node_idx,
+             heterogeneity=False,
+             centering=False,
+             nof_points=30,
+             scale_x_list=None,
+             scale_y=None,
+             nof_shap_values='all',
+             show_avg_output=False,
+             y_limits=None,
+             only_shap_values=False
+    ):
+        """
+        Plot the regional SHAP.
+
+        Args:
+            feature: the feature to plot
+            node_idx: the index of the node to plot
+            heterogeneity: whether to plot the heterogeneity
+            centering: whether to center the SHAP values
+            nof_points: number of points to plot
+            scale_x_list: the list of scaling factors for the feature names
+            scale_y: the scaling factor for the SHAP values
+            nof_shap_values: number of SHAP values to plot
+            show_avg_output: whether to show the average output
+            y_limits: the limits of the y-axis
+            only_shap_values: whether to plot only the SHAP values
+        """
+        kwargs = locals()
+        kwargs.pop("self")
+        return self._plot(kwargs)
+
