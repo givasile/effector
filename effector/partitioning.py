@@ -119,7 +119,7 @@ class Regions:
                 )
                 splits.append(new_split)
             self.splits = splits
-        breakpoint()
+
         # update state
         self.split_found = True
         return self.splits
@@ -188,10 +188,10 @@ class Regions:
                 after_split_weighted_heter = np.sum(after_split_weight_list * np.array(heter_list_after_split))
 
                 # # second: computed the weighted heterogeneity drop after the split
-                current_heter_drop = before_split_weighted_heter - after_split_weighted_heter
+                # current_heter_drop = before_split_weighted_heter - after_split_weighted_heter
 
                 # matrix_weighted_heter_drop[i,j] is the weighted accumulated heterogeneity drop if I split ccf[i] at index j
-                matrix_weighted_heter_drop[i, j] = current_heter_drop
+                # matrix_weighted_heter_drop[i, j] = current_heter_drop
 
                 # matrix_weighted_heter[i,j] is the weighted accumulated heterogeneity if I split ccf[i] at index j
                 matrix_weighted_heter[i, j] = after_split_weighted_heter
@@ -199,7 +199,7 @@ class Regions:
 
         # find the split with the largest weighted heterogeneity drop
         i, j = np.unravel_index(
-            np.argmax(matrix_weighted_heter_drop, axis=None), matrix_weighted_heter_drop.shape
+            np.argmin(matrix_weighted_heter, axis=None), matrix_weighted_heter.shape
         )
         feature = ccf[i]
         position = candidate_split_positions[i][j]
@@ -222,7 +222,6 @@ class Regions:
             "foc_split_position": position,
             "foc_range": [np.min(data[:, feature]), np.max(data[:, feature])],
             "foc_type": foc_types[i],
-            "split_weighted_heter": matrix_weighted_heter[i, j],
             "split_i": i,
             "split_j": j,
             "candidate_split_positions": split_positions,
@@ -235,7 +234,7 @@ class Regions:
             "after_split_active_indices_list": after_split_active_indices_list,
             "after_split_weighted_heter": matrix_weighted_heter[i, j],
 
-            "matrix_weighted_heter_drop": matrix_weighted_heter_drop,
+            # "matrix_weighted_heter_drop": matrix_weighted_heter_drop,
             "matrix_weighted_heter": matrix_weighted_heter,
         }
         return split
