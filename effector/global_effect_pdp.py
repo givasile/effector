@@ -229,7 +229,6 @@ class PDPBase(GlobalEffectBase):
             y_limits=y_limits,
         )
 
-
 class PDP(PDPBase):
     def __init__(
         self,
@@ -350,7 +349,7 @@ class PDP(PDPBase):
                 - `zero_start` starts the plot from `y=0`.
 
             nof_points: the grid size for the PDP plot
-
+            
             scale_x: None or Dict with keys ['std', 'mean']
 
                 - If set to None, no scaling will be applied.
@@ -385,6 +384,8 @@ class PDP(PDPBase):
         )
 
 
+
+ARG_DOCS={"aa": "aek"}
 
 class DerPDP(PDPBase):
     def __init__(

@@ -503,7 +503,7 @@ plt.show()
 
 
 ```python
-effector.DerPDP(data=x, model=f, model_jac=dfdx, nof_instances=50).plot(feature=0, centering=False, heterogeneity="ice", y_limits=[-20, 20])
+effector.DerPDP(data=x, model=f, model_jac=dfdx, nof_instances=50).plot(feature=0, centering=False, heterogeneity="ice", dy_limits=[-20, 20])
 ```
 
 
@@ -565,9 +565,13 @@ plt.show()
 effector.ShapDP(data=x, model=f, nof_instances="all").plot(feature=0, centering=True, heterogeneity="shap_values", y_limits=[-3, 3])
 ```
 
+    /home/givasile/github/packages/effector/effector/global_effect_shap.py:343: RuntimeWarning: invalid value encountered in sqrt
+      np.sqrt(self.feature_effect["feature_" + str(feature)]["spline_std"](x))
+
+
 
     
-![png](02_global_effect_methods_comparison_files/02_global_effect_methods_comparison_42_0.png)
+![png](02_global_effect_methods_comparison_files/02_global_effect_methods_comparison_42_1.png)
     
 
 

@@ -14,9 +14,6 @@ import numpy as np
 import effector
 ```
 
-    Using `tqdm.autonotebook.tqdm` in notebook mode. Use `tqdm.tqdm` instead to force console mode (e.g. in jupyter console)
-
-
 ## Simulation example
 
 ### Data Generating Distribution
@@ -127,13 +124,13 @@ regional_rhale.fit(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=
 effector.binning_methods.DynamicProgramming()
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 21.02it/s]
+    100%|██████████| 3/3 [00:00<00:00, 26.42it/s]
 
 
 
 
 
-    <effector.binning_methods.DynamicProgramming at 0x7515286ff250>
+    <effector.binning_methods.DynamicProgramming at 0x7219c27ae500>
 
 
 
@@ -173,7 +170,7 @@ regional_pdp = effector.RegionalPDP(data=X_uncor_train, model=model, feature_nam
 regional_pdp.fit(features="all", heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=11, centering=True)
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 21.16it/s]
+    100%|██████████| 3/3 [00:00<00:00, 30.26it/s]
 
 
 
@@ -181,14 +178,18 @@ regional_pdp.fit(features="all", heter_pcg_drop_thres=0.3, nof_candidate_splits_
 regional_pdp.summary(features=0)
 ```
 
+    
+    
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 1.74 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.29 || nof_instances:   482 || weight: 0.48
-            Node id: 2, name: x1 | x3  > -0.0, heter: 0.29 || nof_instances:   518 || weight: 0.52
+    Node id: 0, name: x1, heter: 3.44 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x1 | x3 <= 0.09, heter: 0.94 || nof_instances:   562 || weight: 0.56
+            Node id: 2, name: x1 | x3  > 0.09, heter: 0.07 || nof_instances:   438 || weight: 0.44
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 1.74
-            Level 1, heter: 0.29 || heter drop: 1.45 (83.24%)
+    Level 0, heter: 3.44
+            Level 1, heter: 0.56 || heter drop : 2.88 (units), 83.72% (pcg)
+    
+    
 
 
 
@@ -214,11 +215,15 @@ regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", centering=True, y_
 regional_pdp.summary(features=1)
 ```
 
+    
+    
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 1.82 || nof_instances:  1000 || weight: 1.00
+    Node id: 0, name: x2, heter: 3.43 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 1.82
+    Level 0, heter: 3.43
+    
+    
 
 
 
@@ -226,14 +231,18 @@ regional_pdp.summary(features=1)
 regional_pdp.summary(features=2)
 ```
 
+    
+    
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 1.74 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x3 | x1 <= 0.0, heter: 0.88 || nof_instances:   494 || weight: 0.49
-            Node id: 2, name: x3 | x1  > 0.0, heter: 0.87 || nof_instances:   506 || weight: 0.51
+    Node id: 0, name: x3, heter: 3.10 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x3 | x1 <= -0.09, heter: 0.62 || nof_instances:   455 || weight: 0.46
+            Node id: 2, name: x3 | x1  > -0.09, heter: 0.95 || nof_instances:   545 || weight: 0.55
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 1.74
-            Level 1, heter: 0.87 || heter drop: 0.87 (49.73%)
+    Level 0, heter: 3.10
+            Level 1, heter: 0.80 || heter drop : 2.30 (units), 74.21% (pcg)
+    
+    
 
 
 
@@ -315,7 +324,7 @@ regional_pdp = effector.RegionalPDP(data=X_cor_train, model=model, feature_names
 regional_pdp.fit(features="all", heter_pcg_drop_thres=0.4, nof_candidate_splits_for_numerical=11)
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 55.47it/s]
+    100%|██████████| 3/3 [00:00<00:00, 32.24it/s]
 
 
 
@@ -323,14 +332,18 @@ regional_pdp.fit(features="all", heter_pcg_drop_thres=0.4, nof_candidate_splits_
 regional_pdp.summary(features=0)
 ```
 
+    
+    
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 1.74 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.30 || nof_instances:   522 || weight: 0.52
-            Node id: 2, name: x1 | x3  > -0.0, heter: 0.28 || nof_instances:   478 || weight: 0.48
+    Node id: 0, name: x1, heter: 3.44 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x1 | x3 <= -0.09, heter: 0.07 || nof_instances:   475 || weight: 0.47
+            Node id: 2, name: x1 | x3  > -0.09, heter: 0.95 || nof_instances:   525 || weight: 0.53
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 1.74
-            Level 1, heter: 0.29 || heter drop: 1.45 (83.34%)
+    Level 0, heter: 3.44
+            Level 1, heter: 0.53 || heter drop : 2.91 (units), 84.61% (pcg)
+    
+    
 
 
 
@@ -356,14 +369,18 @@ regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", centering=True, y_
 regional_pdp.summary(features=1)
 ```
 
+    
+    
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 1.01 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x2 | x1 <= 0.54, heter: 0.61 || nof_instances:   778 || weight: 0.78
-            Node id: 2, name: x2 | x1  > 0.54, heter: 0.54 || nof_instances:   222 || weight: 0.22
+    Node id: 0, name: x2, heter: 0.94 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x2 | x1 <= 0.45, heter: 0.31 || nof_instances:   748 || weight: 0.75
+            Node id: 2, name: x2 | x1  > 0.45, heter: 0.41 || nof_instances:   252 || weight: 0.25
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 1.01
-            Level 1, heter: 0.60 || heter drop: 0.41 (41.05%)
+    Level 0, heter: 0.94
+            Level 1, heter: 0.33 || heter drop : 0.61 (units), 64.71% (pcg)
+    
+    
 
 
 
@@ -371,14 +388,18 @@ regional_pdp.summary(features=1)
 regional_pdp.summary(features=2)
 ```
 
+    
+    
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 1.75 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x3 | x1 <= -0.0, heter: 0.89 || nof_instances:   522 || weight: 0.52
-            Node id: 2, name: x3 | x1  > -0.0, heter: 0.85 || nof_instances:   478 || weight: 0.48
+    Node id: 0, name: x3, heter: 2.90 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x3 | x1 <= -0.09, heter: 0.61 || nof_instances:   475 || weight: 0.47
+            Node id: 2, name: x3 | x1  > -0.09, heter: 0.80 || nof_instances:   525 || weight: 0.53
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 1.75
-            Level 1, heter: 0.87 || heter drop: 0.88 (50.43%)
+    Level 0, heter: 2.90
+            Level 1, heter: 0.71 || heter drop : 2.19 (units), 75.48% (pcg)
+    
+    
 
 
 
@@ -478,7 +499,15 @@ regional_rhale.fit(
 
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 25.05it/s]
+    100%|██████████| 3/3 [00:00<00:00, 10.67it/s]
+
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+
+
+    
 
 
 
@@ -486,14 +515,18 @@ regional_rhale.fit(
 regional_rhale.summary(features=0)
 ```
 
+    
+    
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 5.97 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.00 || nof_instances:   482 || weight: 0.48
-            Node id: 2, name: x1 | x3  > -0.0, heter: 0.00 || nof_instances:   518 || weight: 0.52
+    Node id: 0, name: x1, heter: 8.91 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x1 | x3 <= 0.09, heter: 2.29 || nof_instances:   562 || weight: 0.56
+            Node id: 2, name: x1 | x3  > 0.09, heter: 0.00 || nof_instances:   438 || weight: 0.44
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 5.97
-            Level 1, heter: 0.00 || heter drop: 5.97 (100.00%)
+    Level 0, heter: 8.91
+            Level 1, heter: 1.29 || heter drop : 7.62 (units), 85.52% (pcg)
+    
+    
 
 
 
@@ -519,11 +552,15 @@ regional_rhale.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, 
 regional_rhale.summary(features=1)
 ```
 
+    
+    
     Feature 1 - Full partition tree:
     Node id: 0, name: x2, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.00
+    
+    
 
 
 
@@ -531,11 +568,15 @@ regional_rhale.summary(features=1)
 regional_rhale.summary(features=2)
 ```
 
+    
+    
     Feature 2 - Full partition tree:
     Node id: 0, name: x3, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     Level 0, heter: 0.00
+    
+    
 
 
 #### Conclusion
@@ -608,7 +649,12 @@ regional_rhale.fit(
 
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 34.98it/s]
+     67%|██████▋   | 2/3 [00:00<00:00, 13.53it/s]
+
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+
+
+    100%|██████████| 3/3 [00:00<00:00, 13.21it/s]
 
 
 
@@ -616,11 +662,15 @@ regional_rhale.fit(
 regional_rhale.summary(features=0)
 ```
 
+    
+    
     Feature 0 - Full partition tree:
     Node id: 0, name: x1, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     Level 0, heter: 0.00
+    
+    
 
 
 
@@ -628,11 +678,15 @@ regional_rhale.summary(features=0)
 regional_rhale.summary(features=1)
 ```
 
+    
+    
     Feature 1 - Full partition tree:
     Node id: 0, name: x2, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 0.00
+    
+    
 
 
 
@@ -640,11 +694,15 @@ regional_rhale.summary(features=1)
 regional_rhale.summary(features=2)
 ```
 
+    
+    
     Feature 2 - Full partition tree:
     Node id: 0, name: x3, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     Level 0, heter: 0.00
+    
+    
 
 
 #### Conclusion
@@ -666,10 +724,12 @@ shap.plot(feature=1, centering=True, heterogeneity="shap_values", show_avg_outpu
 shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
 ```
 
-
-    
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_51_0.png)
-    
+    /home/givasile/miniconda3/envs/effector-dev/lib/python3.10/site-packages/numpy/_core/fromnumeric.py:4008: RuntimeWarning: Degrees of freedom <= 0 for slice
+      return _methods._var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+    /home/givasile/miniconda3/envs/effector-dev/lib/python3.10/site-packages/numpy/_core/_methods.py:175: RuntimeWarning: invalid value encountered in divide
+      arrmean = um.true_divide(arrmean, div, out=arrmean,
+    /home/givasile/miniconda3/envs/effector-dev/lib/python3.10/site-packages/numpy/_core/_methods.py:210: RuntimeWarning: invalid value encountered in scalar divide
+      ret = ret.dtype.type(ret / rcount)
 
 
 
@@ -681,6 +741,12 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
 
     
 ![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_51_2.png)
+    
+
+
+
+    
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_51_3.png)
     
 
 
@@ -701,7 +767,73 @@ regional_shap.fit(
 )
 ```
 
-    100%|██████████| 3/3 [00:03<00:00,  1.06s/it]
+      0%|          | 0/3 [00:00<?, ?it/s]
+
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+
+
+     33%|███▎      | 1/3 [00:00<00:00,  3.13it/s]
+
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+
+
+     67%|██████▋   | 2/3 [00:00<00:00,  3.54it/s]
+
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+
+
+    100%|██████████| 3/3 [00:00<00:00,  3.59it/s]
+
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+    Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
+
+
+    
 
 
 
@@ -709,14 +841,15 @@ regional_shap.fit(
 regional_shap.summary(0)
 ```
 
+    
+    
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 0.77 || nof_instances:   100 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= -0.0, heter: 0.00 || nof_instances:    49 || weight: 0.49
-            Node id: 2, name: x1 | x3  > -0.0, heter: 0.00 || nof_instances:    51 || weight: 0.51
+    Node id: 0, name: x1, heter: 0.65 || nof_instances:   100 || weight: 1.00
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 0.77
-            Level 1, heter: 0.00 || heter drop: 0.77 (100.00%)
+    Level 0, heter: 0.65
+    
+    
 
 
 
@@ -726,15 +859,38 @@ regional_shap.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, y
 ```
 
 
-    
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_55_0.png)
-    
+    ---------------------------------------------------------------------------
+
+    AttributeError                            Traceback (most recent call last)
+
+    Cell In[35], line 1
+    ----> 1 regional_shap.plot(feature=0, node_idx=1, heterogeneity="std", centering=True, y_limits=[-5, 5])
+          2 regional_shap.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, y_limits=[-5, 5])
 
 
+    File ~/github/packages/effector/effector/regional_effect_shap.py:201, in RegionalShapDP.plot(self, feature, node_idx, heterogeneity, centering, nof_points, scale_x_list, scale_y, nof_shap_values, show_avg_output, y_limits, only_shap_values)
+        199 kwargs = locals()
+        200 kwargs.pop("self")
+    --> 201 return self._plot(kwargs)
 
-    
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_55_1.png)
-    
+
+    File ~/github/packages/effector/effector/regional_effect.py:251, in RegionalEffectBase._plot(self, kwargs)
+        248 self.refit(kwargs["feature"])
+        250 # select only the three out of all kwargs
+    --> 251 fe_method = self._create_fe_object(kwargs["feature"], kwargs["node_idx"], kwargs["scale_x_list"])
+        253 kwargs_fitting = copy.deepcopy(self.kwargs_fitting)
+        254 kwargs_fitting['centering'] = kwargs["centering"]
+
+
+    File ~/github/packages/effector/effector/regional_effect.py:152, in RegionalEffectBase._create_fe_object(self, feature, node_idx, scale_x_list)
+        150 assert feature_tree is not None, "Feature {} has no splits".format(feature)
+        151 node = feature_tree.get_node_by_idx(node_idx)
+    --> 152 name = feature_tree.scale_node_name(node.name, scale_x_list)
+        153 data = node.info["data"]
+        154 data_effect = node.info["data_effect"]
+
+
+    AttributeError: 'NoneType' object has no attribute 'name'
 
 
 

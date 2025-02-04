@@ -54,7 +54,9 @@ To use `Effector`, you need:
      ```python
      def predict(x):
         '''y = 10*x[0] if x[1] > 0 else -10*x[0] + noise'''
-        y = np.zeros(x.shape[0])
+        y = np.zeros(x.shape[0])          options:
+            force_inspection: true
+            allow_inspection: true
         ind = x[:, 1] > 0
         y[ind] = 10*x[ind, 0]
         y[~ind] = -10*x[~ind, 0]
@@ -154,7 +156,7 @@ To use `Effector`, you need:
 
 ## Global Effect
 
-???+ success "Global effect: how each feature affects the model's output, **on average**"
+???+ success "Global effect: how each feature affects the model's output **globally**, averaged over all instances."
 
     `Effector` offers many methods to visualize the global effect, all under a similar API.
 
@@ -179,43 +181,39 @@ To use `Effector`, you need:
     ```
     ![Global-RHALE](./static/homepage_example_8_0.png){ align=center }
 
-=== "d-PDP"
+=== "ShapDP"
+
+    ```python
+    effector.PDP(data=X, model=predict).plot(feature=0, heterogeneity="shap_values")
+    ```
+    ![Global-RHALE](./static/homepage_example_9_0.png){ align=center }
+=== "derPDP"
 
     ```python
     effector.DerPDP(data=X, model=predict, model_jac=jacobian).plot(feature=0, heterogeneity="d-ice")
     ```
     ![Global-DPDP](./static/homepage_example_6_0.png){ align=center }
 
-=== "SHAP-DP"
-
-    ```python
-    effector.PDP(data=X, model=predict).plot(feature=0, heterogeneity="shap_values")
-    ```
-    ![Global-RHALE](./static/homepage_example_9_0.png){ align=center }
-
-## Regional Effect Plots
-
-???+ success "Regional Effect"
-
-    The plot implies that the global effect of `Feature 1` on the model's output is zero,
-    but there is heterogeneity in the effect.
-    You want to further investigate the sources of heterogeneity:
 
 
-=== "Code"
+## Regional Effect
 
-    ```python
-    reg_pdp = effector.RegionalPDP(data=X, model=predict)
-    reg_pdp.show_partitioning(feature=0)
+???+ success "Regional Effect: How each feature affects the model's output **regionally**, averaged over all instances **in a subregion.**"
+     
+    Sometimes, global effects are very heterogeneous (local effects deviate from the global effect).
+    In these cases, there maybe subregions with less variance.
+    `Effector` searches for such regions.
 
-    reg_pdp.plot(feature=0, node_idx=0, heterogeneity="ice", y_limits=(-13, 13))
-    reg_pdp.plot(feature=0, node_idx=1, heterogeneity="ice", y_limits=(-13, 13))
-    reg_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", y_limits=(-13, 13))
-    ```
 
-=== "Show Partitioning"
+### `.summary()`
+
+=== "PDP"
     
+    ```python
+    effector.RegionalPDP(data=X, model=predict).summary(0)
     ```
+
+    ```python
     Feature 0 - Full partition tree:
         Node id: 0, name: x_0, heter: 5.57 || nof_instances:   100 || weight: 1.00
                 Node id: 1, name: x_0 | x_1 <= 0.04, heter: 2.78 || nof_instances:    50 || weight: 0.50
@@ -226,49 +224,123 @@ To use `Effector`, you need:
                 Level 1, heter: 1.90 || heter drop: 3.67 (65.85%)
     ```
 
-=== "when $x_1 <= 0.04$"
+=== "RHALE"
 
-    ![Regional Effect](./static/concept_example_regional_effect_feat_1_index_1_pdp.png)
-
-=== "when $x_1 > 0.04$"
-
-    ![Regional Effect](./static/concept_example_regional_effect_feat_1_index_2_pdp.png)
-
-
-lalalala 
-
-=== "Code"
+     ```python
+    effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian).summary(0)
+     ```
 
     ```python
-    reg_pdp = effector.RegionalPDP(data=X, model=predict)
-    reg_pdp.show_partitioning(feature=0)
-
-    reg_pdp.plot(feature=0, node_idx=0, heterogeneity="ice", y_limits=(-13, 13))
-    reg_pdp.plot(feature=0, node_idx=1, heterogeneity="ice", y_limits=(-13, 13))
-    reg_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", y_limits=(-13, 13))
-    ```
-
-=== "Show Partitioning"
-    
-    ```
     Feature 0 - Full partition tree:
-        Node id: 0, name: x_0, heter: 5.57 || nof_instances:   100 || weight: 1.00
-                Node id: 1, name: x_0 | x_1 <= 0.04, heter: 2.78 || nof_instances:    50 || weight: 0.50
-                Node id: 2, name: x_0 | x_1  > 0.04, heter: 1.03 || nof_instances:    50 || weight: 0.50
-    --------------------------------------------------
-    Feature 0 - Statistics per tree level:
-        Level 0, heter: 5.57
-                Level 1, heter: 1.90 || heter drop: 3.67 (65.85%)
+     Node id: 0, name: x_0, heter: 93.45 || nof_instances:  1000 || weight: 1.00
+             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.00 || nof_instances:   501 || weight: 0.50
+             Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.00 || nof_instances:   499 || weight: 0.50
+     --------------------------------------------------
+     Feature 0 - Statistics per tree level:
+     Level 0, heter: 93.45
+             Level 1, heter: 0.00 || heter drop : 93.45 (units), 100.00% (pcg)
+    ```
+=== "ALE"
+
+    ```python
+    effector.RegionalALE(data=X, model=predict).summary(0)
     ```
 
-=== "when $x_1 <= 0.04$"
+    ```python
+     Feature 0 - Full partition tree:
+     Node id: 0, name: x_0, heter: 289.24 || nof_instances:  1000 || weight: 1.00
+             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 183.08 || nof_instances:   501 || weight: 0.50
+             Node id: 2, name: x_0 | x_1  > 0.0, heter: 193.44 || nof_instances:   499 || weight: 0.50
+     --------------------------------------------------
+     Feature 0 - Statistics per tree level:
+     Level 0, heter: 289.24
+             Level 1, heter: 188.25 || heter drop : 100.99 (units), 34.92% (pcg)
+    ```
+=== "ShapDP"
 
-    ![Regional Effect](./static/concept_example_regional_effect_feat_1_index_1_pdp.png)
+     ```python
+        effector.RegionalShapDP(data=X, model=predict).summary(0)
+     ```
 
-=== "when $x_1 > 0.04$"
+     ```python
+     Feature 0 - Full partition tree:
+     Node id: 0, name: x_0, heter: 8.35 || nof_instances:  1000 || weight: 1.00
+             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.01 || nof_instances:   501 || weight: 0.50
+             Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.01 || nof_instances:   499 || weight: 0.50
+     --------------------------------------------------
+     Feature 0 - Statistics per tree level:
+     Level 0, heter: 8.35
+             Level 1, heter: 0.01 || heter drop : 8.34 (units), 99.86% (pcg)
+     ```
 
-    ![Regional Effect](./static/concept_example_regional_effect_feat_1_index_2_pdp.png)
+=== "DerPDP"
 
+     ```python
+        effector.DerPDP(data=X, model=predict, model_jac=jacobian).summary(0)
+     ```
+
+    ```python
+     Feature 0 - Full partition tree:
+     Node id: 0, name: x_0, heter: 100.00 || nof_instances:  1000 || weight: 1.00
+             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.00 || nof_instances:   501 || weight: 0.50
+             Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.00 || nof_instances:   499 || weight: 0.50
+     --------------------------------------------------
+     Feature 0 - Statistics per tree level:
+     Level 0, heter: 100.00
+             Level 1, heter: 0.00 || heter drop : 100.00 (units), 100.00% (pcg)
+    ```
+
+### `.plot()`
+
+=== "PDP"
+
+     ```python
+     effector.RegionalPDP(data=X, model=predict).plot(0)
+     ```
+
+     | $x_1$ when $x_2 leq 0$ | $x_1$ when $x_2 > 0$ |
+     |:---------:|:---------:|
+     | ![Alt text](./static/homepage_example_20_3.png) | ![Alt text](./static/homepage_example_20_5.png) |
+
+=== "RHALE"
+
+     ```python
+     effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian).plot(0)
+     ```
+
+     | $x_1$ when $x_2 leq 0$ | $x_1$ when $x_2 > 0$ |
+     |:---------:|:---------:|
+     | ![Alt text](./static/homepage_example_26_3.png) | ![Alt text](./static/homepage_example_26_5.png) |
+
+=== "ALE"
+
+     ```python
+     effector.RegionalALE(data=X, model=predict).plot(0)
+     ```
+
+     | $x_1$ when $x_2 leq 0$ | $x_1$ when $x_2 > 0$ |
+     |:---------:|:---------:|
+     | ![Alt text](./static/homepage_example_29_3.png) | ![Alt text](./static/homepage_example_29_5.png) |
+
+=== "ShapDP"
+
+     ```python
+     effector.RegionalShapDP(data=X, model=predict).plot(0)
+     ```
+
+     | $x_1$ when $x_2 leq 0$ | $x_1$ when $x_2 > 0$ |
+     |:---------:|:---------:|
+     | ![Alt text](./static/homepage_example_33_1.png) | ![Alt text](./static/homepage_example_33_2.png) |
+
+=== "derPDP"
+
+     ```python
+     effector.RegionalDerPDP(data=X, model=predict, model_jac=jacobian).plot(0)
+     ```
+
+     | $x_1$ when $x_2 leq 0$ | $x_1$ when $x_2 > 0$ |
+     |:---------:|:---------:|
+     | ![Alt text](./static/homepage_example_23_3.png) | ![Alt text](./static/homepage_example_23_5.png) |
 
 ## Dive in
 

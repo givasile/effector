@@ -12,6 +12,7 @@ mkdocs
 mkdocstrings
 mkdocstrings-python
 mkdocs-material
+mkdocs-glightbox
 tensorflow
 keras
 jupyter

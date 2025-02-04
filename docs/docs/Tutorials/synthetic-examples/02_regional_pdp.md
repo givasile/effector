@@ -107,13 +107,13 @@ regional_rhale.fit(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=
 effector.binning_methods.DynamicProgramming()
 ```
 
-    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 24.98it/s]
+    100%|██████████| 3/3 [00:00<00:00,  3.68it/s]
 
 
 
 
 
-    <effector.binning_methods.DynamicProgramming at 0x7208a4acd5d0>
+    <effector.binning_methods.DynamicProgramming at 0x738b04079720>
 
 
 
@@ -160,7 +160,7 @@ regional_pdp = effector.RegionalPDP(data=X_uncor, model=model, feature_names=['x
 regional_pdp.fit(features="all", heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=11, centering=True)
 ```
 
-    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 23.29it/s]
+    100%|██████████| 3/3 [00:00<00:00,  5.25it/s]
 
 
 
@@ -168,14 +168,18 @@ regional_pdp.fit(features="all", heter_pcg_drop_thres=0.3, nof_candidate_splits_
 regional_pdp.summary(features=0)
 ```
 
+    
+    
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 3.98 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= 0.0, heter: 0.09 || nof_instances:   535 || weight: 0.54
-            Node id: 2, name: x1 | x3  > 0.0, heter: 0.09 || nof_instances:   465 || weight: 0.47
+    Node id: 0, name: x1, heter: 3.46 || nof_instances: 10000 || weight: 1.00
+            Node id: 1, name: x1 | x3 <= -0.09, heter: 0.07 || nof_instances:  4579 || weight: 0.46
+            Node id: 2, name: x1 | x3  > -0.09, heter: 1.04 || nof_instances:  5421 || weight: 0.54
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 3.98
-            Level 1, heter: 0.09 || heter drop: 3.89 (97.82%)
+    Level 0, heter: 3.46
+            Level 1, heter: 0.59 || heter drop : 2.87 (units), 82.83% (pcg)
+    
+    
 
 
 
@@ -201,11 +205,15 @@ regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", centering=True, y_
 regional_pdp.summary(features=1)
 ```
 
+    
+    
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 3.21 || nof_instances:  1000 || weight: 1.00
+    Node id: 0, name: x2, heter: 3.38 || nof_instances: 10000 || weight: 1.00
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 3.21
+    Level 0, heter: 3.38
+    
+    
 
 
 
@@ -213,14 +221,18 @@ regional_pdp.summary(features=1)
 regional_pdp.summary(features=2)
 ```
 
+    
+    
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 2.91 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x3 | x1 <= -0.0, heter: 0.72 || nof_instances:   513 || weight: 0.51
-            Node id: 2, name: x3 | x1  > -0.0, heter: 0.80 || nof_instances:   487 || weight: 0.49
+    Node id: 0, name: x3, heter: 3.01 || nof_instances: 10000 || weight: 1.00
+            Node id: 1, name: x3 | x1 <= 0.09, heter: 0.90 || nof_instances:  5362 || weight: 0.54
+            Node id: 2, name: x3 | x1  > 0.09, heter: 0.62 || nof_instances:  4638 || weight: 0.46
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 2.91
-            Level 1, heter: 0.76 || heter drop: 2.15 (73.91%)
+    Level 0, heter: 3.01
+            Level 1, heter: 0.77 || heter drop : 2.24 (units), 74.39% (pcg)
+    
+    
 
 
 
@@ -290,7 +302,7 @@ regional_pdp = effector.RegionalPDP(data=X_cor, model=model, feature_names=['x1'
 regional_pdp.fit(features="all", heter_pcg_drop_thres=0.4, nof_candidate_splits_for_numerical=11)
 ```
 
-    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 49.34it/s]
+    100%|██████████| 3/3 [00:00<00:00,  4.27it/s]
 
 
 
@@ -298,14 +310,18 @@ regional_pdp.fit(features="all", heter_pcg_drop_thres=0.4, nof_candidate_splits_
 regional_pdp.summary(features=0)
 ```
 
+    
+    
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 3.99 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= 0.0, heter: 0.10 || nof_instances:   497 || weight: 0.50
-            Node id: 2, name: x1 | x3  > 0.0, heter: 0.08 || nof_instances:   503 || weight: 0.50
+    Node id: 0, name: x1, heter: 3.45 || nof_instances: 10000 || weight: 1.00
+            Node id: 1, name: x1 | x3 <= -0.09, heter: 0.07 || nof_instances:  4505 || weight: 0.45
+            Node id: 2, name: x1 | x3  > -0.09, heter: 1.02 || nof_instances:  5495 || weight: 0.55
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 3.99
-            Level 1, heter: 0.09 || heter drop: 3.90 (97.66%)
+    Level 0, heter: 3.45
+            Level 1, heter: 0.59 || heter drop : 2.86 (units), 82.92% (pcg)
+    
+    
 
 
 
@@ -331,14 +347,18 @@ regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", centering=True, y_
 regional_pdp.summary(features=1)
 ```
 
+    
+    
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 1.08 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x2 | x1 <= 0.55, heter: 0.34 || nof_instances:   765 || weight: 0.77
-            Node id: 2, name: x2 | x1  > 0.55, heter: 0.27 || nof_instances:   235 || weight: 0.23
+    Node id: 0, name: x2, heter: 1.08 || nof_instances: 10000 || weight: 1.00
+            Node id: 1, name: x2 | x1 <= 0.45, heter: 0.31 || nof_instances:  7233 || weight: 0.72
+            Node id: 2, name: x2 | x1  > 0.45, heter: 0.39 || nof_instances:  2767 || weight: 0.28
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     Level 0, heter: 1.08
-            Level 1, heter: 0.32 || heter drop: 0.76 (70.18%)
+            Level 1, heter: 0.33 || heter drop : 0.75 (units), 69.16% (pcg)
+    
+    
 
 
 
@@ -346,14 +366,18 @@ regional_pdp.summary(features=1)
 regional_pdp.summary(features=2)
 ```
 
+    
+    
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 3.03 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x3 | x1 <= 0.0, heter: 0.76 || nof_instances:   497 || weight: 0.50
-            Node id: 2, name: x3 | x1  > 0.0, heter: 0.75 || nof_instances:   503 || weight: 0.50
+    Node id: 0, name: x3, heter: 2.99 || nof_instances: 10000 || weight: 1.00
+            Node id: 1, name: x3 | x1 <= -0.09, heter: 0.61 || nof_instances:  4505 || weight: 0.45
+            Node id: 2, name: x3 | x1  > -0.09, heter: 0.88 || nof_instances:  5495 || weight: 0.55
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 3.03
-            Level 1, heter: 0.75 || heter drop: 2.28 (75.17%)
+    Level 0, heter: 2.99
+            Level 1, heter: 0.76 || heter drop : 2.23 (units), 74.57% (pcg)
+    
+    
 
 
 

@@ -31,30 +31,9 @@ def model_jac(x):
     return y
 
 xs = np.linspace(-1, 1, T)
-methods = ["pdp", "d-pdp", "ale", "rhale", "shap"]
-for method in ["shap"]:
-    if method == "pdp":
-        reg_eff = effector.RegionalPDP(data, model, nof_instances=1000)
-    elif method == "d-pdp":
-        reg_eff = effector.RegionalDerPDP(data, model, model_jac, nof_instances=1000)
-    elif method == "ale":
-        reg_eff = effector.RegionalALE(data, model, nof_instances=1000)
-    elif method == "rhale":
-        reg_eff = effector.RegionalRHALE(data, model, model_jac, nof_instances=1000)
-    else:
-        reg_eff = effector.RegionalShapDP(data, model, axis_limits=axis_limits, nof_instances=1000)
 
-    reg_eff.fit(0,
-                heter_pcg_drop_thres=0.1,
-                max_depth=2,
-                nof_candidate_splits_for_numerical=10,
-                candidate_conditioning_features="all",
-                split_categorical_features=True)
-
-
-    # y, std = reg_eff.eval(0, 5, xs, heterogeneity=True, centering=True)
-    # np.allclose(y, 5*xs, atol=0.1, rtol=0.1)
-    # np.allclose(std, 0, atol=0.1, rtol=0.1)
-
-
-reg_eff.plot(0, 0, heterogeneity="shap_values")
+reg_method = effector.RegionalPDP(data, model, axis_limits=axis_limits, nof_instances="all")
+reg_method.summary(0)
+partitioner = reg_method.partitions["feature_" + str(0)]
+# reg_eff.summary(0)
+# reg_eff.plot(0, 5, heterogeneity="shap_values")

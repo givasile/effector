@@ -45,6 +45,7 @@ theme:
     - header.autohide
     - content.code.copy
     - content.code.select
+    - content.tabs.link
   icon:
     repo: fontawesome/brands/github
 
@@ -81,6 +82,7 @@ plugins:
           rendering:
             show_source: true
             heading_level: 2
+  - glightbox
 
 markdown_extensions:
   - pymdownx.arithmatex:
