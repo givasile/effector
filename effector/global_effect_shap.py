@@ -150,7 +150,7 @@ class ShapDP(GlobalEffectBase):
         # bin_edges = np.linspace(xx.min(), xx.max(), K + 1)
         bin_centers = (bin_est.limits[:-1] + bin_est.limits[1:]) / 2
 
-        # Compute mean y-values in each bin
+# Compute mean y-values in each bin
         bin_means, _, _ = scipy.stats.binned_statistic(xx, yy, statistic='mean', bins=limits)
         bin_vars, _, _ = scipy.stats.binned_statistic(xx, yy, statistic='std', bins=limits)
 

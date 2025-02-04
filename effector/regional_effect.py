@@ -115,7 +115,6 @@ class RegionalEffectBase:
             feature,
             heter_func,
             self.data,
-            self.data_effect,
             self.axis_limits,
             self.feature_types,
             self.feature_names,
@@ -150,9 +149,9 @@ class RegionalEffectBase:
         assert feature_tree is not None, "Feature {} has no splits".format(feature)
         node = feature_tree.get_node_by_idx(node_idx)
         name = feature_tree.scale_node_name(node.name, scale_x_list)
-        data = node.info["data"]
-        data_effect = node.info["data_effect"]
         active_indices = node.info["active_indices"]
+        data = self.data[active_indices.astype(bool), :]
+        data_effect = self.data_effect[active_indices.astype(bool), :] if self.data_effect is not None else None
         feature_names = copy.deepcopy(self.feature_names)
         feature_names[feature] = name
 

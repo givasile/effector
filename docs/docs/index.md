@@ -1,6 +1,6 @@
 # Home
 
-`Effector` is a python package for [global](./global_effect_intro/) and [regional](./regional_effect_intro/) feature effects.
+`Effector` is a python package for [global](./global_effect_intro/) and [regional](./regional_effect_intro/) effects.
 
 ## Setup
 
@@ -47,7 +47,6 @@ To use `Effector`, you need:
 
      Must be a `Callable` with signature `X: np.ndarray[N, D]) -> np.ndarray[N]`. 
 
-     
 
 === "synthetic example"
 
@@ -153,7 +152,6 @@ To use `Effector`, you need:
         return x.grad.numpy()
     ```
 
-
 ## Global Effect
 
 ???+ success "Global effect: how each feature affects the model's output **globally**, averaged over all instances."
@@ -214,27 +212,27 @@ To use `Effector`, you need:
     ```
 
     ```python
-    Feature 0 - Full partition tree:
-        Node id: 0, name: x_0, heter: 5.57 || nof_instances:   100 || weight: 1.00
-                Node id: 1, name: x_0 | x_1 <= 0.04, heter: 2.78 || nof_instances:    50 || weight: 0.50
-                Node id: 2, name: x_0 | x_1  > 0.04, heter: 1.03 || nof_instances:    50 || weight: 0.50
-    --------------------------------------------------
-    Feature 0 - Statistics per tree level:
-        Level 0, heter: 5.57
-                Level 1, heter: 1.90 || heter drop: 3.67 (65.85%)
+     Feature 0 - Full partition tree:
+     Node id: 0, name: x_0, heter: 34.79 || nof_instances:  1000 || weight: 1.00
+             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.09 || nof_instances:  1000 || weight: 1.00
+             Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.09 || nof_instances:  1000 || weight: 1.00
+     --------------------------------------------------
+     Feature 0 - Statistics per tree level:
+     Level 0, heter: 34.79
+        Level 1, heter: 0.18 || heter drop : 34.61 (units), 99.48% (pcg)
     ```
 
 === "RHALE"
 
-     ```python
+    ```python
     effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian).summary(0)
-     ```
+    ```
 
     ```python
-    Feature 0 - Full partition tree:
+     Feature 0 - Full partition tree:
      Node id: 0, name: x_0, heter: 93.45 || nof_instances:  1000 || weight: 1.00
-             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.00 || nof_instances:   501 || weight: 0.50
-             Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.00 || nof_instances:   499 || weight: 0.50
+             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+             Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
      --------------------------------------------------
      Feature 0 - Statistics per tree level:
      Level 0, heter: 93.45
@@ -248,13 +246,13 @@ To use `Effector`, you need:
 
     ```python
      Feature 0 - Full partition tree:
-     Node id: 0, name: x_0, heter: 289.24 || nof_instances:  1000 || weight: 1.00
-             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 183.08 || nof_instances:   501 || weight: 0.50
-             Node id: 2, name: x_0 | x_1  > 0.0, heter: 193.44 || nof_instances:   499 || weight: 0.50
+     Node id: 0, name: x_0, heter: 114.57 || nof_instances:  1000 || weight: 1.00
+             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 16.48 || nof_instances:  1000 || weight: 1.00
+             Node id: 2, name: x_0 | x_1  > 0.0, heter: 17.41 || nof_instances:  1000 || weight: 1.00
      --------------------------------------------------
      Feature 0 - Statistics per tree level:
-     Level 0, heter: 289.24
-             Level 1, heter: 188.25 || heter drop : 100.99 (units), 34.92% (pcg)
+     Level 0, heter: 114.57
+             Level 1, heter: 33.89 || heter drop : 80.68 (units), 70.42% (pcg)
     ```
 === "ShapDP"
 
@@ -264,13 +262,13 @@ To use `Effector`, you need:
 
      ```python
      Feature 0 - Full partition tree:
-     Node id: 0, name: x_0, heter: 8.35 || nof_instances:  1000 || weight: 1.00
-             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.01 || nof_instances:   501 || weight: 0.50
-             Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.01 || nof_instances:   499 || weight: 0.50
+     Node id: 0, name: x_0, heter: 8.33 || nof_instances:  1000 || weight: 1.00
+             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+             Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
      --------------------------------------------------
      Feature 0 - Statistics per tree level:
-     Level 0, heter: 8.35
-             Level 1, heter: 0.01 || heter drop : 8.34 (units), 99.86% (pcg)
+     Level 0, heter: 8.33
+             Level 1, heter: 0.00 || heter drop : 8.33 (units), 99.94% (pcg)
      ```
 
 === "DerPDP"
@@ -282,8 +280,8 @@ To use `Effector`, you need:
     ```python
      Feature 0 - Full partition tree:
      Node id: 0, name: x_0, heter: 100.00 || nof_instances:  1000 || weight: 1.00
-             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.00 || nof_instances:   501 || weight: 0.50
-             Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.00 || nof_instances:   499 || weight: 0.50
+             Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+             Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
      --------------------------------------------------
      Feature 0 - Statistics per tree level:
      Level 0, heter: 100.00
@@ -298,7 +296,7 @@ To use `Effector`, you need:
      effector.RegionalPDP(data=X, model=predict).plot(0)
      ```
 
-     | $x_1$ when $x_2 leq 0$ | $x_1$ when $x_2 > 0$ |
+     | $x_1$ when $x_2 \leq 0$ | $x_1$ when $x_2 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./static/homepage_example_20_3.png) | ![Alt text](./static/homepage_example_20_5.png) |
 
@@ -308,7 +306,7 @@ To use `Effector`, you need:
      effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian).plot(0)
      ```
 
-     | $x_1$ when $x_2 leq 0$ | $x_1$ when $x_2 > 0$ |
+     | $x_1$ when $x_2 \leq 0$ | $x_1$ when $x_2 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./static/homepage_example_26_3.png) | ![Alt text](./static/homepage_example_26_5.png) |
 
@@ -318,7 +316,7 @@ To use `Effector`, you need:
      effector.RegionalALE(data=X, model=predict).plot(0)
      ```
 
-     | $x_1$ when $x_2 leq 0$ | $x_1$ when $x_2 > 0$ |
+     | $x_1$ when $x_2 \leq 0$ | $x_1$ when $x_2 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./static/homepage_example_29_3.png) | ![Alt text](./static/homepage_example_29_5.png) |
 
@@ -328,7 +326,7 @@ To use `Effector`, you need:
      effector.RegionalShapDP(data=X, model=predict).plot(0)
      ```
 
-     | $x_1$ when $x_2 leq 0$ | $x_1$ when $x_2 > 0$ |
+     | $x_1$ when $x_2 \leq 0$ | $x_1$ when $x_2 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./static/homepage_example_33_1.png) | ![Alt text](./static/homepage_example_33_2.png) |
 
@@ -338,7 +336,7 @@ To use `Effector`, you need:
      effector.RegionalDerPDP(data=X, model=predict, model_jac=jacobian).plot(0)
      ```
 
-     | $x_1$ when $x_2 leq 0$ | $x_1$ when $x_2 > 0$ |
+     | $x_1$ when $x_2 \leq 0$ | $x_1$ when $x_2 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./static/homepage_example_23_3.png) | ![Alt text](./static/homepage_example_23_5.png) |
 

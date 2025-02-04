@@ -21,7 +21,7 @@ def predict(x):
     ind = x[:, 1] > 0
     y[ind] = 10*x[ind, 0]
     y[~ind] = -10*x[~ind, 0]
-    return y + np.random.normal(0, 1, x.shape[0])
+    return y + np.random.normal(0, 1, x.shape[0])*.3
 ```
 
 
@@ -126,18 +126,18 @@ shap_dp.plot(feature=0, heterogeneity="shap_values", y_limits=y_limits)
 effector.RegionalPDP(X_test, predict, axis_limits=axis_limits).summary(features=0)
 ```
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 55.42it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 80.99it/s]
 
     
     
     Feature 0 - Full partition tree:
-    Node id: 0, name: x_0, heter: 35.72 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x_0 | x_1 <= 0.0, heter: 1.00 || nof_instances:   501 || weight: 0.50
-            Node id: 2, name: x_0 | x_1  > 0.0, heter: 1.00 || nof_instances:   499 || weight: 0.50
+    Node id: 0, name: x_0, heter: 34.79 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.09 || nof_instances:  1000 || weight: 1.00
+            Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.09 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 35.72
-            Level 1, heter: 1.00 || heter drop : 34.72 (units), 97.20% (pcg)
+    Level 0, heter: 34.79
+            Level 1, heter: 0.18 || heter drop : 34.61 (units), 99.48% (pcg)
     
     
 
@@ -150,7 +150,7 @@ effector.RegionalPDP(X_test, predict, axis_limits=axis_limits).summary(features=
 [effector.RegionalPDP(X_test, predict, axis_limits=axis_limits).plot(feature=0, node_idx=i, heterogeneity="ice", y_limits=y_limits) for i in range(3)]
 ```
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 48.36it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 68.90it/s]
 
 
 
@@ -159,7 +159,7 @@ effector.RegionalPDP(X_test, predict, axis_limits=axis_limits).summary(features=
     
 
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 62.03it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 59.20it/s]
 
 
 
@@ -168,7 +168,7 @@ effector.RegionalPDP(X_test, predict, axis_limits=axis_limits).summary(features=
     
 
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 61.39it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 63.94it/s]
 
 
 
@@ -191,14 +191,14 @@ effector.RegionalPDP(X_test, predict, axis_limits=axis_limits).summary(features=
 effector.RegionalDerPDP(X_test, predict, jacobian, axis_limits=axis_limits).summary(features=0)
 ```
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 56.39it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 95.52it/s]
 
     
     
     Feature 0 - Full partition tree:
     Node id: 0, name: x_0, heter: 100.00 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.00 || nof_instances:   501 || weight: 0.50
-            Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.00 || nof_instances:   499 || weight: 0.50
+            Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+            Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     Level 0, heter: 100.00
@@ -215,7 +215,7 @@ effector.RegionalDerPDP(X_test, predict, jacobian, axis_limits=axis_limits).summ
 [effector.RegionalDerPDP(X_test, predict, jacobian, axis_limits=axis_limits).plot(feature=0, node_idx=i, heterogeneity="ice", dy_limits=dy_limits) for i in range(3)]
 ```
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 51.52it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 89.27it/s]
 
 
 
@@ -224,7 +224,7 @@ effector.RegionalDerPDP(X_test, predict, jacobian, axis_limits=axis_limits).summ
     
 
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 76.85it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 94.77it/s]
 
 
 
@@ -233,7 +233,7 @@ effector.RegionalDerPDP(X_test, predict, jacobian, axis_limits=axis_limits).summ
     
 
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 77.86it/s]
+    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 102.22it/s]
 
 
 
@@ -256,14 +256,14 @@ effector.RegionalDerPDP(X_test, predict, jacobian, axis_limits=axis_limits).summ
 effector.RegionalRHALE(X_test, predict, jacobian, axis_limits=axis_limits).summary(features=0)
 ```
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  2.30it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  2.82it/s]
 
     
     
     Feature 0 - Full partition tree:
     Node id: 0, name: x_0, heter: 93.45 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.00 || nof_instances:   501 || weight: 0.50
-            Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.00 || nof_instances:   499 || weight: 0.50
+            Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+            Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     Level 0, heter: 93.45
@@ -277,10 +277,10 @@ effector.RegionalRHALE(X_test, predict, jacobian, axis_limits=axis_limits).summa
 
 
 ```python
-[effector.RegionalRHALE(X_test, predict, jacobian, axis_limits=axis_limits).plot(feature=0, centering=True, node_idx=i, y_limits=y_limits, dy_limits=dy_limits) for i in range(3)]
+[effector.RegionalRHALE(X_test, predict, jacobian, axis_limits=axis_limits).plot(feature=0, centering=True, heterogeneity=True, node_idx=i, y_limits=y_limits, dy_limits=dy_limits) for i in range(3)]
 ```
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  2.16it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  2.92it/s]
 
 
 
@@ -289,7 +289,7 @@ effector.RegionalRHALE(X_test, predict, jacobian, axis_limits=axis_limits).summa
     
 
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  2.39it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  3.05it/s]
 
 
 
@@ -298,7 +298,7 @@ effector.RegionalRHALE(X_test, predict, jacobian, axis_limits=axis_limits).summa
     
 
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  2.44it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  3.03it/s]
 
 
 
@@ -321,18 +321,18 @@ effector.RegionalRHALE(X_test, predict, jacobian, axis_limits=axis_limits).summa
 effector.RegionalALE(X_test, predict, axis_limits=axis_limits).summary(features=0)
 ```
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 46.00it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 72.76it/s]
 
     
     
     Feature 0 - Full partition tree:
-    Node id: 0, name: x_0, heter: 289.24 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x_0 | x_1 <= 0.0, heter: 183.08 || nof_instances:   501 || weight: 0.50
-            Node id: 2, name: x_0 | x_1  > 0.0, heter: 193.44 || nof_instances:   499 || weight: 0.50
+    Node id: 0, name: x_0, heter: 114.57 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x_0 | x_1 <= 0.0, heter: 16.48 || nof_instances:  1000 || weight: 1.00
+            Node id: 2, name: x_0 | x_1  > 0.0, heter: 17.41 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 289.24
-            Level 1, heter: 188.25 || heter drop : 100.99 (units), 34.92% (pcg)
+    Level 0, heter: 114.57
+            Level 1, heter: 33.89 || heter drop : 80.68 (units), 70.42% (pcg)
     
     
 
@@ -342,10 +342,10 @@ effector.RegionalALE(X_test, predict, axis_limits=axis_limits).summary(features=
 
 
 ```python
-[effector.RegionalALE(X_test, predict, axis_limits=axis_limits).plot(feature=0, centering=True, node_idx=i, y_limits=y_limits, dy_limits=dy_limits) for i in range(3)]
+[effector.RegionalALE(X_test, predict, axis_limits=axis_limits).plot(feature=0, centering=True, heterogeneity=True, node_idx=i, y_limits=y_limits, dy_limits=dy_limits) for i in range(3)]
 ```
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 37.83it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 75.34it/s]
 
 
 
@@ -354,7 +354,7 @@ effector.RegionalALE(X_test, predict, axis_limits=axis_limits).summary(features=
     
 
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 51.45it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 81.24it/s]
 
 
 
@@ -363,7 +363,7 @@ effector.RegionalALE(X_test, predict, axis_limits=axis_limits).summary(features=
     
 
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 56.82it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00, 81.84it/s]
 
 
 
@@ -388,7 +388,7 @@ binning_method = effector.binning_methods.Greedy(init_nof_bins=10)
 reg_shapdp.fit(features=0, binning_method=binning_method)
 ```
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  1.51it/s]
+    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  1.77it/s]
 
 
 
@@ -399,13 +399,13 @@ reg_shapdp.summary(features=0)
     
     
     Feature 0 - Full partition tree:
-    Node id: 0, name: x_0, heter: 8.35 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.01 || nof_instances:   501 || weight: 0.50
-            Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.01 || nof_instances:   499 || weight: 0.50
+    Node id: 0, name: x_0, heter: 8.33 || nof_instances:  1000 || weight: 1.00
+            Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+            Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 8.35
-            Level 1, heter: 0.01 || heter drop : 8.34 (units), 99.86% (pcg)
+    Level 0, heter: 8.33
+            Level 1, heter: 0.00 || heter drop : 8.33 (units), 99.94% (pcg)
     
     
 
