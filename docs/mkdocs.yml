@@ -79,9 +79,9 @@ plugins:
       handlers:
         python:
           paths: [./../]
-          rendering:
-            show_source: true
-            heading_level: 2
+#          rendering:
+#            show_source: true
+#            heading_level: 2
   - glightbox
 
 markdown_extensions:
