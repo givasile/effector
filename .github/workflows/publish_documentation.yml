@@ -23,7 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install mkdocs mkdocstrings mkdocstrings-python mkdocs-material
+        pip install mkdocs mkdocstrings mkdocstrings-python mkdocs-material mkdocs-glightbox
 
     - name: Build docs
       run: |
