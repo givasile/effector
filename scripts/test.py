@@ -5,35 +5,44 @@ import effector
 np.random.seed(21)
 
 N = 1000
-T = 1000
+T = 100
+
+X_test = np.random.uniform(-1, 1, (N, 2))
+axis_limits = np.array([[-1, -1], [1, 1]])
 
 # create data, model
-data = np.stack(
-    [
-        np.random.uniform(-1, 1, N),
-        np.random.uniform(-1, 1, N),
-        np.random.randint(0, 2, N)
-    ],
-    axis=1)
+y_limits = [-15, 15]
+dy_limits = [-25, 25]
 
-axis_limits = np.stack([[-1]*3, [1]*3], axis=0)
+def predict(x):
+    y = np.zeros(x.shape[0])
+    ind = x[:, 1] > 0
+    y[ind] = 10*x[ind, 0]
+    y[~ind] = -10*x[~ind, 0]
+    return y + np.random.normal(0, 1, x.shape[0])
 
-def model(x):
-    y = np.zeros_like(x[:, 0])
-    ind = np.logical_and(x[:, 1] > 0, x[:, 2] == 0)
-    y[ind] = 5*x[ind, 0]
-    return y
+def jacobian(x):
+    J = np.zeros((x.shape[0], 2))
+    ind = x[:, 1] > 0
+    J[ind, 0] = 10
+    J[~ind, 0] = -10
+    return J
 
-def model_jac(x):
-    y = np.zeros_like(x)
-    ind = np.logical_and(x[:, 1] > 0, x[:, 2] == 0)
-    y[ind, 0] = 5
-    return y
 
 xs = np.linspace(-1, 1, T)
 
-reg_method = effector.RegionalPDP(data, model, axis_limits=axis_limits, nof_instances="all")
+# global effectpppppp
+pdp = effector.PDP(X_test, predict, axis_limits=axis_limits, nof_instances="all")
+yy, het = pdp.eval(0, xs, heterogeneity=True)
+print(het)
+
+reg_method = effector.RegionalPDP(X_test, predict, axis_limits=axis_limits, nof_instances="all")
 reg_method.summary(0)
-partitioner = reg_method.partitions["feature_" + str(0)]
+# partitioner = reg_method.partitioners["feature_" + str(0)]
+
+
+# partitioner.visualize_candidate_splits(1)
+# partitioner.visualize_candidate_splits(2)
+
 # reg_eff.summary(0)
 # reg_eff.plot(0, 5, heterogeneity="shap_values")

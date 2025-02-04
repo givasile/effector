@@ -1,9 +1,9 @@
 import typing
 import numpy as np
 import itertools
-import re
 from effector import helpers, utils
-
+import copy
+import matplotlib.pyplot as plt
 
 BIG_M = helpers.BIG_M
 
@@ -46,7 +46,7 @@ class Regions:
         self.split_categorical_features = split_categorical_features
 
         self.foi = self.feature
-        self.foc = (
+        self.candidate_conditioning_features = (
             [i for i in range(self.dim) if i != self.feature]
             if candidate_conditioning_features == "all"
             else candidate_conditioning_features
@@ -58,7 +58,7 @@ class Regions:
             if feature_types is None
             else feature_types
         )
-        self.foc_types = [self.feature_types[i] for i in self.foc]
+        self.foc_types = [self.feature_types[i] for i in self.candidate_conditioning_features]
 
         # init method args
         self.method_args = {}
@@ -84,57 +84,42 @@ class Regions:
         ):
             self.splits = []
         else:
-            # assert self.max_split_levels <= len(
-            #     self.foc
-            # ), "nof_levels must be smaller than len(foc)"
-            if self.max_split_levels > len(self.foc):
-                self.max_split_levels = len(self.foc)
+            if self.max_split_levels > len(self.candidate_conditioning_features):
+                self.max_split_levels = len(self.candidate_conditioning_features)
 
             active_indices = np.ones((self.data.shape[0]))
-            # initialize heterogeneity
-            # heter_init = (
-            #     self.heter_func(self.data, self.data_effect)
-            #     if self.data_effect is not None
-            #     else self.heter_func(self.data)
-            # )
             heter_init = self.heter_func(active_indices)
-
-            # initialize x_list, x_jac_list, splits
-            x_list = [self.data]
-            x_jac_list = [self.data_effect] if self.data_effect is not None else [None]
-            active_indices_list = [active_indices]
             splits = [
                 {
-                    "heterogeneity": [heter_init],
-                    "weighted_heter": heter_init,
-                    "nof_instances": [len(self.data)],
+                    "after_split_active_indices_list": [active_indices],
+                    "after_split_heter_list": [heter_init],
+                    "after_split_weighted_heter": heter_init,
+                    "after_split_nof_instances": [len(self.data)],
+                    "after_split_x_list": [self.data],
+                    "after_split_x_jac_list": [self.data_effect] if self.data_effect is not None else [None],
                     "split_i": -1,
                     "split_j": -1,
-                    "foc": self.foc,
+                    "candidate_conditioning_features": self.candidate_conditioning_features,
                 }
             ]
+
             for lev in range(self.max_split_levels):
                 # TODO: check this, as it seems redundant;
                 # if any subregion had less than min_points, the
                 # specific split should not have been selected
-                if any([len(x) < self.min_points for x in x_list]):
+                if any([len(x) < self.min_points for x in splits[-1]["after_split_x_list"]]):
                     break
 
                 # find optimal split
-                split = self.single_level_splits(
-                    x_list,
-                    x_jac_list,
-                    splits[-1]["heterogeneity"],
-                    active_indices_list
+                new_split = self.single_level_splits(
+                    splits[-1]["after_split_x_list"],
+                    splits[-1]["after_split_x_jac_list"],
+                    splits[-1]["after_split_weighted_heter"],
+                    splits[-1]["after_split_active_indices_list"]
                 )
-
-                x_list = split["x_list"]
-                x_jac_list = split["x_jac_list"]
-                active_indices_list = split["active_indices_list"]
-                splits.append(split)
-
+                splits.append(new_split)
             self.splits = splits
-
+        breakpoint()
         # update state
         self.split_found = True
         return self.splits
@@ -143,29 +128,34 @@ class Regions:
         self,
         x_list: list,
         x_jac_list: typing.Union[list, None],
-        heter_before: list,
-        active_indices_list: typing.Union[list, None] = None,
+        before_split_weighted_heter: float,
+        before_split_active_indices_list: typing.Union[list, None] = None,
     ):
         """Find all splits for a single level."""
         foc_types = self.foc_types
-        foc = self.foc
+        ccf = self.candidate_conditioning_features
         nof_splits = self.nof_candidate_splits_for_numerical
         heter_func = self.heter_func
-        cat_limit = self.cat_limit
 
         data = self.data
 
-        big_M = -BIG_M
+        small_const = - BIG_M
 
-        # weighted_heter_drop[i,j] (i index of foc and j index of split position) is
-        # the accumulated heterogeneity drop if I split foc[i] at index j
-        weighted_heter_drop = np.ones([len(foc), max(nof_splits, cat_limit)]) * big_M
+        # matrix_weighted_heter_drop[i,j] (i index of ccf and j index of split position) is
+        # the accumulated heterogeneity drop if I split ccf[i] at index j
+        matrix_weighted_heter_drop = np.ones([
+            len(self.candidate_conditioning_features),
+            max(self.nof_candidate_splits_for_numerical, self.cat_limit)
+        ]) * small_const
 
-        # weighted_heter[i,j] (i index of foc and j index of split position) is
-        # the accumulated heterogeneity if I split foc[i] at index j
-        weighted_heter = np.ones([len(foc), max(nof_splits, cat_limit)]) * big_M
+        # matrix_weighted_heter[i,j] (i index of ccf and j index of split position) is
+        # the accumulated heterogeneity if I split ccf[i] at index j
+        matrix_weighted_heter = np.ones([
+            len(self.candidate_conditioning_features),
+            max(self.nof_candidate_splits_for_numerical, self.cat_limit)
+        ]) * BIG_M
 
-        # list with len(foc) elements
+        # list with len(ccf) elements
         # each element is a list with the split positions for the corresponding feature of conditioning
         candidate_split_positions = [
             (
@@ -173,91 +163,80 @@ class Regions:
                 if foc_types[i] == "cat"
                 else self.find_positions_cont(data, foc_i, nof_splits)
             )
-            for i, foc_i in enumerate(foc)
+            for i, foc_i in enumerate(self.candidate_conditioning_features)
         ]
 
         # exhaustive search on all split positions
-        for i, foc_i in enumerate(foc):
+        for i, foc_i in enumerate(self.candidate_conditioning_features):
             for j, position in enumerate(candidate_split_positions[i]):
                 tmp = [
                     self.split_dataset(x, x_jac, foc_i, position, foc_types[i], active_indices)
-                    for x, x_jac, active_indices in zip(x_list, x_jac_list, active_indices_list)
+                    for x, x_jac, active_indices in zip(x_list, x_jac_list, before_split_active_indices_list)
                 ]
-                x_list_2 = self.flatten_list([x for x, _, _ in tmp])
-                x_jac_list_2 = self.flatten_list([x_jac for _, x_jac, _ in tmp])
-                active_indices_list_2 = self.flatten_list([k for _, _, k in tmp])
+                after_split_x_list = self.flatten_list([x for x, _, _ in tmp])
+                after_split_active_indices_list = self.flatten_list([k for _, _, k in tmp])
 
-                # sub_heter: list with the heterogeneity after split of foc_i at position j
-                # if x_jac_list[0] is None:
-                #     sub_heter = [heter_func(x) for x in x_list_2]
-                # else:
-                #     sub_heter = [
-                #         heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
-                #     ]
-                sub_heter = [heter_func(x) for x in active_indices_list_2]
+                heter_list_after_split = [heter_func(x) for x in after_split_active_indices_list]
 
-                # heter_drop: list with the heterogeneity drop after split of foc_i at position j
-                heter_drop = np.array(
-                    self.flatten_list(
-                        [
-                            [
-                                heter_bef - sub_heter[int(2 * i)],
-                                heter_bef - sub_heter[int(2 * i + 1)],
-                            ]
-                            for i, heter_bef in enumerate(heter_before)
-                        ]
-                    )
-                )
                 # populations: list with the number of instances in each dataset after split of foc_i at position j
-                populations = np.array([len(xx) for xx in x_list_2])
-                # weights analogous to the populations in each split
-                weights = (populations + 1) / (np.sum(populations + 1))
-                # weighted_heter_drop[i,j] is the weighted accumulated heterogeneity drop if I split foc[i] at index j
-                weighted_heter_drop[i, j] = np.sum(heter_drop * weights)
-                # weighted_heter[i,j] is the weighted accumulated heterogeneity if I split foc[i] at index j
-                weighted_heter[i, j] = np.sum(weights * np.array(sub_heter))
+                populations = np.array([len(xx) for xx in after_split_x_list])
+
+                # after_split_weight_list analogous to the populations in each split
+                after_split_weight_list = (populations + 1) / (np.sum(populations + 1))
+
+                # first: computed the weighted heterogeneity after the split
+                after_split_weighted_heter = np.sum(after_split_weight_list * np.array(heter_list_after_split))
+
+                # # second: computed the weighted heterogeneity drop after the split
+                current_heter_drop = before_split_weighted_heter - after_split_weighted_heter
+
+                # matrix_weighted_heter_drop[i,j] is the weighted accumulated heterogeneity drop if I split ccf[i] at index j
+                matrix_weighted_heter_drop[i, j] = current_heter_drop
+
+                # matrix_weighted_heter[i,j] is the weighted accumulated heterogeneity if I split ccf[i] at index j
+                matrix_weighted_heter[i, j] = after_split_weighted_heter
+
 
         # find the split with the largest weighted heterogeneity drop
         i, j = np.unravel_index(
-            np.argmax(weighted_heter_drop, axis=None), weighted_heter_drop.shape
+            np.argmax(matrix_weighted_heter_drop, axis=None), matrix_weighted_heter_drop.shape
         )
-        feature = foc[i]
+        feature = ccf[i]
         position = candidate_split_positions[i][j]
         split_positions = candidate_split_positions[i]
 
         # how many instances in each dataset after the min split
         tmp = [
-            self.split_dataset(x, None, foc[i], position, foc_types[i], active_indices)
-            for x, active_indices in zip(x_list, active_indices_list)
+            self.split_dataset(x, None, ccf[i], position, foc_types[i], active_indices)
+            for x, active_indices in zip(x_list, before_split_active_indices_list)
         ]
-        x_list_2 = self.flatten_list([x for x, _, _ in tmp])
-        x_jac_list_2 = self.flatten_list([x_jac for _, x_jac, _ in tmp])
-        active_indices_list_2 = self.flatten_list([k for _, _, k in tmp])
+        after_split_x_list = self.flatten_list([x for x, _, _ in tmp])
+        after_split_x_jac_list = self.flatten_list([x_jac for _, x_jac, _ in tmp])
+        after_split_active_indices_list = self.flatten_list([k for _, _, k in tmp])
 
-        nof_instances = [len(x) for x in x_list_2]
-        # if x_jac_list[0] is None:
-        #     sub_heter = [heter_func(x) for x in x_list_2]
-        # else:
-        #     sub_heter = [
-        #         heter_func(x, x_jac) for x, x_jac in zip(x_list_2, x_jac_list_2)
-        #     ]
-        sub_heter = [heter_func(x) for x in active_indices_list_2]
+        nof_instances_l = [len(x) for x in after_split_x_list]
+
+        after_split_heter_l = [heter_func(x) for x in after_split_active_indices_list]
         split = {
-            "feature": feature,
-            "position": position,
-            "range": [np.min(data[:, feature]), np.max(data[:, feature])],
-            "candidate_split_positions": split_positions,
-            "nof_instances": nof_instances,
-            "type": foc_types[i],
-            "heterogeneity": sub_heter,
+            "foc_index": ccf[i],
+            "foc_split_position": position,
+            "foc_range": [np.min(data[:, feature]), np.max(data[:, feature])],
+            "foc_type": foc_types[i],
+            "split_weighted_heter": matrix_weighted_heter[i, j],
             "split_i": i,
             "split_j": j,
-            "foc": foc,
-            "weighted_heter_drop": weighted_heter_drop[i, j],
-            "weighted_heter": weighted_heter[i, j],
-            "x_list": x_list_2,
-            "x_jac_list": x_jac_list_2,
-            "active_indices_list": active_indices_list_2,
+            "candidate_split_positions": split_positions,
+            "candidate_conditioning_features": ccf,
+
+            "after_split_nof_instances": nof_instances_l,
+            "after_split_heter_list": after_split_heter_l,
+            "after_split_x_list": after_split_x_list,
+            "after_split_x_jac_list": after_split_x_jac_list,
+            "after_split_active_indices_list": after_split_active_indices_list,
+            "after_split_weighted_heter": matrix_weighted_heter[i, j],
+
+            "matrix_weighted_heter_drop": matrix_weighted_heter_drop,
+            "matrix_weighted_heter": matrix_weighted_heter,
         }
         return split
 
@@ -268,16 +247,16 @@ class Regions:
         if len(self.splits) == 0:
             optimal_splits = {}
         # if initial heterogeneity is BIG_M, skip
-        elif self.splits[0]["weighted_heter"] == BIG_M:
+        elif self.splits[0]["after_split_weighted_heter"] == BIG_M:
             optimal_splits = {}
         # if initial heterogeneity is small right from the beginning, skip
-        elif self.splits[0]["weighted_heter"] <= self.heter_small_enough:
+        elif self.splits[0]["after_split_weighted_heter"] <= self.heter_small_enough:
             optimal_splits = {}
         else:
             splits = self.splits
 
             # accept split if heterogeneity drops over 20%
-            heter = np.array([splits[i]["weighted_heter"] for i in range(len(splits))])
+            heter = np.array([splits[i]["after_split_weighted_heter"] for i in range(len(splits))])
             heter_drop = (heter[:-1] - heter[1:]) / heter[:-1]
             split_valid = heter_drop > self.heter_pcg_drop_thres
 
@@ -344,13 +323,13 @@ class Regions:
         if len(self.splits) == 0:
             return None
 
-        nof_instances = self.splits[0]["nof_instances"][0]
+        nof_instances = self.splits[0]["after_split_nof_instances"][0]
         tree = Tree()
         # format with two decimals
         data = {
-            "heterogeneity": self.splits[0]["heterogeneity"][0],
+            "heterogeneity": self.splits[0]["after_split_heter_list"][0],
             "feature_name": self.feature,
-            "nof_instances": self.splits[0]["nof_instances"][0],
+            "nof_instances": self.splits[0]["after_split_nof_instances"][0],
             "data": self.data,
             "data_effect": self.data_effect,
             "weight": 1.0,
@@ -368,7 +347,7 @@ class Regions:
         for i, split in enumerate(splits):
 
             # nof nodes to add
-            nodes_to_add = len(split["nof_instances"])
+            nodes_to_add = len(split["after_split_nof_instances"])
 
             new_parent_level_nodes = []
             new_parent_level_data = []
@@ -384,13 +363,13 @@ class Regions:
 
                 # prepare data
 
-                foc_name = self.feature_names[split["feature"]]
-                foc = split["feature"]
-                pos = split["position"]
+                foc_name = self.feature_names[split["foc_index"]]
+                foc = split["foc_index"]
+                pos = split["foc_split_position"]
                 if scale_x_list is not None:
                     mean = scale_x_list[foc]["mean"]
                     std = scale_x_list[foc]["std"]
-                    pos_scaled = std * split["position"] + mean
+                    pos_scaled = std * split["foc_split_position"] + mean
                 else:
                     pos_scaled = pos
 
@@ -399,7 +378,7 @@ class Regions:
                 tmp = self.split_dataset(
                     parent_data,
                     parent_data_effect,
-                    foc, pos, split["type"],
+                    foc, pos, split["foc_type"],
                     parent_active_indices
                     )
                 data_1, data_2 = tmp[0]
@@ -410,14 +389,14 @@ class Regions:
                 data_effect_new = data_effect_1 if j % 2 == 0 else data_effect_2
                 active_indices_new = active_indices_1 if j % 2 == 0 else active_indices_2
                 if j % 2 == 0:
-                    if split["type"] == "cat":
+                    if split["foc_type"] == "cat":
                         name = foc_name + " == {}".format(pos_small)
                         comparison = "=="
                     else:
                         name = foc_name + " <= {}".format(pos_small)
                         comparison = "<="
                 else:
-                    if split["type"] == "cat":
+                    if split["foc_type"] == "cat":
                         name = foc_name + " != {}".format(pos_small)
                         comparison = "!="
                     else:
@@ -431,15 +410,15 @@ class Regions:
                 )
 
                 data = {
-                    "heterogeneity": split["heterogeneity"][j],
+                    "heterogeneity": split["after_split_heter_list"][j],
                     "weight": float(data_new.shape[0]) / nof_instances,
-                    "position": split["position"],
+                    "position": split["foc_split_position"],
                     "foc_name": foc_name,
-                    "feature": split["feature"],
-                    "feature_type": split["type"],
-                    "range": split["range"],
+                    "feature": split["foc_index"],
+                    "feature_type": split["foc_type"],
+                    "range": split["foc_range"],
                     "candidate_split_positions": split["candidate_split_positions"],
-                    "nof_instances": split["nof_instances"][j],
+                    "nof_instances": split["after_split_nof_instances"][j],
                     "data": data_new,
                     "data_effect": data_effect_new,
                     "active_indices": active_indices_new,
@@ -460,6 +439,19 @@ class Regions:
             parent_level_active_indices = new_parent_level_active_indices
 
         return tree
+
+    def visualize_candidate_splits(self, split_ind):
+
+        heter_matr = copy.deepcopy(self.splits[split_ind]["matrix_weighted_heter_drop"])
+        heter_matr[heter_matr < -10] = np.nan
+
+        plt.figure()
+        plt.title("split {}, parent heter: {:.2f}".format(split_ind, self.splits[split_ind - 1]["after_split_weighted_heter"]))
+        plt.imshow(heter_matr)
+        plt.colorbar()
+        plt.yticks([i for i in range(len(self.candidate_conditioning_features))], [self.feature_names[foc] for foc in self.candidate_conditioning_features])
+        plt.show(block=False)
+
 
 
 class Node:

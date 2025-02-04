@@ -79,9 +79,12 @@ plugins:
       handlers:
         python:
           paths: [./../]
-#          rendering:
-#            show_source: true
-#            heading_level: 2
+          options:
+            filters: ["!^_"]  # Exclude private members (names starting with _)
+            show_source: true
+            heading_level: 1
+            summary: true
+            merge_init_into_class: true
   - glightbox
 
 markdown_extensions:
