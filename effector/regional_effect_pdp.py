@@ -61,8 +61,8 @@ class RegionalPDPBase(RegionalEffectBase):
         candidate_conditioning_features: typing.Union["str", list] = "all",
         split_categorical_features: bool = False,
         centering: typing.Union[bool, str] = False,
-        points_for_centering: int = 50,
-        points_for_mean_heterogeneity: int = 50,
+        points_for_centering: int = 30,
+        points_for_mean_heterogeneity: int = 30,
         use_vectorized: bool = True,
     ):
         """
@@ -171,6 +171,7 @@ class RegionalPDPBase(RegionalEffectBase):
 
         # region splitting arguments are the first 8 arguments
         self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:8]}
+        self.kwargs_subregion_detection["points_for_mean_heterogeneity"] = points_for_mean_heterogeneity
 
         # centering, points_for_centering, use_vectorized
         self.kwargs_fitting = {k:v for k,v in all_arguments.items() if k in ["centering", "points_for_centering", "use_vectorized"]}
@@ -263,10 +264,10 @@ class RegionalPDP(RegionalPDPBase):
     def plot(
         self,
         feature: int,
-        node_idx: int = 0,
-        heterogeneity: bool = False,
+        node_idx: int,
+        heterogeneity: bool = "ice",
         centering: typing.Union[bool, str] = False,
-        nof_points: int = 100,
+        nof_points: int = 30,
         scale_x_list: typing.Union[None, list] = None,
         scale_y: typing.Union[None, list] = None,
         nof_ice: int = 100,
@@ -309,9 +310,9 @@ class RegionalDerPDP(RegionalPDPBase):
         self,
         feature: int,
         node_idx: int = 0,
-        heterogeneity: bool = False,
+        heterogeneity: bool = "ice",
         centering: typing.Union[bool, str] = False,
-        nof_points: int = 100,
+        nof_points: int = 30,
         scale_x_list: typing.Union[None, list] = None,
         scale_y: typing.Union[None, list] = None,
         nof_ice: int = 100,

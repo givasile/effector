@@ -20,7 +20,7 @@ class RegionalShapDP(RegionalEffectBase):
         data: np.ndarray,
         model: Callable,
         axis_limits: Optional[np.ndarray] = None,
-        nof_instances: Union[int, str] = 100,
+        nof_instances: Union[int, str] = 1_000,
         feature_types: Optional[List[str]] = None,
         cat_limit: Optional[int] = 10,
         feature_names: Optional[List[str]] = None,
@@ -82,7 +82,7 @@ class RegionalShapDP(RegionalEffectBase):
         )
 
     def _create_heterogeneity_function(self, foi, min_points, binning_method):
-
+        binning_method = prep_binning_method(binning_method)
         def heterogeneity_function(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return self.big_m
@@ -94,23 +94,25 @@ class RegionalShapDP(RegionalEffectBase):
             try:
                 shap_dp.fit(features=foi, binning_method=binning_method, centering=False)
             except utils.AllBinsHaveAtMostOnePointError as e:
-                print(f"Error: {e}")
+                print(f"RegionalShapDP here: At a particular split, some bins had at most one point. I reject this split. \n Error: {e}")
                 return self.big_m
             except Exception as e:
-                print(f"Unexpected error during RHALE fitting: {e}")
+                print(f"RegionalShapDP here: An unexpected error occurred. I reject this split. \n Error: {e}")
                 return self.big_m
 
             mean_spline = shap_dp.feature_effect["feature_" + str(foi)]["spline_mean"]
 
-            residuals = (shap_values[:, foi] - mean_spline(data[:, foi]))**2
-            return np.mean(residuals)
+            xs = np.linspace(self.axis_limits[0, foi], self.axis_limits[1, foi], 30)
+            _, z = shap_dp.eval(feature=foi, xs=xs, centering=False, heterogeneity=True)
+            # residuals = (shap_values[:, foi] - mean_spline(data[:, foi]))**2
+            return np.mean(z)
 
         return heterogeneity_function
 
     def fit(
         self,
         features: typing.Union[int, str, list],
-        heter_pcg_drop_thres: float = 0.2,
+        heter_pcg_drop_thres: float = 0.1,
         heter_small_enough: float = 0.,
         max_depth: int = 2,
         nof_candidate_splits_for_numerical: int = 20,
@@ -170,8 +172,8 @@ class RegionalShapDP(RegionalEffectBase):
     def plot(self,
              feature,
              node_idx,
-             heterogeneity=False,
-             centering=False,
+             heterogeneity="shap_values",
+             centering=True,
              nof_points=30,
              scale_x_list=None,
              scale_y=None,
@@ -200,3 +202,19 @@ class RegionalShapDP(RegionalEffectBase):
         kwargs.pop("self")
         return self._plot(kwargs)
 
+def prep_binning_method(method):
+    assert (
+        method in ["greedy", "dp", "fixed"]
+        or isinstance(method, bm.Fixed)
+        or isinstance(method, bm.DynamicProgramming)
+        or isinstance(method, bm.Greedy)
+    )
+
+    if method == "greedy":
+        return bm.Greedy()
+    elif method == "dp":
+        return bm.DynamicProgramming()
+    elif method == "fixed":
+        return bm.Fixed()
+    else:
+        return method

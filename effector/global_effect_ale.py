@@ -8,7 +8,6 @@ import effector.utils_integrate as utils_integrate
 from effector.global_effect import GlobalEffectBase
 import numpy as np
 from abc import abstractmethod
-import time
 
 
 class ALEBase(GlobalEffectBase):
@@ -53,7 +52,7 @@ class ALEBase(GlobalEffectBase):
         raise NotImplementedError
 
     def _compute_norm_const(
-        self, feature: int, method: str = "zero_integral", nof_points: int = 100
+        self, feature: int, method: str = "zero_integral", nof_points: int = 30
     ) -> float:
         """Compute the normalization constant."""
         assert method in ["zero_integral", "zero_start"]
@@ -71,7 +70,7 @@ class ALEBase(GlobalEffectBase):
             z = partial_eval(np.array([start])).item()
         return z
 
-    def _fit_loop(self, features, binning_method, centering, points_for_centering=100):
+    def _fit_loop(self, features, binning_method, centering, points_for_centering=30):
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
         for s in features:
@@ -110,8 +109,8 @@ class ALEBase(GlobalEffectBase):
         self,
         feature: int,
         xs: np.ndarray,
-        heterogeneity: bool = False,
-        centering: typing.Union[bool, str] = False,
+        heterogeneity: bool = True,
+        centering: typing.Union[bool, str] = True,
         **kwargs
     ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """Evalueate the (RH)ALE feature effect of feature `feature` at points `xs`.
@@ -162,8 +161,8 @@ class ALEBase(GlobalEffectBase):
     def plot(
         self,
         feature: int,
-        heterogeneity: bool = False,
-        centering: Union[bool, str] = False,
+        heterogeneity: bool = True,
+        centering: Union[bool, str] = True,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
         show_avg_output: bool = False,
@@ -316,12 +315,7 @@ class ALE(ALEBase):
         )
 
     def _fit_feature(self, feature: int, binning_method="fixed") -> typing.Dict:
-        # # drop points outside of limits
-        # ind = np.logical_and(
-        #     self.data[:, feature] >= self.axis_limits[0, feature],
-        #     self.data[:, feature] <= self.axis_limits[1, feature],
-        # )
-        # data = self.data[ind, :]
+
         data = self.data
         # assertion
         assert binning_method == "fixed" or isinstance(
@@ -361,8 +355,8 @@ class ALE(ALEBase):
         self,
         features: typing.Union[int, str, list] = "all",
         binning_method: typing.Union[str, bm.Fixed] = "fixed",
-        centering: typing.Union[bool, str] = "zero_integral",
-        points_for_centering: int = 100
+        centering: typing.Union[bool, str] = True,
+        points_for_centering: int = 30
     ) -> None:
         """Fit the ALE plot.
 
@@ -522,8 +516,8 @@ class RHALE(ALEBase):
         binning_method: typing.Union[
             str, bm.DynamicProgramming, bm.Greedy, bm.Fixed
         ] = "greedy",
-        centering: typing.Union[bool, str] = False,
-        points_for_centering: int = 100
+        centering: typing.Union[bool, str] = True,
+        points_for_centering: int = 30
     ) -> None:
         """Fit the model.
 

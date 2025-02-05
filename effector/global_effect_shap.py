@@ -8,7 +8,7 @@ import shap
 import scipy
 import effector.binning_methods as bm
 import effector.utils as utils
-from scipy.interpolate import UnivariateSpline, interp1d
+from scipy.interpolate import interp1d
 
 
 class ShapDP(GlobalEffectBase):
@@ -17,7 +17,7 @@ class ShapDP(GlobalEffectBase):
         data: np.ndarray,
         model: Callable,
         axis_limits: Optional[np.ndarray] = None,
-        nof_instances: Union[int, str] = 100,
+        nof_instances: Union[int, str] = 1_000,
         feature_names: Optional[List[str]] = None,
         target_name: Optional[str] = None,
         shap_values: Optional[np.ndarray] = None,
@@ -111,22 +111,23 @@ class ShapDP(GlobalEffectBase):
         feature: int,
         binning_method: Union[str, bm.Greedy, bm.Fixed] = "greedy",
         centering: typing.Union[bool, str] = False,
-        points_for_centering: int = 100,
+        points_for_centering: int = 30,
     ) -> typing.Dict:
 
         data = self.data
         if self.shap_values is None:
             shap_explainer = shap.Explainer(self.model, data)
-            self.shap_values = shap_explainer(data).values
+            shap_explainer_fitted = shap_explainer(data)
+            self.shap_values = shap_explainer_fitted.values
 
         # extract x and y
         yy = self.shap_values[:, feature]
         xx = data[:, feature]
 
-        # sort based on xz
-        idx = np.argsort(xx)
-        xx = xx[idx]
-        yy = yy[idx]
+        # # sort based on xz
+        # idx = np.argsort(xx)
+        # xx = xx[idx]
+        # yy = yy[idx]
 
         # fit spline_mean to xx, yy pairs
         # bin estimation
@@ -147,29 +148,11 @@ class ShapDP(GlobalEffectBase):
         feature_effect_dict["alg_params"] = binning_method
 
         # Compute bin edges and bin centers
-        # bin_edges = np.linspace(xx.min(), xx.max(), K + 1)
         bin_centers = (bin_est.limits[:-1] + bin_est.limits[1:]) / 2
 
-# Compute mean y-values in each bin
-        bin_means, _, _ = scipy.stats.binned_statistic(xx, yy, statistic='mean', bins=limits)
-        bin_vars, _, _ = scipy.stats.binned_statistic(xx, yy, statistic='std', bins=limits)
-
         # Create piecewise linear interpolation
-        mean_spline = interp1d(bin_centers, bin_means, kind='linear', fill_value="extrapolate")
-        var_spline = interp1d(bin_centers, bin_vars, kind='linear', fill_value="extrapolate")
-
-        # # Generate dense x values for smooth plotting
-        # x_dense = np.linspace(xx.min(), xx.max(), 200)
-
-        # # Plot original data and piecewise linear spline
-        # import matplotlib.pyplot as plt
-        # plt.scatter(xx, yy, s=10, label="Data", color="red", alpha=0.5)
-        # plt.plot(x_dense, mean_spline(x_dense), label="Piecewise Linear Spline (K=10)", linestyle="--", color="blue")
-        # plt.xlabel("x")
-        # plt.ylabel("y")
-        # plt.legend()
-        # plt.title("Piecewise Linear Spline with Binned Averages")
-        # plt.show()
+        mean_spline = interp1d(bin_centers, feature_effect_dict["bin_effect"], kind='linear', fill_value="extrapolate")
+        var_spline = interp1d(bin_centers, feature_effect_dict["bin_variance"], kind='linear', fill_value="extrapolate")
 
         # compute norm constant
         if centering == "zero_integral":
@@ -193,8 +176,8 @@ class ShapDP(GlobalEffectBase):
     def fit(
         self,
         features: Union[int, str, List] = "all",
-        centering: Union[bool, str] = False,
-        points_for_centering: Union[int, str] = 100,
+        centering: Union[bool, str] = True,
+        points_for_centering: Union[int, str] = 30,
         binning_method: Union[str, bm.Greedy, bm.Fixed] = "greedy",
     ) -> None:
         """Fit the SHAP Dependence Plot to the data.
@@ -249,8 +232,8 @@ class ShapDP(GlobalEffectBase):
         self,
         feature: int,
         xs: np.ndarray,
-        heterogeneity: bool = False,
-        centering: typing.Union[bool, str] = False,
+        heterogeneity: bool = True,
+        centering: typing.Union[bool, str] = True,
     ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray]]:
         """Evaluate the effect of the s-th feature at positions `xs`.
 
@@ -296,8 +279,8 @@ class ShapDP(GlobalEffectBase):
     def plot(
         self,
         feature: int,
-        heterogeneity: Union[bool, str] = False,
-        centering: Union[bool, str] = False,
+        heterogeneity: Union[bool, str] = "shap_values",
+        centering: Union[bool, str] = True,
         nof_points: int = 30,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,

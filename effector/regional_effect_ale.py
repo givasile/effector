@@ -76,7 +76,7 @@ class RegionalRHALE(RegionalEffectBase):
             self.data_effect = utils.compute_jacobian_numerically(self.model, self.data)
 
     def _create_heterogeneity_function(
-        self, foi, binning_method, min_points
+        self, foi, binning_method, min_points, points_for_mean_heterogeneity
     ):
         binning_method = prep_binning_method(binning_method)
 
@@ -89,19 +89,18 @@ class RegionalRHALE(RegionalEffectBase):
                 instance_effects = self.data_effect[active_indices.astype(bool), :]
             else:
                 instance_effects = None
-            rhale = RHALE(data, self.model, self.model_jac, "all", None, instance_effects)
+            rhale = RHALE(data, self.model, self.model_jac, "all", self.axis_limits, instance_effects)
             try:
                 rhale.fit(features=foi, binning_method=binning_method, centering=False)
             except utils.AllBinsHaveAtMostOnePointError as e:
-                print(f"Error: {e}")
+                print(f"RegionalRHALE here: At a particular split, some bins had at most one point. I reject this split. \n Error: {e}")
                 return BIG_M
             except Exception as e:
-                print(f"Unexpected error during RHALE fitting: {e}")
+                print(f"RegionalRHALE here: An unexpected error occurred. I reject this split. \n Error: {e}")
                 return BIG_M
 
             # heterogeneity is the accumulated std at the end of the curve
-            axis_limits = helpers.axis_limits_from_data(data)
-            xs = np.linspace(axis_limits[0, foi], axis_limits[1, foi], 100)
+            xs = np.linspace(self.axis_limits[0, foi], self.axis_limits[1, foi], points_for_mean_heterogeneity)
             _, z = rhale.eval(feature=foi, xs=xs, heterogeneity=True, centering=False)
             return np.mean(z)
         return heter
@@ -122,7 +121,7 @@ class RegionalRHALE(RegionalEffectBase):
             binning_methods.DynamicProgramming,
             binning_methods.Greedy,
         ] = "greedy",
-        points_for_mean_heterogeneity: int = 50,
+        points_for_mean_heterogeneity: int = 30,
     ):
         """
         Find subregions by minimizing the RHALE-based heterogeneity.
@@ -186,8 +185,9 @@ class RegionalRHALE(RegionalEffectBase):
         assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
+            # find global axis limits
             heter = self._create_heterogeneity_function(
-                feat, binning_method, min_points_per_subregion
+                feat, binning_method, min_points_per_subregion, points_for_mean_heterogeneity
             )
 
             self._fit_feature(
@@ -215,8 +215,8 @@ class RegionalRHALE(RegionalEffectBase):
         self,
         feature,
         node_idx,
-        heterogeneity=False,
-        centering=False,
+        heterogeneity=True,
+        centering=True,
         scale_x_list=None,
         scale_y=None,
         y_limits=None,
@@ -226,8 +226,6 @@ class RegionalRHALE(RegionalEffectBase):
         kwargs = locals()
         kwargs.pop("self")
         self._plot(kwargs)
-
-
 
 
 class RegionalALE(RegionalEffectBase):
@@ -271,7 +269,7 @@ class RegionalALE(RegionalEffectBase):
             target_name,
         )
 
-    def _create_heterogeneity_function(self, foi, min_points):
+    def _create_heterogeneity_function(self, foi, min_points, points_for_mean_heterogeneity):
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return BIG_M
@@ -282,7 +280,7 @@ class RegionalALE(RegionalEffectBase):
 
             params = utils.compute_ale_params(data, data_effect, bin_limits)
 
-            xx = np.linspace(params["limits"][0], params["limits"][-1], 100)
+            xx = np.linspace(params["limits"][0], params["limits"][-1], points_for_mean_heterogeneity)
             var = utils.apply_bin_value(x=xx, bin_limits=params["limits"], bin_value=params["bin_variance"])
             return np.mean(var)
         return heter
@@ -300,7 +298,7 @@ class RegionalALE(RegionalEffectBase):
         binning_method: typing.Union[
             str, binning_methods.Fixed
         ] = binning_methods.Fixed(nof_bins=20, min_points_per_bin=0),
-        points_for_mean_heterogeneity: int = 50
+        points_for_mean_heterogeneity: int = 30
     ):
         """
         Find subregions by minimizing the ALE-based heterogeneity.
@@ -368,7 +366,7 @@ class RegionalALE(RegionalEffectBase):
             self.global_bin_limits["feature_" + str(feat)] = global_ale.bin_limits["feature_" + str(feat)]
 
             # create heterogeneity function
-            heter = self._create_heterogeneity_function(feat, min_points_per_subregion)
+            heter = self._create_heterogeneity_function(feat, min_points_per_subregion, points_for_mean_heterogeneity)
 
             # fit feature
             self._fit_feature(
@@ -396,8 +394,8 @@ class RegionalALE(RegionalEffectBase):
         self,
         feature,
         node_idx,
-        heterogeneity=False,
-        centering=False,
+        heterogeneity=True,
+        centering=True,
         scale_x_list=None,
         scale_y=None,
         y_limits=None,
@@ -406,20 +404,6 @@ class RegionalALE(RegionalEffectBase):
         kwargs = locals()
         kwargs.pop("self")
         self._plot(kwargs)
-
-        # # get data from the node
-        # self.refit(feature)
-        # re_method = self._create_fe_object(feature, node_idx=node_idx, scale_x_list=scale_x_list)
-        # re_method.plot(
-        #     feature=feature,
-        #     heterogeneity=heterogeneity,
-        #     centering=centering,
-        #     scale_x=scale_x_list[feature] if scale_x_list is not None else None,
-        #     scale_y=scale_y,
-        #     y_limits=y_limits,
-        #     dy_limits=dy_limits,
-        # )
-
 
 def prep_binning_method(method):
     assert (

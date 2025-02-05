@@ -43,7 +43,7 @@ class PDPBase(GlobalEffectBase):
         self,
         feature: int,
         centering: Union[bool, str] = False,
-        points_for_centering: int = 100,
+        points_for_centering: int = 30,
         use_vectorized: bool = True,
     ) -> dict:
 
@@ -68,8 +68,8 @@ class PDPBase(GlobalEffectBase):
     def fit(
         self,
         features: Union[int, str, list] = "all",
-        centering: Union[bool, str] = True,
-        points_for_centering: int = 100,
+        centering: Union[bool, str] = False,
+        points_for_centering: int = 30,
         use_vectorized: bool = True,
     ):
         """
@@ -183,7 +183,7 @@ class PDPBase(GlobalEffectBase):
         nof_points: int = 30,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
-        nof_ice: Union[int, str] = "all",
+        nof_ice: Union[int, str] = 100,
         show_avg_output: bool = False,
         y_limits: Optional[List] = None,
         use_vectorized: bool = True,
@@ -321,7 +321,7 @@ class PDP(PDPBase):
     def plot(
         self,
         feature: int,
-        heterogeneity: Union[bool, str] = False,
+        heterogeneity: Union[bool, str] = "ice",
         centering: Union[bool, str] = False,
         nof_points: int = 30,
         scale_x: Optional[dict] = None,
@@ -383,9 +383,6 @@ class PDP(PDPBase):
             use_vectorized,
         )
 
-
-
-ARG_DOCS={"aa": "aek"}
 
 class DerPDP(PDPBase):
     def __init__(
@@ -486,12 +483,12 @@ class DerPDP(PDPBase):
     def plot(
         self,
         feature: int,
-        heterogeneity: Union[bool, str] = False,
+        heterogeneity: Union[bool, str] = "ice",
         centering: Union[bool, str] = False,
         nof_points: int = 30,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
-        nof_ice: Union[int, str] = "all",
+        nof_ice: Union[int, str] = 100,
         show_avg_output: bool = False,
         dy_limits: Optional[List] = None,
         use_vectorized: bool = True,

@@ -100,9 +100,9 @@ class RegionalEffectBase:
         feature: int,
         heter_func: Callable,
         heter_pcg_drop_thres: float = 0.1,
-        heter_small_enough: float = 0.1,
+        heter_small_enough: float = 0.,
         max_split_levels: int = 2,
-        candidate_positions_for_numerical: int = 10,
+        candidate_positions_for_numerical: int = 20,
         min_points_per_subregion: int = 10,
         candidate_foc: Union[str, List] = "all",
         split_categorical_features: bool = False,
@@ -202,7 +202,7 @@ class RegionalEffectBase:
         else:
             raise NotImplementedError
 
-    def eval(self, feature, node_idx, xs, heterogeneity=False, centering=False):
+    def eval(self, feature, node_idx, xs, heterogeneity=False, centering=True):
         """
         Evaluate the regional effect for a given feature and node.
 

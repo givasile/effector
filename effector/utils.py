@@ -167,7 +167,7 @@ def compute_bin_effect(
 
 def compute_bin_variance(
     xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray, bin_effect_mean: np.ndarray
-) -> typing.Tuple[np.ndarray, np.ndarray]:
+) -> np.ndarray:
     """
     Compute the variance of the effect in each bin.
 
@@ -190,10 +190,8 @@ def compute_bin_variance(
         >>> df_dxs = np.ones_like(xs) * 10
         >>> limits = np.array([0., 1., 2.0])
         >>> bin_effect_mean, ppb = compute_bin_effect(xs, df_dxs, limits)
-        >>> bin_variance, bin_estimator_variance = compute_bin_variance(xs, df_dxs, limits, bin_effect_mean)
+        >>> bin_variance= compute_bin_variance(xs, df_dxs, limits, bin_effect_mean)
         >>> bin_variance
-        array([ 0., nan])
-        >>> bin_estimator_variance
         array([ 0., nan])
 
         >>> xs = np.ones(4) * 0.5
@@ -201,7 +199,7 @@ def compute_bin_variance(
         >>> limits = np.array([0, 1, 2.0])
         >>> bin_effect_mean = np.array([np.mean(df_dxs), np.nan])
         >>> compute_bin_variance(xs, df_dxs, limits, bin_effect_mean)
-        (array([ 2., nan]), array([0.5, nan]))
+        array([ 2., nan])
 
     Parameters:
         xs: The points we evaluate, (N)
@@ -239,14 +237,7 @@ def compute_bin_variance(
         where=points_per_bin > 1,
     )
 
-    # the variance of the estimator
-    bin_estimator_variance = np.divide(
-        bin_variance,
-        points_per_bin,
-        out=np.ones(aggregated_variance_per_bin.shape, dtype=float) * empty_symbol,
-        where=points_per_bin > 1,
-    )
-    return bin_variance, bin_estimator_variance
+    return bin_variance
 
 
 def fill_nans(x: np.ndarray) -> np.ndarray:
@@ -448,14 +439,13 @@ def compute_ale_params(xs: np.ndarray, bin_values: np.ndarray, bin_limits: np.nd
     bin_effect_nans, points_per_bin = compute_bin_effect(xs, bin_values, bin_limits)
 
     # compute effect variance in each bin
-    bin_variance_nans, bin_estimator_variance_nans = compute_bin_variance(
+    bin_variance_nans = compute_bin_variance(
         xs, bin_values, bin_limits, bin_effect_nans
     )
 
     # interpolate NaNs
     bin_effect = fill_nans(bin_effect_nans)
     bin_variance = fill_nans(bin_variance_nans)
-    bin_estimator_variance = fill_nans(bin_estimator_variance_nans)
 
     parameters = {
         "limits": bin_limits,
@@ -463,7 +453,6 @@ def compute_ale_params(xs: np.ndarray, bin_values: np.ndarray, bin_limits: np.nd
         "points_per_bin": points_per_bin,
         "bin_effect": bin_effect,
         "bin_variance": bin_variance,
-        "bin_estimator_variance": bin_estimator_variance,
     }
     return parameters
 

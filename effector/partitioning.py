@@ -133,7 +133,7 @@ class Regions:
         # the accumulated heterogeneity if I split ccf[i] at index j
         matrix_weighted_heter = np.ones([
             len(self.candidate_conditioning_features),
-            max(self.nof_candidate_splits_for_numerical, self.cat_limit)
+            max(self.nof_candidate_splits_for_numerical-1, self.cat_limit)
         ]) * BIG_M
 
         # list with len(ccf) elements
@@ -367,9 +367,10 @@ class Regions:
 
         return tree
 
-    def visualize_candidate_splits(self, split_ind):
-        heter_matr = copy.deepcopy(self.splits[split_ind]["matrix_weighted_heter_drop"])
-        heter_matr[heter_matr < -10] = np.nan
+    def visualize_all_splits(self, split_ind):
+        split_ind = split_ind + 1
+        heter_matr = copy.deepcopy(self.splits[split_ind]["matrix_weighted_heter"])
+        heter_matr[heter_matr > 1e6] = np.nan
 
         plt.figure()
         plt.title("split {}, parent heter: {:.2f}".format(split_ind, self.splits[split_ind - 1]["after_split_weighted_heter"]))

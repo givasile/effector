@@ -56,7 +56,7 @@ def ale_plot(
     # assert ale_params contains needed quantities
     assert all(
         name in ale_params
-        for name in ["limits", "dx", "bin_estimator_variance", "bin_effect"]
+        for name in ["limits", "dx", "bin_effect"]
     )
 
     x = np.linspace(ale_params["limits"][0], ale_params["limits"][-1], 1000)
