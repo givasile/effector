@@ -109,7 +109,7 @@ class ALEBase(GlobalEffectBase):
         self,
         feature: int,
         xs: np.ndarray,
-        heterogeneity: bool = True,
+        heterogeneity: bool = False,
         centering: typing.Union[bool, str] = True,
         **kwargs
     ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
