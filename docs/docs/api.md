@@ -121,22 +121,22 @@
            - summary
 
 
-## (RH)ALE Binning Methods
-### ::: effector.binning_methods.Fixed
+## Axis Partitioning Methods
+### ::: effector.axis_partitioning.Fixed
        options:
          show_root_heading: True
          show_symbol_type_toc: True
          members:
            - __init__
 
-### ::: effector.binning_methods.Greedy
+### ::: effector.axis_partitioning.Greedy
        options:
          show_root_heading: True
          show_symbol_type_toc: True
          members:
            - __init__
 
-### ::: effector.binning_methods.DynamicProgramming
+### ::: effector.axis_partitioning.DynamicProgramming
        options:
          show_root_heading: True
          show_symbol_type_toc: True

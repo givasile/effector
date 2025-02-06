@@ -13,10 +13,6 @@ class Base:
         self,
         name: str,
         method_args: typing.Dict[str, typing.Any],
-        # feature: int,
-        # data: typing.Union[None, np.ndarray],
-        # data_effect: typing.Union[None, np.ndarray],
-        # axis_limits: typing.Union[None, np.ndarray],
     ):
         """Initializer.
 
