@@ -6,7 +6,7 @@ from effector import helpers
 import numpy as np
 from tqdm import tqdm
 from typing import Callable, Optional, Union, List
-from effector import binning_methods as bm
+from effector import axis_partitioning as ap
 from effector import utils
 
 
@@ -82,7 +82,9 @@ class RegionalShapDP(RegionalEffectBase):
         )
 
     def _create_heterogeneity_function(self, foi, min_points, binning_method):
-        binning_method = prep_binning_method(binning_method)
+        if isinstance(binning_method, str):
+            binning_method = ap.return_default(binning_method)
+
         def heterogeneity_function(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return self.big_m
@@ -119,7 +121,7 @@ class RegionalShapDP(RegionalEffectBase):
         min_points_per_subregion: int = 10,
         candidate_conditioning_features: typing.Union["str", list] = "all",
         split_categorical_features: bool = False,
-        binning_method: Union[str, bm.Greedy, bm.Fixed] = "greedy",
+        binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
     ):
         """
         Fit the regional SHAP.
@@ -201,20 +203,3 @@ class RegionalShapDP(RegionalEffectBase):
         kwargs = locals()
         kwargs.pop("self")
         return self._plot(kwargs)
-
-def prep_binning_method(method):
-    assert (
-        method in ["greedy", "dp", "fixed"]
-        or isinstance(method, bm.Fixed)
-        or isinstance(method, bm.DynamicProgramming)
-        or isinstance(method, bm.Greedy)
-    )
-
-    if method == "greedy":
-        return bm.Greedy()
-    elif method == "dp":
-        return bm.DynamicProgramming()
-    elif method == "fixed":
-        return bm.Fixed()
-    else:
-        return method

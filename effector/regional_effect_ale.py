@@ -4,7 +4,7 @@ from effector import helpers, utils
 import numpy as np
 from effector.global_effect_ale import ALE, RHALE
 from tqdm import tqdm
-from effector import binning_methods
+from effector import axis_partitioning as ap
 from typing import Callable, Optional, Union, List
 
 
@@ -78,7 +78,9 @@ class RegionalRHALE(RegionalEffectBase):
     def _create_heterogeneity_function(
         self, foi, binning_method, min_points, points_for_mean_heterogeneity
     ):
-        binning_method = prep_binning_method(binning_method)
+
+        if isinstance(binning_method, str):
+            binning_method = ap.return_default(binning_method)
 
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
@@ -117,9 +119,9 @@ class RegionalRHALE(RegionalEffectBase):
         split_categorical_features: bool = False,
         binning_method: typing.Union[
             str,
-            binning_methods.Fixed,
-            binning_methods.DynamicProgramming,
-            binning_methods.Greedy,
+            ap.Fixed,
+            ap.DynamicProgramming,
+            ap.Greedy,
         ] = "greedy",
         points_for_mean_heterogeneity: int = 30,
     ):
@@ -296,8 +298,8 @@ class RegionalALE(RegionalEffectBase):
         candidate_conditioning_features: typing.Union["str", list] = "all",
         split_categorical_features: bool = False,
         binning_method: typing.Union[
-            str, binning_methods.Fixed
-        ] = binning_methods.Fixed(nof_bins=20, min_points_per_bin=0),
+            str, ap.Fixed
+        ] = ap.Fixed(nof_bins=20, min_points_per_bin=0),
         points_for_mean_heterogeneity: int = 30
     ):
         """
@@ -405,19 +407,3 @@ class RegionalALE(RegionalEffectBase):
         kwargs.pop("self")
         self._plot(kwargs)
 
-def prep_binning_method(method):
-    assert (
-        method in ["greedy", "dp", "fixed"]
-        or isinstance(method, binning_methods.Fixed)
-        or isinstance(method, binning_methods.DynamicProgramming)
-        or isinstance(method, binning_methods.Greedy)
-    )
-
-    if method == "greedy":
-        return binning_methods.Greedy()
-    elif method == "dp":
-        return binning_methods.DynamicProgramming()
-    elif method == "fixed":
-        return binning_methods.Fixed()
-    else:
-        return method

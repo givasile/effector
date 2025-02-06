@@ -42,6 +42,7 @@ def test_gam():
         # Instantiate the effector class
         eff = effector_class(data, model, nof_instances=100, **kwargs)
 
+        print(eff)
         for feature in [0, 1]:
             # Evaluate the effector and retrieve results
             y, heterogeneity = eff.eval(feature=feature, xs=x, heterogeneity=True, centering="zero_start")

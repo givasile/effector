@@ -1,5 +1,4 @@
 import numpy as np
-from pandas.core.ops import make_flex_doc
 
 import effector
 

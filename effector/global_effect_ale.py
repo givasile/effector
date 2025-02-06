@@ -2,10 +2,10 @@ import typing
 from typing import List, Optional, Union, Tuple
 import effector.utils as utils
 import effector.visualization as vis
-import effector.binning_methods as bm
 import effector.helpers as helpers
 import effector.utils_integrate as utils_integrate
 from effector.global_effect import GlobalEffectBase
+import effector.axis_partitioning as ap
 import numpy as np
 from abc import abstractmethod
 
@@ -42,7 +42,7 @@ class ALEBase(GlobalEffectBase):
         self,
         feature: int,
         binning_method: typing.Union[
-            str, bm.DynamicProgramming, bm.Greedy, bm.Fixed
+            str, ap.DynamicProgramming, ap.Greedy, ap.Fixed
         ] = "greedy",
     ) -> typing.Dict:
         raise NotImplementedError
@@ -318,35 +318,32 @@ class ALE(ALEBase):
 
         data = self.data
         # assertion
-        assert binning_method == "fixed" or isinstance(
-            binning_method, bm.Fixed
-        ), "ALE can work only with the fixed binning method!"
+        assert binning_method == "fixed" or isinstance(binning_method, ap.Fixed), "ALE can work only with the fixed binning method!"
 
         if isinstance(binning_method, str):
-            binning_method = bm.Fixed(nof_bins=20, min_points_per_bin=0)
-        bin_est = bm.find_limits(data, None, feature, self.axis_limits, binning_method)
-        bin_name = bin_est.__class__.__name__
+            binning_method = ap.Fixed()
+        limits = binning_method.find_limits(data[:, feature], None, self.axis_limits[:, feature])
 
         # assert bins can be computed else raise error
-        assert bin_est.limits is not False, (
+        assert limits is not False, (
             "Impossible to compute bins with enough points for feature "
             + str(feature + 1)
             + " and binning strategy: "
-            + bin_name
+            + binning_method.name
             + ". Change bin strategy or "
             "the parameters of the method"
         )
 
         # compute data effect on bin limits
         data_effect = utils.compute_local_effects(
-            data, self.model, bin_est.limits, feature
+            data, self.model, limits, feature
         )
         self.data_effect_ale["feature_" + str(feature)] = data_effect
-        self.bin_limits["feature_" + str(feature)] = bin_est.limits
+        self.bin_limits["feature_" + str(feature)] = limits
 
         # compute the bin effect
         dale_params = utils.compute_ale_params(
-            data[:, feature], data_effect, bin_est.limits
+            data[:, feature], data_effect, limits
         )
         dale_params["alg_params"] = "fixed"
         return dale_params
@@ -354,7 +351,7 @@ class ALE(ALEBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
-        binning_method: typing.Union[str, bm.Fixed] = "fixed",
+        binning_method: typing.Union[str, ap.Fixed] = "fixed",
         centering: typing.Union[bool, str] = True,
         points_for_centering: int = 30
     ) -> None:
@@ -381,7 +378,7 @@ class ALE(ALEBase):
             points_for_centering: the number of points to use for centering the plot. Default is 100.
         """
         assert binning_method == "fixed" or isinstance(
-            binning_method, bm.Fixed
+            binning_method, ap.Fixed
         ), "ALE can work only with the fixed binning method!"
 
         self._fit_loop(features, binning_method, centering, points_for_centering)
@@ -479,32 +476,32 @@ class RHALE(ALEBase):
         elif self.data_effect is None and self.model_jac is None:
             self.data_effect = utils.compute_jacobian_numerically(self.model, self.data)
 
-    def _fit_feature(self, feature: int, binning_method: Union[str, bm.DynamicProgramming, bm.Greedy, bm.Fixed] = "greedy") -> typing.Dict:
+    def _fit_feature(self, feature: int, binning_method: Union[str, ap.DynamicProgramming, ap.Greedy, ap.Fixed] = "greedy") -> typing.Dict:
         if self.data_effect is None:
             self.compile()
 
         data = self.data
         data_effect = self.data_effect
 
-        # bin estimation
-        bin_est = bm.find_limits(
-            data, data_effect, feature, self.axis_limits, binning_method
-        )
-        bin_name = bin_est.__class__.__name__
+
+        if isinstance(binning_method, str):
+            binning_method = ap.return_default(binning_method)
+
+        limits = binning_method.find_limits(data[:, feature], self.data_effect[:, feature], self.axis_limits[:, feature])
 
         # assert bins can be computed else raise error
-        assert bin_est.limits is not False, (
-            "Impossible to compute bins with enough points for feature "
+        assert limits is not False, (
+            "Impossible to compute bins with enough points for feature with index: i="
             + str(feature + 1)
             + " and binning strategy: "
-            + bin_name
+            + str(binning_method)
             + ". Change bin strategy or "
             "the parameters of the method"
         )
 
         # compute the bin effect
         dale_params = utils.compute_ale_params(
-            data[:, feature], data_effect[:, feature], bin_est.limits
+            data[:, feature], data_effect[:, feature], limits
         )
 
         dale_params["alg_params"] = binning_method
@@ -514,7 +511,7 @@ class RHALE(ALEBase):
         self,
         features: typing.Union[int, str, list] = "all",
         binning_method: typing.Union[
-            str, bm.DynamicProgramming, bm.Greedy, bm.Fixed
+            str, ap.DynamicProgramming, ap.Greedy, ap.Fixed
         ] = "greedy",
         centering: typing.Union[bool, str] = True,
         points_for_centering: int = 30
@@ -545,9 +542,9 @@ class RHALE(ALEBase):
         """
         assert (
             binning_method in ["greedy", "dynamic", "fixed"]
-            or isinstance(binning_method, bm.Greedy)
-            or isinstance(binning_method, bm.DynamicProgramming)
-            or isinstance(binning_method, bm.Fixed)
+            or isinstance(binning_method, ap.Greedy)
+            or isinstance(binning_method, ap.DynamicProgramming)
+            or isinstance(binning_method, ap.Fixed)
         ), "Unknown binning method!"
 
         self._fit_loop(features, binning_method, centering, points_for_centering)

@@ -6,15 +6,17 @@ import effector.helpers as helpers
 import matplotlib.pyplot as plt
 
 
-class BinBase:
+class Base:
     big_M = helpers.BIG_M
 
     def __init__(
         self,
-        feature: int,
-        data: typing.Union[None, np.ndarray],
-        data_effect: typing.Union[None, np.ndarray],
-        axis_limits: typing.Union[None, np.ndarray],
+        name: str,
+        method_args: typing.Dict[str, typing.Any],
+        # feature: int,
+        # data: typing.Union[None, np.ndarray],
+        # data_effect: typing.Union[None, np.ndarray],
+        # axis_limits: typing.Union[None, np.ndarray],
     ):
         """Initializer.
 
@@ -25,23 +27,16 @@ class BinBase:
         data_effect: np.ndarray with dy/dX if binning is based on data, else, None
         axis_limits: np.ndarray (2, D) or None, if None, then axis_limits are set to [xs_min, xs_max]
         """
+        self.name = name
+
         # set immediately
-        self.feature: int = feature
-        self.xs_min: float = (
-            axis_limits[0, feature]
-            if axis_limits is not None
-            else data[:, feature].min()
-        )
-        self.xs_max: float = (
-            axis_limits[1, feature]
-            if axis_limits is not None
-            else data[:, feature].max()
-        )
-        self.data: np.ndarray = data
-        self.data_effect: np.ndarray = data_effect
+        self.xs_min = None
+        self.xs_max = None
+        self.data = None
+        self.data_effect = None
 
         # arguments passed to method find
-        self.method_args: typing.Dict[str, typing.Any] = {}
+        self.method_args: typing.Dict[str, typing.Any] = method_args
 
         # set in method find
         self.method_outputs: typing.Dict[str, typing.Any] = {}
@@ -52,8 +47,8 @@ class BinBase:
     def _bin_cost(self, start, stop, discount):
         min_points = self.method_args["min_points"]
         nof_points = self.data.shape[0]
-        data = self.data[:, self.feature]
-        data_effect = self.data_effect[:, self.feature]
+        data = self.data
+        data_effect = self.data_effect
         data, data_effect = utils.filter_points_in_bin(
             data, data_effect, np.array([start, stop])
         )
@@ -76,7 +71,7 @@ class BinBase:
         if min_points is None:
             return True
 
-        xs = self.data[:, self.feature]
+        xs = self.data
         # dy_dxs = self.data_effect[:, self.feature]
         filtered_points, _ = utils.filter_points_in_bin(
             xs, None, np.array([start, stop])
@@ -91,10 +86,10 @@ class BinBase:
             Boolean, True if it is impossible to create any binning, False otherwise
         """
         # if there is only one unique value, then it is impossible to create any binning
-        cond_1 = len(np.unique(self.data[:, self.feature])) == 1
+        cond_1 = len(np.unique(self.data)) == 1
 
         # if there are less than min_points, then it is impossible to create any binning
-        cond_2 = self.data[:, self.feature].size < self.method_args["min_points"]
+        cond_2 = self.data.size < self.method_args["min_points"]
 
         # if either is true, then it is impossible to create any binning
         return cond_1 or cond_2
@@ -110,7 +105,7 @@ class BinBase:
         is_categorical = np.allclose(self.xs_min, self.xs_max)
 
         # if xs is not categorical, then one bin is possible if there are enough points only in one bin
-        dy_dxs = self.data_effect[:, self.feature]
+        dy_dxs = self.data_effect
         enough_for_one_bin = min_points <= dy_dxs.size < 2 * min_points
         return is_categorical or enough_for_one_bin
 
@@ -121,14 +116,14 @@ class BinBase:
             Boolean, True if the feature is categorical, False otherwise
         """
         # if unique values are leq 10, then it is categorical
-        is_cat = len(np.unique(self.data[:, self.feature])) <= cat_limit
+        is_cat = len(np.unique(self.data)) <= cat_limit
         # if only one unique value, then it is categorical and set the limits
-        if len(np.unique(self.data[:, self.feature])) == 1:
+        if len(np.unique(self.data)) == 1:
             self.limits = False
 
         if is_cat:
             # set unique values as the center of the bins
-            uniq = np.sort(np.unique(self.data[:, self.feature]))
+            uniq = np.sort(np.unique(self.data))
             dx = [uniq[i + 1] - uniq[i] for i in range(len(uniq) - 1)]
             lims = np.array(
                 [uniq[0] - dx[0] / 2]
@@ -145,7 +140,13 @@ class BinBase:
                 self.limits = False
         return is_cat
 
-    def find(self, *args):
+    def _preprocess_find(self, data, data_effect, axis_limits):
+        self.xs_min: float = axis_limits[0] if axis_limits is not None else data.min()
+        self.xs_max: float = axis_limits[1] if axis_limits is not None else data.max()
+        self.data: np.ndarray = data
+        self.data_effect: np.ndarray = data_effect
+
+    def find(self, data, data_effect, axis_limits):
         """Find the optimal binning for the feature."""
         return NotImplementedError
 
@@ -158,8 +159,8 @@ class BinBase:
 
         plt.figure()
         plt.title("Bin splitting for feature %d" % (feature + 1))
-        xs = self.data[:, self.feature]
-        dy_dxs = self.data_effect[:, self.feature]
+        xs = self.data
+        dy_dxs = self.data_effect
         plt.plot(xs, dy_dxs, "bo", label="local effects")
         y_min = np.min(dy_dxs)
         y_max = np.max(dy_dxs)
@@ -170,37 +171,36 @@ class BinBase:
         plt.show(block=block)
 
 
-class Greedy(BinBase):
+class Greedy(Base):
     """
     Greedy binning algorithm
     """
 
     def __init__(
         self,
-        data: np.ndarray,
-        data_effect: np.ndarray,
-        feature: int,
-        axis_limits: typing.Union[None, np.ndarray],
-    ):
-        super(Greedy, self).__init__(feature, data, data_effect, axis_limits)
-
-    def find(
-        self,
-        init_nof_bins: int = 100,
+        init_nof_bins: int = 20,
+        min_points_per_bin: int = 0.,
         discount: float = 0.3,
-        min_points: typing.Union[None, int] = 10,
         cat_limit: int = 10,
-    ) -> typing.Union[np.ndarray, bool]:
+    ):
 
-        self.method_args = {
+        method_args = {
             "init_nof_bins": init_nof_bins,
+            "min_points": min_points_per_bin,
             "discount": discount,
-            "min_points": min_points,
             "cat_limit": cat_limit,
         }
+        super(Greedy, self).__init__("greedy", method_args)
 
+
+    def find_limits(self, data, data_effect, axis_limits) -> typing.Union[np.ndarray, bool]:
+
+        self._preprocess_find(data, data_effect, axis_limits)
         xs_min = self.xs_min
         xs_max = self.xs_max
+        init_nof_bins = self.method_args["init_nof_bins"]
+        discount = self.method_args["discount"]
+        cat_limit = self.method_args["cat_limit"]
 
         if self._none_valid_binning():
             self.limits = False
@@ -265,10 +265,16 @@ class Greedy(BinBase):
         return self.limits
 
 
-class DP(BinBase):
+class DynamicProgramming(Base):
 
-    def __init__(self, data, data_effect, feature, axis_limits):
-        super(DP, self).__init__(feature, data, data_effect, axis_limits)
+    def __init__(self, max_nof_bins: int = 20, min_points_per_bin: int = 0., discount: float = 0.3, cat_limit: int = 10):
+        method_args = {
+            "max_nof_bins": max_nof_bins,
+            "min_points": min_points_per_bin,
+            "discount": discount,
+            "cat_limit": cat_limit,
+        }
+        super(DynamicProgramming, self).__init__("dynamic_programming", method_args)
 
     def _index_to_position(self, index_start, index_stop, K):
         dx = (self.xs_max - self.xs_min) / K
@@ -322,21 +328,13 @@ class DP(BinBase):
         )
         return limits, dx_list
 
-    def find(
-        self,
-        max_nof_bins: int = 30,
-        min_points: int = 10,
-        discount: float = 0.3,
-        cat_limit: int = 10,
-    ):
+    def find_limits(self, data, data_effect, axis_limits):
         """Find the optimal binning."""
-
-        self.method_args = {
-            "max_nof_bins": max_nof_bins,
-            "min_points": min_points,
-            "discount": discount,
-            "cat_limit": cat_limit,
-        }
+        self._preprocess_find(data, data_effect, axis_limits)
+        max_nof_bins = self.method_args["max_nof_bins"]
+        min_points = self.method_args["min_points"]
+        discount = self.method_args["discount"]
+        cat_limit = self.method_args["cat_limit"]
 
         self.min_points = min_points
         big_M = self.big_M
@@ -389,21 +387,20 @@ class DP(BinBase):
         return self.limits
 
 
-class Fixed(BinBase):
-    def __init__(self, data, data_effect, feature, axis_limits):
-        super(Fixed, self).__init__(feature, data, data_effect, axis_limits)
-
-    def find(
-        self,
-        nof_bins: int,
-        min_points: typing.Union[None, int] = 10,
-        cat_limit: int = 10,
-    ):
-        self.method_args = {
+class Fixed(Base):
+    def __init__(self, nof_bins: int = 20, min_points_per_bin=0., cat_limit: int = 10):
+        method_args = {
             "nof_bins": nof_bins,
-            "min_points": min_points,
+            "min_points": min_points_per_bin,
             "cat_limit": cat_limit,
         }
+        super(Fixed, self).__init__("fixed", method_args)
+
+    def find_limits(self, data, data_effect, axis_limits):
+        self._preprocess_find(data, data_effect, axis_limits)
+        nof_bins = self.method_args["nof_bins"]
+        min_points = self.method_args["min_points"]
+        cat_limit = self.method_args["cat_limit"]
 
         if self._none_valid_binning():
             self.limits = False
@@ -423,3 +420,24 @@ class Fixed(BinBase):
             self.limits = limits
 
         return self.limits
+
+
+def return_default(method):
+    assert (
+        method in ["greedy", "dp", "fixed"]
+        or isinstance(method, Fixed)
+        or isinstance(method, DynamicProgramming)
+        or isinstance(method, Greedy)
+    )
+
+    if isinstance(method, Base):
+        return method
+
+    if method == "greedy":
+        return Greedy()
+    elif method == "dp":
+        return DynamicProgramming()
+    elif method == "fixed":
+        return Fixed()
+    else:
+        raise ValueError("Unknown method")

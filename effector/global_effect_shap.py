@@ -6,7 +6,7 @@ from effector.global_effect import GlobalEffectBase
 import numpy as np
 import shap
 import scipy
-import effector.binning_methods as bm
+import effector.axis_partitioning as ap
 import effector.utils as utils
 from scipy.interpolate import interp1d
 
@@ -109,7 +109,7 @@ class ShapDP(GlobalEffectBase):
     def _fit_feature(
         self,
         feature: int,
-        binning_method: Union[str, bm.Greedy, bm.Fixed] = "greedy",
+        binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
         centering: typing.Union[bool, str] = False,
         points_for_centering: int = 30,
     ) -> typing.Dict:
@@ -131,24 +131,28 @@ class ShapDP(GlobalEffectBase):
 
         # fit spline_mean to xx, yy pairs
         # bin estimation
-        bin_est = bm.find_limits(data, self.shap_values, feature, self.axis_limits, binning_method)
-        bin_name = bin_est.__class__.__name__
+        # assertion
+
+        if isinstance(binning_method, str):
+            binning_method = ap.return_default(binning_method)
+
+        limits = binning_method.find_limits(data[:, feature], self.shap_values[:, feature], self.axis_limits[:, feature])
+
         # assert bins can be computed else raise error
-        assert bin_est.limits is not False, (
+        assert limits is not False, (
             "Impossible to compute bins with enough points for feature with index: i="
             + str(feature + 1)
             + " and binning strategy: "
-            + bin_name
+            + str(binning_method)
             + ". Change bin strategy or "
             "the parameters of the method"
         )
-        limits = bin_est.limits
         # compute the bin effect
         feature_effect_dict = utils.compute_ale_params(data[:, feature], self.shap_values[:, feature], limits)
         feature_effect_dict["alg_params"] = binning_method
 
         # Compute bin edges and bin centers
-        bin_centers = (bin_est.limits[:-1] + bin_est.limits[1:]) / 2
+        bin_centers = (limits[:-1] + limits[1:]) / 2
 
         # Create piecewise linear interpolation
         mean_spline = interp1d(bin_centers, feature_effect_dict["bin_effect"], kind='linear', fill_value="extrapolate")
@@ -178,7 +182,7 @@ class ShapDP(GlobalEffectBase):
         features: Union[int, str, List] = "all",
         centering: Union[bool, str] = True,
         points_for_centering: Union[int, str] = 30,
-        binning_method: Union[str, bm.Greedy, bm.Fixed] = "greedy",
+        binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
     ) -> None:
         """Fit the SHAP Dependence Plot to the data.
 
