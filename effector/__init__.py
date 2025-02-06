@@ -7,6 +7,7 @@ from effector.regional_effect_pdp import RegionalPDP, RegionalDerPDP
 from effector.regional_effect_shap import RegionalShapDP
 
 from effector import axis_partitioning
+from effector import partitioning
 
 from effector import models
 from effector import datasets

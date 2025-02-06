@@ -19,7 +19,7 @@ class Regions:
             split_categorical_features=False,
     ):
         # setters
-        self.min_points = min_points_per_subregion
+        self.min_points_per_subregion = min_points_per_subregion
         self.nof_candidate_splits_for_numerical = nof_candidate_splits_for_numerical
         self.max_split_levels = max_split_levels
         self.heter_pcg_drop_thres = heter_pcg_drop_thres
@@ -124,7 +124,7 @@ class Regions:
                 # TODO: check this, as it seems redundant;
                 # if any subregion had less than min_points, the
                 # specific split should not have been selected
-                if any([np.sum(x) < self.min_points for x in splits[-1]["after_split_active_indices_list"]]):
+                if any([np.sum(x) < self.min_points_per_subregion for x in splits[-1]["after_split_active_indices_list"]]):
                     break
 
                 # find optimal split

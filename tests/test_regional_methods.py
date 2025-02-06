@@ -43,12 +43,8 @@ def test_regional():
         else:
             reg_eff = effector.RegionalShapDP(data, model, nof_instances=1000)
 
-        reg_eff.fit(0,
-                    heter_pcg_drop_thres=0.1,
-                    max_depth=2,
-                    nof_candidate_splits_for_numerical=10,
-                    candidate_conditioning_features="all",
-                    split_categorical_features=True)
+        reg_eff.fit(0)
+
         y, std = reg_eff.eval(0, 5, xs, heterogeneity=True, centering=True)
         np.allclose(y, 5*xs, atol=0.1, rtol=0.1)
         np.allclose(std, 0, atol=0.1, rtol=0.1)

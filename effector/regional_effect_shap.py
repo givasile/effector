@@ -114,13 +114,8 @@ class RegionalShapDP(RegionalEffectBase):
     def fit(
         self,
         features: typing.Union[int, str, list],
-        heter_pcg_drop_thres: float = 0.1,
-        heter_small_enough: float = 0.,
-        max_depth: int = 2,
-        nof_candidate_splits_for_numerical: int = 20,
-        min_points_per_subregion: int = 10,
         candidate_conditioning_features: typing.Union["str", list] = "all",
-        split_categorical_features: bool = False,
+        space_partitioner: typing.Union["str", effector.partitioning.Regions] = "greedy",
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
     ):
         """
@@ -130,15 +125,19 @@ class RegionalShapDP(RegionalEffectBase):
             features: the features to fit.
                 - If set to "all", all the features will be fitted.
 
-            heter_pcg_drop_thres: threshold for the percentage drop in heterogeneity to consider a split valid
-            heter_small_enough: heterogeneity threshold for a region to be considered homogeneous (splitting stops)
-            max_depth: maximum number of splits to perform (depth of the tree)
-            nof_candidate_splits_for_numerical: number of candidate splits to consider for numerical features
-            min_points_per_subregion: minimum allowed number of points in a subregion (otherwise the split is not considered as valid)
             candidate_conditioning_features: list of features to consider as conditioning features for the candidate splits
-            split_categorical_features: whether to search for subregions in categorical features
+                - If set to "all", all the features will be considered as conditioning features.
+
+            space_partitioner: the space partitioner to use
+                - If set to "greedy", the greedy space partitioner will be used.
+
+            binning_method: the binning method to use
         """
-        assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
+
+        if isinstance(space_partitioner, str):
+            space_partitioner = effector.partitioning.return_default(space_partitioner)
+
+        assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
 
         for feat in tqdm(features):
@@ -148,25 +147,20 @@ class RegionalShapDP(RegionalEffectBase):
                 global_shap_dp.fit(feat, centering=False, binning_method=binning_method)
                 self.global_shap_values = global_shap_dp.shap_values
 
-            heter = self._create_heterogeneity_function(feat, min_points_per_subregion, binning_method)
+            heter = self._create_heterogeneity_function(feat, space_partitioner.min_points_per_subregion, binning_method)
 
             self._fit_feature(
                 feat,
                 heter,
-                heter_pcg_drop_thres,
-                heter_small_enough,
-                max_depth,
-                nof_candidate_splits_for_numerical,
-                min_points_per_subregion,
+                space_partitioner,
                 candidate_conditioning_features,
-                split_categorical_features,
             )
 
         all_arguments = locals()
         all_arguments.pop("self")
 
         # region splitting arguments are the first 8 arguments
-        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:8]}
+        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:3]}
 
         # fit kwargs
         self.kwargs_fitting = {"binning_method": binning_method}

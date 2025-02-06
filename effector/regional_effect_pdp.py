@@ -1,5 +1,7 @@
 import typing
 import numpy as np
+
+import effector.partitioning
 from effector.regional_effect import RegionalEffectBase
 from effector import helpers
 from effector.global_effect_pdp import PDP, DerPDP
@@ -53,13 +55,8 @@ class RegionalPDPBase(RegionalEffectBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
-        heter_pcg_drop_thres: float = 0.1,
-        heter_small_enough: float = 0.,
-        max_depth: int = 2,
-        nof_candidate_splits_for_numerical: int = 20,
-        min_points_per_subregion: int = 10,
         candidate_conditioning_features: typing.Union["str", list] = "all",
-        split_categorical_features: bool = False,
+        space_partitioner: typing.Union[str, None] = "greedy",
         centering: typing.Union[bool, str] = False,
         points_for_centering: int = 30,
         points_for_mean_heterogeneity: int = 30,
@@ -75,29 +72,6 @@ class RegionalPDPBase(RegionalEffectBase):
                 - use an `int`, for a single feature, e.g. `features=0`
                 - use a `list`, for multiple features, e.g. `features=[0, 1, 2]`
 
-            heter_pcg_drop_thres: heterogeneity drop threshold for a split to be considered important
-
-                - use a `float`, e.g. `heter_pcg_drop_thres=0.1`
-                - The heterogeity drop is expressed as percentage ${(H_{\mathtt{before\_split}} - H_{\mathtt{after\_split}}) \over H_{\mathtt{before\_split}}}$
-
-            heter_small_enough: heterogeneity threshold for a split to be considered already small enough
-
-                - if the current split has an heterogeneity smaller than this value, it is not further split
-                - use a `float`, e.g. `heter_small_enough=0.01`
-
-            max_depth: maximum depth of the tree
-
-            nof_candidate_splits_for_numerical: number of candidate splits for numerical features
-
-                - use an `int`, e.g. `nof_candidate_splits_for_numerical=20`
-                - The candidate splits are uniformly distributed between the minimum and maximum values of the feature
-                - e.g. if range is [0, 1] and `nof_candidate_splits_for_numerical=3`, the candidate splits are [0.25, 0.5, 0.75]
-
-            min_points_per_subregion: minimum number of points per subregion
-
-                - use an `int`, e.g. `min_points_per_subregion=10`
-                - if a subregion has less than `min_points_per_subregion` instances, it is discarded
-
             candidate_conditioning_features: list of features to consider as conditioning features
 
                 - use `"all"`, for all features, e.g. `candidate_conditioning_features="all"`
@@ -105,11 +79,7 @@ class RegionalPDPBase(RegionalEffectBase):
                 - it means that for each feature in the `feature` list, the algorithm will consider applying a split
                 conditioned on each feature in the `candidate_conditioning_features` list
 
-            split_categorical_features: whether to find subregions for categorical features
-
-               - It indicates whether to create a splitting tree for categorical features
-               - It does not mean whether the conditioning feature can be categorical (it can be)
-
+            space_partitioner: the method to use for partitioning the space
             centering: whether to center the PDP and ICE curves, before computing the heterogeneity
 
                 - If `centering` is `False`, the PDP not centered
@@ -123,7 +93,10 @@ class RegionalPDPBase(RegionalEffectBase):
 
         """
 
-        assert min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
+        if isinstance(space_partitioner, str):
+            space_partitioner = effector.partitioning.return_default(space_partitioner)
+
+        assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
             # define the global method
@@ -151,26 +124,21 @@ class RegionalPDPBase(RegionalEffectBase):
 
             heter = self._create_heterogeneity_function(
                 foi = feat,
-                min_points=min_points_per_subregion,
+                min_points=space_partitioner.min_points_per_subregion,
             )
 
             self._fit_feature(
                 feat,
                 heter,
-                heter_pcg_drop_thres,
-                heter_small_enough,
-                max_depth,
-                nof_candidate_splits_for_numerical,
-                min_points_per_subregion,
+                space_partitioner,
                 candidate_conditioning_features,
-                split_categorical_features,
             )
 
         all_arguments = locals()
         all_arguments.pop("self")
 
         # region splitting arguments are the first 8 arguments
-        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:8]}
+        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:3]}
         self.kwargs_subregion_detection["points_for_mean_heterogeneity"] = points_for_mean_heterogeneity
 
         # centering, points_for_centering, use_vectorized

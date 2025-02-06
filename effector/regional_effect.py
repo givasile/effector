@@ -1,5 +1,6 @@
 import numpy as np
 import effector.helpers as helpers
+import effector.partitioning
 import effector.utils as utils
 from effector.partitioning import Regions, Tree
 from effector.global_effect_ale import RHALE, ALE
@@ -99,29 +100,18 @@ class RegionalEffectBase:
         self,
         feature: int,
         heter_func: Callable,
-        heter_pcg_drop_thres: float = 0.1,
-        heter_small_enough: float = 0.,
-        max_split_levels: int = 2,
-        candidate_positions_for_numerical: int = 20,
-        min_points_per_subregion: int = 10,
+        space_partitioner: Union["str", effector.partitioning.Regions] = "greedy",
         candidate_foc: Union[str, List] = "all",
-        split_categorical_features: bool = False,
     ):
         """
         Find the subregions for a single feature.
         """
         # init Region Extractor
-        regions = Regions(
-            heter_pcg_drop_thres,
-            heter_small_enough,
-            max_split_levels,
-            min_points_per_subregion,
-            candidate_positions_for_numerical,
-            split_categorical_features,
-        )
+        if space_partitioner == "greedy":
+            space_partitioner = effector.partitioning.Regions()
 
         # apply partitioning
-        regions.find_subregions(
+        space_partitioner.find_subregions(
             feature,
             self.data,
             heter_func,
@@ -134,10 +124,10 @@ class RegionalEffectBase:
         )
 
         # self.tree_full["feature_{}".format(feature)] = regions.splits_to_tree()
-        self.tree["feature_{}".format(feature)] = regions.splits_to_tree(True)
+        self.tree["feature_{}".format(feature)] = space_partitioner.splits_to_tree(True)
 
         # store the partitioning object
-        self.partitioners["feature_{}".format(feature)] = regions
+        self.partitioners["feature_{}".format(feature)] = space_partitioner
 
         # update state
         self.is_fitted[feature] = True
