@@ -92,8 +92,8 @@ class RegionalEffectBase:
 
         # dictionary with all the information required for plotting or evaluating the regional effects
         self.partitioners: typing.Dict[str, Regions] = {}
-        self.tree_full: typing.Dict[str, Tree] = {}
-        self.tree_pruned: typing.Dict[str, Tree] = {}
+        # self.tree_full: typing.Dict[str, Tree] = {}
+        self.tree: typing.Dict[str, Tree] = {}
 
     def _fit_feature(
         self,
@@ -112,27 +112,29 @@ class RegionalEffectBase:
         """
         # init Region Extractor
         regions = Regions(
-            feature,
-            heter_func,
-            self.data,
-            self.axis_limits,
-            self.feature_types,
-            self.feature_names,
-            self.target_name,
-            self.cat_limit,
-            candidate_foc,
-            min_points_per_subregion,
-            candidate_positions_for_numerical,
-            max_split_levels,
             heter_pcg_drop_thres,
             heter_small_enough,
+            max_split_levels,
+            min_points_per_subregion,
+            candidate_positions_for_numerical,
             split_categorical_features,
         )
+
         # apply partitioning
-        regions.search_all_splits()
-        regions.choose_important_splits()
-        self.tree_full["feature_{}".format(feature)] = regions.splits_to_tree()
-        self.tree_pruned["feature_{}".format(feature)] = regions.splits_to_tree(True)
+        regions.find_subregions(
+            feature,
+            self.data,
+            heter_func,
+            self.axis_limits,
+            self.feature_types,
+            self.cat_limit,
+            candidate_foc,
+            self.feature_names,
+            self.target_name
+        )
+
+        # self.tree_full["feature_{}".format(feature)] = regions.splits_to_tree()
+        self.tree["feature_{}".format(feature)] = regions.splits_to_tree(True)
 
         # store the partitioning object
         self.partitioners["feature_{}".format(feature)] = regions
@@ -145,7 +147,7 @@ class RegionalEffectBase:
             self.fit(feature)
 
     def _create_fe_object(self, feature, node_idx, scale_x_list):
-        feature_tree = self.tree_pruned["feature_{}".format(feature)]
+        feature_tree = self.tree["feature_{}".format(feature)]
         assert feature_tree is not None, "Feature {} has no splits".format(feature)
         node = feature_tree.get_node_by_idx(node_idx)
         name = feature_tree.scale_node_name(node.name, scale_x_list)
@@ -259,14 +261,14 @@ class RegionalEffectBase:
         plot_kwargs.pop("node_idx")
         return fe_method.plot(**plot_kwargs)
 
-    def summary(self, features, only_important=True, scale_x_list=None):
+    def summary(self, features, scale_x_list=None):
         features = helpers.prep_features(features, self.dim)
 
         for feat in features:
             self.refit(feat)
 
             feat_str = "feature_{}".format(feat)
-            tree_dict = self.tree_pruned[feat_str] if only_important else self.tree_full[feat_str]
+            tree_dict = self.tree[feat_str]
 
             print("\n")
             print("Feature {} - Full partition tree:".format(feat))

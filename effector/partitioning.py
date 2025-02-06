@@ -10,53 +10,35 @@ BIG_M = helpers.BIG_M
 
 class Regions:
     def __init__(
-        self,
-        feature: int,
-        heter_func: callable,
-        data: np.ndarray,
-        axis_limits: np.ndarray,
-        feature_types: typing.Union[list, None],
-        feature_names: typing.List[str],
-        target_name: str,
-        categorical_limit: int = 10,
-        candidate_conditioning_features: typing.Union[None, list] = None,
-        min_points_per_subregion: int = 10,
-        nof_candidate_splits_for_numerical=20,
-        max_split_levels=2,
-        heter_pcg_drop_thres=0.1,
-        heter_small_enough=0.1,
-        split_categorical_features=False,
+            self,
+            heter_pcg_drop_thres=0.1,
+            heter_small_enough=0.1,
+            max_split_levels=2,
+            min_points_per_subregion: int = 10,
+            nof_candidate_splits_for_numerical=20,
+            split_categorical_features=False,
     ):
         # setters
-        self.feature = feature
-        self.data = data
-        self.dim = self.data.shape[1]
-        self.axis_limits = axis_limits
-        self.cat_limit = categorical_limit
-        self.feature_names = feature_names
-        self.target_name = target_name
         self.min_points = min_points_per_subregion
-        self.heter_func = heter_func
         self.nof_candidate_splits_for_numerical = nof_candidate_splits_for_numerical
         self.max_split_levels = max_split_levels
         self.heter_pcg_drop_thres = heter_pcg_drop_thres
         self.heter_small_enough = heter_small_enough
         self.split_categorical_features = split_categorical_features
 
-        self.foi = self.feature
-        self.candidate_conditioning_features = (
-            [i for i in range(self.dim) if i != self.feature]
-            if candidate_conditioning_features == "all"
-            else candidate_conditioning_features
-        )
-
-        # on-init
-        self.feature_types = (
-            utils.get_feature_types(data, categorical_limit)
-            if feature_types is None
-            else feature_types
-        )
-        self.foc_types = [self.feature_types[i] for i in self.candidate_conditioning_features]
+        # to be set latter
+        self.feature = None
+        self.foi = None
+        self.data = None
+        self.dim = None
+        self.heter_func = None
+        self.axis_limits = None
+        self.feature_types = None
+        self.cat_limit = None
+        self.feature_names = None
+        self.target_name = None
+        self.foc_types = None
+        self.candidate_conditioning_features = None
 
         # init method args
         self.method_args = {}
@@ -71,6 +53,45 @@ class Regions:
         # state variable
         self.split_found: bool = False
         self.important_splits_selected: bool = False
+
+    def _prapare_data(self, data):
+        pass
+
+    def find_subregions(self,
+                        feature: int,
+                        data: np.ndarray,
+                        heter_func: callable,
+                        axis_limits: np.ndarray,
+                        feature_types: typing.Union[list, None] = None,
+                        categorical_limit: int = 10,
+                        candidate_conditioning_features: typing.Union[None, list] = None,
+                        feature_names: typing.Union[None, list] = None,
+                        target_name: typing.Union[None, str] = None
+                        ):
+        self.feature = feature
+        self.foi = feature
+        self.data = data
+        self.dim = self.data.shape[1]
+        self.heter_func = heter_func
+        self.axis_limits = axis_limits
+        self.cat_limit = categorical_limit
+        self.feature_names = feature_names
+        self.target_name = target_name
+
+        self.candidate_conditioning_features = (
+            [i for i in range(self.dim) if i != self.feature]
+            if candidate_conditioning_features == "all"
+            else candidate_conditioning_features
+        )
+
+        self.feature_types = utils.get_feature_types(data, categorical_limit) if feature_types is None else feature_types
+
+        # on-init
+        self.foc_types = [self.feature_types[i] for i in self.candidate_conditioning_features]
+
+        self.search_all_splits()
+        self.choose_important_splits()
+
 
     def search_all_splits(self):
         """
@@ -265,7 +286,7 @@ class Regions:
     def flatten_list(self, l):
         return [item for sublist in l for item in sublist]
 
-    def splits_to_tree(self, only_important=False, scale_x_list=None):
+    def splits_to_tree(self, only_important=True, scale_x_list=None):
         if len(self.splits) == 0:
             return None
 
@@ -697,3 +718,9 @@ class DataTransformer:
 
 def rename_features():
     pass
+
+def return_default(partitioner_name):
+    if partitioner_name == "greedy":
+        return Regions()
+    else:
+        raise ValueError("Partitioner not found")
