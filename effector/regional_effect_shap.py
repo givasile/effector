@@ -27,44 +27,56 @@ class RegionalShapDP(RegionalEffectBase):
         target_name: Optional[str] = None,
     ):
         """
-        Regional SHAP constructor.
+        Initialize the Regional Effect method.
 
         Args:
-            data: the design matrix
+            data: the design matrix, `ndarray` of shape `(N,D)`
+            model: the black-box model, `Callable` with signature `f(x) -> y` where:
 
-                - shape: `(N,D)`
-            model: the black-box model. Must be a `Callable` with:
+                - `x`: `ndarray` of shape `(N, D)`
+                - `y`: `ndarray` of shape `(N)`
 
-                - input: `ndarray` of shape `(N, D)`
-                - output: `ndarray` of shape `(N, )`
+            axis_limits: Feature effect limits along each axis
 
-            axis_limits: The limits of the feature effect plot along each axis
+                - `None`, infers them from `data` (`min` and `max` of each feature)
+                - `array` of shape `(D, 2)`, manually specify the limits for each feature.
 
-                - use a `ndarray` of shape `(2, D)`, to specify them manually
-                - use `None`, to be inferred from the data
+                !!! tip "When possible, specify the axis limits manually"
 
-            nof_instances: maximum number of instances to be used for PDP.
+                    - they help to discard outliers and improve the quality of the fit
+                    - `axis_limits` define the `.plot` method's x-axis limits; manual specification leads to better visualizations
 
-                - use "all", for using all instances.
-                - use an `int`, for using `nof_instances` instances.
+                !!! tip "Their shape is `(2, D)`, not `(D, 2)`"
+
+                    ```python
+                    axis_limits = np.array([[0, 1, -1], [1, 2, 3]])
+                    ```
+
+            nof_instances: Max instances to use
+
+                - `"all"`, uses all `data`
+                - `int`, randomly selects `int` instances from `data`
+
+                !!! tip "`1_000` (default), is a good balance between speed and accuracy"
 
             feature_types: The feature types.
 
-                - use `None`, to infer them from the data; whether a feature is categorical or numerical is inferred
-                from whether it exceeds the `cat_limit` unique values.
-                - use a list with elements `"cat"` or `"numerical"`, to specify them manually.
+                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
+                - `['cat', 'cont', ...]`, manually specify the types of the features
 
-            cat_limit: the minimum number of unique values for a feature to be considered categorical
+            cat_limit: The minimum number of unique values for a feature to be considered categorical
+
+                - if `feature_types` is manually specified, this parameter is ignored
 
             feature_names: The names of the features
 
-                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
-                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
+                - `None`, defaults to: `["x_0", "x_1", ...]`
+                - `["age", "weight", ...]` to manually specify the names of the features
 
             target_name: The name of the target variable
 
-                - use a `str`, to specify it name manually. For example: `"price"`
-                - use `None`, to keep the default name: `"y"`
+                - `None`, to keep the default name: `"y"`
+                - `"price"`, to manually specify the name of the target variable
         """
         self.global_shap_values = None
         super(RegionalShapDP, self).__init__(

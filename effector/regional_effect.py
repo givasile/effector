@@ -6,8 +6,8 @@ from effector.partitioning import Regions, Tree
 from effector.global_effect_ale import RHALE, ALE
 from effector.global_effect_pdp import PDP, DerPDP
 from effector.global_effect_shap import ShapDP
+from typing import Callable, Optional, Union, List, Tuple
 import typing
-from typing import Callable, Optional, Union, List
 import copy
 
 class RegionalEffectBase:
@@ -194,18 +194,75 @@ class RegionalEffectBase:
         else:
             raise NotImplementedError
 
-    def eval(self, feature, node_idx, xs, heterogeneity=False, centering=True):
+    def eval(
+            self,
+            feature: int,
+            node_idx: int,
+            xs: np.ndarray,
+            heterogeneity: bool = False,
+            centering: Union[bool, str] = True,
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """
-        Evaluate the regional effect for a given feature and node.
+        :point_right: Evaluate the regional effect for a given feature and node.
+
+        ??? Example "Example usage"
+
+            ```python
+            axis_limits = ... # define the axis limits
+            xs = np.linspace(axis_limits[0], axis_limits[1], 100)
+            ```
+
+            === "PDP"
+
+                ```python
+                effector.RegionalPDP(data=X, model=predict).eval(0, 0, xs, centering=True)
+                ```
+
+            === "RHALE"
+
+                ```python
+                effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian).eval(0, 0, xs, centering=True)
+                ```
+
+            === "ALE"
+
+                ```python
+                effector.RegionalALE(data=X, model=predict).eval(0, 0, xs, centering=True)
+                ```
+
+            === "ShapDP"
+
+                 ```python
+                    effector.RegionalShapDP(data=X, model=predict).eval(0, 0, xs, centering=True)
+                 ```
+
+            === "DerPDP"
+
+                 ```python
+                    effector.DerPDP(data=X, model=predict, model_jac=jacobian).eval(0, 0, xs, centering=False)
+                 ```
+
+
+        !!! note "This is a common method for all regional effect methods, so use the arguments carefully."
+
+            - `centering=True` is a good option for most methods, but not for all.
+                - `DerPDP`, use `centering=False`
+                - `[RegionalPDP, RegionalShapDP]`, it depends on you :sunglasses:
+                - `[RegionalALE, RegionalRHALE]`, use `centering=True`
+
+        !!! note "The `heterogeneity` argument changes the return value of the function."
+
+            - If `heterogeneity=False`, the function returns `y`
+            - If `heterogeneity=True`, the function returns a tuple `(y, std)`
 
         Args:
-            feature: the feature to evaluate
-            node_idx: the node corresponding to the subregion to evaluate
-            xs: the points at which to evaluate the regional effect
+            feature: index of the feature
+            node_idx: index of the node
+            xs: horizontal grid of points to evaluate on
             heterogeneity: whether to return the heterogeneity.
 
-                  - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
-                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
+                  - if `heterogeneity=False`, the function returns `y`, a numpy array of the mean effect at grid points `xs`
+                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect at grid points `xs`
 
             centering: whether to center the regional effect. The following options are available:
 
@@ -251,7 +308,62 @@ class RegionalEffectBase:
         plot_kwargs.pop("node_idx")
         return fe_method.plot(**plot_kwargs)
 
-    def summary(self, features, scale_x_list=None):
+    def summary(self, features: List[int], scale_x_list: Optional[List] = None):
+        """Summarize the partition tree for the selected features.
+
+        ??? Example "Example usage"
+
+            === "PDP"
+
+                ```python
+                effector.RegionalPDP(data=X, model=predict).summary(0)
+                ```
+
+            === "RHALE"
+
+                ```python
+                effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian).summary(0)
+                ```
+
+            === "ALE"
+
+                ```python
+                effector.RegionalALE(data=X, model=predict).summary(0)
+                ```
+
+            === "ShapDP"
+
+                 ```python
+                    effector.RegionalShapDP(data=X, model=predict).summary(0)
+                 ```
+
+            === "DerPDP"
+
+                 ```python
+                    effector.DerPDP(data=X, model=predict, model_jac=jacobian).summary(0)
+                 ```
+
+        ???+ Example "Example output"
+
+            ```python
+            Feature 0 - Full partition tree:
+                 Node id: 0, name: x_0, heter: 34.79 || nof_instances:  1000 || weight: 1.00
+                         Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.09 || nof_instances:  1000 || weight: 1.00
+                         Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.09 || nof_instances:  1000 || weight: 1.00
+                 --------------------------------------------------
+                 Feature 0 - Statistics per tree level:
+                 Level 0, heter: 34.79
+                    Level 1, heter: 0.18 || heter drop : 34.61 (units), 99.48% (pcg)
+            ```
+
+        Args:
+            features: indices of the features to summarize
+            scale_x_list: list of scaling factors for each feature
+
+                - `None`, for no scaling
+                - `[{"mean": 0, "std": 1}, {"mean": 3, "std": 0.1}]`, to manually scale the features
+
+        """
         features = helpers.prep_features(features, self.dim)
 
         for feat in features:

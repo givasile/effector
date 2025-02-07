@@ -159,61 +159,56 @@ class RegionalPDP(RegionalPDPBase):
         target_name: typing.Union[str, None] = None,
     ):
         """
-        Constructor of the PDP class.
-
-        Definition:
-            Finds subregions by minimizing the PDP-based heterogeneity:
-            $$
-            H_{x_s} = {1 \over M} \sum_{j=1}^M h(x_s^j), \quad h(x_s) = {1 \over N} \sum_{i=1}^N ( ICE_c^i(x_s) - PDP_c(x_s) )^2
-            $$
-
-            where $x_s^j$ are an equally spaced grid of points in the axis, i.e.,  $[x_s^{\min}, x_s^{\max}]$.
-
-        Notes:
-            The required parameters are `data` and `model`. The rest are optional.
+        Initialize the Regional Effect method.
 
         Args:
-            data: the design matrix
+            data: the design matrix, `ndarray` of shape `(N,D)`
+            model: the black-box model, `Callable` with signature `f(x) -> y` where:
 
-                - shape: `(N,D)`
+                - `x`: `ndarray` of shape `(N, D)`
+                - `y`: `ndarray` of shape `(N)`
 
-            model: the black-box model. Must be a `Callable` with:
+            axis_limits: Feature effect limits along each axis
 
-                - input: `ndarray` of shape `(N, D)`
-                - output: `ndarray` of shape `(N,)`
+                - `None`, infers them from `data` (`min` and `max` of each feature)
+                - `array` of shape `(D, 2)`, manually specify the limits for each feature.
 
-            nof_instances: maximum number of instances to be used for the analysis.
-                           The selection is done at the beginning of the analysis.
-                           If there are less instances, all will be used.
+                !!! tip "When possible, specify the axis limits manually"
 
-                - use `"all"`, for using all instances.
-                - use an `int`, for using `nof_instances` instances.
+                    - they help to discard outliers and improve the quality of the fit
+                    - `axis_limits` define the `.plot` method's x-axis limits; manual specification leads to better visualizations
 
-            axis_limits: The limits of the feature effect plot along each axis
+                !!! tip "Their shape is `(2, D)`, not `(D, 2)`"
 
-                - use a `ndarray` of shape `(2, D)`, to specify them manually
-                - use `None`, to be inferred from the data
+                    ```python
+                    axis_limits = np.array([[0, 1, -1], [1, 2, 3]])
+                    ```
 
-            feature_types: The type of each feature
+            nof_instances: Max instances to use
 
-                - use `"cont"` for continuous and `"cat"` for categorical
-                - e.g. `["cont", "cont", "cat", ... ]
+                - `"all"`, uses all `data`
+                - `int`, randomly selects `int` instances from `data`
 
-            cat_limit: The number of individual values to consider a feature as categorical
+                !!! tip "`10_000` (default), is a good balance between speed and accuracy"
 
-                - if `feature_types` is provided, this argument remains unused
-                - if `feature_types` is `None`, features with less than `cat_limit` unique values will
-                be considered `categorical`, while the rest `numerical`
+            feature_types: The feature types.
+
+                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
+                - `['cat', 'cont', ...]`, manually specify the types of the features
+
+            cat_limit: The minimum number of unique values for a feature to be considered categorical
+
+                - if `feature_types` is manually specified, this parameter is ignored
 
             feature_names: The names of the features
 
-                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
-                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
+                - `None`, defaults to: `["x_0", "x_1", ...]`
+                - `["age", "weight", ...]` to manually specify the names of the features
 
             target_name: The name of the target variable
 
-                - use a `str`, to specify it name manually. For example: `"price"`
-                - use `None`, to keep the default name: `"y"`
+                - `None`, to keep the default name: `"y"`
+                - `"price"`, to manually specify the name of the target variable
         """
 
         super(RegionalPDP, self).__init__(
@@ -253,7 +248,7 @@ class RegionalDerPDP(RegionalPDPBase):
         self,
         data: np.ndarray,
         model: callable,
-        model_jac: typing.Union[None, callable] = None,
+        model_jac: typing.Optional[callable] = None,
         nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
@@ -261,6 +256,64 @@ class RegionalDerPDP(RegionalPDPBase):
         feature_names: typing.Union[list, None] = None,
         target_name: typing.Union[str, None] = None,
     ):
+        """
+        Initialize the Regional Effect method.
+
+        Args:
+            data: the design matrix, `ndarray` of shape `(N,D)`
+            model: the black-box model, `Callable` with signature `x -> y` where:
+
+                - `x`: `ndarray` of shape `(N, D)`
+                - `y`: `ndarray` of shape `(N)`
+
+            model_jac: the black-box model's Jacobian, `Callable` with signature `x -> dy_dx` where:
+
+                - `x`: `ndarray` of shape `(N, D)`
+                - `dy_dx`: `ndarray` of shape `(N, D)`
+
+            axis_limits: Feature effect limits along each axis
+
+                - `None`, infers them from `data` (`min` and `max` of each feature)
+                - `array` of shape `(D, 2)`, manually specify the limits for each feature.
+
+                !!! tip "When possible, specify the axis limits manually"
+
+                    - they help to discard outliers and improve the quality of the fit
+                    - `axis_limits` define the `.plot` method's x-axis limits; manual specification leads to better visualizations
+
+                !!! tip "Their shape is `(2, D)`, not `(D, 2)`"
+
+                    ```python
+                    axis_limits = np.array([[0, 1, -1], [1, 2, 3]])
+                    ```
+
+            nof_instances: Max instances to use
+
+                - `"all"`, uses all `data`
+                - `int`, randomly selects `int` instances from `data`
+
+                !!! tip "`10_000` (default), is a good balance between speed and accuracy"
+
+            feature_types: The feature types.
+
+                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
+                - `['cat', 'cont', ...]`, manually specify the types of the features
+
+            cat_limit: The minimum number of unique values for a feature to be considered categorical
+
+                - if `feature_types` is manually specified, this parameter is ignored
+
+            feature_names: The names of the features
+
+                - `None`, defaults to: `["x_0", "x_1", ...]`
+                - `["age", "weight", ...]` to manually specify the names of the features
+
+            target_name: The name of the target variable
+
+                - `None`, to keep the default name: `"y"`
+                - `"price"`, to manually specify the name of the target variable
+        """
+
         super(RegionalDerPDP, self).__init__(
             "d-pdp",
             data,

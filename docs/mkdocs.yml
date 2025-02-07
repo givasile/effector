@@ -3,7 +3,8 @@ site_name: effector
 nav:
   - Home: index.md
   - Install: installation.md
-  - Quickstart: Tutorials/getting-started/tutorial_effector.md
+  - Quickstart:
+    - Effector's API: quickstart.md
   - Intro to Feature Effects:
     - Global Effects: global_effect_intro.md
     - Regional Effects: regional_effect_intro.md
@@ -29,7 +30,12 @@ nav:
       - Comparing Global Effect Methods: Tutorials/synthetic-examples/02_global_effect_methods_comparison.md
       - Deep Dive into Regional Effects: Tutorials/synthetic-examples/03_regional_effects_synthetic_f.md
       - Regional Effect in depth (b): Tutorials/synthetic-examples/04_regional_effects_real_f.md
-  - API: api.md
+  - API:
+      - Global Effect API: api_global.md
+      - Regional Effect API: api_regional.md
+      - Axis Paritioning API: api_axis_partitioning.md
+      - Space Partitioning API: api_space_partitioning.md
+      - Others: api.md
   - References: references.md
 
 
@@ -46,6 +52,7 @@ theme:
     - content.code.copy
     - content.code.select
     - content.tabs.link
+    - content.code.annotate
   icon:
     repo: fontawesome/brands/github
 
@@ -100,6 +107,9 @@ markdown_extensions:
   - attr_list
   - md_in_html
   - pymdownx.blocks.caption
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 extra_javascript:
   - javascripts/mathjax.js

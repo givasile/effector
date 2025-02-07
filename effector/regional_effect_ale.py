@@ -20,7 +20,7 @@ class RegionalRHALE(RegionalEffectBase):
         model: Callable,
         model_jac: Optional[Callable] = None,
         data_effect: Optional[np.ndarray] = None,
-        nof_instances: Union[int, str] = "all",
+        nof_instances: Union[int, str] = 100_000,
         axis_limits: Optional[np.ndarray] = None,
         feature_types: Optional[List] = None,
         cat_limit: Optional[int] = 10,
@@ -28,32 +28,72 @@ class RegionalRHALE(RegionalEffectBase):
         target_name: Optional[str] = None,
     ):
         """
-        Regional RHALE constructor.
+        Initialize the Regional Effect method.
 
         Args:
-            data: the dataset, shape (N,D)
-            model: the black-box model, Callable (N,D) -> (N,)
-            model_jac: a function that returns the jacobian of the black-box model, Callable (N,D) -> (N,D)
-            data_effect: the jacobian of the black-box model applied on `data`, shape (N,D)
+            data: the design matrix, `ndarray` of shape `(N,D)`
+            model: the black-box model, `Callable` with signature `x -> y` where:
 
-                - if None, it is computed as `model_jac(data)`
-            nof_instances : the maximum number of instances to use for the analysis. The selection is done randomly at the beginning of the analysis.
+                - `x`: `ndarray` of shape `(N, D)`
+                - `y`: `ndarray` of shape `(N)`
 
-                - if "all", all instances are used
-                - if an integer, `nof_instances` instances are randomly selected from the data
-            nof_instances: the maximum number of instances to use for the analysis. The selection is done randomly at the beginning of the analysis.
-            axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
-            feature_types: list of feature types (categorical or numerical)
-            cat_limit: the minimum number of unique values for a feature to be considered categorical
-            feature_names: list of feature names
-            target_name: the name of the target variable
+            model_jac: the black-box model's Jacobian, `Callable` with signature `x -> dy_dx` where:
+
+                - `x`: `ndarray` of shape `(N, D)`
+                - `dy_dx`: `ndarray` of shape `(N, D)`
+
+            data_effect: The jacobian of the `model` on the `data`
+
+                - `None`, infers the Jacobian internally using `model_jac(data)` or numerically
+                - `np.ndarray`, to provide the Jacobian directly
+
+                !!! tip "When possible, provide the Jacobian directly"
+
+                    Computing the jacobian on the whole dataset can be memory demanding.
+                    If you have the jacobian already computed, provide it directly to the constructor.
+
+            axis_limits: Feature effect limits along each axis
+
+                - `None`, infers them from `data` (`min` and `max` of each feature)
+                - `array` of shape `(D, 2)`, manually specify the limits for each feature.
+
+                !!! tip "When possible, specify the axis limits manually"
+
+                    - they help to discard outliers and improve the quality of the fit
+                    - `axis_limits` define the `.plot` method's x-axis limits; manual specification leads to better visualizations
+
+                !!! tip "Their shape is `(2, D)`, not `(D, 2)`"
+
+                    ```python
+                    axis_limits = np.array([[0, 1, -1], [1, 2, 3]])
+                    ```
+
+            nof_instances: Max instances to use
+
+                - `"all"`, uses all `data`
+                - `int`, randomly selects `int` instances from `data`
+
+                !!! tip "`100_000` (default), is a good choice. RHALE can handle large datasets :sunglasses: :sunglasses: "
+
+            feature_types: The feature types.
+
+                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
+                - `['cat', 'cont', ...]`, manually specify the types of the features
+
+            cat_limit: The minimum number of unique values for a feature to be considered categorical
+
+                - if `feature_types` is manually specified, this parameter is ignored
+
+            feature_names: The names of the features
+
+                - `None`, defaults to: `["x_0", "x_1", ...]`
+                - `["age", "weight", ...]` to manually specify the names of the features
+
+            target_name: The name of the target variable
+
+                - `None`, to keep the default name: `"y"`
+                - `"price"`, to manually specify the name of the target variable
         """
-
-        # if data_effect is None:
-        #     if model_jac is not None:
-        #         data_effect = model_jac(data)
-        #     else:
-        #         data_effect = utils.compute_jacobian_numerically(model, data)
 
         super(RegionalRHALE, self).__init__(
             "rhale",
@@ -192,7 +232,7 @@ class RegionalALE(RegionalEffectBase):
         self,
         data: np.ndarray,
         model: callable,
-        nof_instances: typing.Union[int, str] = "all",
+        nof_instances: typing.Union[int, str] = 100_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
         cat_limit: typing.Union[int, None] = 10,
@@ -200,18 +240,58 @@ class RegionalALE(RegionalEffectBase):
         target_name: typing.Union[str, None] = None,
     ):
         """
-        Regional RHALE constructor.
+        Initialize the Regional Effect method.
 
         Args:
-            data: the dataset, shape (N,D)
-            model: the black-box model, Callable (N,D) -> (N,)
-            nof_instances: the maximum number of instances to use for the analysis. The selection is done randomly at the beginning of the analysis.
-            axis_limits: axis limits for the FE plot [2, D] or None. If None, axis limits are computed from the data.
-            feature_types: list of feature types (categorical or numerical)
-            cat_limit: the minimum number of unique values for a feature to be considered categorical
-            feature_names: list of feature names
-            target_name: the name of the target variable
+            data: the design matrix, `ndarray` of shape `(N,D)`
+            model: the black-box model, `Callable` with signature `x -> y` where:
+
+                - `x`: `ndarray` of shape `(N, D)`
+                - `y`: `ndarray` of shape `(N)`
+
+            axis_limits: Feature effect limits along each axis
+
+                - `None`, infers them from `data` (`min` and `max` of each feature)
+                - `array` of shape `(D, 2)`, manually specify the limits for each feature.
+
+                !!! tip "When possible, specify the axis limits manually"
+
+                    - they help to discard outliers and improve the quality of the fit
+                    - `axis_limits` define the `.plot` method's x-axis limits; manual specification leads to better visualizations
+
+                !!! tip "Their shape is `(2, D)`, not `(D, 2)`"
+
+                    ```python
+                    axis_limits = np.array([[0, 1, -1], [1, 2, 3]])
+                    ```
+
+            nof_instances: Max instances to use
+
+                - `"all"`, uses all `data`
+                - `int`, randomly selects `int` instances from `data`
+
+                !!! tip "`100_000` (default) is a good choice; RegionalALE can handle large datasets. :sunglasses:"
+
+            feature_types: The feature types.
+
+                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
+                - `['cat', 'cont', ...]`, manually specify the types of the features
+
+            cat_limit: The minimum number of unique values for a feature to be considered categorical
+
+                - if `feature_types` is manually specified, this parameter is ignored
+
+            feature_names: The names of the features
+
+                - `None`, defaults to: `["x_0", "x_1", ...]`
+                - `["age", "weight", ...]` to manually specify the names of the features
+
+            target_name: The name of the target variable
+
+                - `None`, to keep the default name: `"y"`
+                - `"price"`, to manually specify the name of the target variable
         """
+
         self.global_bin_limits = {}
         self.global_data_effect = {}
         super(RegionalALE, self).__init__(
