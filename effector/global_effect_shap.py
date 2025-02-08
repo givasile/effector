@@ -160,11 +160,11 @@ class ShapDP(GlobalEffectBase):
 
         # compute norm constant
         if centering == "zero_integral":
-            x_norm = np.linspace(xx[0], xx[-1], points_for_centering)
+            x_norm = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], points_for_centering)
             y_norm = mean_spline(x_norm)
-            norm_const = np.trapz(y_norm, x_norm) / (xx[-1] - xx[0])
+            norm_const = np.mean(y_norm)
         elif centering == "zero_start":
-            norm_const = mean_spline(xx[0])
+            norm_const = mean_spline(self.axis_limits[0, feature])
         else:
             norm_const = helpers.EMPTY_SYMBOL
 

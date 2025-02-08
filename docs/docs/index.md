@@ -293,50 +293,55 @@ To use `Effector`, you need:
 === "PDP"
 
      ```python
-     effector.RegionalPDP(data=X, model=predict).plot(0)
+     regional_effect = effector.RegionalPDP(data=X, model=predict)
+     [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
      ```
 
-     | $x_1$ when $x_2 \leq 0$ | $x_1$ when $x_2 > 0$ |
+     | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./static/homepage_example_20_3.png) | ![Alt text](./static/homepage_example_20_5.png) |
 
 === "RHALE"
 
      ```python
-     effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian).plot(0)
+     regional_effect = effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian)
+     [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
      ```
 
-     | $x_1$ when $x_2 \leq 0$ | $x_1$ when $x_2 > 0$ |
+     | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./static/homepage_example_26_3.png) | ![Alt text](./static/homepage_example_26_5.png) |
 
 === "ALE"
 
      ```python
-     effector.RegionalALE(data=X, model=predict).plot(0)
+     regional_effect = effector.RegionalALE(data=X, model=predict)
+     [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
      ```
 
-     | $x_1$ when $x_2 \leq 0$ | $x_1$ when $x_2 > 0$ |
+     | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./static/homepage_example_29_3.png) | ![Alt text](./static/homepage_example_29_5.png) |
 
 === "ShapDP"
 
      ```python
-     effector.RegionalShapDP(data=X, model=predict).plot(0)
+     regional_effect = effector.RegionalShapDP(data=X, model=predict)
+     [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
      ```
 
-     | $x_1$ when $x_2 \leq 0$ | $x_1$ when $x_2 > 0$ |
+     | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./static/homepage_example_33_1.png) | ![Alt text](./static/homepage_example_33_2.png) |
 
 === "derPDP"
 
      ```python
-     effector.RegionalDerPDP(data=X, model=predict, model_jac=jacobian).plot(0)
+     regional_effect = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
+     [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
      ```
 
-     | $x_1$ when $x_2 \leq 0$ | $x_1$ when $x_2 > 0$ |
+     | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./static/homepage_example_23_3.png) | ![Alt text](./static/homepage_example_23_5.png) |
 

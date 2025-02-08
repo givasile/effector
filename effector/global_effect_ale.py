@@ -78,7 +78,6 @@ class ALEBase(GlobalEffectBase):
             self.feature_effect["feature_" + str(s)] = self._fit_feature(
                 s, binning_method
             )
-
             # append the "norm_const" to the feature effect if centering is not False
             if centering is not False:
                 self.feature_effect["feature_" + str(s)]["norm_const"] = (
@@ -168,6 +167,7 @@ class ALEBase(GlobalEffectBase):
         show_avg_output: bool = False,
         y_limits: Optional[List] = None,
         dy_limits: Optional[List] = None,
+        show_only_aggregated: bool = False,
     ):
         """
         Plot the (RH)ALE feature effect of feature `feature`.
@@ -236,6 +236,7 @@ class ALEBase(GlobalEffectBase):
             target_name=self.target_name,
             y_limits=y_limits,
             dy_limits=dy_limits,
+            show_only_aggregated=show_only_aggregated,
         )
 
 
@@ -483,10 +484,8 @@ class RHALE(ALEBase):
         data = self.data
         data_effect = self.data_effect
 
-
         if isinstance(binning_method, str):
             binning_method = ap.return_default(binning_method)
-
         limits = binning_method.find_limits(data[:, feature], self.data_effect[:, feature], self.axis_limits[:, feature])
 
         # assert bins can be computed else raise error

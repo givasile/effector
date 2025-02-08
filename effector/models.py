@@ -58,10 +58,10 @@ class DoubleConditionalInteraction(Base):
     def __init__(self):
         """Define a simple model.
 
-        $f(x_1, x_2, x_3) = -x_1^2\mathbb{1}_{x_2 < 0}\mathbb{1}_{x_3 < 0} +
+        $f(x_1, x_2, x_3) = -3x_1^2\mathbb{1}_{x_2 < 0}\mathbb{1}_{x_3 < 0} +
                             +x_1^2\mathbb{1}_{x_2 < 0}\mathbb{1}_{x_3 \geq 0}
                             -e^{x_1}\mathbb{1}_{x_2 \geq 0}\mathbb{1}_{x_3 < 0}
-                            +e^{x_1}\mathbb{1}_{x_2 \geq 0}\mathbb{1}_{x_3 \geq 0}$
+                            +e^{3x_1}\mathbb{1}_{x_2 \geq 0}\mathbb{1}_{x_3 \geq 0}$
                             $
 
         """
@@ -79,10 +79,10 @@ class DoubleConditionalInteraction(Base):
         y = np.zeros(x.shape[0])
         ind1 = x[:, 1] < 0
         ind2 = x[:, 2] < 0
-        y[ind1 & ind2] = -x[ind1 & ind2, 0]**2
+        y[ind1 & ind2] = -3*x[ind1 & ind2, 0]**2
         y[ind1 & ~ind2] = x[ind1 & ~ind2, 0]**2
         y[~ind1 & ind2] = -np.exp(x[~ind1 & ind2, 0])
-        y[~ind1 & ~ind2] = np.exp(x[~ind1 & ~ind2, 0])
+        y[~ind1 & ~ind2] = np.exp(3*x[~ind1 & ~ind2, 0])
         return y
 
     def jacobian(self, x: np.ndarray) -> np.ndarray:
@@ -97,10 +97,10 @@ class DoubleConditionalInteraction(Base):
         y = np.zeros_like(x)
         ind1 = x[:, 1] < 0
         ind2 = x[:, 2] < 0
-        y[ind1 & ind2, 0] = -2*x[ind1 & ind2, 0]
+        y[ind1 & ind2, 0] = -2*3*x[ind1 & ind2, 0]
         y[ind1 & ~ind2, 0] = 2*x[ind1 & ~ind2, 0]
         y[~ind1 & ind2, 0] = -np.exp(x[~ind1 & ind2, 0])
-        y[~ind1 & ~ind2, 0] = np.exp(x[~ind1 & ~ind2, 0])
+        y[~ind1 & ~ind2, 0] = 3*np.exp(3*x[~ind1 & ~ind2, 0])
         return y
         
 

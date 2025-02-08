@@ -35,6 +35,7 @@ def ale_plot(
     target_name: typing.Union[None, str] = None,
     y_limits: typing.Union[None, tuple] = None,
     dy_limits: typing.Union[None, tuple] = None,
+    show_only_aggregated: bool = False,
 ):
     """
 
@@ -88,7 +89,11 @@ def ale_plot(
     )
 
     # PLOT
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+    if show_only_aggregated:
+        fig, ax1 = plt.subplots()
+    else:
+        fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+
     if title is None:
         ax1.set_title("ALE")
     else:
@@ -98,15 +103,17 @@ def ale_plot(
     ale_curve(ax1, x, y, avg_output=avg_output)
 
     # second subplot
-    ale_bins(ax2, bin_effect, bin_variance, limits, dx, error, dy_limits)
+    if not show_only_aggregated:
+        ale_bins(ax2, bin_effect, bin_variance, limits, dx, error, dy_limits)
 
     ax1.set_ylabel("y") if target_name is None else ax1.set_ylabel(target_name)
 
     ax1.set_ylim(y_limits[0], y_limits[1]) if y_limits is not None else None
 
     x_name = "x_%d" % (feature + 1) if feature_names is None else feature_names[feature]
-    ax2.set_xlabel(x_name)
-    ax2.set_ylabel("dy/dx")
+    if not show_only_aggregated:
+        ax2.set_xlabel(x_name)
+        ax2.set_ylabel("dy/dx")
 
     plt.show(block=False)
 

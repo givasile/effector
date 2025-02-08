@@ -311,7 +311,7 @@ class RegionalEffectBase:
     def summary(self, features: List[int], scale_x_list: Optional[List] = None):
         """Summarize the partition tree for the selected features.
 
-        ??? Example "Example usage"
+        ???+ Example "Example usage"
 
             === "PDP"
 

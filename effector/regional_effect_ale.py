@@ -141,6 +141,7 @@ class RegionalRHALE(RegionalEffectBase):
                 return BIG_M
             except Exception as e:
                 print(f"RegionalRHALE here: An unexpected error occurred. I reject this split. \n Error: {e}")
+                print(np.sum(active_indices))
                 return BIG_M
 
             # heterogeneity is the accumulated std at the end of the curve

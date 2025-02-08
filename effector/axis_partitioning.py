@@ -50,7 +50,8 @@ class Base:
         )
 
         # compute cost
-        if data_effect.size < min_points:
+        thres = max(min_points, 2)
+        if data_effect.size < thres:
             cost = self.big_M
         else:
             discount_for_more_points = 1 - discount * (data_effect.size / nof_points)
@@ -105,36 +106,36 @@ class Base:
         enough_for_one_bin = min_points <= dy_dxs.size < 2 * min_points
         return is_categorical or enough_for_one_bin
 
-    def _is_categorical(self, cat_limit):
-        """Check if the feature is categorical, i.e. has less than cat_limit unique values, and if so, set the limits
-
-        Returns:
-            Boolean, True if the feature is categorical, False otherwise
-        """
-        # if unique values are leq 10, then it is categorical
-        is_cat = len(np.unique(self.data)) <= cat_limit
-        # if only one unique value, then it is categorical and set the limits
-        if len(np.unique(self.data)) == 1:
-            self.limits = False
-
-        if is_cat:
-            # set unique values as the center of the bins
-            uniq = np.sort(np.unique(self.data))
-            dx = [uniq[i + 1] - uniq[i] for i in range(len(uniq) - 1)]
-            lims = np.array(
-                [uniq[0] - dx[0] / 2]
-                + [uniq[i] + dx[i] / 2 for i in range(len(uniq) - 1)]
-                + [uniq[-1] + dx[-1] / 2]
-            )
-
-            # if all limits are valid, then set them
-            if np.all(
-                [self._bin_valid(lims[i], lims[i + 1]) for i in range(len(lims) - 1)]
-            ):
-                self.limits = lims
-            else:
-                self.limits = False
-        return is_cat
+    # def _is_categorical(self, cat_limit):
+    #     """Check if the feature is categorical, i.e. has less than cat_limit unique values, and if so, set the limits
+    #
+    #     Returns:
+    #         Boolean, True if the feature is categorical, False otherwise
+    #     """
+    #     # if unique values are leq 10, then it is categorical
+    #     is_cat = len(np.unique(self.data)) <= cat_limit
+    #     # if only one unique value, then it is categorical and set the limits
+    #     if len(np.unique(self.data)) == 1:
+    #         self.limits = False
+    #
+    #     if is_cat:
+    #         # set unique values as the center of the bins
+    #         uniq = np.sort(np.unique(self.data))
+    #         dx = [uniq[i + 1] - uniq[i] for i in range(len(uniq) - 1)]
+    #         lims = np.array(
+    #             [uniq[0] - dx[0] / 2]
+    #             + [uniq[i] + dx[i] / 2 for i in range(len(uniq) - 1)]
+    #             + [uniq[-1] + dx[-1] / 2]
+    #         )
+    #
+    #         # if all limits are valid, then set them
+    #         if np.all(
+    #             [self._bin_valid(lims[i], lims[i + 1]) for i in range(len(lims) - 1)]
+    #         ):
+    #             self.limits = lims
+    #         else:
+    #             self.limits = False
+    #     return is_cat
 
     def _preprocess_find(self, data, data_effect, axis_limits):
         self.xs_min: float = axis_limits[0] if axis_limits is not None else data.min()
@@ -175,11 +176,11 @@ class Greedy(Base):
     def __init__(
         self,
         init_nof_bins: int = 20,
-        min_points_per_bin: int = 0.,
+        min_points_per_bin: int = 2,
         discount: float = 0.3,
         cat_limit: int = 10,
     ):
-
+        assert min_points_per_bin >= 2, "min_points_per_bin should be at least 2"
         method_args = {
             "init_nof_bins": init_nof_bins,
             "min_points": min_points_per_bin,
@@ -200,8 +201,8 @@ class Greedy(Base):
 
         if self._none_valid_binning():
             self.limits = False
-        elif self._is_categorical(cat_limit):
-            return self.limits
+        # elif self._is_categorical(cat_limit):
+        #     return self.limits
         elif self._only_one_bin_possible():
             self.limits = np.array([self.xs_min, self.xs_max])
         else:
@@ -263,7 +264,8 @@ class Greedy(Base):
 
 class DynamicProgramming(Base):
 
-    def __init__(self, max_nof_bins: int = 20, min_points_per_bin: int = 0., discount: float = 0.3, cat_limit: int = 10):
+    def __init__(self, max_nof_bins: int = 20, min_points_per_bin: int = 2., discount: float = 0.3, cat_limit: int = 10):
+        assert min_points_per_bin >= 2, "min_points_per_bin should be at least 2"
         method_args = {
             "max_nof_bins": max_nof_bins,
             "min_points": min_points_per_bin,
@@ -340,8 +342,8 @@ class DynamicProgramming(Base):
         # if is categorical, then only one bin is possible
         if self._none_valid_binning():
             self.limits = False
-        elif self._is_categorical(cat_limit):
-            return self.limits
+        # elif self._is_categorical(cat_limit):
+        #     return self.limits
         elif self._only_one_bin_possible():
             self.limits = np.array([self.xs_min, self.xs_max])
             self.dx_list = np.array([self.xs_max - self.xs_min])
@@ -401,8 +403,8 @@ class Fixed(Base):
         if self._none_valid_binning():
             self.limits = False
 
-        if self._is_categorical(cat_limit):
-            return self.limits
+        # if self._is_categorical(cat_limit):
+        #     return self.limits
 
         limits, dx = np.linspace(
             self.xs_min, self.xs_max, num=nof_bins + 1, endpoint=True, retstep=True

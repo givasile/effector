@@ -12,7 +12,7 @@ class Regions:
     def __init__(
             self,
             heter_pcg_drop_thres=0.1,
-            heter_small_enough=0.1,
+            heter_small_enough=0.,
             max_split_levels=2,
             min_points_per_subregion: int = 10,
             nof_candidate_splits_for_numerical=20,
@@ -182,7 +182,6 @@ class Regions:
                 # matrix_weighted_heter[i,j] is the weighted accumulated heterogeneity if I split ccf[i] at index j
                 matrix_weighted_heter[i, j] = after_split_weighted_heter
 
-
         # find the split with the largest weighted heterogeneity drop
         i, j = np.unravel_index(
             np.argmin(matrix_weighted_heter, axis=None), matrix_weighted_heter.shape
@@ -193,7 +192,7 @@ class Regions:
 
         after_split_active_indices_list = self.flatten_list([self.split_dataset(active_indices, ccf[i], position, foc_types[i]) for active_indices in before_split_active_indices_list])
 
-        nof_instances_l = [len(x) for x in after_split_active_indices_list]
+        nof_instances_l = [np.sum(x) for x in after_split_active_indices_list]
 
         # TODO change that
         after_split_heter_l = [heter_func(ai) for ai in after_split_active_indices_list]
