@@ -1,5 +1,5 @@
 Available guides:
 
-- [Efficiency of global methods](./notebooks/guides/efficiency_global.md): This section explains the efficiency of the global methods (PDP, ALE, RHALE) in terms of computational complexity and memory usage.
-- [Efficiency of regional methods](./notebooks/guides/efficiency_regional.md): This section explains the 
-- [Methods](./guides/methods.md): This section explains how each method (PDP, ALE, RHALE) defines and estimates the global effects and the heterogeneity.
+- [Efficiency of global methods](./notebooks/guides/efficiency_global.md): Compares the global methods in terms of runtime
+- [Efficiency of regional methods](./notebooks/guides/efficiency_regional.md): Compares the regional methods in terms of runtime
+- [Methods](./guides/methods.md): Defines the formulas for global and regional effect methods
