@@ -14,3 +14,4 @@ Real Examples:
 
 - [Example 1 - Bike Sharing Dataset](./notebooks/real-examples/01_bike_sharing_dataset.md)
 - [Example 2 - California Housing Dataset](./notebooks/real-examples/02_california_housing.md)
+- [Example 3 - California Housing Dataset with TabPFN](./notebooks/real-examples/03_california_housing_tabpfn.md)

@@ -1,4 +1,4 @@
-# Global Effect - Methods Comparison
+# Global Effect - An in-depth tutorial
 
 In this tutorial, we will compare all the global effect methods implemented in `Effector`, namely: ALE, RHALE, PDP-ICE, d-PDP-ICE and SHAP Dependence Plots. 
 The synthetic example that we will used, was introduced by [(Gkolemis et. al, 2023)](https://arxiv.org/abs/2309.11193).
@@ -562,16 +562,14 @@ plt.show()
 
 
 ```python
-effector.ShapDP(data=x, model=f, nof_instances="all").plot(feature=0, centering=True, heterogeneity="shap_values", y_limits=[-3, 3])
+shap_dp = effector.ShapDP(data=x, model=f, nof_instances="all")
+shap_dp.fit(features=0, binning_method=effector.axis_partitioning.Greedy(init_nof_bins=30, min_points_per_bin=10, discount=0.2))
+shap_dp.plot(feature=0, centering=True, heterogeneity="shap_values", y_limits=[-3, 3])
 ```
-
-    /home/givasile/github/packages/effector/effector/global_effect_shap.py:343: RuntimeWarning: invalid value encountered in sqrt
-      np.sqrt(self.feature_effect["feature_" + str(feature)]["spline_std"](x))
-
 
 
     
-![png](02_global_effect_methods_comparison_files/02_global_effect_methods_comparison_42_1.png)
+![png](02_global_effect_methods_comparison_files/02_global_effect_methods_comparison_42_0.png)
     
 
 
