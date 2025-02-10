@@ -15,13 +15,16 @@ tf.random.set_seed(42)
 random.seed(42)
 ```
 
-    2025-02-08 22:01:51.396288: I external/local_xla/xla/tsl/cuda/cudart_stub.cc:32] Could not find cuda drivers on your machine, GPU will not be used.
-    2025-02-08 22:01:51.398989: I external/local_xla/xla/tsl/cuda/cudart_stub.cc:32] Could not find cuda drivers on your machine, GPU will not be used.
-    2025-02-08 22:01:51.408029: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    The history saving thread hit an unexpected error (OperationalError('attempt to write a readonly database')).History will not be written to the database.
+
+
+    2025-02-10 14:25:29.177546: I external/local_xla/xla/tsl/cuda/cudart_stub.cc:32] Could not find cuda drivers on your machine, GPU will not be used.
+    2025-02-10 14:25:29.180211: I external/local_xla/xla/tsl/cuda/cudart_stub.cc:32] Could not find cuda drivers on your machine, GPU will not be used.
+    2025-02-10 14:25:29.189115: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
     WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-    E0000 00:00:1739048511.423263  229900 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    E0000 00:00:1739048511.427729  229900 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2025-02-08 22:01:51.443455: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    E0000 00:00:1739193929.204583  564943 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    E0000 00:00:1739193929.209098  564943 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2025-02-10 14:25:29.224189: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
@@ -254,55 +257,55 @@ model.evaluate(X_test, Y_test, verbose=1)
     Epoch 1/20
 
 
-    2025-02-08 22:01:59.879893: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:152] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2025-02-08 22:01:59.879916: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:137] retrieving CUDA diagnostic information for host: givasile-ubuntu-XPS-15-9500
-    2025-02-08 22:01:59.879922: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:144] hostname: givasile-ubuntu-XPS-15-9500
-    2025-02-08 22:01:59.880063: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:168] libcuda reported version is: 560.35.5
-    2025-02-08 22:01:59.880084: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:172] kernel reported version is: 550.120.0
-    2025-02-08 22:01:59.880089: E external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:262] kernel version 550.120.0 does not match DSO version 560.35.5 -- cannot find working devices in this configuration
+    2025-02-10 14:25:33.003605: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:152] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2025-02-10 14:25:33.003630: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:137] retrieving CUDA diagnostic information for host: givasile-ubuntu-XPS-15-9500
+    2025-02-10 14:25:33.003636: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:144] hostname: givasile-ubuntu-XPS-15-9500
+    2025-02-10 14:25:33.003773: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:168] libcuda reported version is: 560.35.5
+    2025-02-10 14:25:33.003793: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:172] kernel reported version is: 550.120.0
+    2025-02-10 14:25:33.003798: E external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:262] kernel version 550.120.0 does not match DSO version 560.35.5 -- cannot find working devices in this configuration
 
 
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m2s[0m 11ms/step - loss: 0.6231 - mae: 0.5745 - root_mean_squared_error: 0.7853
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 11ms/step - loss: 0.6231 - mae: 0.5745 - root_mean_squared_error: 0.7853
     Epoch 2/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 10ms/step - loss: 0.3870 - mae: 0.4506 - root_mean_squared_error: 0.6219
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 11ms/step - loss: 0.3870 - mae: 0.4506 - root_mean_squared_error: 0.6219
     Epoch 3/20
     [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 10ms/step - loss: 0.2976 - mae: 0.3851 - root_mean_squared_error: 0.5454
     Epoch 4/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 11ms/step - loss: 0.2237 - mae: 0.3326 - root_mean_squared_error: 0.4728
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 12ms/step - loss: 0.2237 - mae: 0.3326 - root_mean_squared_error: 0.4728
     Epoch 5/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 22ms/step - loss: 0.1619 - mae: 0.2836 - root_mean_squared_error: 0.4023
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 12ms/step - loss: 0.1619 - mae: 0.2836 - root_mean_squared_error: 0.4023
     Epoch 6/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 23ms/step - loss: 0.1193 - mae: 0.2386 - root_mean_squared_error: 0.3451
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 10ms/step - loss: 0.1193 - mae: 0.2386 - root_mean_squared_error: 0.3451
     Epoch 7/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 13ms/step - loss: 0.0906 - mae: 0.2075 - root_mean_squared_error: 0.3009
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 11ms/step - loss: 0.0906 - mae: 0.2075 - root_mean_squared_error: 0.3009
     Epoch 8/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 13ms/step - loss: 0.0753 - mae: 0.1895 - root_mean_squared_error: 0.2745
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 10ms/step - loss: 0.0753 - mae: 0.1895 - root_mean_squared_error: 0.2745
     Epoch 9/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 15ms/step - loss: 0.0669 - mae: 0.1784 - root_mean_squared_error: 0.2586
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 10ms/step - loss: 0.0669 - mae: 0.1784 - root_mean_squared_error: 0.2586
     Epoch 10/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 13ms/step - loss: 0.0610 - mae: 0.1703 - root_mean_squared_error: 0.2469
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 10ms/step - loss: 0.0610 - mae: 0.1703 - root_mean_squared_error: 0.2469
     Epoch 11/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 11ms/step - loss: 0.0554 - mae: 0.1614 - root_mean_squared_error: 0.2353
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 9ms/step - loss: 0.0554 - mae: 0.1614 - root_mean_squared_error: 0.2353 
     Epoch 12/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 11ms/step - loss: 0.0500 - mae: 0.1524 - root_mean_squared_error: 0.2235
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 10ms/step - loss: 0.0500 - mae: 0.1524 - root_mean_squared_error: 0.2235
     Epoch 13/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 12ms/step - loss: 0.0462 - mae: 0.1459 - root_mean_squared_error: 0.2149
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 9ms/step - loss: 0.0462 - mae: 0.1459 - root_mean_squared_error: 0.2149 
     Epoch 14/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 11ms/step - loss: 0.0431 - mae: 0.1407 - root_mean_squared_error: 0.2075
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 9ms/step - loss: 0.0431 - mae: 0.1407 - root_mean_squared_error: 0.2075 
     Epoch 15/20
     [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 10ms/step - loss: 0.0410 - mae: 0.1372 - root_mean_squared_error: 0.2026
     Epoch 16/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 10ms/step - loss: 0.0399 - mae: 0.1360 - root_mean_squared_error: 0.1996
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 9ms/step - loss: 0.0399 - mae: 0.1360 - root_mean_squared_error: 0.1996 
     Epoch 17/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 11ms/step - loss: 0.0381 - mae: 0.1325 - root_mean_squared_error: 0.1952
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 9ms/step - loss: 0.0381 - mae: 0.1325 - root_mean_squared_error: 0.1952 
     Epoch 18/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 11ms/step - loss: 0.0378 - mae: 0.1323 - root_mean_squared_error: 0.1945
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 9ms/step - loss: 0.0378 - mae: 0.1323 - root_mean_squared_error: 0.1945 
     Epoch 19/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 15ms/step - loss: 0.0376 - mae: 0.1325 - root_mean_squared_error: 0.1940
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 10ms/step - loss: 0.0376 - mae: 0.1325 - root_mean_squared_error: 0.1940
     Epoch 20/20
-    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 15ms/step - loss: 0.0378 - mae: 0.1331 - root_mean_squared_error: 0.1944
-    [1m435/435[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 2ms/step - loss: 0.0420 - mae: 0.1422 - root_mean_squared_error: 0.2048
-    [1m109/109[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 1ms/step - loss: 0.0701 - mae: 0.1725 - root_mean_squared_error: 0.2633
+    [1m28/28[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 10ms/step - loss: 0.0378 - mae: 0.1331 - root_mean_squared_error: 0.1944
+    [1m435/435[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 848us/step - loss: 0.0420 - mae: 0.1422 - root_mean_squared_error: 0.2048
+    [1m109/109[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 856us/step - loss: 0.0701 - mae: 0.1725 - root_mean_squared_error: 0.2633
 
 
 
@@ -371,7 +374,42 @@ Relevant features:
 
 We observe that features: `hour`, `temperature` and `humidity` have an intersting structure. Out of them `hour` has by far the most influence on the output, so it makes sensce to fucse on it further.
 
-**Feature `hour`**
+
+```python
+pdp = effector.PDP(data=X_train.to_numpy(), model=model_forward, feature_names=feature_names, target_name=target_name, nof_instances=2000)
+for i in [2, 3, 8, 9, 10]:
+    pdp.plot(feature=i, centering=True, scale_x=scale_x, scale_y=scale_y, show_avg_output=True, nof_ice=200, y_limits=y_limits)
+```
+
+
+    
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_0.png)
+    
+
+
+
+    
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_1.png)
+    
+
+
+
+    
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_2.png)
+    
+
+
+
+    
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_3.png)
+    
+
+
+
+    
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_4.png)
+    
+
 
 ### PDP 
 

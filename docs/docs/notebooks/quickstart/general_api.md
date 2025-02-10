@@ -32,13 +32,13 @@ effector.ALE(X, f, axis_limits=axis_limits).plot(feature=0)
 
 
     
-![png](tutorial_effector_files/tutorial_effector_3_0.png)
+![png](general_api_files/general_api_3_0.png)
     
 
 
 
     
-![png](tutorial_effector_files/tutorial_effector_3_1.png)
+![png](general_api_files/general_api_3_1.png)
     
 
 
@@ -63,13 +63,13 @@ effector.ALE(X, f, axis_limits=axis_limits).plot(feature=0, centering=True)
 
 
     
-![png](tutorial_effector_files/tutorial_effector_6_0.png)
+![png](general_api_files/general_api_6_0.png)
     
 
 
 
     
-![png](tutorial_effector_files/tutorial_effector_6_1.png)
+![png](general_api_files/general_api_6_1.png)
     
 
 
@@ -81,13 +81,13 @@ effector.ALE(X, f, axis_limits=axis_limits).plot(feature=0, centering="zero_star
 
 
     
-![png](tutorial_effector_files/tutorial_effector_7_0.png)
+![png](general_api_files/general_api_7_0.png)
     
 
 
 
     
-![png](tutorial_effector_files/tutorial_effector_7_1.png)
+![png](general_api_files/general_api_7_1.png)
     
 
 
@@ -110,13 +110,13 @@ effector.ALE(X, f, axis_limits=axis_limits).plot(feature=0, heterogeneity=True)
 
 
     
-![png](tutorial_effector_files/tutorial_effector_9_0.png)
+![png](general_api_files/general_api_9_0.png)
     
 
 
 
     
-![png](tutorial_effector_files/tutorial_effector_9_1.png)
+![png](general_api_files/general_api_9_1.png)
     
 
 
@@ -127,7 +127,7 @@ effector.PDP(X, f, axis_limits=axis_limits).plot(feature=0, heterogeneity="ice")
 
 
     
-![png](tutorial_effector_files/tutorial_effector_10_0.png)
+![png](general_api_files/general_api_10_0.png)
     
 
 
@@ -182,7 +182,7 @@ effector.RegionalPDP(X, f, axis_limits=axis_limits).plot(feature=0, node_idx=1, 
 
 
     
-![png](tutorial_effector_files/tutorial_effector_14_1.png)
+![png](general_api_files/general_api_14_1.png)
     
 
 
@@ -196,7 +196,7 @@ effector.RegionalPDP(X, f, axis_limits=axis_limits).plot(feature=0, node_idx=2, 
 
 
     
-![png](tutorial_effector_files/tutorial_effector_15_1.png)
+![png](general_api_files/general_api_15_1.png)
     
 
 
@@ -214,7 +214,7 @@ effector.RegionalPDP(X, f, axis_limits=axis_limits).plot(feature=0, node_idx=0, 
 
 
     
-![png](tutorial_effector_files/tutorial_effector_17_1.png)
+![png](general_api_files/general_api_17_1.png)
     
 
 
