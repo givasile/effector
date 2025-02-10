@@ -1,37 +1,58 @@
-# `Effector`s API
+**Available quickstart tutorials:**
 
-Effector is based on the idea of progressive disclosure of complexity; it starts simple but if you need more flexibility you can ask it.
+- [Simple API](./simple_api/): use `effector` with the default fitting arguments.
+- [Fleible API](./flexible_api/): use `effector` with customized fitting arguments.
+- [Global Effects](./global_effect_intro/): `effector` global effect usage on a real example
+- [Regional Effects](./regional_effect_intro/): `effector` regional effect usage on a real example
 
+---
 
-
-
-## Global Effect
-
-### Simple API
-
-Global (1) plots can be made in a single line of code. The structure is:
-{ .annotate }
-
-1. global_methods are `PDP`, `RHALE`, `ShapDP`, `ALE`, `DerPDP`
+ [Simple API](./simple_api/) means omit the `.fit()` step, which means **use the default fitting arguments**.
 
 ```python
-effector.<global_method>(data, predict, axis_limits).plot(feature=i)
+# define the global effect method
+global_method = effector.<global_method>(X, model, ...)
+
+# use its functionalities
+global_method.plot(feature=i, ...)
+global_method.eval(feature=i, xs=xs, ...)
 ```
-
-### Regional Effect
-
-Regional (2) plots can be made in a single line of code.
-{ .annotate }
-
-2. regional_methods are `RegionalPDP`, `RegionalRHALE`, `RegionalShapDP`, `RegionalALE`, `RegionalDerPDP`
 
 ```python
-effector.<regional_method>(data, predict, axis_limits).plot(feature=i, node_id=j)
+# define the regional effect method
+regional_method = effector.<regional_method>(X, model, ...)
+
+# use its functionalities
+regional_method.summary(features=..., ...)
+regional_method.plot(feature=i, node_idx=j, ...)
+regional_method.eval(feature=i, node_idx=j, xs=xs, ...)
 ```
 
+--- 
 
+[Flexible API](./flexible_api/) means use the `.fit()` step, which means **customize the fitting arguments**.
 
-## Advanced API
+```python
+# define the global effect method
+global_method = effector.<global_method>(X, model, ...)
 
-### Global Effect
-### Regional Effect
+# fit the method
+global_method.fit(features=[...], ...)
+
+# use its functionalities
+global_method.plot(feature=i, ...)
+global_method.eval(feature=i, xs=xs, ...)
+```
+
+```python
+# define the regional effect method
+regional_method = effector.<regional_method>(X, model, ...)
+
+# fit the method
+regional_method.fit([features=...], ...)
+
+# use its functionalities
+regional_method.summary(features=..., ...)
+regional_method.plot(feature=i, node_idx=j, ...)
+regional_method.eval(feature=i, node_idx=j, xs=xs, ...)
+```
