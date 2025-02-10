@@ -1,14 +1,28 @@
-Simple API means
-
-
-To use `Effector`, you need:
+`effector` requires:
 
 - a dataset, normally the test set
-- a black-box model 
+- a Machine Learning model
 - (optionally) the jacobian of the black-box model
 
+Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
+{ .annotate }
+
+1.  :man_raising_hand: `effector` provides five global effect methods:
+     - [`PDP`](./../../api_docs/api_global/#effector.global_effect_pdp.PDP)
+     - [`RHALE`](./../../api_docs/api_global/#effector.global_effect_rhale.RHALE) 
+     - [`ShapDP`](./../../api_docs/api_global/#effector.global_effect_shapdp.ShapDP)
+     - [`ALE`](./../../api_docs/api_global/#effector.global_effect_ale.ALE)
+     - [`DerPDP`](./../../api_docs/api_global/#effector.global_effect_derpdp.DerPDP)
+
+2. :man_raising_hand: `effector` provides five regional effect methods:
+     - [`RegionalPDP`](./../../api_docs/api_regional/#effector.regional_effect_pdp.RegionalPDP)
+     - [`RegionalRHALE`](./../../api_docs/api_regional/#effector.regional_effect_rhale.RegionalRHALE)
+     - [`RegionalShapDP`](./../../api_docs/api_regional/#effector.regional_effect_shapdp.RegionalShapDP)
+     - [`RegionalALE`](./../../api_docs/api_regional/#effector.regional_effect_ale.RegionalALE)
+     - [`DerPDP`](./../../api_docs/api_regional/#effector.regional_effect_derpdp.DerPDP)
+
 ---
-## Dataset
+### Dataset
 
 ???+ note "A dataset, typically the test set"
      Must be a `np.ndarray` with shape `(N, D)`. 
@@ -22,8 +36,6 @@ To use `Effector`, you need:
      ```
 
 === "a real case"
-
-    Example with bike-sharing dataset:
 
     ```python
     from ucimlrepo import fetch_ucirepo 
@@ -39,7 +51,7 @@ To use `Effector`, you need:
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
     ```
 ---
-## Black-box model
+### ML model
 
 ???+ note "A trained black-box model"
 
@@ -99,7 +111,7 @@ To use `Effector`, you need:
         return model.forward(x).detach().numpy()
      ```
 ---
-## Jacobian (optional)
+### Jacobian (optional)
 
 ???+ note "Optional: The jacobian of the model's output w.r.t. the input"
     
@@ -154,60 +166,163 @@ To use `Effector`, you need:
 
 ???+ success "Global effect: how each feature affects the model's output **globally**, averaged over all instances."
 
-    `Effector` offers many methods to visualize the global effect, all under a similar API.
+    All `effector` global effect methods have the same API.
+    They all share three main functions:
+
+        - `.plot()`: visualizes the global effect
+        - `.eval()`: evaluates the global effect at a grid of points
+        - `.fit()`: allows for customizing the global method
+
+
+### `.plot()`
+
+`.plot()` is the most common method, as it visualizes the global effect.
+For example, to plot the effect of the first feature of the synthetic dataset, use:
 
 === "PDP"
-
+    
     ```python
-    effector.PDP(data=X, model=predict).plot(feature=0, heterogeneity="ice")
+    pdp = effector.PDP(data=X, model=predict)
+    pdp.plot(0)
     ```
     ![Global-PDP](./../static/quickstart/simple_api_files/simple_api_8_0.png){ align=center }
 
 === "RHALE"
 
     ```python
-    effector.RHALE(data=X, model=predict, model_jac=jacobian).plot(feature=0, heterogeneity=True)
+    rhale = effector.RHALE(data=X, model=predict, model_jac=jacobian)
+    rhale.plot(0)
     ```
+
     ![Global-RHALE](./../static/quickstart/simple_api_files/simple_api_10_0.png){ align=center }
 
 === "ShapDP"
 
     ```python
-    effector.PDP(data=X, model=predict).plot(feature=0, heterogeneity="shap_values")
+    shap_dp = effector.ShapDP(data=X, model=predict)
+    shap_dp.plot(0)
     ```
-    ![Global-RHALE](./../static/quickstart/simple_api_files/simple_api_12_0.png){ align=center }
+    ![Global-ShapDP](./../static/quickstart/simple_api_files/simple_api_12_0.png){ align=center }
 
 === "ALE"
 
     ```python
-    effector.ALE(data=X, model=predict).plot(feature=0, heterogeneity=True)
+    ale = effector.ALE(data=X, model=predict)
+    ale.plot(0)
     ```
-    ![Global-RHALE](./../static/quickstart/simple_api_files/simple_api_14_0.png){ align=center }
+    ![Global-ALE](./../static/quickstart/simple_api_files/simple_api_14_0.png){ align=center }
 
 === "derPDP"
 
     ```python
-    effector.DerPDP(data=X, model=predict, model_jac=jacobian).plot(feature=0, heterogeneity="d-ice")
+    d_pdp = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
+    d_pdp.plot(0)
     ```
-    ![Global-DPDP](./../static/quickstart/simple_api_files/simple_api_16_0.png){ align=center }
 
+    ![Global-DerPDP](./../static/quickstart/simple_api_files/simple_api_16_0.png){ align=center }
 
+???+ "Some important arguments of `.plot()`"
+    
+     - `heterogeneity`: whether to plot the heterogeneity of the global effect. The following options are available:
+         - If `heterogeneity` is `True`, the heterogeneity is plot as a standard deviation around the global effect.
+         - If `heterogeneity` is `False`, the global effect is plotted.
+         - If `heterogeneity` is a string:
+             - `"ice"` for `pdp` plots
+             - `"shap_values"` for `shap_dp` plots
+
+     - `centering`: whether to center the regional effect. The following options are available:
+         - If `centering` is `False`, the regional effect is not centered
+         - If `centering` is `True` or `zero_integral`, the regional effect is centered around the y axis.
+         - If `centering` is `zero_start`, the regional effect starts from `y=0`
+
+### `.eval()` 
+
+`.eval()` evaluates the global effect at a grid of points.
+
+=== "PDP"
+
+    ```python
+    pdp = effector.PDP(data=X, model=predict)
+    y = pdp.eval(0, xs=np.linspace(-1, 1, 100))
+    y_mu, y_sigma = pdp.eval(0, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    ```
+
+=== "RHALE"
+
+    ```python
+    rhale = effector.RHALE(data=X, model=predict, model_jac=jacobian)
+    y = rhale.eval(0, xs=np.linspace(-1, 1, 100))
+    y_mu, y_sigma = rhale.eval(0, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    ```
+
+=== "ShapDP"
+
+    ```python
+    shap_dp = effector.ShapDP(data=X, model=predict)
+    y = shap_dp.eval(0, xs=np.linspace(-1, 1, 100))
+    y_mu, y_sigma = shap_dp.eval(0, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    ```
+
+=== "ALE"
+
+    ```python
+    ale = effector.ALE(data=X, model=predict)
+    y = ale.eval(0, xs=np.linspace(-1, 1, 100))
+    y_mu, y_sigma = ale.eval(0, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    ```
+
+=== "derPDP"
+
+    ```python
+    d_pdp = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
+    y = d_pdp.eval(0, xs=np.linspace(-1, 1, 100))
+    y_mu, y_sigma = d_pdp.eval(0, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    ```
+
+### `.fit()`
+
+If you want to customize the global effect, use `.fit()` before `.plot()` or `.eval()`.
+Check this [tutorial](./../flexible_api) for more details.
+
+```python
+global_effect = effector.<method_name>(data=X, model=predict)
+
+# customize the global effect
+global_effect.fit(features=[...], **kwargs)
+
+global_effect.plot(0)
+global_effect.eval(0, xs=np.linspace(-1, 1, 100))
+```
 
 ## Regional Effect
 
-???+ success "Regional Effect: How each feature affects the model's output **regionally**, averaged over all instances **in a subregion.**"
+???+ success "Regional Effect: How each feature affects the model's output **regionally**, averaged over instances **inside a subregion.**"
      
     Sometimes, global effects are very heterogeneous (local effects deviate from the global effect).
-    In these cases, there maybe subregions with less variance.
-    `Effector` searches for such regions.
+    They all share three main functions:
+
+        - `.summary()`: provides a summary of the regional effect
+        - `.plot()`: visualizes the global effect
+        - `.eval()`: evaluates the global effect at a grid of points
+        - `.fit()`: allows for customizing the global method
 
 
 ### `.summary()`
 
+`summary()` is the first step in understanding the regional effect.  
+Behind the scenes, it searches for a partitioning of the feature space into meaningful subregions (1)
+and outputs what if any has been found.
+Users should check the summary before plotting or evaluating the regional effect.
+To plot or evaluate a specific regional effect, they can use the node index `node_idx` from the partition tree.
+{ .annotate }
+
+1. meaningful in this context means that the regional effects in the respective subregions have lower heterogeneity than the global effect.
+
 === "PDP"
     
     ```python
-    effector.RegionalPDP(data=X, model=predict).summary(0)
+    r_pdp = effector.RegionalPDP(data=X, model=predict)
+    r_pdp.summary(0)
     ```
 
     ```python
@@ -224,7 +339,8 @@ To use `Effector`, you need:
 === "RHALE"
 
     ```python
-    effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian).summary(0)
+    r_rhale = effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian)
+    r_rhale.summary(0)
     ```
 
     ```python
@@ -241,7 +357,8 @@ To use `Effector`, you need:
 === "ShapDP"
 
      ```python
-        effector.RegionalShapDP(data=X, model=predict).summary(0)
+     r_shap_dp = effector.RegionalShapDP(data=X, model=predict)
+     r_shap_dp.summary(0)
      ```
 
      ```python
@@ -258,7 +375,8 @@ To use `Effector`, you need:
 === "ALE"
 
     ```python
-    effector.RegionalALE(data=X, model=predict).summary(0)
+    r_ale = effector.RegionalALE(data=X, model=predict)
+    r_ale.summary(0)
     ```
 
     ```python
@@ -275,7 +393,8 @@ To use `Effector`, you need:
 === "DerPDP"
 
      ```python
-        effector.DerPDP(data=X, model=predict, model_jac=jacobian).summary(0)
+     r_der_pdp = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
+     r_der_pdp.summary(0)
      ```
 
     ```python
@@ -290,6 +409,9 @@ To use `Effector`, you need:
     ```
 
 ### `.plot()`
+
+`.plot()` visualizes the regional effect. Apart from the feature index, it requires the `node_idx` from the partition tree.
+Apart from the added `node_idx` argument, the API is the same as the global effect.
 
 === "PDP"
 
@@ -348,3 +470,66 @@ To use `Effector`, you need:
      | ![Alt text](./../static/quickstart/simple_api_files/simple_api_32_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_32_1.png) |
 
 ---
+
+### `.eval()`
+
+`.eval()` evaluates the regional effect at a grid of points.
+
+=== "PDP"
+
+    ```python
+    regional_effect = effector.RegionalPDP(data=X, model=predict)
+    y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
+    y_mu, y_sigma = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    ```
+
+=== "RHALE"
+
+    ```python
+    regional_effect = effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian)
+    y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
+    y_mu, y_sigma = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    ```
+
+=== "ShapDP"
+
+    ```python
+    regional_effect = effector.RegionalShapDP(data=X, model=predict)
+    y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
+    y_mu, y_sigma = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    ```
+
+=== "ALE"
+
+    ```python
+    regional_effect = effector.RegionalALE(data=X, model=predict)
+    y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
+    y_mu, y_sigma = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    ```
+
+=== "derPDP"
+
+    ```python
+    regional_effect = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
+    y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
+    y_mu, y_sigma = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    ```
+
+### `.fit()`
+
+If you want to customize the regional effect, use `.fit()` before `.summary()`, `.plot()` or `.eval()`.
+Check this [tutorial](./../flexible_api) for more details. 
+In general, the most important argument is `space_partitioning`, which controls the method that partitions the feature space. 
+
+```python
+regional_effect = effector.<method_name>(data=X, model=predict)
+
+# customize the regional effect
+space_partitioning = effector.partitioning.Greedy(max_depth=2)
+regional_effect.fit(features=[...], space_partitioning=space_partitioning, **kwargs)
+
+regional_effect.summary(0)
+regional_effect.plot(0, node_idx=1)
+regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
+```
+
