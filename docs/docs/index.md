@@ -1,4 +1,9 @@
-# Home
+# 
+
+<p align="center">
+  <img src="./static/effector_logo.png" />
+</p>
+
 
 `effector` is an explainability package for tabular data.
 It offers a variety of [global](./global_effect_intro/) and [regional](./regional_effect_intro/) effect methods, 
