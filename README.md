@@ -1,4 +1,6 @@
-# Effector
+<p align="center">
+  <img src="./docs/docs/static/effector_logo.png" />
+</p>
 
 [![PyPI Downloads](https://static.pepy.tech/badge/effector)](https://pepy.tech/projects/effector)
 
