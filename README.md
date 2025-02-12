@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/effector_logo.png" width="400"/>
+  <img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/effector_logo.png" width="500"/>
 </p>
 
 [![PyPI Downloads](https://static.pepy.tech/badge/effector)](https://pepy.tech/projects/effector)
