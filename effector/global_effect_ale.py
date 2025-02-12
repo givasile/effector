@@ -239,6 +239,15 @@ class ALEBase(GlobalEffectBase):
             show_only_aggregated=show_only_aggregated,
         )
 
+    def importance(self, feature, nof_points="all"):
+        # xs = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points)
+        xs = self.data[:, feature]
+        nof_instances, indices = helpers.prep_nof_instances(nof_points, self.data.shape[0])
+        xs = xs[indices]
+        ys = self.eval(feature, xs, centering=False, heterogeneity=False)
+        return np.std(ys)
+
+
 
 class ALE(ALEBase):
     def __init__(

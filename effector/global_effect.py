@@ -2,6 +2,7 @@ import numpy as np
 from typing import Callable, List, Optional, Union, Tuple
 from effector import helpers
 from abc import ABC, abstractmethod
+import matplotlib.pyplot as plt
 
 
 class GlobalEffectBase(ABC):
@@ -157,40 +158,40 @@ class GlobalEffectBase(ABC):
         centering: Union[bool, str] = False,
         **kwargs,
     ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
-        """Evaluate the effect of the s-th feature at positions `xs`.
-
-        Notes:
-            This is a common method among all the FE classes.
-
-        Args:
-            feature: index of feature of interest
-            xs: the points along the s-th axis to evaluate the FE plot
-
-              - `np.ndarray` of shape `(T, )`
-
-            heterogeneity: whether to return the heterogeneity measures.
-
-                  - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
-                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
-
-            centering: whether to center the PDP
-
-                - If `centering` is `False`, the PDP not centered
-                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the PDP starts from `y=0`.
-
-        Returns:
-            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, heterogeneity)` otherwise
-
-        Notes:
-            * If `centering` is `False`, the plot is not centered
-            * If `centering` is `True` or `"zero_integral"`, the plot is centered by subtracting its mean.
-            * If `centering` is `"zero_start"`, the plot starts from zero.
-
-        Notes:
-            * If `heterogeneity` is `False`, the plot returns only the mean effect `y` at the given `xs`.
-            * If `heterogeneity` is `True`, the plot returns `(y, std)` where:
-                * `y` is the mean effect
-                * `std` is the standard deviation of the mean effect
-        """
         raise NotImplementedError
+
+    @abstractmethod
+    def importance(self, feature):
+        raise NotImplementedError
+
+    def plot_importances(self, features="all"):
+        features = helpers.prep_features(features, self.dim)
+        absolute_importances = np.array([self.importance(feature) for feature in features])
+        total_importance = sum(absolute_importances)
+        normalized_importances = absolute_importances / total_importance
+        feature_names = [self.feature_names[feature] for feature in features]
+
+        # Sort features by importance
+        sorted_indices = np.argsort(normalized_importances)[::-1]
+        sorted_importances = normalized_importances[sorted_indices]
+        sorted_feature_names = np.array(feature_names)[sorted_indices]
+
+        # Plot
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.barh(sorted_feature_names, sorted_importances, color="royalblue")
+
+        # Labels & Title
+        ax.set_xlabel("Relative Importance")
+        ax.set_ylabel("Feature")
+        ax.set_title("Feature Effect-based Importance")
+
+        # Display values on bars
+        for index, value in enumerate(sorted_importances):
+            ax.text(value + 0.01, index, f"{value:.2f}", va='center')
+
+        # Invert y-axis to have the highest importance at the top
+        ax.invert_yaxis()
+
+        plt.show()
+        # plot the importance
+

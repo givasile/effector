@@ -370,3 +370,16 @@ class ShapDP(GlobalEffectBase):
             y_limits=y_limits,
             only_shap_values=only_shap_values,
         )
+
+    def importance(self, feature: int, nof_points="all") -> float:
+        """Return the importance of the s-th feature.
+
+        Args:
+            feature: index of the feature of interest
+
+        Returns:
+            the importance of the s-th feature
+        """
+        nof_instances, indices = helpers.prep_nof_instances(nof_points, self.data.shape[0])
+        shap_values = self.shap_values[indices, feature]
+        return np.mean(np.abs(shap_values))

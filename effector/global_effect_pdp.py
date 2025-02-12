@@ -229,6 +229,7 @@ class PDPBase(GlobalEffectBase):
             y_limits=y_limits,
         )
 
+
 class PDP(PDPBase):
     def __init__(
         self,
@@ -383,6 +384,11 @@ class PDP(PDPBase):
             use_vectorized,
         )
 
+    def importance(self, feature, nof_points=200):
+        xs = self.data[:, feature]
+        nof_instances, indices = helpers.prep_nof_instances(nof_points, self.data.shape[0])
+        y = self.eval(feature, xs[indices], centering=False, heterogeneity=False)
+        return np.std(y)
 
 class DerPDP(PDPBase):
     def __init__(
@@ -544,6 +550,12 @@ class DerPDP(PDPBase):
             dy_limits,
             use_vectorized,
         )
+
+    def importance(self, feature, nof_points=200):
+        xs = self.data[:, feature]
+        nof_instances, indices = helpers.prep_nof_instances(nof_points, self.data.shape[0])
+        y = self.eval(feature, xs[indices], centering=False, heterogeneity=False)
+        return np.std(y)
 
 
 def ice_non_vectorized(
