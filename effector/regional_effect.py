@@ -109,6 +109,8 @@ class RegionalEffectBase:
         # init Region Extractor
         if space_partitioner == "greedy":
             space_partitioner = effector.partitioning.Regions()
+        else:
+            space_partitioner = copy.deepcopy(space_partitioner)
 
         # apply partitioning
         space_partitioner.find_subregions(
