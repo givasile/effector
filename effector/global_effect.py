@@ -74,38 +74,6 @@ class GlobalEffectBase(ABC):
         # dict, like {"feature_i": {"quantity_1": value_1, "quantity_2": value_2, ...}} for the i-th
         self.feature_effect: dict = {}
 
-    #     # .eval() method cache, each element is a dict like {"feature_i": {"xs": xs, "data": {"y": y, "std": std}}}
-    #     self.cache: dict[str, list[dict]] = {}
-
-    # def update_cache(self, feature, xs, data, parameters):
-    #     """Cache stores up to 3 items per feature"""
-    #     if "feature_" + str(feature) not in self.cache.keys():
-    #         self.cache["feature_" + str(feature)] = []
-
-    #     # choose the feature-specific cache
-    #     cache = self.cache["feature_" + str(feature)]
-    #     if len(cache) < 3:
-    #         cache.append({"xs": xs, "data": data, "parameters": parameters})
-    #     else:
-    #         # drop the first element
-    #         cache = cache[1:]
-    #         cache.append({"feature_" + str(feature): {"xs": xs, "data": data, "parameters": parameters}})
-
-    # def retrieve_from_cache(self, feature, xs, parameters):
-    #     """Retrieve data from the cache"""
-    #     if "feature_" + str(feature) not in self.cache.keys():
-    #         return None
-    #     else:
-    #         cache = self.cache["feature_" + str(feature)]
-    #         for i in range(len(cache)):
-    #             if cache[i]["xs"].shape == xs.shape:
-    #                 if np.allclose(cache[i]["xs"], xs) and self._parameters_equal(parameters, cache[i]["parameters"]):
-    #                     return cache[i]["data"]
-    #     return None
-
-    # def _parameters_equal(self, param_1, param_2):
-    #     return True
-
     @abstractmethod
     def fit(
             self,
