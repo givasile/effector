@@ -57,7 +57,7 @@ They all have the four methods:
         features = [0, 1]
         
         # customize the space partitioning process
-        space_partitioner = effector.partitioning.Regions(
+        space_partitioner = effector.space_partitioning.Regions(
             heter_pcg_drop_thres=0.3 # percentage drop threshold (default: 0.1),
             max_split_levels=1 # maximum number of split levels (default: 2)
         )

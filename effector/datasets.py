@@ -1,7 +1,4 @@
-import typing
-
 import numpy as np
-import scipy as sp
 from effector import helpers
 
 class Base:

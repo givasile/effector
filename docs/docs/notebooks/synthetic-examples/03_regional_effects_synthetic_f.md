@@ -117,10 +117,10 @@ The PDP is simply the average over the underlying ICE curves (local effects). Th
 
 #### Global PDP
 
-
 ```python
-regional_rhale = effector.RegionalPDP(data=X_uncor_train, model=model, feature_names=['x1','x2','x3'], axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
-space_partitioner = effector.partitioning.Regions(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+regional_rhale = effector.RegionalPDP(data=X_uncor_train, model=model, feature_names=['x1', 'x2', 'x3'],
+                                      axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
+space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
 regional_rhale.fit("all", space_partitioner=space_partitioner, centering=True)
 effector.axis_partitioning.DynamicProgramming()
 ```
@@ -165,10 +165,10 @@ pdp.plot(feature=2, centering=True, show_avg_output=False, heterogeneity="ice", 
 
 Regional PDP will search for explanations that minimize the interaction-related heterogeneity.
 
-
 ```python
-regional_pdp = effector.RegionalPDP(data=X_uncor_train, model=model, feature_names=['x1','x2','x3'], axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
-space_partitioner = effector.partitioning.Regions(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+regional_pdp = effector.RegionalPDP(data=X_uncor_train, model=model, feature_names=['x1', 'x2', 'x3'],
+                                    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
+space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
 regional_pdp.fit(features="all", space_partitioner=space_partitioner, centering=True)
 ```
 
@@ -320,10 +320,10 @@ pdp.plot(feature=2, centering=True, show_avg_output=False, heterogeneity="ice", 
 
 #### Regional-PDP
 
-
 ```python
-regional_pdp = effector.RegionalPDP(data=X_cor_train, model=model, feature_names=['x1','x2','x3'], axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
-space_partitioner = effector.partitioning.Regions(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+regional_pdp = effector.RegionalPDP(data=X_cor_train, model=model, feature_names=['x1', 'x2', 'x3'],
+                                    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
+space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
 regional_pdp.fit(features="all", space_partitioner=space_partitioner, centering=True)
 ```
 
@@ -483,20 +483,19 @@ rhale.plot(feature=2, centering=True, heterogeneity="std", show_avg_output=False
 
 The disadvantage of RHALE plot is that it does not reveal the type of heterogeneity. Therefore, Regional (RH)ALE plots are very helpful to identify the type of heterogeneity. Let's see that in practice:
 
-
 ```python
 regional_rhale = effector.RegionalRHALE(
-    data=X_uncor_train, 
-    model=model, 
-    model_jac= model_jac, 
+    data=X_uncor_train,
+    model=model,
+    model_jac=model_jac,
     feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
 binning_method = effector.axis_partitioning.Fixed(11, min_points_per_bin=0)
-space_partitioner = effector.partitioning.Regions(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
 regional_rhale.fit(
     features="all",
-    space_partitioner = effector.partitioning.Regions(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10),
+    space_partitioner=effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10),
     binning_method=binning_method
 )
 
@@ -504,7 +503,7 @@ regional_rhale.fit(
 
 
       Cell In[21], line 12
-        space_partitioner = effector.partitioning.Regions(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+        space_partitioner = effector.space_partitioning.Regions(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
                             ^
     SyntaxError: invalid syntax. Perhaps you forgot a comma?
 
@@ -630,20 +629,19 @@ rhale.plot(feature=2, centering=True, heterogeneity="std", show_avg_output=False
 
 #### Regional RHALE
 
-
 ```python
 regional_rhale = effector.RegionalRHALE(
-    data=X_cor_train, 
-    model=model, 
-    model_jac= model_jac, 
+    data=X_cor_train,
+    model=model,
+    model_jac=model_jac,
     feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
 binning_method = effector.axis_partitioning.Fixed(10, min_points_per_bin=0)
-space_partitioner = effector.partitioning.Regions(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
 regional_rhale.fit(
     features="all",
-    space_partitioner = space_partitioner,
+    space_partitioner=space_partitioner,
     binning_method=binning_method,
 )
 
@@ -740,19 +738,17 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
 
 #### Regional SHAP-DP
 
-
 ```python
 regional_shap = effector.RegionalShapDP(
-    data=X_uncor_train, 
-    model=model, 
+    data=X_uncor_train,
+    model=model,
     feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
-
-space_partitioner = effector.partitioning.Regions(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10)
 regional_shap.fit(
     features="all",
-    binning_method = effector.axis_partitioning.Fixed(nof_bins=5, min_points_per_bin=0),
+    binning_method=effector.axis_partitioning.Fixed(nof_bins=5, min_points_per_bin=0),
     space_partitioner=space_partitioner
 )
 ```
@@ -768,7 +764,7 @@ regional_shap.fit(
           3     model=model, 
           4     feature_names=['x1', 'x2', 'x3'],
           5     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
-          8 space_partitioner = effector.partitioning.Regions(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10),
+          8 space_partitioner = effector.space_partitioning.Regions(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10),
     ----> 9 regional_shap.fit(
          10     features="all",
          11     binning_method = effector.axis_partitioning.Fixed(nof_bins=5, min_points_per_bin=0),
@@ -778,7 +774,7 @@ regional_shap.fit(
 
     File ~/github/packages/effector/effector/regional_effect_shap.py:140, in RegionalShapDP.fit(self, features, candidate_conditioning_features, space_partitioner, binning_method)
         137 if isinstance(space_partitioner, str):
-        138     space_partitioner = effector.partitioning.return_default(space_partitioner)
+        138     space_partitioner = effector.space_partitioning.return_default(space_partitioner)
     --> 140 assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         141 features = helpers.prep_features(features, self.dim)
         143 for feat in tqdm(features):
@@ -904,15 +900,14 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
 
 #### Regional SHAP
 
-
 ```python
 regional_shap = effector.RegionalShapDP(
-    data=X_cor_train, 
-    model=model, 
+    data=X_cor_train,
+    model=model,
     feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
-space_partitioner = effector.partitioning.Regions(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10)
 regional_shap.fit(
     features="all",
     space_partitioner=space_partitioner

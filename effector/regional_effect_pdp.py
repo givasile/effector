@@ -1,7 +1,7 @@
 import typing
 import numpy as np
 
-import effector.partitioning
+import effector.space_partitioning
 from effector.regional_effect import RegionalEffectBase
 from effector import helpers
 from effector.global_effect_pdp import PDP, DerPDP
@@ -56,7 +56,7 @@ class RegionalPDPBase(RegionalEffectBase):
         self,
         features: typing.Union[int, str, list] = "all",
         candidate_conditioning_features: typing.Union["str", list] = "all",
-        space_partitioner: typing.Union[str, None] = "greedy",
+        space_partitioner: typing.Union[str, None] = "best",
         centering: typing.Union[bool, str] = False,
         points_for_centering: int = 30,
         points_for_mean_heterogeneity: int = 30,
@@ -94,7 +94,7 @@ class RegionalPDPBase(RegionalEffectBase):
         """
 
         if isinstance(space_partitioner, str):
-            space_partitioner = effector.partitioning.return_default(space_partitioner)
+            space_partitioner = effector.space_partitioning.return_default(space_partitioner)
 
         assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)

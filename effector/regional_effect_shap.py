@@ -127,7 +127,7 @@ class RegionalShapDP(RegionalEffectBase):
         self,
         features: typing.Union[int, str, list],
         candidate_conditioning_features: typing.Union["str", list] = "all",
-        space_partitioner: typing.Union["str", effector.partitioning.Regions] = "greedy",
+        space_partitioner: typing.Union["str", effector.space_partitioning.Best] = "best",
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
     ):
         """
@@ -147,7 +147,7 @@ class RegionalShapDP(RegionalEffectBase):
         """
 
         if isinstance(space_partitioner, str):
-            space_partitioner = effector.partitioning.return_default(space_partitioner)
+            space_partitioner = effector.space_partitioning.return_default(space_partitioner)
 
         assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)

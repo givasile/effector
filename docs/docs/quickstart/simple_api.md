@@ -525,7 +525,7 @@ In general, the most important argument is `space_partitioning`, which controls 
 regional_effect = effector.<method_name>(data=X, model=predict)
 
 # customize the regional effect
-space_partitioning = effector.partitioning.Greedy(max_depth=2)
+space_partitioning = effector.space_partitioning.Greedy(max_depth=2)
 regional_effect.fit(features=[...], space_partitioning=space_partitioning, **kwargs)
 
 regional_effect.summary(0)

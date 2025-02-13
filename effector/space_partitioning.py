@@ -8,23 +8,23 @@ import matplotlib.pyplot as plt
 BIG_M = helpers.BIG_M
 
 
-class Regions:
+class Best:
     def __init__(
             self,
-            heter_pcg_drop_thres=0.1,
+            min_heterogeneity_decrease_pcg=0.1,
             heter_small_enough=0.,
-            max_split_levels=2,
-            min_points_per_subregion: int = 10,
-            nof_candidate_splits_for_numerical=20,
-            split_categorical_features=False,
+            max_depth=2,
+            min_samples_leaf: int = 10,
+            numerical_features_grid_size=20,
+            search_partitions_when_categorical=False,
     ):
         # setters
-        self.min_points_per_subregion = min_points_per_subregion
-        self.nof_candidate_splits_for_numerical = nof_candidate_splits_for_numerical
-        self.max_split_levels = max_split_levels
-        self.heter_pcg_drop_thres = heter_pcg_drop_thres
+        self.min_points_per_subregion = min_samples_leaf
+        self.nof_candidate_splits_for_numerical = numerical_features_grid_size
+        self.max_split_levels = max_depth
+        self.heter_pcg_drop_thres = min_heterogeneity_decrease_pcg
         self.heter_small_enough = heter_small_enough
-        self.split_categorical_features = split_categorical_features
+        self.split_categorical_features = search_partitions_when_categorical
 
         # to be set latter
         self.feature = None
@@ -719,7 +719,7 @@ def rename_features():
     pass
 
 def return_default(partitioner_name):
-    if partitioner_name == "greedy":
-        return Regions()
+    if partitioner_name == "best":
+        return Best()
     else:
         raise ValueError("Partitioner not found")

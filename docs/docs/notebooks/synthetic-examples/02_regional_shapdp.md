@@ -119,19 +119,18 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
 
 #### Regional SHAP-DP
 
-
 ```python
 regional_shap = effector.RegionalShapDP(
-    data=X_uncor, 
-    model=model, 
-    feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
+ data=X_uncor,
+ model=model,
+ feature_names=['x1', 'x2', 'x3'],
+ axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
-space_partitioner = effector.partitioning.Regions(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10)
 regional_shap.fit(
-    features="all",
-    space_partitioner=space_partitioner,
-    binning_method=effector.axis_partitioning.Fixed(nof_bins=5, min_points_per_bin=0.)
+ features="all",
+ space_partitioner=space_partitioner,
+ binning_method=effector.axis_partitioning.Fixed(nof_bins=5, min_points_per_bin=0.)
 )
 ```
 
@@ -251,19 +250,18 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
 
 #### Regional SHAP
 
-
 ```python
 regional_shap = effector.RegionalShapDP(
-    data=X_cor, 
-    model=model, 
-    feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
+ data=X_cor,
+ model=model,
+ feature_names=['x1', 'x2', 'x3'],
+ axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
-space_partitioner = effector.partitioning.Regions(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10)
 regional_shap.fit(
-    features="all",
-    space_partitioner=space_partitioner,
- )
+ features="all",
+ space_partitioner=space_partitioner,
+)
 
 ```
 

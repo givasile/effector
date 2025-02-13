@@ -1,6 +1,6 @@
 import typing
 
-import effector.partitioning
+import effector.space_partitioning
 from effector.regional_effect import RegionalEffectBase
 from effector import helpers, utils
 import numpy as np
@@ -154,7 +154,7 @@ class RegionalRHALE(RegionalEffectBase):
         self,
         features: typing.Union[int, str, list] = "all",
         candidate_conditioning_features: typing.Union[str, list] = "all",
-        space_partitioner: typing.Union[str, effector.partitioning.Regions] = "greedy",
+        space_partitioner: typing.Union[str, effector.space_partitioning.Best] = "best",
         binning_method: typing.Union[str, ap.Fixed, ap.DynamicProgramming, ap.Greedy,] = "greedy",
         points_for_mean_heterogeneity: int = 30,
     ):
@@ -185,7 +185,7 @@ class RegionalRHALE(RegionalEffectBase):
             self.compile()
 
         if isinstance(space_partitioner, str):
-            space_partitioner = effector.partitioning.return_default(space_partitioner)
+            space_partitioner = effector.space_partitioning.return_default(space_partitioner)
 
         assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)
@@ -329,7 +329,7 @@ class RegionalALE(RegionalEffectBase):
         self,
         features: typing.Union[int, str, list],
         candidate_conditioning_features: typing.Union["str", list] = "all",
-        space_partitioner: typing.Union[str, effector.partitioning.Regions] = "greedy",
+        space_partitioner: typing.Union[str, effector.space_partitioning.Best] = "best",
         binning_method: typing.Union[str, ap.Fixed] = "fixed",
         points_for_mean_heterogeneity: int = 30
     ):
@@ -357,7 +357,7 @@ class RegionalALE(RegionalEffectBase):
             points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
         """
         if isinstance(space_partitioner, str):
-            space_partitioner = effector.partitioning.return_default(space_partitioner)
+            space_partitioner = effector.space_partitioning.return_default(space_partitioner)
 
         assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
         features = helpers.prep_features(features, self.dim)

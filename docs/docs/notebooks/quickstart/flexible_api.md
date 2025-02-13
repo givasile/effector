@@ -163,9 +163,8 @@ r_rhale.summary(0)
 r_rhale = effector.RegionalRHALE(X_test, predict, jacobian, axis_limits=axis_limits, nof_instances="all")
 ```
 
-
 ```python
-space_partitioner = effector.partitioning.Regions(max_split_levels=1)
+space_partitioner = effector.space_partitioning.Best(max_split_levels=1)
 binning_method = effector.axis_partitioning.Greedy(init_nof_bins=10)
 r_rhale.fit(features=0, space_partitioner=space_partitioner, binning_method=binning_method)
 ```
@@ -293,9 +292,8 @@ r_shap_dp.summary(0)
 r_shap_dp = effector.RegionalShapDP(X_test, predict, axis_limits=axis_limits, nof_instances="all")
 ```
 
-
 ```python
-space_partitioner = effector.partitioning.Regions(max_split_levels=1)
+space_partitioner = effector.space_partitioning.Best(max_split_levels=1)
 binning_method = effector.axis_partitioning.Greedy(init_nof_bins=10)
 r_shap_dp.fit(features=0, space_partitioner=space_partitioner, binning_method=binning_method)
 ```

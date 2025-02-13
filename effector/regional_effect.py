@@ -1,8 +1,8 @@
 import numpy as np
 import effector.helpers as helpers
-import effector.partitioning
+import effector.space_partitioning
 import effector.utils as utils
-from effector.partitioning import Regions, Tree
+from effector.space_partitioning import Best, Tree
 from effector.global_effect_ale import RHALE, ALE
 from effector.global_effect_pdp import PDP, DerPDP
 from effector.global_effect_shap import ShapDP
@@ -92,7 +92,7 @@ class RegionalEffectBase:
         self.kwargs_fitting: typing.Dict = {} # fitting specific arguments
 
         # dictionary with all the information required for plotting or evaluating the regional effects
-        self.partitioners: typing.Dict[str, Regions] = {}
+        self.partitioners: typing.Dict[str, Best] = {}
         # self.tree_full: typing.Dict[str, Tree] = {}
         self.tree: typing.Dict[str, Tree] = {}
 
@@ -100,7 +100,7 @@ class RegionalEffectBase:
         self,
         feature: int,
         heter_func: Callable,
-        space_partitioner: Union["str", effector.partitioning.Regions] = "greedy",
+        space_partitioner: Union["str", effector.space_partitioning.Best] = "greedy",
         candidate_foc: Union[str, List] = "all",
     ):
         """
@@ -108,7 +108,7 @@ class RegionalEffectBase:
         """
         # init Region Extractor
         if space_partitioner == "greedy":
-            space_partitioner = effector.partitioning.Regions()
+            space_partitioner = effector.space_partitioning.Best()
         else:
             space_partitioner = copy.deepcopy(space_partitioner)
 

@@ -334,10 +334,10 @@ for i in range(len(feature_names)):
 
 ## Regional Effects
 
-
 ```python
-reg_rhale = effector.RegionalRHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, feature_names=feature_names, target_name=target_name, nof_instances="all")
-reg_rhale.fit("all", space_partitioner=effector.partitioning.Regions(heter_pcg_drop_thres=0.25))
+reg_rhale = effector.RegionalRHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac,
+                                   feature_names=feature_names, target_name=target_name, nof_instances="all")
+reg_rhale.fit("all", space_partitioner=effector.space_partitioning.Best(heter_pcg_drop_thres=0.25))
 reg_rhale.summary(features="all", scale_x_list=scale_x_list)
 ```
 
