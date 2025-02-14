@@ -1,4 +1,4 @@
-name: Publish effector documentation to xai-effector/effector.github.io
+name: Publish documentation
 
 on:
   push:
@@ -71,6 +71,9 @@ jobs:
           git config --global user.email "ntipakos@gmail.com"
           git config --global user.name "ntipakos"
           git add .
+          if git diff --cached --quiet; then
+              echo "No changes to commit"
+              exit 0
+          fi
           git commit -m "Update site from ntipakos/effector"
           git push --force https://x-access-token:${{ secrets.EFFECTOR_GITHUB_API_KEY }}@github.com/xai-effector/xai-effector.github.io.git gh-pages
-#          git push --force origin gh-pages

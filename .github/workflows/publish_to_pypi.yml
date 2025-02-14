@@ -1,4 +1,4 @@
-name: Publish effector to PyPi
+name: Publish to PyPi
 
 on:
   push:

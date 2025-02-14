@@ -2,19 +2,19 @@
   <img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/effector_logo.png" width="500"/>
 </p>
 
-[![PyPI Downloads](https://static.pepy.tech/badge/effector)](https://pepy.tech/projects/effector)
 
+[![PyPI version](https://badge.fury.io/py/effector.svg?icon=si%3Apython)](https://badge.fury.io/py/effector)
+![Tests](https://github.com/givasile/effector/actions/workflows/publish_to_pypi.yml/badge.svg)
+![Tests](https://github.com/givasile/effector/actions/workflows/publish_documentation.yml/badge.svg)
+[![Build Status](https://github.com/givasile/effector/actions/workflows/run_tests.yml/badge.svg)](https://github.com/givasile/effector/actions/workflows/run_tests.yml)
+[![PyPI Downloads](https://static.pepy.tech/badge/effector)](https://pepy.tech/projects/effector)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 ---
 
 [Documenation](https://xai-effector.github.io/) | [Global Effect](https://xai-effector.github.io/global_effect_intro/) | [Regional Effect](https://xai-effector.github.io/regional_effect_intro/) | [API](https://xai-effector.github.io/api/) | [Tutorials](https://xai-effector.github.io/)
 
 `Effector` is a python package for global and regional effect analysis.
 
----
-
-![using effector](docs/docs/static/effector_intro.gif)
-
----
 ### Installation
 
 `Effector` is compatible with `Python 3.7+`. We recommend to first create a virtual environment with `conda`:
