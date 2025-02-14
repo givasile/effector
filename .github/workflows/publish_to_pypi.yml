@@ -51,7 +51,7 @@ jobs:
           name: python-package-distributions
           path: dist/
 
-      - name: Publish to PyPi
+      - name: Publish effector to PyPi
         uses: pypa/gh-action-pypi-publish@release/v1
 #        with:
 #          password: ${{ secrets.PYPI_API_TOKEN }}
