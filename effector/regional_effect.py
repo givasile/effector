@@ -380,7 +380,7 @@ class RegionalEffectBase:
             if tree_dict is None:
                 print("No splits found for feature {}".format(feat))
             else:
-                tree_dict.show_full_tree(node=None, scale_x_list=scale_x_list)
+                tree_dict.show_full_tree(scale_x_list=scale_x_list)
 
             print("-" * 50)
             print("Feature {} - Statistics per tree level:".format(feat))

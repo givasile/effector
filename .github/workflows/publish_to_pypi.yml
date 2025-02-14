@@ -40,9 +40,9 @@ jobs:
     - build
     runs-on: ubuntu-latest
 
-#    environment:
-#      name: pypi
-#      url: https://pypi.org/project/effector/
+    environment:
+      name: pypi
+      url: https://pypi.org/project/effector/
 
     steps:
       - name: Download distribution packages
