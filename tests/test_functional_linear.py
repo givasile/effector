@@ -37,7 +37,8 @@ def test_linear():
         {"method": effector.PDP, "init_kwargs": {}},
         {"method": effector.DerPDP, "init_kwargs": {}},
         {"method": effector.DerPDP, "init_kwargs": {"model_jac": model_jac}},
-        {"method": effector.ShapDP, "init_kwargs": {}},
+        {"method": effector.ShapDP, "init_kwargs": {"backend": "shap"}},
+        {"method": effector.ShapDP, "init_kwargs": {"backend": "shapiq"}},
         {"method": effector.ALE, "init_kwargs": {}},
         {"method": effector.RHALE, "init_kwargs": {}},
         {"method": effector.RHALE, "init_kwargs": {"model_jac": model_jac}}

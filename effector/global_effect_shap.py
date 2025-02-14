@@ -5,7 +5,7 @@ import effector.helpers as helpers
 from effector.global_effect import GlobalEffectBase
 import numpy as np
 import shap
-import scipy
+import shapiq
 import effector.axis_partitioning as ap
 import effector.utils as utils
 from scipy.interpolate import interp1d
@@ -21,6 +21,7 @@ class ShapDP(GlobalEffectBase):
         feature_names: Optional[List[str]] = None,
         target_name: Optional[str] = None,
         shap_values: Optional[np.ndarray] = None,
+        backend: str = "shap",
     ):
         """
         Constructor of the SHAPDependence class.
@@ -70,7 +71,7 @@ class ShapDP(GlobalEffectBase):
 
             nof_instances: maximum number of instances to be used for SHAP estimation.
 
-                - use "all", for using all instances.
+                - use `"all"`, for using all instances.
                 - use an `int`, for using `nof_instances` instances.
 
             avg_output: The average output of the model.
@@ -92,8 +93,14 @@ class ShapDP(GlobalEffectBase):
 
                 - if shap values are already computed, they can be passed here
                 - if `None`, the SHAP values will be computed using the `shap` package
+
+            backend: Package to compute SHAP values
+
+                - use `"shap"` for the `shap` package (default)
+                - use `"shapiq"` for the `shapiq` package
         """
         self.shap_values = shap_values if shap_values is not None else None
+        self.backend = backend
         super(ShapDP, self).__init__(
             "SHAP DP",
             data,
@@ -112,13 +119,25 @@ class ShapDP(GlobalEffectBase):
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
         centering: typing.Union[bool, str] = False,
         points_for_centering: int = 30,
+        budget: int = 512
     ) -> typing.Dict:
 
         data = self.data
         if self.shap_values is None:
-            shap_explainer = shap.Explainer(self.model, data)
-            shap_explainer_fitted = shap_explainer(data)
-            self.shap_values = shap_explainer_fitted.values
+            if self.backend == "shap":
+                # by default shap uses 'permutation' with 100 background samples where 
+                # either max_evals = 500 or max_evals = "auto" := 10 * 2 * (nfeatures + 1)
+                # (or 'exact' when <=10 features)
+                explainer = shap.Explainer(self.model, data)
+                explanation = explainer(data, max_evals=budget)
+                self.shap_values = explanation.values
+            elif self.backend == "shapiq":
+                # by default shapiq uses 'kernelshap' with 100 background samples where budget := 2 ** nfeatures
+                explainer = shapiq.Explainer(self.model, data, index="SV", max_order=1, approximator="permutation", imputer="marginal")
+                explanations = explainer.explain_X(data, budget=budget)
+                self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
+            else:
+                raise ValueError("`backend` should be either 'shap' or 'shapiq'")
 
         # extract x and y
         yy = self.shap_values[:, feature]
@@ -183,6 +202,7 @@ class ShapDP(GlobalEffectBase):
         centering: Union[bool, str] = True,
         points_for_centering: Union[int, str] = 30,
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
+        budget: int = 512
     ) -> None:
         """Fit the SHAP Dependence Plot to the data.
 
@@ -205,6 +225,10 @@ class ShapDP(GlobalEffectBase):
 
                 - If set to `all`, all the dataset points will be used.
 
+            budget: Budget to use for the approximation. Defaults to 512.
+                - Increasing the budget improves the approximation at the cost of slower computation.
+                - Decrease the budget for faster computation at the cost of approximation error.
+
         Notes:
             SHAP values are by default centered, i.e., $\sum_{i=1}^N \hat{\phi}_j(x_j^i) = 0$. This does not mean that the SHAP _curve_ is centered around zero; this happens only if the $s$-th feature of the dataset instances, i.e., the set $\{x_s^i\}_{i=1}^N$ is uniformly distributed along the $s$-th axis. So, use:
 
@@ -224,7 +248,7 @@ class ShapDP(GlobalEffectBase):
         # new implementation
         for s in features:
             self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s, binning_method, centering, points_for_centering,
+                s, binning_method, centering, points_for_centering, budget
             )
             self.is_fitted[s] = True
             self.fit_args["feature_" + str(s)] = {

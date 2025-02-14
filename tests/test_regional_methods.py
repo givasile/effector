@@ -30,7 +30,7 @@ def test_regional():
         return y
 
     xs = np.linspace(-1, 1, T)
-    methods = ["pdp", "d-pdp", "ale", "rhale", "shap"]
+    methods = ["pdp", "d-pdp", "ale", "rhale", "shap", "shapiq"]
     for method in methods:
         if method == "pdp":
             reg_eff = effector.RegionalPDP(data, model, nof_instances=1000)
@@ -40,8 +40,10 @@ def test_regional():
             reg_eff = effector.RegionalALE(data, model, nof_instances=1000)
         elif method == "rhale":
             reg_eff = effector.RegionalRHALE(data, model, model_jac, nof_instances=1000)
-        else:
-            reg_eff = effector.RegionalShapDP(data, model, nof_instances=1000)
+        elif method == "shap":
+            reg_eff = effector.RegionalShapDP(data, model, nof_instances=1000, backend="shap")
+        elif method == "shapiq":
+            reg_eff = effector.RegionalShapDP(data, model, nof_instances=1000, backend="shapiq")
 
         reg_eff.fit(0)
 

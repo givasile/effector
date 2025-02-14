@@ -29,7 +29,8 @@ def test_gam():
         {"method": effector.PDP, "kwargs": {}},
         {"method": effector.DerPDP, "kwargs": {"model_jac": None}},
         {"method": effector.DerPDP, "kwargs": {"model_jac": model_jac}},
-        {"method": effector.ShapDP, "kwargs": {}},
+        {"method": effector.ShapDP, "kwargs": {"backend": "shap"}},
+        {"method": effector.ShapDP, "kwargs": {"backend": "shapiq"}},
         {"method": effector.ALE, "kwargs": {}},
         {"method": effector.RHALE, "kwargs": {"model_jac": None}},
         {"method": effector.RHALE, "kwargs": {"model_jac": model_jac}}

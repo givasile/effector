@@ -4,6 +4,7 @@ matplotlib
 scipy
 pytest
 shap
+shapiq
 build
 mkdocs
 mkdocstrings
