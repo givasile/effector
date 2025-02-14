@@ -142,7 +142,7 @@ class RegionalEffectBase:
         feature_tree = self.tree["feature_{}".format(feature)]
         assert feature_tree is not None, "Feature {} has no splits".format(feature)
         node = feature_tree.get_node_by_idx(node_idx)
-        name = feature_tree.scale_node_name(node.name, scale_x_list)
+        name = feature_tree.set_display_name(node.name, scale_x_list)
         active_indices = node.info["active_indices"]
         data = self.data[active_indices.astype(bool), :]
         data_effect = self.data_effect[active_indices.astype(bool), :] if self.data_effect is not None else None

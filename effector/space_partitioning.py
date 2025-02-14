@@ -301,7 +301,8 @@ class Best:
         }
 
         feature_name = self.feature_names[self.feature]
-        tree.add_node(feature_name, None, data=data, level=0)
+        data["level"] = 0
+        tree.add_node(feature_name, None, data=data)
         parent_level_nodes = [feature_name]
         parent_level_active_indices = [np.ones((self.data.shape[0]))]
         splits = self.important_splits if only_important else self.splits[1:]
@@ -376,7 +377,8 @@ class Best:
                     "comparison": comparison,
                 }
 
-                tree.add_node(name, parent_name=parent_name, data=data, level=i + 1)
+                data["level"] = i + 1
+                tree.add_node(name, parent_name=parent_name, data=data)
 
                 new_parent_level_nodes.append(name)
                 new_parent_level_active_indices.append(active_indices_new)

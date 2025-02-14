@@ -4,4 +4,5 @@ API DOCS:
 - [Regional Effect Docs](./api_docs/api_regional.md)
 - [Axis Partitioning Docs](./api_docs/api_axis_partitioning.md)
 - [Space Partitioning Docs](./api_docs/api_space_partitioning.md)
+- [`effector.tree`](./api_docs/api_tree.md)
 - [Extras Docs](./api_docs/api_extras.md)

@@ -1,105 +1,171 @@
 import typing
-import itertools
-import numpy as np
+from dataclasses import dataclass, field
 
 
 class Tree:
+    """A class to represent a tree structure."""
     def __init__(self):
         self.nodes = []
+        self.node_dict = {}  # Fast lookup by name
         self.idx = 0
 
-    def scale_node_name(self, name, scale_x_list):
+    def set_display_name(self, name, scale_x_list, full=True):
         node = self.get_node_by_name(name)
+        if node is None:
+            return name
+
+        chain = self._get_parent_chain(node)
+        if not chain:
+            return name
+
+        first, *rest = chain
+        conds = [self._get_condition_string(n, scale_x_list) for n in (rest + [node])]
+
+        return f"{first.name} | " + " and ".join(conds) if full else conds[-1]
+
+    def _get_condition_string(self, node, scale_x_list):
+        """Generate the condition string for a node."""
+        pos = node.info['position']
+        if scale_x_list:
+            feature_stats = scale_x_list[node.info['feature']]
+            pos = feature_stats['std'] * pos + feature_stats['mean']
+        return f"{node.info['foc_name']} {self._comparison_str(node.info['comparison'])} {pos:.2f}"
+
+    @staticmethod
+    def _comparison_str(comparison):
+        return {">=": "≥", "<=": "≤", "!=": "≠", "==":"="}.get(comparison, comparison)
+
+    def add_node(self, name: str, parent_name: typing.Optional[str], data: dict):
+        parent_node = self.node_dict.get(parent_name) if parent_name else None
+        if parent_name and parent_node is None:
+            raise ValueError(f"Parent node '{parent_name}' not found.")
+
+        node = Node(self.idx, name, parent_node, data)
+        self.idx += 1
+        self.nodes.append(node)
+        self.node_dict[name] = node  # Store in dictionary for fast lookup
+
+    def get_node_by_name(self, name):
+        return self.node_dict.get(name)
+
+    def get_root(self):
+        return next((node for node in self.nodes if node.parent_node is None), None)
+
+    def get_children(self, name):
+        parent = self.get_node_by_name(name)
+        return [node for node in self.nodes if node.parent_node == parent]
+
+    def update_display_names(self, scale_x_list):
+        for node in self.nodes:
+            node.display_name = self.set_display_name(node.name, scale_x_list)
+            node.display_name_short = self.set_display_name(node.name, scale_x_list, full=False)
+
+    def show_full_tree(self, scale_x_list=None):
+        """Print the full tree structure.
+
+        Examples:
+            >>> tree.show_full_tree()
+            🌳 Full Tree Structure:
+            ───────────────────────
+            x1 🔹 [id: 0 | heter: 0.50 | inst: 100 | w: 1.00]
+                x2 ≥ 3.00 🔹 [id: 1 | heter: 0.30 | inst: 50 | w: 0.50]
+                x2 < 3.00 🔹 [id: 2 | heter: 0.20 | inst: 50 | w: 0.50]
+
+            >>> tree.show_full_tree({"mean": 3, "std":2}, {"mean": 3, "std":3}, {"mean": 3, "std":2})
+            🌳 Full Tree Structure:
+            ───────────────────────
+            x1 🔹 [id: 0 | heter: 0.50 | inst: 100 | w: 1.00]
+                x2 ≥ 12.00 🔹 [id: 1 | heter: 0.30 | inst: 50 | w: 0.50]
+                x2 < 12.00 🔹 [id: 2 | heter: 0.20 | inst: 50 | w: 0.50]
+
+        Args:
+            scale_x_list: A list of dictionaries with the mean and standard deviation for each feature.
+                               - Example: [{"mean": 3, "std":2}, {"mean": 3, "std":2}, ...]
+
+
+        """
+        self.update_display_names(scale_x_list)
+        root = self.get_root()
+        if root is None:
+            print("Tree is empty.")
+            return
+
+        print("🌳 Full Tree Structure:")
+        print("───────────────────────")
+        self._recursive_print_full_tree(root)
+
+    def _recursive_print_full_tree(self, node):
+        indent = "    " * node.info["level"]
+        print(f"{indent}{node.display_name_short} 🔹 [id: {node.idx} | heter: {node.info['heterogeneity']:.2f} "
+              f"| inst: {node.info['nof_instances']:d} | w: {node.info['weight']:.2f}]")
+        for child in self.get_children(node.name):
+            self._recursive_print_full_tree(child)
+
+    def show_level_stats(self):
+        """Print the heterogeneity drop at each level of the tree.
+
+        Examples:
+            >>> tree.show_level_stats()
+            🌳 Tree Summary:
+            ─────────────────
+            Level 0🔹heter: 0.50
+                Level 1🔹heter: 0.25 | 🔻0.25 (50.00%)
+        """
+
+        max_level = max((node.info["level"] for node in self.nodes), default=0)
+        prev_heter = 0
+        print("🌳 Tree Summary:")
+        print("─────────────────")
+        for lev in range(max_level + 1):
+            indent = "    " * lev
+            stats = self.get_level_stats(lev)
+            if lev == 0:
+                print(f"Level {lev}🔹heter: {stats['heterogeneity']:.2f}")
+            else:
+                drop = prev_heter - stats["heterogeneity"]
+                perc = 100 * drop / prev_heter if prev_heter else 0
+                print(f"{indent}Level {lev}🔹heter: {stats['heterogeneity']:.2f} | 🔻{drop:.2f} ({perc:.2f}%)")
+            prev_heter = stats["heterogeneity"]
+
+    def get_level_stats(self, level):
+        level_nodes = [node for node in self.nodes if node.info["level"] == level]
+        return {"heterogeneity": sum(n.info["heterogeneity"] * n.info["weight"] for n in level_nodes)}
+
+    @staticmethod
+    def _get_parent_chain(node):
+        """Returns the chain of parent nodes up to the root."""
         chain = []
         cur = node
         while cur.parent_node:
             chain.append(cur.parent_node)
             cur = cur.parent_node
-        if not chain:
-            return name
         chain.reverse()
-        # First element: use parent's name
-        first, *rest = chain
-        conds = [
-            f"{n.info['foc_name']} {n.info['comparison']} "
-            f"{(scale_x_list[n.info['feature']]['std'] * n.info['position'] + scale_x_list[n.info['feature']]['mean']) if scale_x_list else n.info['position']:.2f}"
-            for n in (rest + [node])
-        ]
-        return f"{first.name} | " + " and ".join(conds)
+        return chain
 
-    def add_node(
-        self,
-        name: str,
-        parent_name: typing.Union[None, str],
-        data: dict,
-        level: int,
-    ):
-        if parent_name is not None:
-            parent_node = self.get_node_by_name(parent_name)
-            if parent_node is None:
-                raise ValueError(f"Parent node '{parent_name}' not found.")
-        else:
-            parent_node = None
-        node = Node(self.idx, name, parent_node, data, level)
-        self.idx += 1
-        self.nodes.append(node)
 
-    def get_node_by_name(self, name):
-        return next((node for node in self.nodes if node.name == name), None)
+@dataclass
+class Node:
+    idx: int
+    name: str
+    parent_node: typing.Optional["Node"]
+    info: dict
+    display_name: str = field(default=None, init=False)
+    display_name_short: str = field(default=None, init=False)
 
-    def get_node_by_idx(self, idx):
-        return next((node for node in self.nodes if node.idx == idx), None)
+    def __post_init__(self):
+        required_keys = {"level", "heterogeneity", "weight", "nof_instances"}
+        if not required_keys.issubset(self.info):
+            missing = required_keys - self.info.keys()
+            raise KeyError(f"Missing required keys in node info: {missing}")
 
-    def get_level_nodes(self, level):
-        return [node for node in self.nodes if node.level == level]
+        if self.info["level"] > 0:
+            extra_keys = {"feature", "foc_name", "feature_type", "position", "comparison", "candidate_split_positions"}
+            if not extra_keys.issubset(self.info):
+                missing = extra_keys - self.info.keys()
+                raise KeyError(f"Missing required keys for non-root node: {missing}")
 
-    def get_root(self):
-        root = next((node for node in self.nodes if node.parent_node is None), None)
-        assert root is not None, "Root not found."
-        return root
-
-    def get_children(self, name):
-        return [node for node in self.nodes if node.parent_node and node.parent_node.name == name]
-
-    def update_display_names(self, scale_x_list):
-        for node in self.nodes:
-            node.display_name = self.scale_node_name(node.name, scale_x_list)
-
-    def get_level_stats(self, level):
-        level_nodes = self.get_level_nodes(level)
-        w_heter = sum(n.info["heterogeneity"] * n.info["weight"] for n in level_nodes)
-        return {"heterogeneity": w_heter}
-
-    def show_full_tree(self, node=None, scale_x_list=None):
-        self.update_display_names(scale_x_list)
-        if node is None:
-            node = self.get_root()
-        self._recursive_print_full_tree(node)
-
-    def _recursive_print_full_tree(self, node=None):
-        indent = "    " * node.level
-        disp_name = node.display_name #  self.scale_node_name(node.name, scale_x_list)
-        print(
-            f"{indent}Node id: {node.idx}, name: {disp_name}, heter: {node.info['heterogeneity']:.2f} "
-            f"|| nof_instances: {node.info['nof_instances']:5d} || weight: {node.info['weight']:.2f}"
-        )
-        for child in self.get_children(node.name):
-            self._recursive_print_full_tree(child)
-
-    def show_level_stats(self):
-        max_level = max(node.level for node in self.nodes)
-        prev_heter = 0
-        for lev in range(max_level + 1):
-            stats = self.get_level_stats(lev)
-            if lev == 0:
-                print(f"Level {lev}, heter: {stats['heterogeneity']:.2f}")
-            else:
-                drop = prev_heter - stats["heterogeneity"]
-                perc = 100 * drop / prev_heter if prev_heter else 0
-                print(
-                    f"Level {lev}, heter: {stats['heterogeneity']:.2f} || heter drop: {drop:.2f} (units), {perc:.2f}% (pcg)"
-                )
-            prev_heter = stats["heterogeneity"]
+    def __repr__(self):
+        return f"Node {self.idx}: {self.display_name}"
 
 
 # class DataTransformer:
@@ -151,50 +217,3 @@ class Tree:
 #         self.new_data = new_data * mask
 #         self.new_names = new_columns
 #         return self.new_data
-
-
-
-class Node:
-    def __init__(
-        self,
-        idx: int,
-        name: str,
-        parent_node: typing.Union[None, "Node"],
-        info: dict,
-        level: int,
-    ):
-        self.idx = idx
-        self.name = name
-        self.display_name = None
-        self.parent_node = parent_node
-        self.info = info
-        self.level = level
-
-        self.heterogeneity = info.get("heterogeneity")
-        self.weight = info.get("weight")
-        self.nof_instances = info.get("nof_instances")
-
-        self.foc_index = info.get("feature")
-        self.foc_name = info.get("foc_name")
-        self.foc_type = info.get("feature_type")
-        self.foc_position = info.get("position")
-        self.foc_comparison_operator = info.get("comparison")
-        self.foc_candidate_split_values = info.get("candidate_split_positions")
-        self.foc_range = info.get("range")
-        self.active_indices = info.get("active_indices")
-
-    def show(self, show_extensive_info: bool = False):
-        print(f"Node id: {self.idx}")
-        print(f"name: {self.name}")
-        print(f"display_name: {self.display_name}")
-        print(f"parent name: {getattr(self.parent_node, 'name', None)}")
-        print(f"level: {self.level}")
-        print(f"heterogeneity: {self.heterogeneity}")
-        print(f"weight: {self.weight}")
-        print(f"nof_instances: {self.nof_instances}")
-        print(f"foc_index: {self.foc_index}")
-        print(f"foc_type: {self.foc_type}")
-        print(f"foc_position: {self.foc_position}")
-        print(f"fox_comparison_operator: {self.foc_comparison_operator}")
-        if show_extensive_info:
-            print(f"info: {self.info}")
