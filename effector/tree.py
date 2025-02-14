@@ -48,6 +48,9 @@ class Tree:
     def get_node_by_name(self, name):
         return self.node_dict.get(name)
 
+    def get_node_by_idx(self, idx):
+        return next((node for node in self.nodes if node.idx == idx), None)
+
     def get_root(self):
         return next((node for node in self.nodes if node.parent_node is None), None)
 
