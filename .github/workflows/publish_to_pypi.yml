@@ -37,12 +37,12 @@ jobs:
   publish-to-pypi:
     name: Publish to PyPi
     needs:
-    - build
+      - build
     runs-on: ubuntu-latest
 
-    environment:
-      name: pypi
-      url: https://pypi.org/project/effector/
+    environment: pypi
+    permissions:
+      id-token: write
 
     steps:
       - name: Download distribution packages
