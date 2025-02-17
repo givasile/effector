@@ -5,7 +5,7 @@ on:
     branches:
       - main
     tags:
-      - "v*"  # Only run when pushing a tag like v0.1.0
+      - "v*.*"  # Only run when pushing a tag like v0.1.0
 
 jobs:
   publish:
@@ -36,3 +36,11 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '.')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.EFFECTOR_GITHUB_API_KEY }}
