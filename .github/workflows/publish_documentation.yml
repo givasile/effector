@@ -26,6 +26,7 @@ jobs:
     - name: Build docs
       run: |
         cd docs
+        cp ../CHANGELOG.md ./docs/changelog.md
         mkdocs build
         cd ..
 

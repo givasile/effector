@@ -1,8 +1,8 @@
 # Changelog
 
-## [0.1.2] - 2025-02-17
+## [Unreleased]
 ### Added
-- add changelog.md to the documentation
+- add changelog on the documentation
 
 ## [0.1.1] - 2025-02-17
 ### Changed

@@ -1,5 +1,14 @@
 # Documentation
 
+---
+
+## Copy changelog
+
+```bash
+cp ../CHANGELOG.md docs/changelog.md
+```
+
+
 If you want to clean everything first:
 
 ```bash
