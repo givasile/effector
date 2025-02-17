@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- all plots return a `fig, ax` tuple, if the user wants to modify the plot further.
+- default plot titles now display full method name, e.g., `Accumulated Local Effects` instead of `ALE`.
+- changed README.md to reflect the new changes.
+- license
+
+### Added 
+
+- codecov badge to README.md
+
 ## [0.1.1] - 2025-02-17
 
 ### Changed

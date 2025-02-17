@@ -168,6 +168,7 @@ class ALEBase(GlobalEffectBase):
         y_limits: Optional[List] = None,
         dy_limits: Optional[List] = None,
         show_only_aggregated: bool = False,
+        show_plot: bool = True,
     ):
         """
         Plot the (RH)ALE feature effect of feature `feature`.
@@ -206,6 +207,9 @@ class ALEBase(GlobalEffectBase):
 
                 - If set to None, the limits of the dy-axis are set automatically
                 - If set to a tuple, the limits are manually set
+
+            show_only_aggregated: if True, only the main ale plot will be shown
+            show_plot: if True, the plot will be shown
         """
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
@@ -222,7 +226,7 @@ class ALEBase(GlobalEffectBase):
         else:
             avg_output = None
 
-        vis.ale_plot(
+        ret = vis.ale_plot(
             self.feature_effect["feature_" + str(feature)],
             self.eval,
             feature,
@@ -237,7 +241,14 @@ class ALEBase(GlobalEffectBase):
             y_limits=y_limits,
             dy_limits=dy_limits,
             show_only_aggregated=show_only_aggregated,
+            show_plot=show_plot,
         )
+
+        if not show_plot:
+            fig, ax = ret
+            return fig, ax
+
+
 
 
 class ALE(ALEBase):

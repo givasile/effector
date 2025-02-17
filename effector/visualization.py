@@ -36,6 +36,7 @@ def ale_plot(
     y_limits: typing.Union[None, tuple] = None,
     dy_limits: typing.Union[None, tuple] = None,
     show_only_aggregated: bool = False,
+    show_plot: bool = True,
 ):
     """
 
@@ -115,7 +116,13 @@ def ale_plot(
         ax2.set_xlabel(x_name)
         ax2.set_ylabel("dy/dx")
 
-    plt.show(block=False)
+    if show_plot:
+        plt.show(block=False)
+    else:
+        if show_only_aggregated:
+            return fig, ax1
+        else:
+            return fig, (ax1, ax2)
 
 
 def ale_curve(ax1, x, y, avg_output=None):
@@ -158,6 +165,7 @@ def plot_pdp_ice(
     is_derivative: bool = False,
     nof_ice: typing.Union[str, int] = "all",
     y_limits: typing.Union[None, tuple] = None,
+    show_plot: bool = True,
 ):
 
     fig, ax = plt.subplots()
@@ -245,8 +253,11 @@ def plot_pdp_ice(
     if y_limits is not None:
         ax.set_ylim(y_limits[0], y_limits[1])
 
-    plt.show(block=False)
-    return fig, ax
+    if show_plot:
+        plt.show(block=False)
+    else:
+        return fig, ax
+
 
 
 def plot_shap(
@@ -264,6 +275,7 @@ def plot_shap(
     target_name: typing.Union[None, str] = None,
     y_limits: typing.Union[None, tuple] = None,
     only_shap_values: bool = False,
+    show_plot: bool = True,
 ):
 
     fig, ax = plt.subplots()
@@ -313,4 +325,8 @@ def plot_shap(
     ax.legend()
     if y_limits is not None:
         ax.set_ylim(y_limits[0], y_limits[1])
-    plt.show(block=False)
+
+    if show_plot:
+        plt.show(block=False)
+    else:
+        return fig, ax
