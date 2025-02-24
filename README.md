@@ -12,15 +12,14 @@
 
 ---
 
-Effector is a Python package for interpretable Machine Learning that:
+`effector` an eXplainable AI package for **tabular data**, that:
 
-- provides [**global** and **regional**](https://xai-effector.github.io/quickstart/global_and_regional_effects/) effects
-- works **only** with tabular data
-- offers a [simple API](https://xai-effector.github.io/quickstart/simple_api/) with smart defaults, but can be [flexible](https://xai-effector.github.io/quickstart/flexible_api/) if needed
-- is model agnostic, so it works [with any ML model](https://xai-effector.github.io/)
-- integrates with popular ML libraries, like [Scikit-Learn, Tensorflow and Pytorch](https://xai-effector.github.io/quickstart/simple_api/#__tabbed_2_2)
-- is fast, even for both [global](https://xai-effector.github.io/notebooks/guides/efficiency_global/) and [regional](https://xai-effector.github.io/notebooks/guides/efficiency_global/) methods
-- supports a variety of [**global** and **regional** effects](https://xai-effector.github.io/#supported-methods)
+- creates [global and regional](https://xai-effector.github.io/quickstart/global_and_regional_effects/) effect plots
+- has a [simple API](https://xai-effector.github.io/quickstart/simple_api/) with smart defaults, but can become [flexible](https://xai-effector.github.io/quickstart/flexible_api/) if needed
+- is model agnostic; can explain [any underlying ML model](https://xai-effector.github.io/)
+- integrates easily with popular ML libraries, like [Scikit-Learn, Tensorflow and Pytorch](https://xai-effector.github.io/quickstart/simple_api/#__tabbed_2_2)
+- is fast, for both [global](https://xai-effector.github.io/notebooks/guides/efficiency_global/) and [regional](https://xai-effector.github.io/notebooks/guides/efficiency_global/) methods
+- provides a large collection of [global and regional effects methods](https://xai-effector.github.io/#supported-methods)
 
 ---
 
@@ -77,50 +76,121 @@ def predict(x):
     return model(x).numpy().squeeze()
 ```
 
-### Global effects
+### Explain it with global effect plots
 
 ```python
-pdp = effector.PDP(X_test, predict, nof_instances=5000, feature_names=bike_sharing.feature_names)
-pdp.plot(feature=3, nof_ice=200)
+# define the global effect method
+pdp = effector.PDP(
+    X_test,
+    predict,
+    feature_names=bike_sharing.feature_names,
+    target_name=bike_sharing.target_name
+)
+
+# plot the effect of the 3rd feature (feature: temperature)
+pdp.plot(
+    feature=3,
+    nof_ice=200,
+    scale_x={"mean": bike_sharing.x_test_mu[3], "std": bike_sharing.x_test_std[3]},
+    scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},
+    centering=True,
+    show_avg_output=True,
+    y_limits=[-200, 1000]
+)
 ```
 
-![Feature effect plot](https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_1.png)
+![Feature effect plot](https://raw.githubusercontent.com/givasile/effector/main/docs/docs/notebooks/quickstart/readme_example_files/readme_example_3_0.png)
 
-### Regional effects
+### Explain it with regional effect plots
 
 ```python
-r_pdp = effector.RegionalPDP(X_test, predict, nof_instances=5000, feature_names=bike_sharing.feature_names)
-r_pdp.summary(features=3)
+r_pdp = effector.RegionalPDP(
+    X_test,
+    predict,
+    feature_names=bike_sharing.feature_names,
+    target_name=bike_sharing.target_name
+)
+
+# summarize the subregions of feature 3
+scale_x_list = [{"mean": mu, "std": std} for mu, std in zip(bike_sharing.x_test_mu, bike_sharing.x_test_std)]
+r_pdp.summary(
+    features=3,
+    scale_x_list=scale_x_list
+)
 ```
 
 ```
 Feature 3 - Full partition tree:
-Node id: 0, name: hr, heter: 0.44 || nof_instances:  5000 || weight: 1.00
-        Node id: 1, name: hr | workingday == 0.00, heter: 0.38 || nof_instances:  1588 || weight: 0.32
-                Node id: 3, name: hr | workingday == 0.00 and temp <= 6.81, heter: 0.19 || nof_instances:   785 || weight: 0.16
-                Node id: 4, name: hr | workingday == 0.00 and temp > 6.81, heter: 0.22 || nof_instances:   803 || weight: 0.16
-        Node id: 2, name: hr | workingday != 0.00, heter: 0.30 || nof_instances:  3412 || weight: 0.68
-                Node id: 5, name: hr | workingday != 0.00 and temp <= 6.81, heter: 0.21 || nof_instances:  1467 || weight: 0.29
-                Node id: 6, name: hr | workingday != 0.00 and temp > 6.81, heter: 0.21 || nof_instances:  1945 || weight: 0.39
+🌳 Full Tree Structure:
+───────────────────────
+hr 🔹 [id: 0 | heter: 0.43 | inst: 3476 | w: 1.00]
+    workingday = 0.00 🔹 [id: 1 | heter: 0.36 | inst: 1129 | w: 0.32]
+        temp ≤ 6.50 🔹 [id: 3 | heter: 0.17 | inst: 568 | w: 0.16]
+        temp > 6.50 🔹 [id: 4 | heter: 0.21 | inst: 561 | w: 0.16]
+    workingday ≠ 0.00 🔹 [id: 2 | heter: 0.28 | inst: 2347 | w: 0.68]
+        temp ≤ 6.50 🔹 [id: 5 | heter: 0.19 | inst: 953 | w: 0.27]
+        temp > 6.50 🔹 [id: 6 | heter: 0.20 | inst: 1394 | w: 0.40]
 --------------------------------------------------
 Feature 3 - Statistics per tree level:
-Level 0, heter: 0.44
-        Level 1, heter: 0.32 || heter drop : 0.12 (units), 27.28% (pcg)
-                Level 2, heter: 0.21 || heter drop : 0.12 (units), 35.73% (pcg)
+🌳 Tree Summary:
+─────────────────
+Level 0🔹heter: 0.43
+    Level 1🔹heter: 0.31 | 🔻0.12 (28.15%)
+        Level 2🔹heter: 0.19 | 🔻0.11 (37.10%)
 ```
+
+The summary of feature `hr` (hour) says that its effect on the output is highly dependent on the value of features:
+- `workingday`, wheteher it is a workingday or not
+- `temp`, what is the temperature the specific hour
+
+Let's see how the effect changes on these subregions!
+
+---
+#### Is it workingday or not?
 
 ```python
-[r_pdp.plot(feature=3, node_idx=i, nof_ice=200) for i in [1, 2]]
+# plot the regional effects after the first-level splits (workingday or non-workingday)
+for node_idx in [1,2]:
+    r_pdp.plot(
+        feature=3,
+        node_idx=node_idx,
+        nof_ice=200,
+        scale_x_list=[{"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]} for i in range(X_test.shape[1])],
+        scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},
+        y_limits=[-200, 1000]
+    )
 ```
 
-![Feature effect plot](https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_28_0.png)
-![Feature effect plot](https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_28_1.png)
+![Feature effect plot](https://raw.githubusercontent.com/givasile/effector/main/docs/docs/notebooks/quickstart/readme_example_files/readme_example_5_0.png)
+![Feature effect plot](https://raw.githubusercontent.com/givasile/effector/main/docs/docs/notebooks/quickstart/readme_example_files/readme_example_5_1.png)
+
+
+#### Is it hot or cold?
+
+```python
+# plot the regional effects after the second-level splits (workingday or non-workingday and hot or cold temperature)
+for node_idx in [3,4,5,6]:
+    r_pdp.plot(
+        feature=3,
+        node_idx=node_idx,
+        nof_ice=200,
+        scale_x_list=[{"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]} for i in range(X_test.shape[1])],
+        scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},
+        y_limits=[-200, 1000]
+    )
+
+```
+
+![Feature effect plot](https://raw.githubusercontent.com/givasile/effector/main/docs/docs/notebooks/quickstart/readme_example_files/readme_example_6_0.png)
+![Feature effect plot](https://raw.githubusercontent.com/givasile/effector/main/docs/docs/notebooks/quickstart/readme_example_files/readme_example_6_1.png)
+![Feature effect plot](https://raw.githubusercontent.com/givasile/effector/main/docs/docs/notebooks/quickstart/readme_example_files/readme_example_6_2.png)
+![Feature effect plot](https://raw.githubusercontent.com/givasile/effector/main/docs/docs/notebooks/quickstart/readme_example_files/readme_example_6_3.png)
 
 ---
 
 ## Supported Methods
 
-Effector implements global and regional effect methods:
+`effector` implements global and regional effect methods:
 
 | Method  | Global Effect  | Regional Effect | Reference | ML model          | Speed                                        |
 |---------|----------------|-----------------|-----------|-------------------|----------------------------------------------|
@@ -153,7 +223,7 @@ Trust us and follow this guide:
 
 ## Citation
 
-If you use Effector, please cite it:
+If you use `effector`, please cite it:
 
 ```bibtex
 @misc{gkolemis2024effector,
@@ -168,4 +238,4 @@ If you use Effector, please cite it:
 
 ## License
 
-Effector is released under the [MIT License](https://github.com/givasile/effector/blob/main/LICENSE).
+`effector` is released under the [MIT License](https://github.com/givasile/effector/blob/main/LICENSE).
