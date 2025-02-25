@@ -11,13 +11,58 @@ BIG_M = helpers.BIG_M
 class Best:
     def __init__(
             self,
-            min_heterogeneity_decrease_pcg=0.1,
-            heter_small_enough=0.,
-            max_depth=2,
+            min_heterogeneity_decrease_pcg: float = 0.1,
+            heter_small_enough: float = 0.0,
+            max_depth: int = 2,
             min_samples_leaf: int = 10,
-            numerical_features_grid_size=20,
-            search_partitions_when_categorical=False,
+            numerical_features_grid_size: int = 20,
+            search_partitions_when_categorical: bool = False,
     ):
+        """Choose the algorithm `Best`.
+        The algorithm is a greedy algorithm that finds the best split for each level in a greedy fashion.
+        
+
+        Args:
+            min_heterogeneity_decrease_pcg: Minimum percentage of heterogeneity decrease to accept a split.
+
+                ??? Example "Example"
+                    - `0.1`: if the heterogeneity before any split is 1, the heterogeneity after the first split must be at most 0.9 to be accepted. Otherwise, no split will be accepted.
+
+            heter_small_enough: When heterogeneity is smaller than this value, no more splits are performed.
+
+                ??? Note "Default is `0.0`"
+                    By default, the algorithm will never stop due to heterogeneity being small enough; it will stop only if `max_depth` is reached.
+
+                ??? Note "Custom value"
+                    If you know a priori that a specific heterogeneity value is small enough, you can set this parameter to that value to speed up the algorithm.
+
+            max_depth: Maximum number of splits to perform
+
+                ??? Note "Default is `2`"
+                    2 splits already create 4 subregions, i.e. 4 regional plots per feature, which are already enough.
+                    Setting this value to a higher number will increase the number of subregions and plots, which may be too much for the user to analyze.
+
+            min_samples_leaf: Minimum number of instances per subregion
+
+                ??? Note "Default is `10`"
+                    If a subregion has less than 10 instances, it may not be representative enough to be analyzed.
+
+            numerical_features_grid_size: Number of candidate split positions for numerical features
+
+                ??? Note "Default is `20`"
+                    For numerical features, the algorithm will create a grid of 20 equally spaced values between the minimum and maximum values of the feature.
+
+            search_partitions_when_categorical: Whether to search for partitions when the feature is categorical
+
+                ??? warning "refers to a categorical feature of interest"
+                    This argument asks whether to search for partitions when the feature of interest is categorical.
+                    If the feature of interest is numerical, the algorithm will always search for partitions and will consider
+                    categorical features for conditioning.
+
+                ??? Note "Default is `False`"
+                    It is difficult to compute the heterogeneity for categorical features, so by default, the algorithm will not search for partitions when the feature of interest is categorical.
+
+        """
         # setters
         self.min_points_per_subregion = min_samples_leaf
         self.nof_candidate_splits_for_numerical = numerical_features_grid_size

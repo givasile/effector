@@ -12,7 +12,7 @@
 
 ---
 
-`effector` an eXplainable AI package for **tabular data**, that:
+`effector` an eXplainable AI package for **tabular data**. It:
 
 - creates [global and regional](https://xai-effector.github.io/quickstart/global_and_regional_effects/) effect plots
 - has a [simple API](https://xai-effector.github.io/quickstart/simple_api/) with smart defaults, but can become [flexible](https://xai-effector.github.io/quickstart/flexible_api/) if needed
@@ -161,10 +161,12 @@ for node_idx in [1,2]:
     )
 ```
 
-<div style="display: flex; justify-content: center;">
-    <img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/notebooks/quickstart/readme_example_files/readme_example_5_0.png" width="45%">
-    <img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/notebooks/quickstart/readme_example_files/readme_example_5_1.png" width="45%">
-</div>
+<table>
+  <tr>
+    <td><img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/notebooks/quickstart/readme_example_files/readme_example_5_0.png" alt="Feature effect plot"></td>
+    <td><img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/notebooks/quickstart/readme_example_files/readme_example_5_1.png" alt="Feature effect plot"></td>
+  </tr>
+</table>
 
 
 #### Is it hot or cold?

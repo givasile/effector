@@ -207,44 +207,6 @@ class RegionalEffectBase:
         """
         :point_right: Evaluate the regional effect for a given feature and node.
 
-        ??? Example "Example usage"
-
-            ```python
-            axis_limits = ... # define the axis limits
-            xs = np.linspace(axis_limits[0], axis_limits[1], 100)
-            ```
-
-            === "PDP"
-
-                ```python
-                effector.RegionalPDP(data=X, model=predict).eval(0, 0, xs, centering=True)
-                ```
-
-            === "RHALE"
-
-                ```python
-                effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian).eval(0, 0, xs, centering=True)
-                ```
-
-            === "ALE"
-
-                ```python
-                effector.RegionalALE(data=X, model=predict).eval(0, 0, xs, centering=True)
-                ```
-
-            === "ShapDP"
-
-                 ```python
-                    effector.RegionalShapDP(data=X, model=predict).eval(0, 0, xs, centering=True)
-                 ```
-
-            === "DerPDP"
-
-                 ```python
-                    effector.DerPDP(data=X, model=predict, model_jac=jacobian).eval(0, 0, xs, centering=False)
-                 ```
-
-
         !!! note "This is a common method for all regional effect methods, so use the arguments carefully."
 
             - `centering=True` is a good option for most methods, but not for all.
@@ -311,51 +273,28 @@ class RegionalEffectBase:
         return fe_method.plot(**plot_kwargs)
 
     def summary(self, features: List[int], scale_x_list: Optional[List] = None):
-        """Summarize the partition tree for the selected features.
-
-        ???+ Example "Example usage"
-
-            === "PDP"
-
-                ```python
-                effector.RegionalPDP(data=X, model=predict).summary(0)
-                ```
-
-            === "RHALE"
-
-                ```python
-                effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian).summary(0)
-                ```
-
-            === "ALE"
-
-                ```python
-                effector.RegionalALE(data=X, model=predict).summary(0)
-                ```
-
-            === "ShapDP"
-
-                 ```python
-                    effector.RegionalShapDP(data=X, model=predict).summary(0)
-                 ```
-
-            === "DerPDP"
-
-                 ```python
-                    effector.DerPDP(data=X, model=predict, model_jac=jacobian).summary(0)
-                 ```
+        """:point_right: Summarize the partition tree for the selected features.
 
         ???+ Example "Example output"
 
             ```python
-            Feature 0 - Full partition tree:
-                 Node id: 0, name: x_0, heter: 34.79 || nof_instances:  1000 || weight: 1.00
-                         Node id: 1, name: x_0 | x_1 <= 0.0, heter: 0.09 || nof_instances:  1000 || weight: 1.00
-                         Node id: 2, name: x_0 | x_1  > 0.0, heter: 0.09 || nof_instances:  1000 || weight: 1.00
-                 --------------------------------------------------
-                 Feature 0 - Statistics per tree level:
-                 Level 0, heter: 34.79
-                    Level 1, heter: 0.18 || heter drop : 34.61 (units), 99.48% (pcg)
+            Feature 3 - Full partition tree:
+            🌳 Full Tree Structure:
+            ───────────────────────
+            hr 🔹 [id: 0 | heter: 0.43 | inst: 3476 | w: 1.00]
+                workingday = 0.00 🔹 [id: 1 | heter: 0.36 | inst: 1129 | w: 0.32]
+                    temp ≤ 6.50 🔹 [id: 3 | heter: 0.17 | inst: 568 | w: 0.16]
+                    temp > 6.50 🔹 [id: 4 | heter: 0.21 | inst: 561 | w: 0.16]
+                workingday ≠ 0.00 🔹 [id: 2 | heter: 0.28 | inst: 2347 | w: 0.68]
+                    temp ≤ 6.50 🔹 [id: 5 | heter: 0.19 | inst: 953 | w: 0.27]
+                    temp > 6.50 🔹 [id: 6 | heter: 0.20 | inst: 1394 | w: 0.40]
+            --------------------------------------------------
+            Feature 3 - Statistics per tree level:
+            🌳 Tree Summary:
+            ─────────────────
+            Level 0🔹heter: 0.43
+                Level 1🔹heter: 0.31 | 🔻0.12 (28.15%)
+                    Level 2🔹heter: 0.19 | 🔻0.11 (37.10%)
             ```
 
         Args:
