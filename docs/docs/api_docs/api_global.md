@@ -1,3 +1,4 @@
+#
 ## Summary
 
 All global effect methods have a similar interface and workflow:
@@ -18,30 +19,30 @@ predict = ... # model to be explained
 jacobian = ... # jacobian of the model
 ```
 
-1. **Create an instance of the regional effect method you want to use**:
+1. **Create an instance of the global effect method you want to use**:
 
     === "PDP"
         
         ```python
-        g_method = effector.RegionalPDP(data=X, model=predict)
+        g_method = effector.PDP(data=X, model=predict)
         ```
     
     === "RHALE"
     
         ```python
-        g_method = effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian)
+        g_method = effector.RHALE(data=X, model=predict, model_jac=jacobian)
         ```
     
     === "ShapDP"
     
          ```python
-         g_method = effector.RegionalShapDP(data=X, model=predict)
+         g_method = effector.ShapDP(data=X, model=predict)
          ```
     
     === "ALE"
     
         ```python
-        g_method = effector.RegionalALE(data=X, model=predict)
+        g_method = effector.ALE(data=X, model=predict)
         ```
     
     === "DerPDP"
@@ -50,7 +51,7 @@ jacobian = ... # jacobian of the model
          g_method = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
          ```
 
-2. **Customize the regional effect method (optional)**:
+2. **Customize the global effect method (optional)**:
 
     `.fit(features, **method_specific_args)`
     
@@ -119,12 +120,14 @@ jacobian = ... # jacobian of the model
         ```python
         # Example input
         feature = ... # feature to be analyzed
-        xs = ... # grid of points to evaluate the regional effect, e.g., np.linspace(0, 1, 100)
+        xs = ... # grid of points to evaluate the global effect, e.g., np.linspace(0, 1, 100)
         ```
 
          ```python
          y, het = r_method.eval(feature, xs)
          ```
+
+## API
 
 ### ::: effector.global_effect_ale.ALE
       options:

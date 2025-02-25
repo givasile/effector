@@ -112,13 +112,24 @@ class ShapDP(GlobalEffectBase):
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
         centering: typing.Union[bool, str] = False,
         points_for_centering: int = 30,
+        shap_explainer_kwargs: Optional[dict] = None,
+        shap_explanation_kwargs: Optional[dict] = None,
     ) -> typing.Dict:
 
         data = self.data
+        model = self.model
         if self.shap_values is None:
-            shap_explainer = shap.Explainer(self.model, data)
-            shap_explainer_fitted = shap_explainer(data)
-            self.shap_values = shap_explainer_fitted.values
+            # Ensure kwargs are dictionaries
+            shap_explainer_kwargs = shap_explainer_kwargs or {}
+            shap_explanation_kwargs = shap_explanation_kwargs or {}
+
+            # Set masker, defaulting to self.data
+            masker = shap_explainer_kwargs.pop("masker", data)
+
+            # Create SHAP explainer
+            shap_explainer = shap.Explainer(model, masker, **shap_explainer_kwargs)
+            shap_explanation = shap_explainer(data, **shap_explanation_kwargs)
+            self.shap_values = shap_explanation.values
 
         # extract x and y
         yy = self.shap_values[:, feature]
@@ -183,6 +194,8 @@ class ShapDP(GlobalEffectBase):
         centering: Union[bool, str] = True,
         points_for_centering: Union[int, str] = 30,
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
+        shap_explainer_kwargs: Optional[dict] = None,
+        shap_explanation_kwargs: Optional[dict] = None,
     ) -> None:
         """Fit the SHAP Dependence Plot to the data.
 
@@ -205,6 +218,63 @@ class ShapDP(GlobalEffectBase):
 
                 - If set to `all`, all the dataset points will be used.
 
+            binning_method: the binning method to be used for fitting a piecewise linear function to the SHAP values.
+
+                - If set to "greedy", the greedy binning method will be used.
+                - If set to "fixed", the fixed binning method will be used.
+
+            shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` class.
+
+                ???+ note "Code behind the scene"
+                    
+                    ```python
+                    shap_explainer_kwargs = shap_explainer_kwargs or {}
+                    model = self.model
+                    masker = shap_explainer_kwargs.pop("masker", self.data)
+                    explainer = shap.Explainer(model, masker, **shap_explainer_kwargs)
+                    ```
+
+                    So:
+
+                        - the `masker` is set to `self.data` by default. If you want to change it, you can pass it as a keyword argument.
+                        - if you want to pass any other keyword argument to the `shap.Explainer` class, you can pass it as a dictionary. For example: `shap_explainer_kwargs={"algorithm": "linear"}`
+
+                ???+ warning "Be careful with custom arguments"
+
+                    Use shap_explainer_kwargs with caution. The `shap.Explainer` class has many arguments that can change the behavior of the SHAP values.
+                    Check the [official documentation](https://shap.readthedocs.io/en/latest/generated/shap.Explainer.html#shap.Explainer) for more details.
+
+                ???+ note "Most important arguments"
+
+                    - `masker`: the data used for masking the input data. By default, it is set to `self.data`.
+                    If you want a faster computation, you can pass a subset of the data, e.g. `masker=self.data[:100]`.
+                    - `algorithm`: the algorithm used for computing the SHAP values. By default, it is set to `"auto"`.
+                    If you know that your model belongs to a specific class, you can set it to the corresponding algorithm, e.g. `algorithm="linear"`.
+
+            shap_explanation_kwargs: the keyword arguments to be passed to compute the SHAP values.a
+
+                ???+ note "Code behind the scene"
+
+                    ```python
+                    explainer = ... (check the code above)
+                    shap_explanation_kwargs = shap_explanation_kwargs or {}
+                    explainer(self.data, **shap_explanation_kwargs)
+                    ```
+
+                ???+ note "Most important arguments"
+                    - `max_evals`: the maximum number of evaluations for the SHAP values. (default: `500`)
+
+
+                ???+ note "All arguments"
+
+                    - `max_evals`: the maximum number of evaluations for the SHAP values. (default: `500`)
+                    - `main_effects`: whether to compute the main effects. (default: `False`)
+                    - `error_bounds`: whether to compute the error bounds. (default: `False`)
+                    - `batch_size`: the batch size for computing the SHAP values. (default: `auto`)
+                    - `output_names`: the names of the outputs. (default: `None`)
+                    - `silent`: whether to print the progress. (default: `False`)
+
+
         Notes:
             SHAP values are by default centered, i.e., $\sum_{i=1}^N \hat{\phi}_j(x_j^i) = 0$. This does not mean that the SHAP _curve_ is centered around zero; this happens only if the $s$-th feature of the dataset instances, i.e., the set $\{x_s^i\}_{i=1}^N$ is uniformly distributed along the $s$-th axis. So, use:
 
@@ -224,7 +294,7 @@ class ShapDP(GlobalEffectBase):
         # new implementation
         for s in features:
             self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s, binning_method, centering, points_for_centering,
+                s, binning_method, centering, points_for_centering, shap_explainer_kwargs, shap_explanation_kwargs
             )
             self.is_fitted[s] = True
             self.fit_args["feature_" + str(s)] = {

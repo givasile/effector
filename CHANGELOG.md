@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.3] - 2025-02-17
+
+### Changed
+
+- shap_dp (both global and regional) can now take custom arguments for the SHAP explainer
+
 ## [0.1.2] - 2025-02-17
 
 ### Changed
