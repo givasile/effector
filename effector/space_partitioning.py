@@ -20,7 +20,7 @@ class Best:
     ):
         """Choose the algorithm `Best`.
         The algorithm is a greedy algorithm that finds the best split for each level in a greedy fashion.
-        
+
 
         Args:
             min_heterogeneity_decrease_pcg: Minimum percentage of heterogeneity decrease to accept a split.
