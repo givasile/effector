@@ -187,6 +187,7 @@ class PDPBase(GlobalEffectBase):
         show_avg_output: bool = False,
         y_limits: Optional[List] = None,
         use_vectorized: bool = True,
+        show_plot: bool = True,
     ):
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
@@ -212,7 +213,7 @@ class PDPBase(GlobalEffectBase):
             avg_output = None
 
         title = "PDP" if self.method_name == "pdp" else "d-PDP"
-        vis.plot_pdp_ice(
+        ret = vis.plot_pdp_ice(
             x,
             feature,
             yy=yy,
@@ -227,7 +228,11 @@ class PDPBase(GlobalEffectBase):
             target_name=self.target_name,
             nof_ice=nof_ice,
             y_limits=y_limits,
+            show_plot=show_plot,
         )
+        if not show_plot:
+            fig, ax = ret
+            return fig, ax
 
 class PDP(PDPBase):
     def __init__(
@@ -330,6 +335,7 @@ class PDP(PDPBase):
         show_avg_output: bool = False,
         y_limits: Optional[List] = None,
         use_vectorized: bool = True,
+        show_plot: bool = True,
     ):
         """
         Plot the feature effect.
@@ -370,7 +376,7 @@ class PDP(PDPBase):
 
             use_vectorized: whether to use the vectorized version of the PDP computation
         """
-        self._plot(
+        ret = self._plot(
             feature,
             heterogeneity,
             centering,
@@ -382,6 +388,9 @@ class PDP(PDPBase):
             y_limits,
             use_vectorized,
         )
+        if not show_plot:
+            return ret
+
 
 
 class DerPDP(PDPBase):
@@ -492,6 +501,7 @@ class DerPDP(PDPBase):
         show_avg_output: bool = False,
         dy_limits: Optional[List] = None,
         use_vectorized: bool = True,
+        show_plot: bool = True,
     ):
         """
         Plot the feature effect.
@@ -531,8 +541,9 @@ class DerPDP(PDPBase):
                 - If set to a tuple, the limits are manually set
 
             use_vectorized: whether to use the vectorized version of the PDP computation
+            show_plot: whether to show the plot
         """
-        self._plot(
+        ret = self._plot(
             feature,
             heterogeneity,
             centering,
@@ -543,7 +554,12 @@ class DerPDP(PDPBase):
             show_avg_output,
             dy_limits,
             use_vectorized,
+            show_plot,
         )
+
+        if not show_plot:
+            fig, ax = ret
+            return fig, ax
 
 
 def ice_non_vectorized(

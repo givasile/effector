@@ -2,10 +2,8 @@ name: Publish documentation
 
 on:
   push:
-    branches:
-      - main
     tags:
-      - v*
+      - "v*.*"
 
 jobs:
   build-documentation:
@@ -28,6 +26,7 @@ jobs:
     - name: Build docs
       run: |
         cd docs
+        cp ../CHANGELOG.md ./docs/changelog.md
         mkdocs build
         cd ..
 

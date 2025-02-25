@@ -1,5 +1,6 @@
 # Changelog
 
+<<<<<<< HEAD
 ## [Unreleased]
 
 ### Changed
@@ -7,11 +8,17 @@
 - moved to shapiq library instead of shap
 - default plot titles now display full method name, e.g., `Accumulated Local Effects` instead of `ALE`.
 
+=======
+>>>>>>> main
 ## [0.1.2] - 2025-02-17
 
 ### Changed
 
 - all plots return a `fig, ax` tuple, if the user wants to modify the plot further.
+<<<<<<< HEAD
+=======
+- default plot titles now display full method name, e.g., `Accumulated Local Effects` instead of `ALE`.
+>>>>>>> main
 - changed README.md to reflect the new changes.
 
 ### Added 
