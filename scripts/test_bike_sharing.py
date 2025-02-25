@@ -1,9 +1,7 @@
-from sklearn.datasets import make_classification
-from sklearn.ensemble import GradientBoostingClassifier
 import effector
 
 
-X_train, Y_train, X_test, Y_test, x_mean, x_std, y_mean, y_std = effector.datasets.BikeSharing().get_data()
+effector.
 
 
 from sklearn import tree

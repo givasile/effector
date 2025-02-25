@@ -267,7 +267,7 @@ def plot_shap(
 ):
 
     fig, ax = plt.subplots()
-    ax.set_title("SHAP-DP")
+    ax.set_title("SHAP Dependence Plot")
 
     # scale x-axis
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
