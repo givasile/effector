@@ -1,17 +1,23 @@
 # Changelog
 
-## [0.1.3] - 2025-02-17
+## [0.1.4] - 2025-02-26
+
+### Changed
+
+- default plot titles now display full method name, e.g., `Accumulated Local Effects` instead of `ALE`.
+- update all notebooks with new names
+
+## [0.1.3] - 2025-02-25
 
 ### Changed
 
 - shap_dp (both global and regional) can now take custom arguments for the SHAP explainer
 
-## [0.1.2] - 2025-02-17
+## [0.1.2] - 2025-02-22
 
 ### Changed
 
 - all plots return a `fig, ax` tuple, if the user wants to modify the plot further.
-- default plot titles now display full method name, e.g., `Accumulated Local Effects` instead of `ALE`.
 - changed README.md to reflect the new changes.
 
 ### Added 

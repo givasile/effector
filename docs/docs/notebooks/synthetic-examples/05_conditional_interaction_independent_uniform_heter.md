@@ -96,7 +96,7 @@ for feature in [0, 1, 2]:
     heter_per_feat.append(y_var.mean())
 ```
 
-    Heterogeneity of x_0: 0.092
+    Heterogeneity of x_0: 0.093
     Heterogeneity of x_1: 0.088
     Heterogeneity of x_2: 0.000
 
@@ -260,15 +260,8 @@ ale.feature_effect["feature_1"]
              0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
              0.        ,  0.        ,  0.        ,  0.        ,  0.        ,
              0.        ]),
-     'bin_estimator_variance': array([0.        , 0.        , 0.        , 0.        , 0.        ,
-            0.        , 0.        , 0.        , 0.        , 0.        ,
-            0.        , 0.        , 0.        , 0.        , 0.        ,
-            0.25947461, 0.        , 0.        , 0.        , 0.        ,
-            0.        , 0.        , 0.        , 0.        , 0.        ,
-            0.        , 0.        , 0.        , 0.        , 0.        ,
-            0.        ]),
      'alg_params': 'fixed',
-     'norm_const': np.float64(0.32060777402612833)}
+     'norm_const': np.float64(0.3206077740261283)}
 
 
 

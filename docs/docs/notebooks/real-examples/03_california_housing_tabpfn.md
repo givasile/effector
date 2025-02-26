@@ -10,11 +10,7 @@ import time
 california_housing = fetch_california_housing(as_frame=True)
 ```
 
-    2025-02-10 22:30:23.277232: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-    E0000 00:00:1739223023.299610  721882 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    E0000 00:00:1739223023.306366  721882 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2025-02-10 22:30:23.328406: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2025-02-26 11:16:45.248689: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
@@ -633,7 +629,7 @@ print(toc - tic)
       return torch._C._cuda_getDeviceCount() > 0
 
 
-    258.1667549610138
+    256.08621978759766
 
 
 
@@ -704,23 +700,27 @@ r_ale = effector.RegionalALE(data=X_train, model=model_forward, feature_names=fe
 r_ale.summary(features=6, scale_x_list=scale_x_list)
 ```
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:26<00:00, 26.42s/it]
+    100%|██████████| 1/1 [00:32<00:00, 32.79s/it]
 
     
     
     Feature 6 - Full partition tree:
-    Node id: 0, name: Latitude, heter: 0.57 || nof_instances:   500 || weight: 1.00
-            Node id: 1, name: Latitude | Longitude <= -120.76, heter: 0.09 || nof_instances:   180 || weight: 0.36
-                    Node id: 3, name: Latitude | Longitude <= -120.76 and MedInc <= 4.55, heter: 0.09 || nof_instances:   126 || weight: 0.25
-                    Node id: 4, name: Latitude | Longitude <= -120.76 and MedInc > 4.55, heter: 0.10 || nof_instances:    54 || weight: 0.11
-            Node id: 2, name: Latitude | Longitude > -120.76, heter: 0.48 || nof_instances:   320 || weight: 0.64
-                    Node id: 5, name: Latitude | Longitude > -120.76 and MedInc <= 4.55, heter: 0.31 || nof_instances:   228 || weight: 0.46
-                    Node id: 6, name: Latitude | Longitude > -120.76 and MedInc > 4.55, heter: 0.43 || nof_instances:    92 || weight: 0.18
+    🌳 Full Tree Structure:
+    ───────────────────────
+    Latitude 🔹 [id: 0 | heter: 0.57 | inst: 500 | w: 1.00]
+        Longitude ≤ -120.76 🔹 [id: 1 | heter: 0.09 | inst: 180 | w: 0.36]
+            MedInc ≤ 4.55 🔹 [id: 3 | heter: 0.09 | inst: 126 | w: 0.25]
+            MedInc > 4.55 🔹 [id: 4 | heter: 0.10 | inst: 54 | w: 0.11]
+        Longitude > -120.76 🔹 [id: 2 | heter: 0.48 | inst: 320 | w: 0.64]
+            MedInc ≤ 4.55 🔹 [id: 5 | heter: 0.31 | inst: 228 | w: 0.46]
+            MedInc > 4.55 🔹 [id: 6 | heter: 0.43 | inst: 92 | w: 0.18]
     --------------------------------------------------
     Feature 6 - Statistics per tree level:
-    Level 0, heter: 0.57
-            Level 1, heter: 0.34 || heter drop : 0.23 (units), 40.23% (pcg)
-                    Level 2, heter: 0.25 || heter drop : 0.09 (units), 26.41% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.57
+        Level 1🔹heter: 0.34 | 🔻0.23 (40.23%)
+            Level 2🔹heter: 0.25 | 🔻0.09 (26.41%)
     
     
 
@@ -770,7 +770,7 @@ for node_idx in [1, 2]:
 r_ale.plot(feature=7, node_idx=0, centering=True, scale_x_list=scale_x_list, scale_y=scale_y)
 ```
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:26<00:00, 26.83s/it]
+    100%|██████████| 1/1 [00:31<00:00, 31.17s/it]
 
 
 
@@ -804,6 +804,11 @@ for node_idx in [1, 2]:
 **Regional Trends:**  
 - **North (latitude > 35.85):** Prices drop more sharply in the first half from east to west.  
 - **South (latitude < 35.85):** Prices drop more sharply in the second half from east to west.
+
+
+```python
+
+```
 
 
 ```python

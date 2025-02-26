@@ -1,5 +1,5 @@
 ---
-title: Global and regional effects
+title: What are global and regional effects
 ---
 
 ## Global effects
@@ -18,19 +18,19 @@ title: Global and regional effects
 📊 Feature effect plots provide a visual way to see how each feature influences the model's output
 
 === "`month`"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_0.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_1.png)
 
 === "`hour`"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_1.png)
-    
-=== "`temperature`"
     ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_2.png)
     
-=== "`humidity`"
+=== "`temperature`"
     ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_3.png)
     
+=== "`humidity`"
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_34.png)
+    
 === "`windspeed`"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_4.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_45.png)
 
 Interesting! The model has a meaningful behavior:
 
@@ -47,7 +47,7 @@ Let's focus on feature `hour`:
     effector.PDP(X, model).plot(feature=3)
     ```
 
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_1.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_0.png)
 
 === "RHALE"
     ```python
@@ -108,7 +108,7 @@ A simple way to check this is to look at the heterogeneity of the global effect:
 Let's take a look again:
 
 === "PDP"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_1.png)}
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_xbt0.png)}
 
 === "RHALE"
     ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_22_0.png)

@@ -226,6 +226,7 @@ class ALEBase(GlobalEffectBase):
         else:
             avg_output = None
 
+        title = "Accumulated Local Effects (ALE)" if self.method_name == "ale" else "Robust and Heterogeneity-Aware ALE (RHALE)"
         ret = vis.ale_plot(
             self.feature_effect["feature_" + str(feature)],
             self.eval,
@@ -234,7 +235,7 @@ class ALEBase(GlobalEffectBase):
             error=heterogeneity,
             scale_x=scale_x,
             scale_y=scale_y,
-            title=self.method_name.upper(),
+            title=title,
             avg_output=avg_output,
             feature_names=self.feature_names,
             target_name=self.target_name,

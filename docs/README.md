@@ -38,17 +38,15 @@ jupyter nbconvert --to markdown ./../notebooks/guides/* --output-dir docs/notebo
 ```bash
 mkdir docs/static/quickstart/
 mkdir docs/static/real-examples/
-mkdir docs/static/quickstart/simple_api_files/
-mkdir docs/static/quickstart/flexible_api_files/
-mkdir docs/static/real-examples/01_bike_sharing_dataset_files/
 ```
 
 #### Copy the images
 
 ```bash
-cp docs/notebooks/quickstart/simple_api_files/* docs/static/quickstart/simple_api_files/
-cp docs/notebooks/quickstart/flexible_api_files/* docs/static/quickstart/flexible_api_files/
-cp docs/notebooks/real-examples/01_bike_sharing_dataset_files/* docs/static/real-examples/01_bike_sharing_dataset_files/
+cp -r docs/notebooks/quickstart/simple_api_files/ docs/static/quickstart/
+cp -r docs/notebooks/quickstart/flexible_api_files/ docs/static/quickstart/
+cp -r docs/notebooks/quickstart/readme_example_files/ docs/static/quickstart/
+cp -r docs/notebooks/real-examples/01_bike_sharing_dataset_files/ docs/static/real-examples/
 ```
 
 ---

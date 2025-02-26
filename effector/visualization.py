@@ -96,7 +96,7 @@ def ale_plot(
         fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
 
     if title is None:
-        ax1.set_title("ALE")
+        ax1.set_title("Accumulated Local Effects (ALE)")
     else:
         ax1.set_title(title)
 
@@ -279,7 +279,7 @@ def plot_shap(
 ):
 
     fig, ax = plt.subplots()
-    ax.set_title("SHAP-DP")
+    ax.set_title("SHAP Dependence Plot ")
 
     # scale x-axis
     x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])

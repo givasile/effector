@@ -14,16 +14,16 @@
 
 `effector` an eXplainable AI package for **tabular data**. It:
 
-- creates [global and regional](https://xai-effector.github.io/quickstart/global_and_regional_effects/) effect plots
-- has a [simple API](https://xai-effector.github.io/quickstart/simple_api/) with smart defaults, but can become [flexible](https://xai-effector.github.io/quickstart/flexible_api/) if needed
-- is model agnostic; can explain [any underlying ML model](https://xai-effector.github.io/)
-- integrates easily with popular ML libraries, like [Scikit-Learn, Tensorflow and Pytorch](https://xai-effector.github.io/quickstart/simple_api/#__tabbed_2_2)
-- is fast, for both [global](https://xai-effector.github.io/notebooks/guides/efficiency_global/) and [regional](https://xai-effector.github.io/notebooks/guides/efficiency_global/) methods
-- provides a large collection of [global and regional effects methods](https://xai-effector.github.io/#supported-methods)
+- creates [global and regional](./quickstart/global_and_regional_effects/) effect plots
+- has a [simple API](./quickstart/simple_api/) with smart defaults, but can become [flexible](./quickstart/flexible_api/) if needed
+- is model agnostic; it provides methods that can explain [any underlying ML model](./#method-selection-guide)
+- integrates easily with popular ML libraries, like [Scikit-Learn](./quickstart/simple_api/#__tabbed_2_2), [Tensorflow](./quickstart/simple_api/#__tabbed_2_3), [Pytorch](./quickstart/simple_api/#__tabbed_2_4) or any other
+- is fast, for both [global](./notebooks/guides/efficiency_global/) and [regional](./notebooks/guides/efficiency_global/) methods
+- provides a large collection of [global and regional effects methods](./#supported-methods)
 
 ---
 
-📖 [Documentation](https://xai-effector.github.io/) | 🔍 [Intro to global and regional effects](https://xai-effector.github.io/quickstart/global_and_regional_effects/) | 🔧 [API](https://xai-effector.github.io/api/) | 🏗 [Examples](https://xai-effector.github.io/examples)
+📖 [Documentation](./) | 🔍 [Intro to global and regional effects](./quickstart/global_and_regional_effects/) | 🔧 [API](./api/) | 🏗 [Examples](./examples)
 
 ---
 
@@ -79,23 +79,23 @@ def predict(x):
 ### Explain it with global effect plots
 
 ```python
-# define the global effect method
+# Initialize the Partial Dependence Plot (PDP) object
 pdp = effector.PDP(
-    X_test,
-    predict,
-    feature_names=bike_sharing.feature_names,
-    target_name=bike_sharing.target_name
+    X_test,  # Use the test set as background data
+    predict,  # Prediction function
+    feature_names=bike_sharing.feature_names,  # (optional) Feature names
+    target_name=bike_sharing.target_name  # (optional) Target variable name
 )
 
-# plot the effect of the 3rd feature (feature: temperature)
+# Plot the effect of a feature
 pdp.plot(
-    feature=3,
-    nof_ice=200,
-    scale_x={"mean": bike_sharing.x_test_mu[3], "std": bike_sharing.x_test_std[3]},
-    scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},
-    centering=True,
-    show_avg_output=True,
-    y_limits=[-200, 1000]
+    feature=3,  # Select the 3rd feature (feature: hour)
+    nof_ice=200,  # (optional) Number of Individual Conditional Expectation (ICE) curves to plot
+    scale_x={"mean": bike_sharing.x_test_mu[3], "std": bike_sharing.x_test_std[3]},  # (optional) Scale x-axis
+    scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},  # (optional) Scale y-axis
+    centering=True,  # (optional) Center PDP and ICE curves
+    show_avg_output=True,  # (optional) Display the average prediction
+    y_limits=[-200, 1000]  # (optional) Set y-axis limits
 )
 ```
 
@@ -104,18 +104,21 @@ pdp.plot(
 ### Explain it with regional effect plots
 
 ```python
+# Initialize the Regional Partial Dependence Plot (RegionalPDP)
 r_pdp = effector.RegionalPDP(
-    X_test,
-    predict,
-    feature_names=bike_sharing.feature_names,
-    target_name=bike_sharing.target_name
+    X_test,  # Test set data
+    predict,  # Prediction function
+    feature_names=bike_sharing.feature_names,  # Feature names
+    target_name=bike_sharing.target_name  # Target variable name
 )
 
-# summarize the subregions of feature 3
-scale_x_list = [{"mean": mu, "std": std} for mu, std in zip(bike_sharing.x_test_mu, bike_sharing.x_test_std)]
+# Summarize the subregions of the 3rd feature (temperature)
 r_pdp.summary(
-    features=3,
-    scale_x_list=scale_x_list
+    features=3,  # Select the 3rd feature for the summary
+    scale_x_list=[  # scale each feature with mean and std
+        {"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]}
+        for i in range(X_test.shape[1])
+    ]
 )
 ```
 
@@ -134,9 +137,9 @@ hr 🔹 [id: 0 | heter: 0.43 | inst: 3476 | w: 1.00]
 Feature 3 - Statistics per tree level:
 🌳 Tree Summary:
 ─────────────────
-Level 0🔹heter: 0.43
-    Level 1🔹heter: 0.31 | 🔻0.12 (28.15%)
-        Level 2🔹heter: 0.19 | 🔻0.11 (37.10%)
+Level 0🔹heter: 0.41
+    Level 1🔹heter: 0.29 | 🔻0.12 (28.96%)
+        Level 2🔹heter: 0.18 | 🔻0.11 (36.75%)
 ```
 
 The summary of feature `hr` (hour) says that its effect on the output is highly dependent on the value of features:
@@ -150,15 +153,18 @@ Let's see how the effect changes on these subregions!
 #### Is it workingday or not?
 
 ```python
-# plot the regional effects after the first-level splits (workingday or non-workingday)
-for node_idx in [1,2]:
+# Plot regional effects after the first-level split (workingday vs non-workingday)
+for node_idx in [1, 2]:  # Iterate over the nodes of the first-level split
     r_pdp.plot(
-        feature=3,
-        node_idx=node_idx,
-        nof_ice=200,
-        scale_x_list=[{"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]} for i in range(X_test.shape[1])],
-        scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},
-        y_limits=[-200, 1000]
+        feature=3,  # Feature 3 (temperature)
+        node_idx=node_idx,  # Node index (1: workingday, 2: non-workingday)
+        nof_ice=200,  # Number of ICE curves
+        scale_x_list=[  # scale features by mean and std
+            {"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]}
+            for i in range(X_test.shape[1])
+        ],
+        scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},  # Scale the target
+        y_limits=[-200, 1000]  # Set y-axis limits
     )
 ```
 
@@ -173,15 +179,18 @@ for node_idx in [1,2]:
 #### Is it hot or cold?
 
 ```python
-# plot the regional effects after the second-level splits (workingday or non-workingday and hot or cold temperature)
-for node_idx in [3,4,5,6]:
+# Plot regional effects after second-level splits (workingday vs non-workingday and hot vs cold temperature)
+for node_idx in [3, 4, 5, 6]:  # Iterate over the nodes of the second-level splits
     r_pdp.plot(
-        feature=3,
-        node_idx=node_idx,
-        nof_ice=200,
-        scale_x_list=[{"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]} for i in range(X_test.shape[1])],
-        scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},
-        y_limits=[-200, 1000]
+        feature=3,  # Feature 3 (temperature)
+        node_idx=node_idx,  # Node index (hot/cold temperature and workingday/non-workingday)
+        nof_ice=200,  # Number of ICE curves
+        scale_x_list=[  # Scale features by mean and std
+            {"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]}
+            for i in range(X_test.shape[1])
+        ],
+        scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},  # Scale the target
+        y_limits=[-200, 1000]  # Set y-axis limits
     )
 
 ```
