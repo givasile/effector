@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.5] - 2025-02-267
+
+### Changed
+
+- added `ucimlrepo` to the dependencies
+
 ## [0.1.4] - 2025-02-26
 
 ### Changed
