@@ -10,24 +10,26 @@ package-dir = {'effector'='effector'}
 
 [project]
 name = "effector"
-description = "A Python library for global and regional effects"
+description = "An eXplainable AI package for tabular data."
 authors = [{name = "Vasilis Gkolemis", email = "ntipakos@gmail.com"}]
 maintainers = [
-    {name = "Julia Herbinger", email = "julia.herbinger@gmail.com"},
     {name = "Christos Diou", email = "cdiou@hua.gr"},
-    {name = "Giuseppe Casalicchio", email = "giuseppe.casalicchio@gmail.com"}
+    {name = "Julia Herbinger", email = "julia.herbinger@gmail.com"},
+    {name = "Giuseppe Casalicchio", email = "giuseppe.casalicchio@gmail.com"},
+    {name = "Hubert Baniecki", email = "h.baniecki@uw.edu.pl"}
 ]
 license = {text = "MIT License"}
 requires-python = ">=3.7"
-keywords = ["explainability", "machine learning", "deep learning", "interpretability", "feature effect"]
-version = "0.1.2"
+keywords = ["explainability", "interpretability", "machine learning", "deep learning", "regional XAI", "feature effect"]
+version = "0.1.4"
 readme = "README.md"
 dependencies = [
     "matplotlib",
     "numpy",
     "scipy",
     "tqdm",
-    "shap"
+    "shap",
+    "ucimlrepo"
 ]
 
 [project.urls]
@@ -36,4 +38,4 @@ source = "https://github.com/givasile/effector"
 tracker = "https://github.com/givasile/effector/issues"
 
 [project.optional-dependencies]
-tutorials = ["ipython", "pandas", "tensorflow", "keras", "ucimlrepo", "jupyter"]
+tutorials = ["ipython", "pandas", "tensorflow-cpu", "keras", "ucimlrepo", "jupyter"]

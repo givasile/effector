@@ -8,13 +8,7 @@ from sklearn.datasets import fetch_california_housing
 california_housing = fetch_california_housing(as_frame=True)
 ```
 
-    2025-02-09 00:14:28.581561: I external/local_xla/xla/tsl/cuda/cudart_stub.cc:32] Could not find cuda drivers on your machine, GPU will not be used.
-    2025-02-09 00:14:28.585557: I external/local_xla/xla/tsl/cuda/cudart_stub.cc:32] Could not find cuda drivers on your machine, GPU will not be used.
-    2025-02-09 00:14:28.598939: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-    E0000 00:00:1739056468.621639  256803 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    E0000 00:00:1739056468.627939  256803 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2025-02-09 00:14:28.649223: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2025-02-26 11:16:08.667707: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
@@ -189,63 +183,53 @@ model.evaluate(X_test, Y_test, verbose=1)
 ```
 
     Epoch 1/20
-
-
-    2025-02-09 00:14:32.300792: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:152] failed call to cuInit: INTERNAL: CUDA error: Failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2025-02-09 00:14:32.300826: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:137] retrieving CUDA diagnostic information for host: givasile-ubuntu-XPS-15-9500
-    2025-02-09 00:14:32.300836: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:144] hostname: givasile-ubuntu-XPS-15-9500
-    2025-02-09 00:14:32.301020: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:168] libcuda reported version is: 560.35.5
-    2025-02-09 00:14:32.301050: I external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:172] kernel reported version is: 550.120.0
-    2025-02-09 00:14:32.301058: E external/local_xla/xla/stream_executor/cuda/cuda_diagnostics.cc:262] kernel version 550.120.0 does not match DSO version 560.35.5 -- cannot find working devices in this configuration
-
-
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m2s[0m 26ms/step - loss: 0.6131 - mae: 0.5806 - root_mean_squared_error: 0.7777
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m2s[0m 19ms/step - loss: 0.5963 - mae: 0.5775 - root_mean_squared_error: 0.7677
     Epoch 2/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 23ms/step - loss: 0.3267 - mae: 0.4119 - root_mean_squared_error: 0.5716
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 20ms/step - loss: 0.3338 - mae: 0.4156 - root_mean_squared_error: 0.5777
     Epoch 3/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 24ms/step - loss: 0.3024 - mae: 0.3919 - root_mean_squared_error: 0.5499
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 19ms/step - loss: 0.2985 - mae: 0.3941 - root_mean_squared_error: 0.5463
     Epoch 4/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 25ms/step - loss: 0.2882 - mae: 0.3810 - root_mean_squared_error: 0.5369
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 20ms/step - loss: 0.2891 - mae: 0.3813 - root_mean_squared_error: 0.5377
     Epoch 5/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 23ms/step - loss: 0.2794 - mae: 0.3725 - root_mean_squared_error: 0.5285
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 20ms/step - loss: 0.2772 - mae: 0.3718 - root_mean_squared_error: 0.5265
     Epoch 6/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 23ms/step - loss: 0.2760 - mae: 0.3723 - root_mean_squared_error: 0.5253
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2798 - mae: 0.3762 - root_mean_squared_error: 0.5289
     Epoch 7/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 27ms/step - loss: 0.2748 - mae: 0.3716 - root_mean_squared_error: 0.5241
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 20ms/step - loss: 0.2643 - mae: 0.3626 - root_mean_squared_error: 0.5140
     Epoch 8/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 23ms/step - loss: 0.2585 - mae: 0.3587 - root_mean_squared_error: 0.5084
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 19ms/step - loss: 0.2650 - mae: 0.3613 - root_mean_squared_error: 0.5148
     Epoch 9/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2591 - mae: 0.3572 - root_mean_squared_error: 0.5090
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 19ms/step - loss: 0.2559 - mae: 0.3569 - root_mean_squared_error: 0.5058
     Epoch 10/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2549 - mae: 0.3503 - root_mean_squared_error: 0.5048
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 20ms/step - loss: 0.2578 - mae: 0.3547 - root_mean_squared_error: 0.5077
     Epoch 11/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 23ms/step - loss: 0.2451 - mae: 0.3445 - root_mean_squared_error: 0.4951
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 20ms/step - loss: 0.2499 - mae: 0.3488 - root_mean_squared_error: 0.4998
     Epoch 12/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 26ms/step - loss: 0.2506 - mae: 0.3519 - root_mean_squared_error: 0.5006
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2500 - mae: 0.3488 - root_mean_squared_error: 0.4999
     Epoch 13/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2288 - mae: 0.3318 - root_mean_squared_error: 0.4783
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 19ms/step - loss: 0.2405 - mae: 0.3424 - root_mean_squared_error: 0.4903
     Epoch 14/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2267 - mae: 0.3319 - root_mean_squared_error: 0.4761
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 19ms/step - loss: 0.2378 - mae: 0.3383 - root_mean_squared_error: 0.4876
     Epoch 15/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2281 - mae: 0.3307 - root_mean_squared_error: 0.4776
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2382 - mae: 0.3391 - root_mean_squared_error: 0.4879
     Epoch 16/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 23ms/step - loss: 0.2234 - mae: 0.3284 - root_mean_squared_error: 0.4727
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2360 - mae: 0.3422 - root_mean_squared_error: 0.4858
     Epoch 17/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 23ms/step - loss: 0.2328 - mae: 0.3441 - root_mean_squared_error: 0.4825
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 17ms/step - loss: 0.2246 - mae: 0.3293 - root_mean_squared_error: 0.4739
     Epoch 18/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 26ms/step - loss: 0.2136 - mae: 0.3226 - root_mean_squared_error: 0.4621
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2233 - mae: 0.3259 - root_mean_squared_error: 0.4725
     Epoch 19/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 24ms/step - loss: 0.2185 - mae: 0.3208 - root_mean_squared_error: 0.4674
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2144 - mae: 0.3216 - root_mean_squared_error: 0.4631
     Epoch 20/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2107 - mae: 0.3188 - root_mean_squared_error: 0.4590
-    [1m456/456[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 2ms/step - loss: 0.2044 - mae: 0.3113 - root_mean_squared_error: 0.4521
-    [1m114/114[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 1ms/step - loss: 0.2989 - mae: 0.3614 - root_mean_squared_error: 0.5461
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2099 - mae: 0.3204 - root_mean_squared_error: 0.4581
+    [1m456/456[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 1ms/step - loss: 0.2090 - mae: 0.3247 - root_mean_squared_error: 0.4572
+    [1m114/114[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 1ms/step - loss: 0.3026 - mae: 0.3725 - root_mean_squared_error: 0.5495
 
 
 
 
 
-    [0.27413058280944824, 0.3489225506782532, 0.5235748291015625]
+    [0.2769879102706909, 0.36055105924606323, 0.5262964367866516]
 
 
 
@@ -334,97 +318,126 @@ for i in range(len(feature_names)):
 
 ## Regional Effects
 
+
 ```python
-reg_rhale = effector.RegionalRHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac,
-                                   feature_names=feature_names, target_name=target_name, nof_instances="all")
-reg_rhale.fit("all", space_partitioner=effector.space_partitioning.Best(heter_pcg_drop_thres=0.25))
+reg_rhale = effector.RegionalRHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, feature_names=feature_names, target_name=target_name, nof_instances="all")
+reg_rhale.fit("all", space_partitioner=effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.25))
 reg_rhale.summary(features="all", scale_x_list=scale_x_list)
 ```
 
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 8/8 [00:40<00:00,  5.08s/it]
+    100%|██████████| 8/8 [00:34<00:00,  4.30s/it]
 
     
     
     Feature 0 - Full partition tree:
-    Node id: 0, name: MedInc, heter: 0.06 || nof_instances: 14576 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    MedInc 🔹 [id: 0 | heter: 0.05 | inst: 14576 | w: 1.00]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 0.06
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.05
     
     
     
     
     Feature 1 - Full partition tree:
-    Node id: 0, name: HouseAge, heter: 0.05 || nof_instances: 14576 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    HouseAge 🔹 [id: 0 | heter: 0.05 | inst: 14576 | w: 1.00]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 0.05
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.05
     
     
     
     
     Feature 2 - Full partition tree:
-    Node id: 0, name: AveRooms, heter: 0.04 || nof_instances: 14576 || weight: 1.00
-            Node id: 1, name: AveRooms | MedInc <= 3.73, heter: 0.03 || nof_instances:  8289 || weight: 0.57
-            Node id: 2, name: AveRooms | MedInc > 3.73, heter: 0.03 || nof_instances:  6287 || weight: 0.43
+    🌳 Full Tree Structure:
+    ───────────────────────
+    AveRooms 🔹 [id: 0 | heter: 0.04 | inst: 14576 | w: 1.00]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 0.04
-            Level 1, heter: 0.03 || heter drop : 0.01 (units), 25.46% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.04
     
     
     
     
     Feature 3 - Full partition tree:
-    Node id: 0, name: AveBedrms, heter: 0.01 || nof_instances: 14576 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    AveBedrms 🔹 [id: 0 | heter: 0.01 | inst: 14576 | w: 1.00]
     --------------------------------------------------
     Feature 3 - Statistics per tree level:
-    Level 0, heter: 0.01
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.01
     
     
     
     
     Feature 4 - Full partition tree:
-    Node id: 0, name: Population, heter: 0.02 || nof_instances: 14576 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    Population 🔹 [id: 0 | heter: 0.02 | inst: 14576 | w: 1.00]
     --------------------------------------------------
     Feature 4 - Statistics per tree level:
-    Level 0, heter: 0.02
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.02
     
     
     
     
     Feature 5 - Full partition tree:
-    Node id: 0, name: AveOccup, heter: 0.06 || nof_instances: 14576 || weight: 1.00
-            Node id: 1, name: AveOccup | MedInc <= 3.73, heter: 0.03 || nof_instances:  8289 || weight: 0.57
-            Node id: 2, name: AveOccup | MedInc > 3.73, heter: 0.04 || nof_instances:  6287 || weight: 0.43
+    🌳 Full Tree Structure:
+    ───────────────────────
+    AveOccup 🔹 [id: 0 | heter: 0.05 | inst: 14576 | w: 1.00]
+        HouseAge ≤ 25.60 🔹 [id: 1 | heter: 0.02 | inst: 5587 | w: 0.38]
+        HouseAge > 25.60 🔹 [id: 2 | heter: 0.04 | inst: 8989 | w: 0.62]
     --------------------------------------------------
     Feature 5 - Statistics per tree level:
-    Level 0, heter: 0.06
-            Level 1, heter: 0.04 || heter drop : 0.02 (units), 39.17% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.05
+        Level 1🔹heter: 0.03 | 🔻0.01 (30.28%)
     
     
     
     
     Feature 6 - Full partition tree:
-    Node id: 0, name: Latitude, heter: 0.68 || nof_instances: 14576 || weight: 1.00
-            Node id: 1, name: Latitude | Longitude <= -121.55, heter: 0.52 || nof_instances:  3810 || weight: 0.26
-            Node id: 2, name: Latitude | Longitude > -121.55, heter: 0.31 || nof_instances: 10766 || weight: 0.74
+    🌳 Full Tree Structure:
+    ───────────────────────
+    Latitude 🔹 [id: 0 | heter: 0.67 | inst: 14576 | w: 1.00]
+        Longitude ≤ -121.55 🔹 [id: 1 | heter: 0.44 | inst: 3810 | w: 0.26]
+        Longitude > -121.55 🔹 [id: 2 | heter: 0.30 | inst: 10766 | w: 0.74]
     --------------------------------------------------
     Feature 6 - Statistics per tree level:
-    Level 0, heter: 0.68
-            Level 1, heter: 0.36 || heter drop : 0.32 (units), 46.55% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.67
+        Level 1🔹heter: 0.34 | 🔻0.33 (49.37%)
     
     
     
     
     Feature 7 - Full partition tree:
-    Node id: 0, name: Longitude, heter: 0.53 || nof_instances: 14576 || weight: 1.00
-            Node id: 1, name: Longitude | Latitude <= 34.75, heter: 0.20 || nof_instances:  7954 || weight: 0.55
-            Node id: 2, name: Longitude | Latitude > 34.75, heter: 0.38 || nof_instances:  6622 || weight: 0.45
+    🌳 Full Tree Structure:
+    ───────────────────────
+    Longitude 🔹 [id: 0 | heter: 0.50 | inst: 14576 | w: 1.00]
+        Latitude ≤ 36.22 🔹 [id: 1 | heter: 0.23 | inst: 8566 | w: 0.59]
+        Latitude > 36.22 🔹 [id: 2 | heter: 0.30 | inst: 6010 | w: 0.41]
     --------------------------------------------------
     Feature 7 - Statistics per tree level:
-    Level 0, heter: 0.53
-            Level 1, heter: 0.28 || heter drop : 0.25 (units), 47.01% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.50
+        Level 1🔹heter: 0.26 | 🔻0.24 (47.85%)
     
     
 

@@ -96,7 +96,7 @@ def ale_plot(
         fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
 
     if title is None:
-        ax1.set_title("ALE")
+        ax1.set_title("Accumulated Local Effects (ALE)")
     else:
         ax1.set_title(title)
 

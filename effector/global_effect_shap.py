@@ -100,6 +100,7 @@ class ShapDP(GlobalEffectBase):
                 - use `"shapiq"` for the `shapiq` package
         """
         self.shap_values = shap_values if shap_values is not None else None
+        assert backend in ["shap", "shapiq"]
         self.backend = backend
         super(ShapDP, self).__init__(
             "SHAP DP",
@@ -119,22 +120,44 @@ class ShapDP(GlobalEffectBase):
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
         centering: typing.Union[bool, str] = False,
         points_for_centering: int = 30,
-        budget: int = 512
+        budget: int = 512,
+        explainer_kwargs: Optional[dict] = None,
+        explanation_kwargs: Optional[dict] = None,
     ) -> typing.Dict:
 
         data = self.data
+        model = self.model
+
+
         if self.shap_values is None:
+            # prepare arguments
+            explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
+            explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
             if self.backend == "shap":
-                # by default shap uses 'permutation' with 100 background samples where 
-                # either max_evals = 500 or max_evals = "auto" := 10 * 2 * (nfeatures + 1)
-                # (or 'exact' when <=10 features)
-                explainer = shap.Explainer(self.model, data)
-                explanation = explainer(data, max_evals=budget)
+                explainer_defaults = {"masker": data}
+                explanation_defaults = {"max_evals": budget}
+            elif self.backend == "shapiq":
+                explainer_defaults = {
+                    "data": data,
+                    "index": "SV",
+                    "max_order": 1,
+                    "approximator": "permutation",
+                    "imputer": "marginal",
+                }
+                explanation_defaults = {"budget": budget}
+            else:
+                raise ValueError("`backend` should be either 'shap' or 'shapiq'")
+            explainer_kwargs = {**explainer_defaults, **explainer_kwargs}  # User args override defaults
+            explanation_kwargs = {**explanation_defaults, **explanation_kwargs}  # User args override defaults
+
+            # actual code
+            if self.backend == "shap":
+                explainer = shap.Explainer(model, **explainer_kwargs)
+                explanation = explainer(data, **explanation_kwargs)
                 self.shap_values = explanation.values
             elif self.backend == "shapiq":
-                # by default shapiq uses 'kernelshap' with 100 background samples where budget := 2 ** nfeatures
-                explainer = shapiq.Explainer(self.model, data, index="SV", max_order=1, approximator="permutation", imputer="marginal")
-                explanations = explainer.explain_X(data, budget=budget)
+                explainer = shapiq.Explainer(model, **explainer_kwargs)
+                explanations = explainer.explain_X(data, **explanation_kwargs)
                 self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
             else:
                 raise ValueError("`backend` should be either 'shap' or 'shapiq'")
@@ -142,15 +165,6 @@ class ShapDP(GlobalEffectBase):
         # extract x and y
         yy = self.shap_values[:, feature]
         xx = data[:, feature]
-
-        # # sort based on xz
-        # idx = np.argsort(xx)
-        # xx = xx[idx]
-        # yy = yy[idx]
-
-        # fit spline_mean to xx, yy pairs
-        # bin estimation
-        # assertion
 
         if isinstance(binning_method, str):
             binning_method = ap.return_default(binning_method)
@@ -202,7 +216,9 @@ class ShapDP(GlobalEffectBase):
         centering: Union[bool, str] = True,
         points_for_centering: Union[int, str] = 30,
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
-        budget: int = 512
+        budget: int = 512,
+        shap_explainer_kwargs: Optional[dict] = None,
+        shap_explanation_kwargs: Optional[dict] = None,
     ) -> None:
         """Fit the SHAP Dependence Plot to the data.
 
@@ -225,9 +241,66 @@ class ShapDP(GlobalEffectBase):
 
                 - If set to `all`, all the dataset points will be used.
 
+
+            binning_method: the binning method to be used for fitting a piecewise linear function to the SHAP values.
+
+                - If set to "greedy", the greedy binning method will be used.
+                - If set to "fixed", the fixed binning method will be used.
+
             budget: Budget to use for the approximation. Defaults to 512.
                 - Increasing the budget improves the approximation at the cost of slower computation.
                 - Decrease the budget for faster computation at the cost of approximation error.
+
+            shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` class.
+
+                ???+ note "Code behind the scene"
+
+                    ```python
+                    shap_explainer_kwargs = shap_explainer_kwargs or {}
+                    model = self.model
+                    masker = shap_explainer_kwargs.pop("masker", self.data)
+                    explainer = shap.Explainer(model, masker, **shap_explainer_kwargs)
+                    ```
+
+                    So:
+
+                        - the `masker` is set to `self.data` by default. If you want to change it, you can pass it as a keyword argument.
+                        - if you want to pass any other keyword argument to the `shap.Explainer` class, you can pass it as a dictionary. For example: `shap_explainer_kwargs={"algorithm": "linear"}`
+
+                ???+ warning "Be careful with custom arguments"
+
+                    Use shap_explainer_kwargs with caution. The `shap.Explainer` class has many arguments that can change the behavior of the SHAP values.
+                    Check the [official documentation](https://shap.readthedocs.io/en/latest/generated/shap.Explainer.html#shap.Explainer) for more details.
+
+                ???+ note "Most important arguments"
+
+                    - `masker`: the data used for masking the input data. By default, it is set to `self.data`.
+                    If you want a faster computation, you can pass a subset of the data, e.g. `masker=self.data[:100]`.
+                    - `algorithm`: the algorithm used for computing the SHAP values. By default, it is set to `"auto"`.
+                    If you know that your model belongs to a specific class, you can set it to the corresponding algorithm, e.g. `algorithm="linear"`.
+
+            shap_explanation_kwargs: the keyword arguments to be passed to compute the SHAP values.a
+
+                ???+ note "Code behind the scene"
+
+                    ```python
+                    explainer = ... (check the code above)
+                    shap_explanation_kwargs = shap_explanation_kwargs or {}
+                    explainer(self.data, **shap_explanation_kwargs)
+                    ```
+
+                ???+ note "Most important arguments"
+                    - `max_evals`: the maximum number of evaluations for the SHAP values. (default: `500`)
+
+
+                ???+ note "All arguments"
+
+                    - `max_evals`: the maximum number of evaluations for the SHAP values. (default: `500`)
+                    - `main_effects`: whether to compute the main effects. (default: `False`)
+                    - `error_bounds`: whether to compute the error bounds. (default: `False`)
+                    - `batch_size`: the batch size for computing the SHAP values. (default: `auto`)
+                    - `output_names`: the names of the outputs. (default: `None`)
+                    - `silent`: whether to print the progress. (default: `False`)
 
         Notes:
             SHAP values are by default centered, i.e., $\sum_{i=1}^N \hat{\phi}_j(x_j^i) = 0$. This does not mean that the SHAP _curve_ is centered around zero; this happens only if the $s$-th feature of the dataset instances, i.e., the set $\{x_s^i\}_{i=1}^N$ is uniformly distributed along the $s$-th axis. So, use:
@@ -248,7 +321,13 @@ class ShapDP(GlobalEffectBase):
         # new implementation
         for s in features:
             self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s, binning_method, centering, points_for_centering, budget
+                s,
+                binning_method,
+                centering,
+                points_for_centering,
+                budget,
+                shap_explainer_kwargs,
+                shap_explanation_kwargs
             )
             self.is_fitted[s] = True
             self.fit_args["feature_" + str(s)] = {

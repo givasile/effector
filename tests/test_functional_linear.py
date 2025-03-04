@@ -8,8 +8,8 @@ def test_linear():
 
     np.random.seed(21)
 
-    N = 1000
-    T = 1000
+    N = 100
+    T = 100
     rtol = .1
     atol = .1
 

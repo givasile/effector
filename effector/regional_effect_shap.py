@@ -25,6 +25,7 @@ class RegionalShapDP(RegionalEffectBase):
         cat_limit: Optional[int] = 10,
         feature_names: Optional[List[str]] = None,
         target_name: Optional[str] = None,
+        backend: str = "shap",
     ):
         """
         Initialize the Regional Effect method.
@@ -77,8 +78,14 @@ class RegionalShapDP(RegionalEffectBase):
 
                 - `None`, to keep the default name: `"y"`
                 - `"price"`, to manually specify the name of the target variable
+
+            backend: Package to compute SHAP values
+
+                - use `"shap"` for the `shap` package (default)
+                - use `"shapiq"` for the `shapiq` package
         """
         self.global_shap_values = None
+        self.backend = backend
         super(RegionalShapDP, self).__init__(
             "shap",
             data,
@@ -129,6 +136,9 @@ class RegionalShapDP(RegionalEffectBase):
         candidate_conditioning_features: typing.Union["str", list] = "all",
         space_partitioner: typing.Union["str", effector.space_partitioning.Best] = "best",
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
+        budget: int = 512,
+        shap_explainer_kwargs: Optional[dict] = None,
+        shap_explanation_kwargs: Optional[dict] = None,
     ):
         """
         Fit the regional SHAP.
@@ -144,6 +154,62 @@ class RegionalShapDP(RegionalEffectBase):
                 - If set to "greedy", the greedy space partitioner will be used.
 
             binning_method: the binning method to use
+
+            budget: Budget to use for the approximation. Defaults to 512.
+                - Increasing the budget improves the approximation at the cost of slower computation.
+                - Decrease the budget for faster computation at the cost of approximation error.
+
+            shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` class.
+
+                ???+ note "Code behind the scene"
+
+                    ```python
+                    shap_explainer_kwargs = shap_explainer_kwargs or {}
+                    model = self.model
+                    masker = shap_explainer_kwargs.pop("masker", self.data)
+                    explainer = shap.Explainer(model, masker, **shap_explainer_kwargs)
+                    ```
+
+                    So:
+
+                        - the `masker` is set to `self.data` by default. If you want to change it, you can pass it as a keyword argument.
+                        - if you want to pass any other keyword argument to the `shap.Explainer` class, you can pass it as a dictionary. For example: `shap_explainer_kwargs={"algorithm": "linear"}`
+
+                ???+ warning "Be careful with custom arguments"
+
+                    Use shap_explainer_kwargs with caution. The `shap.Explainer` class has many arguments that can change the behavior of the SHAP values.
+                    Check the [official documentation](https://shap.readthedocs.io/en/latest/generated/shap.Explainer.html#shap.Explainer) for more details.
+
+                ???+ note "Most important arguments"
+
+                    - `masker`: the data used for masking the input data. By default, it is set to `self.data`.
+                    If you want a faster computation, you can pass a subset of the data, e.g. `masker=self.data[:100]`.
+                    - `algorithm`: the algorithm used for computing the SHAP values. By default, it is set to `"auto"`.
+                    If you know that your model belongs to a specific class, you can set it to the corresponding algorithm, e.g. `algorithm="linear"`.
+
+            shap_explanation_kwargs: the keyword arguments to be passed to compute the SHAP values.a
+
+                ???+ note "Code behind the scene"
+
+                    ```python
+                    explainer = ... (check the code above)
+                    shap_explanation_kwargs = shap_explanation_kwargs or {}
+                    explainer(self.data, **shap_explanation_kwargs)
+                    ```
+
+                ???+ note "Most important arguments"
+                    - `max_evals`: the maximum number of evaluations for the SHAP values. (default: `500`)
+
+
+                ???+ note "All arguments"
+
+                    - `max_evals`: the maximum number of evaluations for the SHAP values. (default: `500`)
+                    - `main_effects`: whether to compute the main effects. (default: `False`)
+                    - `error_bounds`: whether to compute the error bounds. (default: `False`)
+                    - `batch_size`: the batch size for computing the SHAP values. (default: `auto`)
+                    - `output_names`: the names of the outputs. (default: `None`)
+                    - `silent`: whether to print the progress. (default: `False`)
+
         """
 
         if isinstance(space_partitioner, str):
@@ -155,8 +221,15 @@ class RegionalShapDP(RegionalEffectBase):
         for feat in tqdm(features):
             # assert global SHAP values are available
             if self.global_shap_values is None:
-                global_shap_dp = effector.ShapDP(self.data, self.model, self.axis_limits, "all")
-                global_shap_dp.fit(feat, centering=False, binning_method=binning_method)
+                global_shap_dp = effector.ShapDP(self.data, self.model, self.axis_limits, "all", backend=self.backend)
+                global_shap_dp.fit(
+                    feat,
+                    centering=False,
+                    binning_method=binning_method,
+                    budget=budget,
+                    shap_explainer_kwargs=shap_explainer_kwargs,
+                    shap_explanation_kwargs=shap_explanation_kwargs
+                )
                 self.global_shap_values = global_shap_dp.shap_values
 
             heter = self._create_heterogeneity_function(feat, space_partitioner.min_points_per_subregion, binning_method)
@@ -171,11 +244,16 @@ class RegionalShapDP(RegionalEffectBase):
         all_arguments = locals()
         all_arguments.pop("self")
 
-        # region splitting arguments are the first 8 arguments
+        # region splitting arguments are the first 3 arguments
         self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:3]}
 
         # fit kwargs
-        self.kwargs_fitting = {"binning_method": binning_method}
+        self.kwargs_fitting = {
+            "binning_method": binning_method,
+            "budget": budget,
+            "shap_explainer_kwargs": shap_explainer_kwargs,
+            "shap_explanation_kwargs": shap_explanation_kwargs
+        }
 
     def plot(self,
              feature,

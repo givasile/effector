@@ -117,21 +117,21 @@ The PDP is simply the average over the underlying ICE curves (local effects). Th
 
 #### Global PDP
 
+
 ```python
-regional_rhale = effector.RegionalPDP(data=X_uncor_train, model=model, feature_names=['x1', 'x2', 'x3'],
-                                      axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+regional_rhale = effector.RegionalPDP(data=X_uncor_train, model=model, feature_names=['x1','x2','x3'], axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
 regional_rhale.fit("all", space_partitioner=space_partitioner, centering=True)
 effector.axis_partitioning.DynamicProgramming()
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 65.91it/s]
+    100%|██████████| 3/3 [00:00<00:00, 33.58it/s]
 
 
 
 
 
-    <effector.axis_partitioning.DynamicProgramming at 0x7f70d9518a90>
+    <effector.axis_partitioning.DynamicProgramming at 0x7e77dd18fdf0>
 
 
 
@@ -165,14 +165,14 @@ pdp.plot(feature=2, centering=True, show_avg_output=False, heterogeneity="ice", 
 
 Regional PDP will search for explanations that minimize the interaction-related heterogeneity.
 
+
 ```python
-regional_pdp = effector.RegionalPDP(data=X_uncor_train, model=model, feature_names=['x1', 'x2', 'x3'],
-                                    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+regional_pdp = effector.RegionalPDP(data=X_uncor_train, model=model, feature_names=['x1','x2','x3'], axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
 regional_pdp.fit(features="all", space_partitioner=space_partitioner, centering=True)
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 51.58it/s]
+    100%|██████████| 3/3 [00:00<00:00, 37.25it/s]
 
 
 
@@ -183,13 +183,17 @@ regional_pdp.summary(features=0)
     
     
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 3.54 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= 0.0, heter: 0.08 || nof_instances:  1000 || weight: 1.00
-            Node id: 2, name: x1 | x3  > 0.0, heter: 0.08 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x1 🔹 [id: 0 | heter: 3.55 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.09 | inst: 504 | w: 0.50]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.08 | inst: 496 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 3.54
-            Level 1, heter: 0.17 || heter drop : 3.37 (units), 95.29% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 3.55
+        Level 1🔹heter: 0.08 | 🔻3.46 (97.66%)
     
     
 
@@ -220,10 +224,14 @@ regional_pdp.summary(features=1)
     
     
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 3.43 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x2 🔹 [id: 0 | heter: 3.48 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 3.43
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 3.48
     
     
 
@@ -236,13 +244,17 @@ regional_pdp.summary(features=2)
     
     
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 3.07 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x3 | x1 <= 0.0, heter: 0.76 || nof_instances:  1000 || weight: 1.00
-            Node id: 2, name: x3 | x1  > 0.0, heter: 0.71 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x3 🔹 [id: 0 | heter: 3.10 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.75 | inst: 485 | w: 0.48]
+        x1 > 0.00 🔹 [id: 2 | heter: 0.70 | inst: 515 | w: 0.52]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 3.07
-            Level 1, heter: 1.47 || heter drop : 1.60 (units), 52.09% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 3.10
+        Level 1🔹heter: 0.73 | 🔻2.38 (76.57%)
     
     
 
@@ -320,14 +332,14 @@ pdp.plot(feature=2, centering=True, show_avg_output=False, heterogeneity="ice", 
 
 #### Regional-PDP
 
+
 ```python
-regional_pdp = effector.RegionalPDP(data=X_cor_train, model=model, feature_names=['x1', 'x2', 'x3'],
-                                    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+regional_pdp = effector.RegionalPDP(data=X_cor_train, model=model, feature_names=['x1','x2','x3'], axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
 regional_pdp.fit(features="all", space_partitioner=space_partitioner, centering=True)
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 50.92it/s]
+    100%|██████████| 3/3 [00:00<00:00, 37.75it/s]
 
 
 
@@ -338,13 +350,17 @@ regional_pdp.summary(features=0)
     
     
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 3.55 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= 0.0, heter: 0.08 || nof_instances:  1000 || weight: 1.00
-            Node id: 2, name: x1 | x3  > 0.0, heter: 0.09 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x1 🔹 [id: 0 | heter: 3.53 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.08 | inst: 495 | w: 0.49]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.08 | inst: 505 | w: 0.51]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 3.55
-            Level 1, heter: 0.17 || heter drop : 3.38 (units), 95.20% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 3.53
+        Level 1🔹heter: 0.08 | 🔻3.45 (97.78%)
     
     
 
@@ -375,13 +391,17 @@ regional_pdp.summary(features=1)
     
     
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 1.11 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x2 | x1 <= 0.6, heter: 0.39 || nof_instances:  1000 || weight: 1.00
-            Node id: 2, name: x2 | x1  > 0.6, heter: 0.21 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x2 🔹 [id: 0 | heter: 1.05 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.40 🔹 [id: 1 | heter: 0.28 | inst: 694 | w: 0.69]
+        x1 > 0.40 🔹 [id: 2 | heter: 0.43 | inst: 306 | w: 0.31]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 1.11
-            Level 1, heter: 0.60 || heter drop : 0.51 (units), 45.92% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 1.05
+        Level 1🔹heter: 0.32 | 🔻0.73 (69.16%)
     
     
 
@@ -394,13 +414,17 @@ regional_pdp.summary(features=2)
     
     
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 3.08 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x3 | x1 <= 0.0, heter: 0.74 || nof_instances:  1000 || weight: 1.00
-            Node id: 2, name: x3 | x1  > 0.0, heter: 0.79 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x3 🔹 [id: 0 | heter: 2.90 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.69 | inst: 495 | w: 0.49]
+        x1 > 0.00 🔹 [id: 2 | heter: 0.72 | inst: 505 | w: 0.51]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 3.08
-            Level 1, heter: 1.53 || heter drop : 1.55 (units), 50.30% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 2.90
+        Level 1🔹heter: 0.70 | 🔻2.20 (75.73%)
     
     
 
@@ -483,30 +507,28 @@ rhale.plot(feature=2, centering=True, heterogeneity="std", show_avg_output=False
 
 The disadvantage of RHALE plot is that it does not reveal the type of heterogeneity. Therefore, Regional (RH)ALE plots are very helpful to identify the type of heterogeneity. Let's see that in practice:
 
+
 ```python
 regional_rhale = effector.RegionalRHALE(
-    data=X_uncor_train,
-    model=model,
-    model_jac=model_jac,
+    data=X_uncor_train, 
+    model=model, 
+    model_jac= model_jac, 
     feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
 
 binning_method = effector.axis_partitioning.Fixed(11, min_points_per_bin=0)
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
 regional_rhale.fit(
     features="all",
-    space_partitioner=effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10),
+    space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10),
     binning_method=binning_method
 )
 
 ```
 
-
-      Cell In[21], line 12
-        space_partitioner = effector.space_partitioning.Regions(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
-                            ^
-    SyntaxError: invalid syntax. Perhaps you forgot a comma?
-
+      0%|          | 0/3 [00:00<?, ?it/s]/home/givasile/github/packages/effector/effector/space_partitioning.py:281: RuntimeWarning: invalid value encountered in divide
+      heter_drop = (heter[:-1] - heter[1:]) / heter[:-1]
+    100%|██████████| 3/3 [00:00<00:00, 13.96it/s]
 
 
 
@@ -517,13 +539,17 @@ regional_rhale.summary(features=0)
     
     
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 8.87 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
-            Node id: 2, name: x1 | x3  > 0.0, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x1 🔹 [id: 0 | heter: 8.97 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 504 | w: 0.50]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 496 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 8.87
-            Level 1, heter: 0.00 || heter drop : 8.87 (units), 100.00% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 8.97
+        Level 1🔹heter: 0.00 | 🔻8.97 (100.00%)
     
     
 
@@ -554,10 +580,14 @@ regional_rhale.summary(features=1)
     
     
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x2 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 0.00
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.00
     
     
 
@@ -570,10 +600,14 @@ regional_rhale.summary(features=2)
     
     
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x3 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 0.00
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.00
     
     
 
@@ -629,25 +663,26 @@ rhale.plot(feature=2, centering=True, heterogeneity="std", show_avg_output=False
 
 #### Regional RHALE
 
+
 ```python
 regional_rhale = effector.RegionalRHALE(
-    data=X_cor_train,
-    model=model,
-    model_jac=model_jac,
+    data=X_cor_train, 
+    model=model, 
+    model_jac= model_jac, 
     feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
 
 binning_method = effector.axis_partitioning.Fixed(10, min_points_per_bin=0)
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
 regional_rhale.fit(
     features="all",
-    space_partitioner=space_partitioner,
+    space_partitioner = space_partitioner,
     binning_method=binning_method,
 )
 
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 18.65it/s]
+    100%|██████████| 3/3 [00:00<00:00, 14.10it/s]
 
 
 
@@ -658,10 +693,14 @@ regional_rhale.summary(features=0)
     
     
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x1 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 0.00
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.00
     
     
 
@@ -674,10 +713,14 @@ regional_rhale.summary(features=1)
     
     
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x2 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 0.00
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.00
     
     
 
@@ -690,10 +733,14 @@ regional_rhale.summary(features=2)
     
     
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x3 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 0.00
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.00
     
     
 
@@ -724,10 +771,8 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
     
 
 
-
-    
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_51_1.png)
-    
+    /home/givasile/github/packages/effector/effector/global_effect_shap.py:402: RuntimeWarning: invalid value encountered in sqrt
+      np.sqrt(self.feature_effect["feature_" + str(feature)]["spline_std"](x))
 
 
 
@@ -736,52 +781,32 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
     
 
 
+
+    
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_51_3.png)
+    
+
+
 #### Regional SHAP-DP
+
 
 ```python
 regional_shap = effector.RegionalShapDP(
-    data=X_uncor_train,
-    model=model,
+    data=X_uncor_train, 
+    model=model, 
     feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
 
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10)
+
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, numerical_features_grid_size=10)
 regional_shap.fit(
     features="all",
-    binning_method=effector.axis_partitioning.Fixed(nof_bins=5, min_points_per_bin=0),
+    binning_method = effector.axis_partitioning.Fixed(nof_bins=5, min_points_per_bin=0),
     space_partitioner=space_partitioner
 )
 ```
 
-
-    ---------------------------------------------------------------------------
-
-    AttributeError                            Traceback (most recent call last)
-
-    Cell In[38], line 9
-          1 regional_shap = effector.RegionalShapDP(
-          2     data=X_uncor_train, 
-          3     model=model, 
-          4     feature_names=['x1', 'x2', 'x3'],
-          5     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
-          8 space_partitioner = effector.space_partitioning.Regions(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10),
-    ----> 9 regional_shap.fit(
-         10     features="all",
-         11     binning_method = effector.axis_partitioning.Fixed(nof_bins=5, min_points_per_bin=0),
-         12     space_partitioner=space_partitioner
-         13 )
-
-
-    File ~/github/packages/effector/effector/regional_effect_shap.py:140, in RegionalShapDP.fit(self, features, candidate_conditioning_features, space_partitioner, binning_method)
-        137 if isinstance(space_partitioner, str):
-        138     space_partitioner = effector.space_partitioning.return_default(space_partitioner)
-    --> 140 assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
-        141 features = helpers.prep_features(features, self.dim)
-        143 for feat in tqdm(features):
-        144     # assert global SHAP values are available
-
-
-    AttributeError: 'tuple' object has no attribute 'min_points_per_subregion'
+    100%|██████████| 3/3 [00:00<00:00,  5.10it/s]
 
 
 
@@ -792,13 +817,17 @@ regional_shap.summary(0)
     
     
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 0.85 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x1 | x3 <= 0.0, heter: 0.03 || nof_instances:  1000 || weight: 1.00
-            Node id: 2, name: x1 | x3  > 0.0, heter: 0.03 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x1 🔹 [id: 0 | heter: 0.85 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.02 | inst: 504 | w: 0.50]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.04 | inst: 496 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 0.85
-            Level 1, heter: 0.06 || heter drop : 0.79 (units), 93.06% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.85
+        Level 1🔹heter: 0.03 | 🔻0.82 (96.32%)
     
     
 
@@ -829,10 +858,14 @@ regional_shap.summary(features=1)
     
     
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x2 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 0.00
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.00
     
     
 
@@ -845,13 +878,17 @@ regional_shap.summary(features=2)
     
     
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 0.77 || nof_instances:  1000 || weight: 1.00
-            Node id: 1, name: x3 | x1 <= 0.0, heter: 0.26 || nof_instances:  1000 || weight: 1.00
-            Node id: 2, name: x3 | x1  > 0.0, heter: 0.35 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x3 🔹 [id: 0 | heter: 0.81 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.24 | inst: 485 | w: 0.48]
+        x1 > 0.00 🔹 [id: 2 | heter: 0.38 | inst: 515 | w: 0.52]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 0.77
-            Level 1, heter: 0.61 || heter drop : 0.16 (units), 20.89% (pcg)
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.81
+        Level 1🔹heter: 0.31 | 🔻0.50 (61.34%)
     
     
 
@@ -900,27 +937,22 @@ shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_outpu
 
 #### Regional SHAP
 
+
 ```python
 regional_shap = effector.RegionalShapDP(
-    data=X_cor_train,
-    model=model,
+    data=X_cor_train, 
+    model=model, 
     feature_names=['x1', 'x2', 'x3'],
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
 
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, numerical_features_grid_size=10)
 regional_shap.fit(
     features="all",
     space_partitioner=space_partitioner
 )
 ```
 
-      0%|                                                                                                                                                                                 | 0/3 [00:00<?, ?it/s]/home/givasile/miniconda3/envs/effector-dev/lib/python3.10/site-packages/numpy/_core/fromnumeric.py:4008: RuntimeWarning: Degrees of freedom <= 0 for slice
-      return _methods._var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
-    /home/givasile/miniconda3/envs/effector-dev/lib/python3.10/site-packages/numpy/_core/_methods.py:175: RuntimeWarning: invalid value encountered in divide
-      arrmean = um.true_divide(arrmean, div, out=arrmean,
-    /home/givasile/miniconda3/envs/effector-dev/lib/python3.10/site-packages/numpy/_core/_methods.py:210: RuntimeWarning: invalid value encountered in scalar divide
-      ret = ret.dtype.type(ret / rcount)
-    100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:01<00:00,  2.96it/s]
+    100%|██████████| 3/3 [00:01<00:00,  2.95it/s]
 
 
 
@@ -931,10 +963,14 @@ regional_shap.summary(0)
     
     
     Feature 0 - Full partition tree:
-    Node id: 0, name: x1, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x1 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    Level 0, heter: 0.00
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.00
     
     
 
@@ -947,10 +983,14 @@ regional_shap.summary(1)
     
     
     Feature 1 - Full partition tree:
-    Node id: 0, name: x2, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x2 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    Level 0, heter: 0.00
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.00
     
     
 
@@ -963,10 +1003,14 @@ regional_shap.summary(2)
     
     
     Feature 2 - Full partition tree:
-    Node id: 0, name: x3, heter: 0.00 || nof_instances:  1000 || weight: 1.00
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x3 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    Level 0, heter: 0.00
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.00
     
     
 

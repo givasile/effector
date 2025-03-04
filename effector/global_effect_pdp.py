@@ -212,7 +212,7 @@ class PDPBase(GlobalEffectBase):
         else:
             avg_output = None
 
-        title = "PDP" if self.method_name == "pdp" else "d-PDP"
+        title = "Partial Dependence Plot (PDP)" if self.method_name == "pdp" else "derivative Partial Dependence Plot (d-PDP)"
         ret = vis.plot_pdp_ice(
             x,
             feature,

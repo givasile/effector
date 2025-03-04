@@ -1,3 +1,5 @@
+# An overview of `effector`'s API
+
 `effector` requires:
 
 - a dataset, normally the test set
