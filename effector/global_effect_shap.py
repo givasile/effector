@@ -24,15 +24,20 @@ class ShapDP(GlobalEffectBase):
         backend: str = "shap",
     ):
         """
-        Constructor of the SHAPDependence class.
+        Constructor of the ShapDP class.
 
-        Definition:
+        ??? note "Definition"
+
             The value of a coalition of $S$ features is estimated as:
             $$
-            \hat{v}(S) = {1 \over N} \sum_{i=1}^N  f(x_S \cup x_C^i) - f(x^i)
+            \hat{v}(S) = {1 \over N} \sum_{i=1}^N [f(\mathbf{x}_S \cup \mathbf{x}_C^i) - f(\mathbf{x}^i) ]
             $$
-            The value of a coalition $S$ quantifies what the values $\mathbf{x}_S$ of the features in $S$ contribute to the output of the model. It
-            is the average (over all instances) difference on the output between setting features in $S$ to be $x_S$, i.e., $\mathbf{x} = (\mathbf{x}_S, \mathbf{x}_C^i)$ and leaving the instance as it is, i.e., $\mathbf{x}^i = (\mathbf{x}_S^i, \mathbf{x}_C^i)$.
+            $\hat{v}(S)$ quantifies the contribution when the features in $S$ are set to $\mathbf{x}_S$.
+            For all instances, we compute two outputs:
+
+              - $f(\mathbf{x}_S \cup \mathbf{x}_C^i)$ is the output of the model when the features in $S$ are set to $\mathbf{x}_S$ and the rest of the features are left as they are
+              - $f(\mathbf{x}^i)$ is the output of the model when the instance is left as is
+            The average difference (over all instances) between these two outputs is the value of the coalition $S$.
 
             The contribution of a feature $j$ added to a coalition $S$ is estimated as:
             $$
@@ -49,9 +54,10 @@ class ShapDP(GlobalEffectBase):
 
             The SHAP Dependence Plot (SHAP-DP) is a spline $\hat{f}^{SDP}_j(x_j)$ fit to the dataset $\{(x_j^i, \hat{\phi}_j(x_j^i))\}_{i=1}^N$ using the `UnivariateSpline` function from `scipy.interpolate`.
 
-        Notes:
+        ??? note "Notes"
+
             * The required parameters are `data` and `model`. The rest are optional.
-            * SHAP values are computed using the `shap` package, using the class `Explainer`.
+            * SHAP values are computed using either the [`shap`](https://shap.readthedocs.io/en/latest/) package (`backend="shap"`) or the [`shapiq`](https://shapiq.readthedocs.io/en/latest/) package (`backend="shapiq"`).
             * SHAP values are centered by default, i.e., the average SHAP value is subtracted from the SHAP values.
             * More details on the SHAP values can be found in the [original paper](https://arxiv.org/abs/1705.07874) and in the book [Interpreting Machine Learning Models with SHAP](https://christophmolnar.com/books/shap/)
 
@@ -98,6 +104,12 @@ class ShapDP(GlobalEffectBase):
 
                 - use `"shap"` for the `shap` package (default)
                 - use `"shapiq"` for the `shapiq` package
+
+        Notes:
+            SHAP values are expensive to compute.
+            To speed up the computation consider using a subset of the dataset.
+            The `nof_instances` parameter controls the number of instances used for computing the SHAP values.
+            The default value is `1_000` instances, which is a good trade-off between speed and accuracy.
         """
         self.shap_values = shap_values if shap_values is not None else None
         assert backend in ["shap", "shapiq"]
@@ -251,69 +263,88 @@ class ShapDP(GlobalEffectBase):
                 - Increasing the budget improves the approximation at the cost of slower computation.
                 - Decrease the budget for faster computation at the cost of approximation error.
 
-            shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` class.
+            shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` or `shapiq.Explainer` class, depending on the backend.
 
-                ???+ note "Code behind the scene"
-
-                    ```python
-                    shap_explainer_kwargs = shap_explainer_kwargs or {}
-                    model = self.model
-                    masker = shap_explainer_kwargs.pop("masker", self.data)
-                    explainer = shap.Explainer(model, masker, **shap_explainer_kwargs)
-                    ```
-
-                    So:
-
-                        - the `masker` is set to `self.data` by default. If you want to change it, you can pass it as a keyword argument.
-                        - if you want to pass any other keyword argument to the `shap.Explainer` class, you can pass it as a dictionary. For example: `shap_explainer_kwargs={"algorithm": "linear"}`
-
-                ???+ warning "Be careful with custom arguments"
-
-                    Use shap_explainer_kwargs with caution. The `shap.Explainer` class has many arguments that can change the behavior of the SHAP values.
-                    Check the [official documentation](https://shap.readthedocs.io/en/latest/generated/shap.Explainer.html#shap.Explainer) for more details.
-
-                ???+ note "Most important arguments"
-
-                    - `masker`: the data used for masking the input data. By default, it is set to `self.data`.
-                    If you want a faster computation, you can pass a subset of the data, e.g. `masker=self.data[:100]`.
-                    - `algorithm`: the algorithm used for computing the SHAP values. By default, it is set to `"auto"`.
-                    If you know that your model belongs to a specific class, you can set it to the corresponding algorithm, e.g. `algorithm="linear"`.
-
-            shap_explanation_kwargs: the keyword arguments to be passed to compute the SHAP values.a
-
-                ???+ note "Code behind the scene"
+                ??? note "Code behind the scene"
 
                     ```python
-                    explainer = ... (check the code above)
-                    shap_explanation_kwargs = shap_explanation_kwargs or {}
-                    explainer(self.data, **shap_explanation_kwargs)
+                    explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
+                    explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
+                    if self.backend == "shap":
+                        explainer_defaults = {"masker": data}
+                        explanation_defaults = {"max_evals": budget}
+                    elif self.backend == "shapiq":
+                        explainer_defaults = {
+                            "data": data,
+                            "index": "SV",
+                            "max_order": 1,
+                            "approximator": "permutation",
+                            "imputer": "marginal",
+                        }
+                        explanation_defaults = {"budget": budget}
+                    else:
+                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
+                    explainer_kwargs = {**explainer_defaults, **explainer_kwargs}  # User args override defaults
+                    explanation_kwargs = {**explanation_defaults, **explanation_kwargs}  # User args override defaults
+
+                    if self.backend == "shap":
+                        explainer = shap.Explainer(model, **explainer_kwargs)
+                        explanation = explainer(data, **explanation_kwargs)
+                        self.shap_values = explanation.values
+                    elif self.backend == "shapiq":
+                        explainer = shapiq.Explainer(model, **explainer_kwargs)
+                        explanations = explainer.explain_X(data, **explanation_kwargs)
+                        self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
+                    else:
+                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
                     ```
 
-                ???+ note "Most important arguments"
-                    - `max_evals`: the maximum number of evaluations for the SHAP values. (default: `500`)
+                ??? warning "Be careful with custom arguments"
 
+                    For customizing `shap_explainer_kwargs` and `shap_explanation_kwargs` args,
+                    check the official documentation of [`shap`](https://shap.readthedocs.io/en/latest/) and [`shapiq`](https://shapiq.readthedocs.io/en/latest/) packages.
 
-                ???+ note "All arguments"
+            shap_explanation_kwargs: the keyword arguments to be passed to the `shap` or `shapiq` Explainer to compute the SHAP values.
 
-                    - `max_evals`: the maximum number of evaluations for the SHAP values. (default: `500`)
-                    - `main_effects`: whether to compute the main effects. (default: `False`)
-                    - `error_bounds`: whether to compute the error bounds. (default: `False`)
-                    - `batch_size`: the batch size for computing the SHAP values. (default: `auto`)
-                    - `output_names`: the names of the outputs. (default: `None`)
-                    - `silent`: whether to print the progress. (default: `False`)
+                ??? note "Code behind the scene"
 
-        Notes:
-            SHAP values are by default centered, i.e., $\sum_{i=1}^N \hat{\phi}_j(x_j^i) = 0$. This does not mean that the SHAP _curve_ is centered around zero; this happens only if the $s$-th feature of the dataset instances, i.e., the set $\{x_s^i\}_{i=1}^N$ is uniformly distributed along the $s$-th axis. So, use:
+                    ```python
+                    explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
+                    explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
+                    if self.backend == "shap":
+                        explainer_defaults = {"masker": data}
+                        explanation_defaults = {"max_evals": budget}
+                    elif self.backend == "shapiq":
+                        explainer_defaults = {
+                            "data": data,
+                            "index": "SV",
+                            "max_order": 1,
+                            "approximator": "permutation",
+                            "imputer": "marginal",
+                        }
+                        explanation_defaults = {"budget": budget}
+                    else:
+                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
+                    explainer_kwargs = {**explainer_defaults, **explainer_kwargs}  # User args override defaults
+                    explanation_kwargs = {**explanation_defaults, **explanation_kwargs}  # User args override defaults
 
-            * `centering=False`, to leave the SHAP values as they are.
-            * `centering=True` or `centering=zero_integral`, to center the SHAP curve around the `y` axis.
-            * `centering=zero_start`, to start the SHAP curve from `y=0`.
+                    if self.backend == "shap":
+                        explainer = shap.Explainer(model, **explainer_kwargs)
+                        explanation = explainer(data, **explanation_kwargs)
+                        self.shap_values = explanation.values
+                    elif self.backend == "shapiq":
+                        explainer = shapiq.Explainer(model, **explainer_kwargs)
+                        explanations = explainer.explain_X(data, **explanation_kwargs)
+                        self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
+                    else:
+                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
+                    ```
 
-            SHAP values are expensive to compute.
-            To speed up the computation consider using a subset of the dataset
-            points for computing the SHAP values and for centering the spline.
-            The default values (`points_for_fitting_spline=100`
-            and `points_for_centering=100`) are a moderate choice.
+                ??? warning "Be careful with custom arguments"
+
+                    For customizing `shap_explainer_kwargs` and `shap_explanation_kwargs` args,
+                    check the official documentation of [`shap`](https://shap.readthedocs.io/en/latest/) and [`shapiq`](https://shapiq.readthedocs.io/en/latest/) packages.
+
         """
         centering = helpers.prep_centering(centering)
         features = helpers.prep_features(features, self.dim)
