@@ -57,7 +57,7 @@ class RegionalPDPBase(RegionalEffectBase):
         features: typing.Union[int, str, list] = "all",
         candidate_conditioning_features: typing.Union["str", list] = "all",
         space_partitioner: typing.Union[str, None] = "best",
-        centering: typing.Union[bool, str] = False,
+        centering: typing.Union[bool, str] = True,
         points_for_centering: int = 30,
         points_for_mean_heterogeneity: int = 30,
         use_vectorized: bool = True,
@@ -117,6 +117,7 @@ class RegionalPDPBase(RegionalEffectBase):
                     feature=feat,
                     xs=xx,
                     heterogeneity=True,
+                    centering=centering,
                     use_vectorized=use_vectorized,
                     return_all=True
                 )

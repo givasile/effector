@@ -113,7 +113,7 @@ class RegionalEffectBase:
             space_partitioner = copy.deepcopy(space_partitioner)
 
         # apply partitioning
-        space_partitioner.find_subregions(
+        self.tree["feature_{}".format(feature)] = space_partitioner.find_subregions(
             feature,
             self.data,
             heter_func,
@@ -125,8 +125,8 @@ class RegionalEffectBase:
             self.target_name
         )
 
-        # self.tree_full["feature_{}".format(feature)] = regions.splits_to_tree()
-        self.tree["feature_{}".format(feature)] = space_partitioner.splits_to_tree(True)
+        # # self.tree_full["feature_{}".format(feature)] = regions.splits_to_tree()
+        # self.tree["feature_{}".format(feature)] = space_partitioner.splits_to_tree(True)
 
         # store the partitioning object
         self.partitioners["feature_{}".format(feature)] = space_partitioner

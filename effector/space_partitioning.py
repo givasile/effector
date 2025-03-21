@@ -12,7 +12,7 @@ class Best:
     def __init__(
             self,
             min_heterogeneity_decrease_pcg: float = 0.1,
-            heter_small_enough: float = 0.0,
+            heter_small_enough: float = 0.001,
             max_depth: int = 2,
             min_samples_leaf: int = 10,
             numerical_features_grid_size: int = 20,
@@ -30,11 +30,13 @@ class Best:
 
             heter_small_enough: When heterogeneity is smaller than this value, no more splits are performed.
 
-                ??? Note "Default is `0.0`"
-                    By default, the algorithm will never stop due to heterogeneity being small enough; it will stop only if `max_depth` is reached.
+                ??? Note "Default is `0.001`"
+                    Value 0.001 is small enough for most cases.
+                    It is advisable to set this value to a small number to avoid unnecessary splits.
 
                 ??? Note "Custom value"
-                    If you know a priori that a specific heterogeneity value is small enough, you can set this parameter to that value to speed up the algorithm.
+                    If you know a priori that a specific heterogeneity value is small enough,
+                    you can set this parameter to a higher value than the default.
 
             max_depth: Maximum number of splits to perform
 
@@ -136,7 +138,8 @@ class Best:
 
         self.search_all_splits()
         self.choose_important_splits()
-
+        self.splits_tree = self.splits_to_tree(True)
+        return self.splits_tree
 
     def search_all_splits(self):
         """
@@ -276,10 +279,14 @@ class Best:
         else:
             splits = self.splits
 
-            # accept split if heterogeneity drops over 20%
+            # accept split if heterogeneity drops over `heter_pcg_drop_thres`
             heter = np.array([splits[i]["after_split_weighted_heter"] for i in range(len(splits))])
             heter_drop = (heter[:-1] - heter[1:]) / heter[:-1]
             split_valid = heter_drop > self.heter_pcg_drop_thres
+
+            # accept split if heterogeneity is not already small enough
+            heter_not_too_small = heter[:-1] > self.heter_small_enough
+            split_valid = np.logical_and(split_valid, heter_not_too_small)
 
             # if all are negative, return nothing
             if np.sum(split_valid) == 0:
@@ -432,19 +439,23 @@ class Best:
             parent_level_nodes = new_parent_level_nodes
             parent_level_active_indices = new_parent_level_active_indices
 
+        # hack to check if .important_splits and .splits are used
+        # after the tree is created
+        self.important_splits = None
+        self.splits = None
         return tree
 
-    def visualize_all_splits(self, split_ind):
-        split_ind = split_ind + 1
-        heter_matr = copy.deepcopy(self.splits[split_ind]["matrix_weighted_heter"])
-        heter_matr[heter_matr > 1e6] = np.nan
+    # def visualize_all_splits(self, split_ind):
+    #     split_ind = split_ind + 1
+    #     heter_matr = copy.deepcopy(self.splits[split_ind]["matrix_weighted_heter"])
+    #     heter_matr[heter_matr > 1e6] = np.nan
 
-        plt.figure()
-        plt.title("split {}, parent heter: {:.2f}".format(split_ind, self.splits[split_ind - 1]["after_split_weighted_heter"]))
-        plt.imshow(heter_matr)
-        plt.colorbar()
-        plt.yticks([i for i in range(len(self.candidate_conditioning_features))], [self.feature_names[foc] for foc in self.candidate_conditioning_features])
-        plt.show(block=False)
+    #     plt.figure()
+    #     plt.title("split {}, parent heter: {:.2f}".format(split_ind, self.splits[split_ind - 1]["after_split_weighted_heter"]))
+    #     plt.imshow(heter_matr)
+    #     plt.colorbar()
+    #     plt.yticks([i for i in range(len(self.candidate_conditioning_features))], [self.feature_names[foc] for foc in self.candidate_conditioning_features])
+    #     plt.show(block=False)
 
 
 def return_default(partitioner_name):

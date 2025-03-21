@@ -43,7 +43,7 @@ best = Best(
     search_partitions_when_categorical=False,
 )
 
-best.find_subregions(
+tree = best.find_subregions(
     feature=0,  # primary feature (x3) -- not used for splitting in this test.
     data=X,
     heter_func=heterogeneity,
@@ -53,7 +53,6 @@ best.find_subregions(
     target_name="y"
 )
 
-tree = best.splits_to_tree()
 print("Constructed Tree:")
 print(tree)
 

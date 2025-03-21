@@ -34,19 +34,29 @@ def test_regional():
     for method in methods:
         if method == "pdp":
             reg_eff = effector.RegionalPDP(data, model, nof_instances=1000)
+            reg_eff.fit(0, centering=True)
+            y, std = reg_eff.eval(0, 5, xs, heterogeneity=True, centering=True)
         elif method == "d-pdp":
             reg_eff = effector.RegionalDerPDP(data, model, model_jac, nof_instances=1000)
+            reg_eff.fit(0, centering=False)
+            y, std = reg_eff.eval(0, 5, xs, heterogeneity=True, centering=False)
         elif method == "ale":
             reg_eff = effector.RegionalALE(data, model, nof_instances=1000)
+            reg_eff.fit(0)
+            y, std = reg_eff.eval(0, 5, xs, heterogeneity=True)
         elif method == "rhale":
             reg_eff = effector.RegionalRHALE(data, model, model_jac, nof_instances=1000)
+            reg_eff.fit(0)
+            y, std = reg_eff.eval(0, 5, xs, heterogeneity=True)
         elif method == "shap":
-            reg_eff = effector.RegionalShapDP(data, model, nof_instances=1000, backend="shap")
+            reg_eff = effector.RegionalShapDP(data, model, nof_instances=100, backend="shap")
+            reg_eff.fit(0)
+            y, std = reg_eff.eval(0, 5, xs, heterogeneity=True)
         elif method == "shapiq":
-            reg_eff = effector.RegionalShapDP(data, model, nof_instances=1000, backend="shapiq")
+            reg_eff = effector.RegionalShapDP(data, model, nof_instances=100, backend="shapiq")
+            reg_eff.fit(0)
+            y, std = reg_eff.eval(0, 5, xs, heterogeneity=True)
 
-        reg_eff.fit(0)
 
-        y, std = reg_eff.eval(0, 5, xs, heterogeneity=True, centering=True)
         np.allclose(y, 5*xs, atol=0.1, rtol=0.1)
         np.allclose(std, 0, atol=0.1, rtol=0.1)

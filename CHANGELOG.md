@@ -1,5 +1,15 @@
 # Changelog
 
+# Fix
+
+- fixed bug in `space_partitioning.Best()`; partitioning now checks that the absolute heterogeneity should be over a threshold to be considered a valuable split
+- fixed bug in RegionalPDP plots, where `centering` was not working properly, it was set to `False` and the user defined argument was not being passed.
+
+# Changed
+
+- set the default value of `heter_small_enough` to 0.001 (from 0.00)
+
+
 <<<<<<< HEAD
 <<<<<<< HEAD
 ## [Unreleased]
