@@ -14,7 +14,13 @@ axis_limits = np.array([[-1, 1]] * dim).T
 # global shap
 tic = timeit.default_timer()
 reg_pdp = effector.RegionalPDP(X, predict, axis_limits=axis_limits)
-reg_pdp.fit(features="all", centering=True)
+reg_pdp.fit(features="all", centering=True, space_partitioner="cart")
+reg_pdp.summary("all")
+toc = timeit.default_timer()
+
+tic = timeit.default_timer()
+reg_pdp = effector.RegionalPDP(X, predict, axis_limits=axis_limits)
+reg_pdp.fit(features="all", centering=True, space_partitioner="best")
 reg_pdp.summary("all")
 toc = timeit.default_timer()
 

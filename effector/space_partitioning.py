@@ -8,7 +8,298 @@ import matplotlib.pyplot as plt
 BIG_M = helpers.BIG_M
 
 
-class Best:
+class Base:
+    def __init__(self, name: str):
+        self.name = helpers.camel_to_snake(name)
+
+        # all methods will set these attributes
+        self.feature = None # feature of interest
+        self.foi = None # feature of interest
+        self.data = None # dataset (N, D)
+        self.dim = None # dimensionality of the dataset (= D)
+        self.heter_func = None # heterogeneity function (callable (mask) -> float)
+        self.axis_limits = None # axis limits (min and max for each feature), shape (2, D)
+        self.feature_types = None # feature types (cat or cont)
+        self.cat_limit = None # categorical limit
+        self.feature_names = None # feature names
+        self.target_name = None # target name
+        self.foc_types = None # feature of conditioning types, (in ['cat', 'cont'])
+        self.candidate_conditioning_features = None # candidate conditioning features
+
+        self.splits_tree: typing.Union[Tree, None] = None # the output of the algorithm
+
+    def compile(
+            self,
+            feature: int,
+            data: np.ndarray,
+            heter_func: callable,
+            axis_limits: np.ndarray,
+            feature_types: typing.Union[list, None] = None,
+            categorical_limit: int = 10,
+            candidate_conditioning_features: typing.Union[None, list] = None,
+            feature_names: typing.Union[None, list] = None,
+            target_name: typing.Union[None, str] = None
+    ):
+        "Tidy up the input data."
+        self.feature = feature
+        self.foi = feature
+        self.data = data
+        self.dim = self.data.shape[1]
+        self.heter_func = heter_func
+        self.axis_limits = axis_limits
+        self.cat_limit = categorical_limit
+        self.feature_names = feature_names
+        self.target_name = target_name
+
+        self.candidate_conditioning_features = (
+            [i for i in range(self.dim) if i != self.feature]
+            if candidate_conditioning_features == "all"
+            else candidate_conditioning_features
+        )
+
+        self.feature_types = utils.get_feature_types(data, categorical_limit) if feature_types is None else feature_types
+        self.foc_types = [self.feature_types[i] for i in self.candidate_conditioning_features]
+
+    def fit(self) -> Tree:
+        """Find the subregions."""
+        raise NotImplementedError
+
+    def _split_dataset(self, active_indices, feature, position, feat_type):
+        if feat_type == "cat":
+            ind_1 = self.data[:, feature] == position
+            ind_2 = self.data[:, feature] != position
+        else:
+            ind_1 = self.data[:, feature] < position
+            ind_2 = self.data[:, feature] >= position
+
+        # active indices is a (N,) array with 1s and 0s, where N is the number of the total instances
+        # all instances in x and x_jac have a 1 in active_indices, else 0
+        active_indices_1 = np.copy(active_indices)
+        active_indices_2 = np.copy(active_indices)
+        active_indices_1 = np.logical_and(active_indices_1, ind_1)
+        active_indices_2 = np.logical_and(active_indices_2, ind_2)
+        return active_indices_1, active_indices_2
+
+    def _find_positions_cat(self, x, feature):
+        return np.unique(x[:, feature])
+
+    def _find_positions_cont(self, feature, nof_splits):
+        start = self.axis_limits[0, feature]
+        stop = self.axis_limits[1, feature]
+        pos = np.linspace(start, stop, nof_splits+1)
+        return pos[1:-1]
+
+    def _flatten_list(self, l):
+        return [item for sublist in l for item in sublist]
+
+    @staticmethod
+    def _get_comparison_symbol(foc_type, i):
+        assert foc_type in ["cat", "cont"]
+        if foc_type == "cat":
+            return "==" if i == 0 else "!="
+        else:
+            return "<=" if i == 0 else ">"
+
+class CART(Base):
+
+    def __init__(
+            self,
+            min_heterogeneity_decrease_pcg: float = 0.1,
+            heter_small_enough: float = 0.001,
+            max_depth: int = 2,
+            min_samples_leaf: int = 10,
+            numerical_features_grid_size: int = 20,
+            search_partitions_when_categorical: bool = False,
+    ):
+        """Choose the algorithm `Cart`.
+        The algorithm is a greedy algorithm that finds the best split for each level in a greedy fashion.
+
+
+        Args:
+            min_heterogeneity_decrease_pcg: Minimum percentage of heterogeneity decrease to accept a split.
+
+                ??? Example "Example"
+                    - `0.1`: if the heterogeneity before any split is 1, the heterogeneity after the first split must be at most 0.9 to be accepted. Otherwise, no split will be accepted.
+
+            heter_small_enough: When heterogeneity is smaller than this value, no more splits are performed.
+
+                ??? Note "Default is `0.001`"
+                    Value 0.001 is small enough for most cases.
+                    It is advisable to set this value to a small number to avoid unnecessary splits.
+
+                ??? Note "Custom value"
+                    If you know a priori that a specific heterogeneity value is small enough,
+                    you can set this parameter to a higher value than the default.
+
+            max_depth: Maximum number of splits to perform
+
+                ??? Note "Default is `2`"
+                    2 splits already create 4 subregions, i.e. 4 regional plots per feature, which are already enough.
+                    Setting this value to a higher number will increase the number of subregions and plots, which may be too much for the user to analyze.
+
+            min_samples_leaf: Minimum number of instances per subregion
+
+                ??? Note "Default is `10`"
+                    If a subregion has less than 10 instances, it may not be representative enough to be analyzed.
+
+            numerical_features_grid_size: Number of candidate split positions for numerical features
+
+                ??? Note "Default is `20`"
+                    For numerical features, the algorithm will create a grid of 20 equally spaced values between the minimum and maximum values of the feature.
+
+            search_partitions_when_categorical: Whether to search for partitions when the feature is categorical
+
+                ??? warning "refers to a categorical feature of interest"
+                    This argument asks whether to search for partitions when the feature of interest is categorical.
+                    If the feature of interest is numerical, the algorithm will always search for partitions and will consider
+                    categorical features for conditioning.
+
+                ??? Note "Default is `False`"
+                    It is difficult to compute the heterogeneity for categorical features, so by default, the algorithm will not search for partitions when the feature of interest is categorical.
+
+        """
+        # setters
+        self.min_points_per_subregion = min_samples_leaf
+        self.nof_candidate_splits_for_numerical = numerical_features_grid_size
+        self.max_split_levels = max_depth
+        self.heter_pcg_drop_thres = min_heterogeneity_decrease_pcg
+        self.heter_small_enough = heter_small_enough
+        self.split_categorical_features = search_partitions_when_categorical
+
+        super().__init__("Cart")
+
+
+    def fit(self) -> Tree:
+        self.splits_tree = Tree()
+
+        root_info = {
+            "active_indices": np.ones((self.data.shape[0])),
+            "heterogeneity": self.heter_func(np.ones((self.data.shape[0]))),
+            "level": 0,
+        }
+        self.splits_tree.add_node(
+            name=self.feature_names[self.feature],
+            parent_name=None,
+            data=root_info
+        )
+
+        self._recursive_split(self.splits_tree.get_root())
+        return self.splits_tree
+
+    def _recursive_split(self, parent_node) -> None:
+        """Recursively split the tree."""
+
+        # if any of the following, stop before splitting
+        conditions = [
+            parent_node.info["level"] >= self.max_split_levels, # Max split levels reached
+            np.sum(parent_node.info["active_indices"]) < self.min_points_per_subregion, # Not enough points,
+            parent_node.info["heterogeneity"] < self.heter_small_enough # Heterogeneity is already small enough
+        ]
+
+        if any(conditions):
+            return None
+
+        # find the best split
+        split = self._single_node_split(parent_node.info["active_indices"])
+
+        # weighted heterogeneity of the best split
+        weights = split["after_split_nof_instances"] / np.sum(split["after_split_nof_instances"])
+        heter_after = np.sum(weights * np.array(split["after_split_heter_list"]))
+        heter_before = parent_node.info["heterogeneity"]
+
+        heter_drop_pcg = (heter_before - heter_after) / heter_before
+        if heter_drop_pcg < self.heter_pcg_drop_thres:
+            return None
+        else:
+            for i in [0, 1]:
+                node_data = {
+                    "foc_split_position": split["foc_split_position"],
+                    "comparison": self._get_comparison_symbol(split["foc_type"], i),
+                    "foc_index": split["foc_index"],
+                    "foc_name": self.feature_names[split["foc_index"]],
+                    "foc_type": split["foc_type"],
+                    "active_indices": split["after_split_active_indices_list"][i],
+                    "heterogeneity": split["after_split_heter_list"][i],
+                    "level": parent_node.info["level"] + 1,
+                }
+                node_name = f"{node_data['foc_name']} {node_data['comparison']} {split['foc_split_position']:.2g}"
+
+                self.splits_tree.add_node(
+                    node_name,
+                    parent_node.name,
+                    node_data
+                )
+                child_node = self.splits_tree.get_node_by_name(node_name)
+
+                self._recursive_split(child_node)
+
+
+    def _single_node_split(self, before_split_active_indices: np.ndarray):
+        """Find the best split for the current node."""
+        foc_types = self.foc_types
+        ccf = self.candidate_conditioning_features
+        nof_splits = self.nof_candidate_splits_for_numerical
+        heter_func = self.heter_func
+
+        data = self.data
+
+        # matrix_weighted_heter[i,j] (i index of ccf and j index of split position) is
+        # the weighted heterogeneity if the active node is split in ccf[i] at
+        # position with index j
+        matrix_weighted_heter = np.ones([len(ccf), max(nof_splits-1, self.cat_limit)]) * BIG_M
+
+        # candidate_split_positions[i][j] is a list of lists
+        # candidate_split_positions[i][j] is the j-th split position for the i-th feature of conditioning
+        candidate_split_positions = [(self._find_positions_cat(data, foc_i) if foc_types[i] == "cat" else self._find_positions_cont(foc_i, nof_splits)) for i, foc_i in enumerate(ccf)]
+
+        # exhaustive search on all split positions
+        for i, foc_i in enumerate(self.candidate_conditioning_features):
+            for j, position in enumerate(candidate_split_positions[i]):
+                after_split_active_indices_list = self._split_dataset(before_split_active_indices, foc_i, position, foc_types[i])
+                heter_list_after_split = [heter_func(x) for x in after_split_active_indices_list]
+
+                # populations: list with the number of instances in each dataset after split of foc_i at position j
+                populations = np.array([np.sum(x) for x in after_split_active_indices_list])
+
+                # after_split_weight_list analogous to the populations in each split
+                after_split_weight_list = (populations + 1) / (np.sum(populations + 1))
+
+                # first: computed the weighted heterogeneity after the split
+                after_split_weighted_heter = np.sum(after_split_weight_list * np.array(heter_list_after_split))
+
+                # matrix_weighted_heter[i,j] is the weighted accumulated heterogeneity if I split ccf[i] at index j
+                matrix_weighted_heter[i, j] = after_split_weighted_heter
+
+        # find the split with the minimum weighted heterogeneity
+        i, j = np.unravel_index(
+            np.argmin(matrix_weighted_heter, axis=None), matrix_weighted_heter.shape
+        )
+        feature = ccf[i]
+        position = candidate_split_positions[i][j]
+
+        after_split_active_indices_list = self._split_dataset(
+            before_split_active_indices,
+            ccf[i],
+            position,
+            foc_types[i]
+        )
+
+        nof_instances_l = [np.sum(x) for x in after_split_active_indices_list]
+        after_split_heter_l = [heter_func(ai) for ai in after_split_active_indices_list]
+
+        # store the split info in a dict
+        split = {
+            "foc_index": ccf[i],
+            "foc_split_position": position,
+            "foc_type": foc_types[i],
+            "after_split_nof_instances": nof_instances_l,
+            "after_split_heter_list": after_split_heter_l,
+            "after_split_active_indices_list": after_split_active_indices_list,
+        }
+        return split
+
+
+class Best(Base):
     def __init__(
             self,
             min_heterogeneity_decrease_pcg: float = 0.1,
@@ -73,75 +364,26 @@ class Best:
         self.heter_small_enough = heter_small_enough
         self.split_categorical_features = search_partitions_when_categorical
 
-        # to be set latter
-        self.feature = None
-        self.foi = None
-        self.data = None
-        self.dim = None
-        self.heter_func = None
-        self.axis_limits = None
-        self.feature_types = None
-        self.cat_limit = None
-        self.feature_names = None
-        self.target_name = None
-        self.foc_types = None
-        self.candidate_conditioning_features = None
-
-        # init method args
-        self.method_args = {}
-
         # init splits
         self.splits: dict = {}
         self.important_splits: dict = {}
 
-        self.splits_tree: typing.Union[Tree, None] = None
+        # self.splits_tree: typing.Union[Tree, None] = None
         self.important_splits_tree: typing.Union[Tree, None] = None
 
         # state variable
         self.split_found: bool = False
         self.important_splits_selected: bool = False
 
-    def _prapare_data(self, data):
-        pass
+        super().__init__("Best")
 
-    def find_subregions(self,
-                        feature: int,
-                        data: np.ndarray,
-                        heter_func: callable,
-                        axis_limits: np.ndarray,
-                        feature_types: typing.Union[list, None] = None,
-                        categorical_limit: int = 10,
-                        candidate_conditioning_features: typing.Union[None, list] = None,
-                        feature_names: typing.Union[None, list] = None,
-                        target_name: typing.Union[None, str] = None
-                        ):
-        self.feature = feature
-        self.foi = feature
-        self.data = data
-        self.dim = self.data.shape[1]
-        self.heter_func = heter_func
-        self.axis_limits = axis_limits
-        self.cat_limit = categorical_limit
-        self.feature_names = feature_names
-        self.target_name = target_name
-
-        self.candidate_conditioning_features = (
-            [i for i in range(self.dim) if i != self.feature]
-            if candidate_conditioning_features == "all"
-            else candidate_conditioning_features
-        )
-
-        self.feature_types = utils.get_feature_types(data, categorical_limit) if feature_types is None else feature_types
-
-        # on-init
-        self.foc_types = [self.feature_types[i] for i in self.candidate_conditioning_features]
-
-        self.search_all_splits()
-        self.choose_important_splits()
-        self.splits_tree = self.splits_to_tree(True)
+    def fit(self):
+        self._search_all_splits()
+        self._choose_important_splits()
+        self.splits_tree = self._splits_to_tree(True)
         return self.splits_tree
 
-    def search_all_splits(self):
+    def _search_all_splits(self):
         """
         Iterate over all features of conditioning and choose the best split for each level in a greedy fashion.
         """
@@ -207,12 +449,12 @@ class Best:
 
         # list with len(ccf) elements
         # each element is a list with the split positions for the corresponding feature of conditioning
-        candidate_split_positions = [(self.find_positions_cat(data, foc_i) if foc_types[i] == "cat" else self.find_positions_cont(foc_i, nof_splits)) for i, foc_i in enumerate(self.candidate_conditioning_features)]
+        candidate_split_positions = [(self._find_positions_cat(data, foc_i) if foc_types[i] == "cat" else self._find_positions_cont(foc_i, nof_splits)) for i, foc_i in enumerate(self.candidate_conditioning_features)]
 
         # exhaustive search on all split positions
         for i, foc_i in enumerate(self.candidate_conditioning_features):
             for j, position in enumerate(candidate_split_positions[i]):
-                after_split_active_indices_list = self.flatten_list([ self.split_dataset(active_indices, foc_i, position, foc_types[i])
+                after_split_active_indices_list = self._flatten_list([ self._split_dataset(active_indices, foc_i, position, foc_types[i])
                     for active_indices in before_split_active_indices_list
                 ])
 
@@ -238,7 +480,7 @@ class Best:
         position = candidate_split_positions[i][j]
         split_positions = candidate_split_positions[i]
 
-        after_split_active_indices_list = self.flatten_list([self.split_dataset(active_indices, ccf[i], position, foc_types[i]) for active_indices in before_split_active_indices_list])
+        after_split_active_indices_list = self._flatten_list([self._split_dataset(active_indices, ccf[i], position, foc_types[i]) for active_indices in before_split_active_indices_list])
 
         nof_instances_l = [np.sum(x) for x in after_split_active_indices_list]
 
@@ -264,7 +506,7 @@ class Best:
         }
         return split
 
-    def choose_important_splits(self):
+    def _choose_important_splits(self):
         assert self.split_found, "No splits found for feature {}".format(self.feature)
 
         # if split is empty, skip
@@ -309,35 +551,7 @@ class Best:
         self.important_splits = optimal_splits
         return optimal_splits
 
-    def split_dataset(self, active_indices, feature, position, feat_type):
-        if feat_type == "cat":
-            ind_1 = self.data[:, feature] == position
-            ind_2 = self.data[:, feature] != position
-        else:
-            ind_1 = self.data[:, feature] < position
-            ind_2 = self.data[:, feature] >= position
-
-        # active indices is a (N,) array with 1s and 0s, where N is the number of the total instances
-        # all instances in x and x_jac have a 1 in active_indices, else 0
-        active_indices_1 = np.copy(active_indices)
-        active_indices_2 = np.copy(active_indices)
-        active_indices_1 = np.logical_and(active_indices_1, ind_1)
-        active_indices_2 = np.logical_and(active_indices_2, ind_2)
-        return active_indices_1, active_indices_2
-
-    def find_positions_cat(self, x, feature):
-        return np.unique(x[:, feature])
-
-    def find_positions_cont(self, feature, nof_splits):
-        start = self.axis_limits[0, feature]
-        stop = self.axis_limits[1, feature]
-        pos = np.linspace(start, stop, nof_splits+1)
-        return pos[1:-1]
-
-    def flatten_list(self, l):
-        return [item for sublist in l for item in sublist]
-
-    def splits_to_tree(self, only_important=True, scale_x_list=None):
+    def _splits_to_tree(self, only_important=True, scale_x_list=None):
         if len(self.splits) == 0:
             return None
 
@@ -388,7 +602,7 @@ class Best:
 
                 pos_small = pos_scaled.round(2)
 
-                active_indices_1, active_indices_2 = self.split_dataset(
+                active_indices_1, active_indices_2 = self._split_dataset(
                     parent_active_indices,
                     foc, pos, split["foc_type"],
                     )
@@ -418,10 +632,10 @@ class Best:
                 data = {
                     "heterogeneity": split["after_split_heter_list"][j],
                     "weight": float(split["after_split_nof_instances"][j]) / nof_instances,
-                    "position": split["foc_split_position"],
+                    "foc_split_position": split["foc_split_position"],
                     "foc_name": foc_name,
-                    "feature": split["foc_index"],
-                    "feature_type": split["foc_type"],
+                    "foc_index": split["foc_index"],
+                    "foc_type": split["foc_type"],
                     "range": split["foc_range"],
                     "candidate_split_positions": split["candidate_split_positions"],
                     "nof_instances": split["after_split_nof_instances"][j],
@@ -461,5 +675,7 @@ class Best:
 def return_default(partitioner_name):
     if partitioner_name == "best":
         return Best()
+    elif partitioner_name == "cart":
+        return CART()
     else:
         raise ValueError("Partitioner not found")

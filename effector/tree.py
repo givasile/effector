@@ -25,15 +25,15 @@ class Tree:
 
     def _get_condition_string(self, node, scale_x_list):
         """Generate the condition string for a node."""
-        pos = node.info['position']
+        pos = node.info['foc_split_position']
         if scale_x_list:
-            feature_stats = scale_x_list[node.info['feature']]
+            feature_stats = scale_x_list[node.info['foc_index']]
             pos = feature_stats['std'] * pos + feature_stats['mean']
         return f"{node.info['foc_name']} {self._comparison_str(node.info['comparison'])} {pos:.2f}"
 
     @staticmethod
     def _comparison_str(comparison):
-        return {">=": "≥", "<=": "≤", "!=": "≠", "==":"="}.get(comparison, comparison)
+        return {">=": "≥", "<=": "≤", "!=": "≠", "==": "="}.get(comparison, comparison)
 
     def add_node(self, name: str, parent_name: typing.Optional[str], data: dict):
         parent_node = self.node_dict.get(parent_name) if parent_name else None
@@ -136,7 +136,7 @@ class Tree:
 
     @staticmethod
     def _get_parent_chain(node):
-        """Returns the chain of parent nodes up to the root."""
+        """Returns the chain from the root to the given node."""
         chain = []
         cur = node
         while cur.parent_node:
@@ -148,7 +148,7 @@ class Tree:
 
 @dataclass
 class Node:
-    idx: int
+    idx: int # name must be unique
     name: str
     parent_node: typing.Optional["Node"]
     info: dict
@@ -156,19 +156,23 @@ class Node:
     display_name_short: str = field(default=None, init=False)
 
     def __post_init__(self):
-        required_keys = {"level", "heterogeneity", "weight", "nof_instances"}
+        required_keys = {"level", "heterogeneity", "active_indices"}
         if not required_keys.issubset(self.info):
             missing = required_keys - self.info.keys()
             raise KeyError(f"Missing required keys in node info: {missing}")
 
+        self.info["nof_instances"] = int(self.info["active_indices"].sum())
+        self.info["weight"] = float(self.info["nof_instances"] / self.info["active_indices"].shape[0])
+        self.info["weighted_heterogeneity"] = float(self.info["heterogeneity"] * self.info["weight"])
+
         if self.info["level"] > 0:
-            extra_keys = {"feature", "foc_name", "feature_type", "position", "comparison", "candidate_split_positions"}
+            extra_keys = {"foc_index", "foc_name", "foc_type", "foc_split_position", "comparison"}
             if not extra_keys.issubset(self.info):
                 missing = extra_keys - self.info.keys()
                 raise KeyError(f"Missing required keys for non-root node: {missing}")
 
     def __repr__(self):
-        return f"Node {self.idx}: {self.display_name}"
+        return f"Node---idx: {self.idx}, name: {self.name}"
 
 
 # class DataTransformer:

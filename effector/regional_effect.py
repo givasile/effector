@@ -100,20 +100,21 @@ class RegionalEffectBase:
         self,
         feature: int,
         heter_func: Callable,
-        space_partitioner: Union["str", effector.space_partitioning.Best] = "greedy",
+        space_partitioner: Union["str", effector.space_partitioning.Best] = "best",
         candidate_foc: Union[str, List] = "all",
     ):
         """
         Find the subregions for a single feature.
         """
-        # init Region Extractor
-        if space_partitioner == "greedy":
-            space_partitioner = effector.space_partitioning.Best()
+        assert feature < self.dim, "Feature index out of bounds"
+        if isinstance(space_partitioner, str):
+            assert space_partitioner in ["best", "cart"], "space_partitioner must be 'best' or 'cart'"
+            space_partitioner = space_partitioning.return_default(space_partitioner)
         else:
             space_partitioner = copy.deepcopy(space_partitioner)
 
         # apply partitioning
-        self.tree["feature_{}".format(feature)] = space_partitioner.find_subregions(
+        space_partitioner.compile(
             feature,
             self.data,
             heter_func,
@@ -124,6 +125,7 @@ class RegionalEffectBase:
             self.feature_names,
             self.target_name
         )
+        self.tree["feature_{}".format(feature)] = space_partitioner.fit()
 
         # # self.tree_full["feature_{}".format(feature)] = regions.splits_to_tree()
         # self.tree["feature_{}".format(feature)] = space_partitioner.splits_to_tree(True)
