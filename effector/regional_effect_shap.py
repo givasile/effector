@@ -159,56 +159,90 @@ class RegionalShapDP(RegionalEffectBase):
                 - Increasing the budget improves the approximation at the cost of slower computation.
                 - Decrease the budget for faster computation at the cost of approximation error.
 
-            shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` class.
+            shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` or `shapiq.Explainer` class, depending on the backend.
 
-                ???+ note "Code behind the scene"
-
-                    ```python
-                    shap_explainer_kwargs = shap_explainer_kwargs or {}
-                    model = self.model
-                    masker = shap_explainer_kwargs.pop("masker", self.data)
-                    explainer = shap.Explainer(model, masker, **shap_explainer_kwargs)
-                    ```
-
-                    So:
-
-                        - the `masker` is set to `self.data` by default. If you want to change it, you can pass it as a keyword argument.
-                        - if you want to pass any other keyword argument to the `shap.Explainer` class, you can pass it as a dictionary. For example: `shap_explainer_kwargs={"algorithm": "linear"}`
-
-                ???+ warning "Be careful with custom arguments"
-
-                    Use shap_explainer_kwargs with caution. The `shap.Explainer` class has many arguments that can change the behavior of the SHAP values.
-                    Check the [official documentation](https://shap.readthedocs.io/en/latest/generated/shap.Explainer.html#shap.Explainer) for more details.
-
-                ???+ note "Most important arguments"
-
-                    - `masker`: the data used for masking the input data. By default, it is set to `self.data`.
-                    If you want a faster computation, you can pass a subset of the data, e.g. `masker=self.data[:100]`.
-                    - `algorithm`: the algorithm used for computing the SHAP values. By default, it is set to `"auto"`.
-                    If you know that your model belongs to a specific class, you can set it to the corresponding algorithm, e.g. `algorithm="linear"`.
-
-            shap_explanation_kwargs: the keyword arguments to be passed to compute the SHAP values.a
-
-                ???+ note "Code behind the scene"
+                ??? note "Code behind the scene"
+                    Check the code that is running behind the scene before customizing `shap_explainer_kwargs`.
 
                     ```python
-                    explainer = ... (check the code above)
-                    shap_explanation_kwargs = shap_explanation_kwargs or {}
-                    explainer(self.data, **shap_explanation_kwargs)
+                    explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
+                    explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
+                    if self.backend == "shap":
+                        explainer_defaults = {"masker": data}
+                        explanation_defaults = {"max_evals": budget}
+                    elif self.backend == "shapiq":
+                        explainer_defaults = {
+                            "data": data,
+                            "index": "SV",
+                            "max_order": 1,
+                            "approximator": "permutation",
+                            "imputer": "marginal",
+                        }
+                        explanation_defaults = {"budget": budget}
+                    else:
+                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
+                    explainer_kwargs = {**explainer_defaults, **explainer_kwargs}  # User args override defaults
+                    explanation_kwargs = {**explanation_defaults, **explanation_kwargs}  # User args override defaults
+
+                    if self.backend == "shap":
+                        explainer = shap.Explainer(model, **explainer_kwargs)
+                        explanation = explainer(data, **explanation_kwargs)
+                        self.shap_values = explanation.values
+                    elif self.backend == "shapiq":
+                        explainer = shapiq.Explainer(model, **explainer_kwargs)
+                        explanations = explainer.explain_X(data, **explanation_kwargs)
+                        self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
+                    else:
+                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
                     ```
 
-                ???+ note "Most important arguments"
-                    - `max_evals`: the maximum number of evaluations for the SHAP values. (default: `500`)
+                ??? warning "Be careful with custom arguments"
 
+                    For customizing `shap_explainer_kwargs` and `shap_explanation_kwargs` args,
+                    check the official documentation of [`shap`](https://shap.readthedocs.io/en/latest/) and [`shapiq`](https://shapiq.readthedocs.io/en/latest/) packages.
 
-                ???+ note "All arguments"
+            shap_explanation_kwargs: the keyword arguments to be passed to the `shap` or `shapiq` Explainer to compute the SHAP values.
 
-                    - `max_evals`: the maximum number of evaluations for the SHAP values. (default: `500`)
-                    - `main_effects`: whether to compute the main effects. (default: `False`)
-                    - `error_bounds`: whether to compute the error bounds. (default: `False`)
-                    - `batch_size`: the batch size for computing the SHAP values. (default: `auto`)
-                    - `output_names`: the names of the outputs. (default: `None`)
-                    - `silent`: whether to print the progress. (default: `False`)
+                ??? note "Code behind the scene"
+
+                    Check the code that is running behind the scene before customizing `shap_explanation_kwargs`.
+
+                    ```python
+                    explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
+                    explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
+                    if self.backend == "shap":
+                        explainer_defaults = {"masker": data}
+                        explanation_defaults = {"max_evals": budget}
+                    elif self.backend == "shapiq":
+                        explainer_defaults = {
+                            "data": data,
+                            "index": "SV",
+                            "max_order": 1,
+                            "approximator": "permutation",
+                            "imputer": "marginal",
+                        }
+                        explanation_defaults = {"budget": budget}
+                    else:
+                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
+                    explainer_kwargs = {**explainer_defaults, **explainer_kwargs}  # User args override defaults
+                    explanation_kwargs = {**explanation_defaults, **explanation_kwargs}  # User args override defaults
+
+                    if self.backend == "shap":
+                        explainer = shap.Explainer(model, **explainer_kwargs)
+                        explanation = explainer(data, **explanation_kwargs)
+                        self.shap_values = explanation.values
+                    elif self.backend == "shapiq":
+                        explainer = shapiq.Explainer(model, **explainer_kwargs)
+                        explanations = explainer.explain_X(data, **explanation_kwargs)
+                        self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
+                    else:
+                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
+                    ```
+
+                ??? warning "Be careful with custom arguments"
+
+                    For customizing `shap_explainer_kwargs` and `shap_explanation_kwargs` args,
+                    check the official documentation of [`shap`](https://shap.readthedocs.io/en/latest/) and [`shapiq`](https://shapiq.readthedocs.io/en/latest/) packages.
 
         """
 

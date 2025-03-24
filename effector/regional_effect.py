@@ -143,6 +143,8 @@ class RegionalEffectBase:
     def _create_fe_object(self, feature, node_idx, scale_x_list):
         feature_tree = self.tree["feature_{}".format(feature)]
         assert feature_tree is not None, "Feature {} has no splits".format(feature)
+        assert node_idx < len(feature_tree.nodes)
+
         node = feature_tree.get_node_by_idx(node_idx)
         name = feature_tree.set_display_name(node.name, scale_x_list)
         active_indices = node.info["active_indices"]

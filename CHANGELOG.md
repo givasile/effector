@@ -1,33 +1,27 @@
 # Changelog
 
-# Fix
+## [0.1.5] - 2025-03-24
+
+### Added 
+
+- added `ucimlrepo` to the dependencies
+- `space_partitioning` module with `Best` and `BestDepthWise` classes for space partitioning.
+- `space_partitioning.Best` (default) is a node-wise partitioning, i.e., it splits each node based on the split that maximizes the heterogeneity drop.
+- `space_partitioning.BestDepthWise` is a depth-wise partitioning, i.e., all nodes of a certain level are split based on the same condition.
+
+### Fixed
 
 - fixed bug in `space_partitioning.Best()`; partitioning now checks that the absolute heterogeneity should be over a threshold to be considered a valuable split
 - fixed bug in RegionalPDP plots, where `centering` was not working properly, it was set to `False` and the user defined argument was not being passed.
 
-# Changed
-
-- set the default value of `heter_small_enough` to 0.001 (from 0.00)
-
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-## [Unreleased]
-
 ### Changed
 
-- moved to shapiq library instead of shap
 - default plot titles now display full method name, e.g., `Accumulated Local Effects` instead of `ALE`.
+- added support for shapiq backend in `shap_dp` and `shap_regional_dp` (added as alternative to `shap`)
+- set the default value of `heter_small_enough` to 0.001 (from 0.00)
+- set the default value of `centering` to `True` for `RegionalPDP` plots (from `False`)
+- set the default value of `centering` to `False` for `RegionalDerPDP` plots (from `True`)
 
-=======
->>>>>>> main
-## [0.1.2] - 2025-02-17
-=======
-## [0.1.5] - 2025-02-267
-
-### Changed
-
-- added `ucimlrepo` to the dependencies
 
 ## [0.1.4] - 2025-02-26
 

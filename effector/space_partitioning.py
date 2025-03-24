@@ -2,8 +2,6 @@ import typing
 import numpy as np
 from effector import helpers, utils
 from effector.tree import Tree
-import copy
-import matplotlib.pyplot as plt
 
 BIG_M = helpers.BIG_M
 
@@ -100,7 +98,8 @@ class Base:
         else:
             return "<=" if i == 0 else ">"
 
-class CART(Base):
+
+class Best(Base):
 
     def __init__(
             self,
@@ -299,7 +298,7 @@ class CART(Base):
         return split
 
 
-class Best(Base):
+class BestLevelWise(Base):
     def __init__(
             self,
             min_heterogeneity_decrease_pcg: float = 0.1,
@@ -375,7 +374,7 @@ class Best(Base):
         self.split_found: bool = False
         self.important_splits_selected: bool = False
 
-        super().__init__("Best")
+        super().__init__("best_level_wise")
 
     def fit(self):
         self._search_all_splits()
@@ -675,7 +674,7 @@ class Best(Base):
 def return_default(partitioner_name):
     if partitioner_name == "best":
         return Best()
-    elif partitioner_name == "cart":
-        return CART()
+    elif partitioner_name == "best_level_wise":
+        return BestLevelWise()
     else:
         raise ValueError("Partitioner not found")

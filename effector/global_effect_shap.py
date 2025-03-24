@@ -266,6 +266,7 @@ class ShapDP(GlobalEffectBase):
             shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` or `shapiq.Explainer` class, depending on the backend.
 
                 ??? note "Code behind the scene"
+                    Check the code that is running behind the scene before customizing `shap_explainer_kwargs`.
 
                     ```python
                     explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
@@ -307,6 +308,8 @@ class ShapDP(GlobalEffectBase):
             shap_explanation_kwargs: the keyword arguments to be passed to the `shap` or `shapiq` Explainer to compute the SHAP values.
 
                 ??? note "Code behind the scene"
+
+                    Check the code that is running behind the scene before customizing `shap_explanation_kwargs`.
 
                     ```python
                     explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
