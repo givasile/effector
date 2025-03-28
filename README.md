@@ -257,17 +257,63 @@ If you use `effector`, please cite it:
 
 ---
 
-## References
+## Spotlight on `effector`
 
+### 📚 Featured Publications  
+- **Gkolemis, Vasilis, et al.**  
+  *"Fast and Accurate Regional Effect Plots for Automated Tabular Data Analysis."*  
+  [Proceedings of the VLDB Endowment](https://vldb.org/workshops/2024/proceedings/TaDA/TaDA.5.pdf) | ISSN 2150-8097  
 
-- [Friedman, Jerome H. "Greedy function approximation: a gradient boosting machine." Annals of statistics (2001): 1189-1232.](https://projecteuclid.org/euclid.aos/1013203451)
-- [Apley, Daniel W. "Visualizing the effects of predictor variables in black box supervised learning models." arXiv preprint arXiv:1612.08468 (2016).](https://arxiv.org/abs/1612.08468)
-- [Gkolemis, Vasilis, "RHALE: Robust and Heterogeneity-Aware Accumulated Local Effects"](https://ebooks.iospress.nl/doi/10.3233/FAIA230354)
-- [Gkolemis, Vasilis, "DALE: Decomposing Global Feature Effects Based on Feature Interactions"](https://proceedings.mlr.press/v189/gkolemis23a/gkolemis23a.pdf)
-- [Lundberg, Scott M., and Su-In Lee. "A unified approach to interpreting model predictions." Advances in neural information processing systems. 2017.](https://papers.nips.cc/paper/7062-a-unified-approach-to-interpreting-model-predictions)
-- [REPID: Regional Effect Plots with implicit Interaction Detection](https://proceedings.mlr.press/v151/herbinger22a.html)
-- [Decomposing Global Feature Effects Based on Feature Interactions](https://arxiv.org/pdf/2306.00541.pdf)
-- [Regionally Additive Models: Explainable-by-design models minimizing feature interactions](https://arxiv.org/abs/2309.12215)
+### 🎤 Talks & Presentations  
+- **LMU-IML Group Talk**  
+  [Slides & Materials](https://github.com/givasile/effector-paper/tree/main/presentation-general) | [LMU-IML Research](https://www.slds.stat.uni-muenchen.de/research/explainable-ai.html)  
+- **AIDAPT Plenary Meeting**  
+  [Deep dive into effector](https://github.com/givasile/presentation-aidapt-xai-effector/tree/main)  
+- **XAI World Conference 2024**  
+  [Poster](https://github.com/givasile/effector-paper/blob/main/poster-general/main.pdf) | [Paper](https://github.com/givasile/effector-paper/blob/main/xai-conference-submission/effector_xai_conf.pdf)  
+
+### 🌍 Adoption & Collaborations  
+- **[AIDAPT Project](https://www.ai-dapt.eu/effector/)**  
+  Leveraging `effector` for explainable AI solutions.  
+
+### 🔍 Additional Resources  
+
+- **Medium Post**  
+  [Effector: An eXplainability Library for Global and Regional Effects](https://medium.com/@ntipakos/effector-bfe17206672c)
+
+- **Courses & Lists**:  
+  [IML Course @ LMU](https://slds-lmu.github.io/iml/)  
+  [Awesome ML Interpretability](https://github.com/jphall663/awesome-machine-learning-interpretability)  
+  [Awesome XAI](https://github.com/wangyongjie-ntu/Awesome-explainable-AI)  
+  [Best of ML Python](https://github.com/ml-tooling/best-of-ml-python)  
+
+### 📚 Related Publications
+
+Papers that have inspired `effector`:
+
+- **REPID: Regional Effects in Predictive Models**  
+  Herbinger et al., 2022 - [Link](https://proceedings.mlr.press/v151/herbinger22a)  
+
+- **Decomposing Global Feature Effects Based on Feature Interactions**  
+  Herbinger et al., 2023 - [Link](https://arxiv.org/pdf/2306.00541.pdf)  
+
+- **RHALE: Robust Heterogeneity-Aware Effects**  
+  Gkolemis Vasilis et al., 2023 - [Link](https://ebooks.iospress.nl/doi/10.3233/FAIA230354)  
+
+- **DALE: Decomposing Global Feature Effects**  
+  Gkolemis Vasilis et al., 2023 - [Link](https://proceedings.mlr.press/v189/gkolemis23a/gkolemis23a.pdf)  
+
+- **Greedy Function Approximation: A Gradient Boosting Machine**  
+  Friedman, 2001 - [Link](https://projecteuclid.org/euclid.aos/1013203451)  
+
+- **Visualizing Predictor Effects in Black-Box Models**  
+  Apley, 2016 - [Link](https://arxiv.org/abs/1612.08468)  
+
+- **SHAP: A Unified Approach to Model Interpretation**  
+  Lundberg & Lee, 2017 - [Link](https://papers.nips.cc/paper/7062-a-unified-approach-to-interpreting-model-predictions)  
+
+- **Regionally Additive Models: Explainable-by-design models minimizing feature interactions**  
+  Gkolemis Vasilis et al., 2023 - [Link](https://arxiv.org/abs/2309.12215)
 
 ---
 

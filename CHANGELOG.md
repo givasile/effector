@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- REAME.md and index.md: added refereces to effector
+
 ## [0.1.5] - 2025-03-24
 
 ### Added 
