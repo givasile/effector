@@ -7,7 +7,7 @@ matplotlib
 scipy
 pytest
 shap
-shapiq
+# shapiq
 build
 mkdocs
 mkdocstrings

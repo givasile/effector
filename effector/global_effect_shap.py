@@ -5,7 +5,7 @@ import effector.helpers as helpers
 from effector.global_effect import GlobalEffectBase
 import numpy as np
 import shap
-import shapiq
+# import shapiq
 import effector.axis_partitioning as ap
 import effector.utils as utils
 from scipy.interpolate import interp1d
