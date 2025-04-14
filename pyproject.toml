@@ -30,6 +30,7 @@ dependencies = [
     "scipy",
     "tqdm",
     "shap",
+    "shapiq",
     "ucimlrepo"
 ]
 

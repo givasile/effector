@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## [0.1.6] - 2025-04-14
+
+### Fix
+
+- fixed bug in `project.toml`, added dependency to `shapiq`
 
 ### Changed
 
