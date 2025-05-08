@@ -320,3 +320,15 @@ Papers that have inspired `effector`:
 ## License
 
 `effector` is released under the [MIT License](https://github.com/givasile/effector/blob/main/LICENSE).
+
+
+
+---
+
+## Powered by:
+
+- **[AIDAPT](https://www.ai-dapt.eu/)**  
+  <img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/aidapt_logo.png" width="130"/>
+
+- **XMANAI**  
+<img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/xmanai_logo.jpg" width="70"/>

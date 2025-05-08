@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.7] - 2025-05-08
+
+### Added
+
+- added organizations the that support the project
+
 ## [0.1.6] - 2025-04-14
 
 ### Fix
