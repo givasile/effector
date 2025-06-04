@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 
 class Tree:
     """A class to represent a tree structure."""
+
     def __init__(self):
         self.nodes = []
         self.node_dict = {}  # Fast lookup by name
@@ -25,15 +26,30 @@ class Tree:
 
     def _get_condition_string(self, node, scale_x_list):
         """Generate the condition string for a node."""
-        pos = node.info['foc_split_position']
+        pos = node.info["foc_split_position"]
         if scale_x_list:
-            feature_stats = scale_x_list[node.info['foc_index']]
-            pos = feature_stats['std'] * pos + feature_stats['mean']
+            feature_stats = scale_x_list[node.info["foc_index"]]
+            pos = feature_stats["std"] * pos + feature_stats["mean"]
         return f"{node.info['foc_name']} {self._comparison_str(node.info['comparison'])} {pos:.2f}"
 
     @staticmethod
     def _comparison_str(comparison):
         return {">=": "≥", "<=": "≤", "!=": "≠", "==": "="}.get(comparison, comparison)
+
+    def create_node_name(self, name, parent=None, comp=None, pos=None):
+        if parent is None:
+            return name
+
+        assert (
+            comp is not None and pos is not None
+        ), "Comparison and position must be provided if parent is specified."
+
+        name = f"{name} {self._comparison_str(comp)} {pos}"
+
+        if parent.info["level"] == 0:
+            return f"{parent.name} | {name}"
+
+        return f"{parent.name} and {name}"
 
     def add_node(self, name: str, parent_name: typing.Optional[str], data: dict):
         parent_node = self.node_dict.get(parent_name) if parent_name else None
@@ -61,7 +77,9 @@ class Tree:
     def update_display_names(self, scale_x_list):
         for node in self.nodes:
             node.display_name = self.set_display_name(node.name, scale_x_list)
-            node.display_name_short = self.set_display_name(node.name, scale_x_list, full=False)
+            node.display_name_short = self.set_display_name(
+                node.name, scale_x_list, full=False
+            )
 
     def show_full_tree(self, scale_x_list=None):
         """Print the full tree structure.
@@ -99,8 +117,10 @@ class Tree:
 
     def _recursive_print_full_tree(self, node):
         indent = "    " * node.info["level"]
-        print(f"{indent}{node.display_name_short} 🔹 [id: {node.idx} | heter: {node.info['heterogeneity']:.2f} "
-              f"| inst: {node.info['nof_instances']:d} | w: {node.info['weight']:.2f}]")
+        print(
+            f"{indent}{node.display_name_short} 🔹 [id: {node.idx} | heter: {node.info['heterogeneity']:.2f} "
+            f"| inst: {node.info['nof_instances']:d} | w: {node.info['weight']:.2f}]"
+        )
         for child in self.get_children(node.name):
             self._recursive_print_full_tree(child)
 
@@ -127,12 +147,18 @@ class Tree:
             else:
                 drop = prev_heter - stats["heterogeneity"]
                 perc = 100 * drop / prev_heter if prev_heter else 0
-                print(f"{indent}Level {lev}🔹heter: {stats['heterogeneity']:.2f} | 🔻{drop:.2f} ({perc:.2f}%)")
+                print(
+                    f"{indent}Level {lev}🔹heter: {stats['heterogeneity']:.2f} | 🔻{drop:.2f} ({perc:.2f}%)"
+                )
             prev_heter = stats["heterogeneity"]
 
     def get_level_stats(self, level):
         level_nodes = [node for node in self.nodes if node.info["level"] == level]
-        return {"heterogeneity": sum(n.info["heterogeneity"] * n.info["weight"] for n in level_nodes)}
+        return {
+            "heterogeneity": sum(
+                n.info["heterogeneity"] * n.info["weight"] for n in level_nodes
+            )
+        }
 
     @staticmethod
     def _get_parent_chain(node):
@@ -148,7 +174,7 @@ class Tree:
 
 @dataclass
 class Node:
-    idx: int # name must be unique
+    idx: int  # name must be unique
     name: str
     parent_node: typing.Optional["Node"]
     info: dict
@@ -162,11 +188,21 @@ class Node:
             raise KeyError(f"Missing required keys in node info: {missing}")
 
         self.info["nof_instances"] = int(self.info["active_indices"].sum())
-        self.info["weight"] = float(self.info["nof_instances"] / self.info["active_indices"].shape[0])
-        self.info["weighted_heterogeneity"] = float(self.info["heterogeneity"] * self.info["weight"])
+        self.info["weight"] = float(
+            self.info["nof_instances"] / self.info["active_indices"].shape[0]
+        )
+        self.info["weighted_heterogeneity"] = float(
+            self.info["heterogeneity"] * self.info["weight"]
+        )
 
         if self.info["level"] > 0:
-            extra_keys = {"foc_index", "foc_name", "foc_type", "foc_split_position", "comparison"}
+            extra_keys = {
+                "foc_index",
+                "foc_name",
+                "foc_type",
+                "foc_split_position",
+                "comparison",
+            }
             if not extra_keys.issubset(self.info):
                 missing = extra_keys - self.info.keys()
                 raise KeyError(f"Missing required keys for non-root node: {missing}")
