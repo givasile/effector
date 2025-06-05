@@ -511,7 +511,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
 
     ```python
     regional_effect = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
-    y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
+    y = regional_effect.eval(0, feature=1, xs=np.linspace(-1, 1, 100))
     y_mu, y_sigma = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
     ```
 

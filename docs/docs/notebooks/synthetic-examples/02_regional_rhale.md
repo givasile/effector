@@ -154,7 +154,7 @@ regional_rhale = effector.RegionalRHALE(
 
 binning_method = effector.axis_partitioning.Fixed(11, min_points_per_bin=0)
 
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=11)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, nof_candidate_splits_for_numerical=11)
 regional_rhale.fit(
     features="all",
     space_partitioner=space_partitioner,
@@ -299,7 +299,7 @@ regional_rhale = effector.RegionalRHALE(
     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
 binning_method = effector.axis_partitioning.Fixed(10, min_points_per_bin=0)
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=11)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, nof_candidate_splits_for_numerical=11)
 regional_rhale.fit(
     features="all",
     space_partitioner=space_partitioner,
