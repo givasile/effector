@@ -15,7 +15,7 @@ title: What are global and regional effects
 
 🚀 The model performs well, with an average prediction error of about 43 bikes. Now, you want to understand how it makes predictions.
 
-📊 Feature effect plots provide a visual way to see how each feature influences the model's output
+📊 Feature effect plots provide a visual way to see how each feature influences the model's output.
 
 === "`month`"
     ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_1.png)
@@ -27,10 +27,10 @@ title: What are global and regional effects
     ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_3.png)
     
 === "`humidity`"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_34.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_4.png)
     
 === "`windspeed`"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_45.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_5.png)
 
 Interesting! The model has a meaningful behavior:
 
@@ -65,7 +65,7 @@ Let's focus on feature `hour`:
     ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_23_1.png)
 
 
-All methods agree on the general trend;
+All methods agree on the general trend:
 there is an abrupt increase in the number of bike rentals at about 8:00 AM (beginning of the workday)
 and at about 5:00 PM (end of the workday). 
 The following table provides a more detailed interpretation of the plot: 
@@ -86,7 +86,7 @@ The following table provides a more detailed interpretation of the plot:
 Global feature effect plots provide an immediate *interpretation* of the model's inner workings.
 
 
-???+ question "Criticism 1: Does it makes sense?"
+???+ question "Criticism 1: Does it make sense?"
 
      It seems reasonable. On a typical workday, people commute between 6:00–8:30 AM and return between 3:00–5:00 PM. But a city transportation expert might have a better perspective.
 
@@ -108,7 +108,7 @@ A simple way to check this is to look at the heterogeneity of the global effect:
 Let's take a look again:
 
 === "PDP"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_xbt0.png)}
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_0.png)}
 
 === "RHALE"
     ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_22_0.png)
@@ -140,9 +140,9 @@ Moreover, PDP-ICE analysis highlights two distinct patterns:
     
 ???+ Note "The global effect is sometimes a weak explanation"
 
-    Whn global effect has a high heterogeneity, it is useful to analyze the regional effect.
+    When global effect has a high heterogeneity, it is useful to analyze the regional effect.
     When many instances behave differently from the average pattern,
-    it means that global effect may hide some important information behind average values. 
+    it means that the global effect may hide some important information behind average values. 
     In these cases, regional effect analysis can provide a more detailed explanation.
 
 ???+ Note "When regional effect can provide a good solution"

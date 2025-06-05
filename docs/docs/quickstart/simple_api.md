@@ -32,7 +32,7 @@ Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
 === "synthetic example"
      
      ```python
-     Ν = 100
+     N = 100
      D = 2
      X_test = np.random.uniform(-1, 1, (N, D))
      ```
@@ -65,9 +65,7 @@ Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
      ```python
      def predict(x):
         '''y = 10*x[0] if x[1] > 0 else -10*x[0] + noise'''
-        y = np.zeros(x.shape[0])          options:
-            force_inspection: true
-            allow_inspection: true
+        y = np.zeros(x.shape[0])          
         ind = x[:, 1] > 0
         y[ind] = 10*x[ind, 0]
         y[~ind] = -10*x[~ind, 0]
@@ -392,7 +390,7 @@ To plot or evaluate a specific regional effect, they can use the node index `nod
              Level 1, heter: 33.89 || heter drop : 80.68 (units), 70.42% (pcg)
     ```
 
-=== "DerPDP"
+<!-- === "DerPDP"
 
      ```python
      r_der_pdp = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
@@ -408,7 +406,7 @@ To plot or evaluate a specific regional effect, they can use the node index `nod
      Feature 0 - Statistics per tree level:
      Level 0, heter: 100.00
              Level 1, heter: 0.00 || heter drop : 100.00 (units), 100.00% (pcg)
-    ```
+    ``` -->
 
 ### `.plot()`
 

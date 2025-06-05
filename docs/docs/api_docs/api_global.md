@@ -67,7 +67,7 @@ jacobian = ... # jacobian of the model
         ```python
         # customize the space partitioning algorithm
         axis_partitioner = effector.axis_partitioning.Greedy(
-            init_nof_bins: int = 50, # start from 50 bins (default: 20)
+            init_nof_bins = 50, # start from 50 bins (default: 20)
             min_points_per_bin = 10, # minimum number of points per bin (default: 2)
             cat_limit = 20 # maximum number of categories for a feature to be considered categorical (default: 10)
 
