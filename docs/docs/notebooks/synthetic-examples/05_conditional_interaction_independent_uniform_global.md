@@ -38,6 +38,10 @@ dataset = effector.datasets.IndependentUniform(dim=3, low=-1, high=1)
 x = dataset.generate_data(1_000)
 ```
 
+    /Users/dimitriskyriakopoulos/Documents/ath/Effector/Code/eff-env/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+      from .autonotebook import tqdm as notebook_tqdm
+
+
 ## PDP
 
 ### Effector
@@ -49,7 +53,7 @@ Let's see below the PDP effects for each feature, using `effector`.
 pdp = effector.PDP(x, model.predict, dataset.axis_limits)
 pdp.fit(features="all", centering=True)
 for feature in [0, 1, 2]:
-    pdp.plot(feature=feature, centering=True, y_limits=[-2, 2])
+    pdp.plot(feature=feature, centering=True, y_limits=[-2, 2], heterogeneity=False)
 ```
 
 
@@ -141,17 +145,20 @@ for feature in [0, 1, 2]:
 plt.figure()
 plt.title("PDP effects (ground truth)")
 color_pallette = ["blue", "red", "green"]
+feature_labels = ["Feature x1", "Feature x2", "Feature x3"]
 for feature in [0, 1, 2]:
     plt.plot(
         xx, 
         y_pdp[feature], 
         color=color_pallette[feature], 
         linestyle="--",
-        label=f"feature {feature + 1}"
+        label=feature_labels[feature],
     )
 plt.legend()
 plt.xlim([-1.1, 1.1])
 plt.ylim([-2, 2])
+plt.xlabel("Feature Value")
+plt.ylabel("PDP Effect")
 plt.show()
 
 ```
@@ -192,7 +199,7 @@ ale = effector.ALE(x, model.predict, axis_limits=dataset.axis_limits)
 ale.fit(features="all", centering=True, binning_method=effector.axis_partitioning.Fixed(nof_bins=31))
 
 for feature in [0, 1, 2]:
-    ale.plot(feature=feature, centering=True, y_limits=[-2, 2])
+    ale.plot(feature=feature, centering=True, y_limits=[-2, 2], heterogeneity=False)
 ```
 
 
@@ -240,10 +247,11 @@ Therefore, the ALE effect is:
 
 \begin{equation}
 ALE(x_2) \approx
-\cases{
+\begin{cases}
 -\frac{1}{3} \text{ if } x_2 < -\frac{2}{K} \\
 \frac{1}{3} \text{ if } x_2 > \frac{2}{K} \\
-\text{a linear segment from $-\frac{1}{3}$ to $\frac{1}{3}$ in between}}
+\text{a linear segment from $-\frac{1}{3}$ to $\frac{1}{3}$ in between}
+\end{cases} \\
 \end{equation}
 
 
@@ -284,17 +292,20 @@ for feature in [0, 1, 2]:
 plt.figure()
 plt.title("ALE effects (ground truth)")
 color_pallette = ["blue", "red", "green"]
+feature_labels = ["Feature x1", "Feature x2", "Feature x3"]
 for feature in [0, 1, 2]:
     plt.plot(
         xx, 
         y_ale[feature], 
         color=color_pallette[feature], 
         linestyle="--",
-        label=f"feature {feature + 1}"
+        label=feature_labels[feature]
     )
 plt.legend()
 plt.xlim([-1.1, 1.1])
 plt.ylim([-2, 2])
+plt.xlabel("Feature Value")
+plt.ylabel("ALE Effect")
 plt.show()
     
 ```
@@ -308,7 +319,7 @@ plt.show()
 
 ```python
 xx = np.linspace(-1, 1, 100)
-for feature in [1]:# [0, 1, 2]:
+for feature in [0, 1, 2]:
     y_ale = ale.eval(feature=feature, xs=xx, centering=True)
     y_gt = ale_ground_truth(feature, xx)
     
@@ -341,7 +352,7 @@ rhale = effector.RHALE(x, model.predict, model.jacobian, axis_limits=dataset.axi
 rhale.fit(features="all", centering=True)
 
 for feature in [0, 1, 2]:
-    rhale.plot(feature=feature, centering=True, y_limits=[-2, 2])
+    rhale.plot(feature=feature, centering=True, y_limits=[-2, 2], heterogeneity=False)
 ```
 
 
@@ -380,7 +391,11 @@ RHALE(x_1) &\propto \sum_{k=1}^{k_{x_1}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k
 
 \begin{align}
 RHALE(x_2) &\propto \sum_{k=1}^{k_{x_2}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k-1}) \sum_{i: x^i \in \mathcal{S}_k} \left [  \frac{\partial f}{\partial x_2}(\mathbf{x}^i) \right ] \\
-&\propto \sum_{k=1}^{k_{x_2}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k-1}) \sum_{i: x^i \in \mathcal{S}_k} \cases{0 \text{ if $x_2 <0$} \\ 0 \text{ if $x_2 \geq 0$}}  \\
+&\propto \sum_{k=1}^{k_{x_2}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k-1}) \sum_{i: x^i \in \mathcal{S}_k} 
+\begin{cases}
+0 & \text{if } x_2 < 0 \\
+0 & \text{if } x_2 \geq 0
+\end{cases} \\
 &\propto 0
 \end{align}
 
@@ -389,6 +404,8 @@ RHALE(x_3) &\propto \sum_{k=1}^{k_{x_3}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k
 &\propto \sum_{k=1}^{k_{x_3}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k-1}) \sum_{i: x^i \in \mathcal{S}_k} \left [ e^{x_3} \right ] \\
 &\approx e^{x_3}
 \end{align}
+
+### Tests
 
 
 ```python
@@ -419,17 +436,20 @@ for feature in [0, 1, 2]:
 plt.figure()
 plt.title("RHALE effects (ground truth)")
 color_pallette = ["blue", "red", "green"]
+feature_labels = ["Feature x1", "Feature x2", "Feature x3"]
 for feature in [0, 1, 2]:
     plt.plot(
         xx, 
         y_rhale[feature], 
         color=color_pallette[feature], 
         linestyle="-" if feature == 0 else "--",
-        label=f"feature {feature + 1}"
+        label=feature_labels[feature]
     )
 plt.legend()
 plt.xlim([-1.1, 1.1])
 plt.ylim([-2, 2])
+plt.xlabel("Feature Value")
+plt.ylabel("RHALE Effect")
 plt.show()
 
 
@@ -437,7 +457,7 @@ plt.show()
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_37_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_38_0.png)
     
 
 
@@ -455,23 +475,3 @@ Are the RHALE effects intuitive?
 
 RHALE does not add something new, compared to ALE and PDP, for features $x_1$ and $x_3$. 
 For $x_2$, however, it does not capture the abrupt increase by $+\frac{2}{3}$ units when moving from $x_2^-$ to $x_2^+$, which can be considered as an error mode of RHALE. In fact, RHALE requires a differentiable black box model, and since $f$ is not differentiable with respect to $x_2$, that is why we get a slightly misleading result.
-
-
-```python
-
-```
-
-
-```python
-
-```
-
-
-```python
-
-```
-
-
-```python
-
-```
