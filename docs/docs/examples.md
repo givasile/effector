@@ -7,8 +7,6 @@ Synthetic Examples:
     - [Using a ML model as the predict function](./notebooks/synthetic-examples/04_regional_effects_real_f.md)
 - A conditional interaction model
     - [Global effect](./notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_global.md)
-    - [Heterogeneity](./notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_heter.md)
-    - [Regional effect](./notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_regional.md)
 
 Real Examples:
 
