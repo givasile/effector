@@ -17,7 +17,7 @@ maintainers = [
     {name = "Julia Herbinger", email = "julia.herbinger@gmail.com"},
     {name = "Giuseppe Casalicchio", email = "giuseppe.casalicchio@gmail.com"},
     {name = "Hubert Baniecki", email = "h.baniecki@uw.edu.pl"},
-    {name = "Dimitris Kyriakopoulos", email = "dimitrisskyriakopoulos@gmail.com"}
+    {name = "Dimitris Kyriakopoulos", email = "dimitrisskyriakopoulos@gmail.com"},
     {name = "Dimitrios Rontogiannis", email = "dimronto@gmail.com"}
 ]
 license = {text = "MIT License"}

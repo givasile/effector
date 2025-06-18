@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.10] - 2025-06-18
+
+### Fixed
+
+- bug in `project.toml`
+
 ## [0.1.9] - 2025-06-18
 
 ### Fixed
