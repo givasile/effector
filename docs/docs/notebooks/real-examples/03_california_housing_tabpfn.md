@@ -10,8 +10,8 @@ import time
 california_housing = fetch_california_housing(as_frame=True)
 ```
 
-    2025-02-26 11:16:45.248689: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    /Users/dimitriskyriakopoulos/Documents/ath/Effector/Code/eff-env/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+      from .autonotebook import tqdm as notebook_tqdm
 
 
 
@@ -181,12 +181,20 @@ model = tabpfn.TabPFNRegressor(n_jobs=7, device="cpu")
 model.fit(X_train, Y_train)
 ```
 
+    /Users/dimitriskyriakopoulos/Documents/ath/Effector/Code/eff-env/lib/python3.10/site-packages/tabpfn/base.py:101: UserWarning: Downloading model to /Users/dimitriskyriakopoulos/Library/Caches/tabpfn/tabpfn-v2-regressor.ckpt.
+      model, bardist, config_ = load_model_criterion_config(
+    /Users/dimitriskyriakopoulos/Documents/ath/Effector/Code/eff-env/lib/python3.10/site-packages/tabpfn/regressor.py:460: UserWarning: Running on CPU with more than 200 samples may be slow.
+    Consider using a GPU or the tabpfn-client API: https://github.com/PriorLabs/tabpfn-client
+      check_cpu_warning(
+
+
 
 
 
 <style>#sk-container-id-1 {
   /* Definition of color scheme common for light and dark mode */
-  --sklearn-color-text: black;
+  --sklearn-color-text: #000;
+  --sklearn-color-text-muted: #666;
   --sklearn-color-line: gray;
   /* Definition of color scheme for unfitted estimators */
   --sklearn-color-unfitted-level-0: #fff5e6;
@@ -331,12 +339,21 @@ clickable and can be expanded/collapsed.
 /* Toggleable label */
 #sk-container-id-1 label.sk-toggleable__label {
   cursor: pointer;
-  display: block;
+  display: flex;
   width: 100%;
   margin-bottom: 0;
   padding: 0.5em;
   box-sizing: border-box;
   text-align: center;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.5em;
+}
+
+#sk-container-id-1 label.sk-toggleable__label .caption {
+  font-size: 0.6rem;
+  font-weight: lighter;
+  color: var(--sklearn-color-text-muted);
 }
 
 #sk-container-id-1 label.sk-toggleable__label-arrow:before {
@@ -489,7 +506,8 @@ a:visited.sk-estimator-doc-link {
   height: 1em;
   width: 1em;
   text-decoration: none !important;
-  margin-left: 1ex;
+  margin-left: 0.5em;
+  text-align: center;
   /* unfitted */
   border: var(--sklearn-color-unfitted-level-1) 1pt solid;
   color: var(--sklearn-color-unfitted-level-1);
@@ -588,7 +606,7 @@ div.sk-label-container:hover .sk-estimator-doc-link.fitted:hover,
   /* fitted */
   background-color: var(--sklearn-color-fitted-level-3);
 }
-</style><div id="sk-container-id-1" class="sk-top-container"><div class="sk-text-repr-fallback"><pre>TabPFNRegressor(device=&#x27;cpu&#x27;, n_jobs=7)</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br />On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class="sk-container" hidden><div class="sk-item"><div class="sk-estimator fitted sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-1" type="checkbox" checked><label for="sk-estimator-id-1" class="sk-toggleable__label fitted sk-toggleable__label-arrow fitted">&nbsp;TabPFNRegressor<span class="sk-estimator-doc-link fitted">i<span>Fitted</span></span></label><div class="sk-toggleable__content fitted"><pre>TabPFNRegressor(device=&#x27;cpu&#x27;, n_jobs=7)</pre></div> </div></div></div></div>
+</style><div id="sk-container-id-1" class="sk-top-container"><div class="sk-text-repr-fallback"><pre>TabPFNRegressor(device=&#x27;cpu&#x27;, n_jobs=7)</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br />On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class="sk-container" hidden><div class="sk-item"><div class="sk-estimator fitted sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-1" type="checkbox" checked><label for="sk-estimator-id-1" class="sk-toggleable__label fitted sk-toggleable__label-arrow"><div><div>TabPFNRegressor</div></div><div><span class="sk-estimator-doc-link fitted">i<span>Fitted</span></span></div></label><div class="sk-toggleable__content fitted"><pre>TabPFNRegressor(device=&#x27;cpu&#x27;, n_jobs=7)</pre></div> </div></div></div></div>
 
 
 
@@ -625,11 +643,7 @@ toc = time.time()
 print(toc - tic)
 ```
 
-    /home/givasile/miniconda3/envs/effector-dev/lib/python3.10/site-packages/torch/cuda/__init__.py:129: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at /pytorch/c10/cuda/CUDAFunctions.cpp:109.)
-      return torch._C._cuda_getDeviceCount() > 0
-
-
-    256.08621978759766
+    374.93519401550293
 
 
 
@@ -700,27 +714,27 @@ r_ale = effector.RegionalALE(data=X_train, model=model_forward, feature_names=fe
 r_ale.summary(features=6, scale_x_list=scale_x_list)
 ```
 
-    100%|██████████| 1/1 [00:32<00:00, 32.79s/it]
+    100%|██████████| 1/1 [00:43<00:00, 43.15s/it]
 
     
     
     Feature 6 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    Latitude 🔹 [id: 0 | heter: 0.57 | inst: 500 | w: 1.00]
+    Latitude 🔹 [id: 0 | heter: 0.58 | inst: 500 | w: 1.00]
         Longitude ≤ -120.76 🔹 [id: 1 | heter: 0.09 | inst: 180 | w: 0.36]
-            MedInc ≤ 4.55 🔹 [id: 3 | heter: 0.09 | inst: 126 | w: 0.25]
-            MedInc > 4.55 🔹 [id: 4 | heter: 0.10 | inst: 54 | w: 0.11]
-        Longitude > -120.76 🔹 [id: 2 | heter: 0.48 | inst: 320 | w: 0.64]
-            MedInc ≤ 4.55 🔹 [id: 5 | heter: 0.31 | inst: 228 | w: 0.46]
-            MedInc > 4.55 🔹 [id: 6 | heter: 0.43 | inst: 92 | w: 0.18]
+            Longitude ≤ -122.31 🔹 [id: 2 | heter: 0.03 | inst: 41 | w: 0.08]
+            Longitude > -122.31 🔹 [id: 3 | heter: 0.08 | inst: 139 | w: 0.28]
+        Longitude > -120.76 🔹 [id: 4 | heter: 0.49 | inst: 320 | w: 0.64]
+            MedInc ≤ 4.55 🔹 [id: 5 | heter: 0.30 | inst: 228 | w: 0.46]
+            MedInc > 4.55 🔹 [id: 6 | heter: 0.44 | inst: 92 | w: 0.18]
     --------------------------------------------------
     Feature 6 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.57
-        Level 1🔹heter: 0.34 | 🔻0.23 (40.23%)
-            Level 2🔹heter: 0.25 | 🔻0.09 (26.41%)
+    Level 0🔹heter: 0.58
+        Level 1🔹heter: 0.35 | 🔻0.23 (40.17%)
+            Level 2🔹heter: 0.24 | 🔻0.10 (29.77%)
     
     
 
@@ -743,7 +757,7 @@ r_ale.plot(feature=6, node_idx=0, scale_x_list=scale_x_list, scale_y=scale_y, y_
 
 
 ```python
-for node_idx in [1, 2]:
+for node_idx in [1, 4]:
     r_ale.plot(feature=6, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
 ```
 
@@ -759,6 +773,36 @@ for node_idx in [1, 2]:
     
 
 
+
+```python
+for node_idx in [2,3,5,6]:
+    r_ale.plot(feature=6, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+```
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_24_0.png)
+    
+
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_24_1.png)
+    
+
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_24_2.png)
+    
+
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_24_3.png)
+    
+
+
 **Global Trend:** House prices decrease as we move north.  
 
 **Regional Trends:** Moreorless the same, with minor different curves.
@@ -767,30 +811,38 @@ for node_idx in [1, 2]:
 
 
 ```python
-r_ale.plot(feature=7, node_idx=0, centering=True, scale_x_list=scale_x_list, scale_y=scale_y)
+r_ale.summary(features=7, scale_x_list=scale_x_list)
 ```
 
-    100%|██████████| 1/1 [00:31<00:00, 31.17s/it]
-
-
-
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_26_1.png)
+    
+    Feature 7 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    Longitude 🔹 [id: 0 | heter: 0.77 | inst: 500 | w: 1.00]
+        Latitude ≤ 35.46 🔹 [id: 1 | heter: 0.58 | inst: 283 | w: 0.57]
+            Latitude ≤ 33.65 🔹 [id: 2 | heter: 0.44 | inst: 55 | w: 0.11]
+            Latitude > 33.65 🔹 [id: 3 | heter: 0.38 | inst: 228 | w: 0.46]
+        Latitude > 35.46 🔹 [id: 4 | heter: 0.18 | inst: 217 | w: 0.43]
+            AveRooms ≤ 6.19 🔹 [id: 5 | heter: 0.13 | inst: 170 | w: 0.34]
+            AveRooms > 6.19 🔹 [id: 6 | heter: 0.12 | inst: 47 | w: 0.09]
+    --------------------------------------------------
+    Feature 7 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.77
+        Level 1🔹heter: 0.40 | 🔻0.36 (47.30%)
+            Level 2🔹heter: 0.28 | 🔻0.13 (31.51%)
+    
     
 
-
-**Global Trend:** House prices decrease as we move east.  
 
 
 ```python
-for node_idx in [1, 2]:
-    r_ale.plot(feature=7, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+r_ale.plot(feature=7, node_idx=0, centering=True, scale_x_list=scale_x_list, scale_y=scale_y)
 ```
 
-
-    
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_28_0.png)
-    
+    100%|██████████| 1/1 [00:50<00:00, 50.61s/it]
 
 
 
@@ -801,16 +853,60 @@ for node_idx in [1, 2]:
 
 **Global Trend:** House prices decrease as we move east.  
 
+
+```python
+for node_idx in [1, 4]:
+    r_ale.plot(feature=7, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+```
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_30_0.png)
+    
+
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_30_1.png)
+    
+
+
+
+```python
+for node_idx in [2, 3, 5, 6]:
+    r_ale.plot(feature=7, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+```
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_31_0.png)
+    
+
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_31_1.png)
+    
+
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_31_2.png)
+    
+
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_31_3.png)
+    
+
+
+**Global Trend:** House prices decrease as we move eastward.  
+
 **Regional Trends:**  
-- **North (latitude > 35.85):** Prices drop more sharply in the first half from east to west.  
-- **South (latitude < 35.85):** Prices drop more sharply in the second half from east to west.
-
-
-```python
-
-```
-
-
-```python
-
-```
+- **South (latitude <= 35.85):** Prices drop more sharply in the second half from west to east.
+  - **Latitude <= 33.65:** A different pattern emerges: prices drop sharply in the first half, then increase in the second half, suggesting a U-shaped trend.
+  - **Latitude > 33.65:** The decrease in the price is almost linear as we move to east.
+- **North (latitude > 35.85):** Prices drop more sharply in the first half from west to east.  
+  - **AveRooms <= 6.19:** The pattern follows the overall northern trend, with a steep early drop.
+  - **AveRooms > 6.19:** The decline becomes smoother and more linear

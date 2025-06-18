@@ -18,11 +18,12 @@ maintainers = [
     {name = "Giuseppe Casalicchio", email = "giuseppe.casalicchio@gmail.com"},
     {name = "Hubert Baniecki", email = "h.baniecki@uw.edu.pl"},
     {name = "Dimitris Kyriakopoulos", email = "dimitrisskyriakopoulos@gmail.com"}
+    {name = "Dimitrios Rontogiannis", email = "dimronto@gmail.com"}
 ]
 license = {text = "MIT License"}
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 keywords = ["explainability", "interpretability", "machine learning", "deep learning", "regional XAI", "feature effect"]
-version = "0.1.7"
+version = "0.1.8"
 readme = "README.md"
 dependencies = [
     "matplotlib",
@@ -40,4 +41,4 @@ source = "https://github.com/givasile/effector"
 tracker = "https://github.com/givasile/effector/issues"
 
 [project.optional-dependencies]
-tutorials = ["ipython", "pandas", "tensorflow-cpu", "keras", "ucimlrepo", "jupyter"]
+tutorials = ["ipython", "pandas", "tensorflow-cpu", "keras", "ucimlrepo", "jupyter", "openml", "tabpfn"]

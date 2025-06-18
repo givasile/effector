@@ -58,3 +58,7 @@ mkdocs serve
 ```
 
 
+
+## Connection between files
+
+`index.md` -> `/quickstart/readme_example.ipynb`

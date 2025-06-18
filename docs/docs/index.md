@@ -23,7 +23,7 @@
 
 ---
 
-📖 [Documentation](./) | 🔍 [Intro to global and regional effects](./quickstart/global_and_regional_effects/) | 🔧 [API](./api/) | 🏗 [Examples](./examples)
+📖 [Documentation](./) | 🔍 [Intro to global and regional effects](./quickstart/global_and_regional_effects/) | 🔧 [API](./api_docs/) | 🏗 [Examples](./examples)
 
 ---
 
@@ -126,20 +126,20 @@ r_pdp.summary(
 Feature 3 - Full partition tree:
 🌳 Full Tree Structure:
 ───────────────────────
-hr 🔹 [id: 0 | heter: 0.43 | inst: 3476 | w: 1.00]
-    workingday = 0.00 🔹 [id: 1 | heter: 0.36 | inst: 1129 | w: 0.32]
-        temp ≤ 6.50 🔹 [id: 3 | heter: 0.17 | inst: 568 | w: 0.16]
-        temp > 6.50 🔹 [id: 4 | heter: 0.21 | inst: 561 | w: 0.16]
-    workingday ≠ 0.00 🔹 [id: 2 | heter: 0.28 | inst: 2347 | w: 0.68]
-        temp ≤ 6.50 🔹 [id: 5 | heter: 0.19 | inst: 953 | w: 0.27]
-        temp > 6.50 🔹 [id: 6 | heter: 0.20 | inst: 1394 | w: 0.40]
+hr 🔹 [id: 0 | heter: 0.24 | inst: 3476 | w: 1.00]
+    workingday = 0.00 🔹 [id: 1 | heter: 0.12 | inst: 1129 | w: 0.32]
+        temp ≤ 6.50 🔹 [id: 2 | heter: 0.06 | inst: 568 | w: 0.16]
+        temp > 6.50 🔹 [id: 3 | heter: 0.08 | inst: 561 | w: 0.16]
+    workingday ≠ 0.00 🔹 [id: 4 | heter: 0.12 | inst: 2347 | w: 0.68]
+        temp ≤ 8.76 🔹 [id: 5 | heter: 0.08 | inst: 1083 | w: 0.31]
+        temp > 8.76 🔹 [id: 6 | heter: 0.09 | inst: 1264 | w: 0.36]
 --------------------------------------------------
 Feature 3 - Statistics per tree level:
 🌳 Tree Summary:
 ─────────────────
-Level 0🔹heter: 0.41
-    Level 1🔹heter: 0.29 | 🔻0.12 (28.96%)
-        Level 2🔹heter: 0.18 | 🔻0.11 (36.75%)
+Level 0🔹heter: 0.24
+    Level 1🔹heter: 0.12 | 🔻0.12 (48.89%)
+        Level 2🔹heter: 0.08 | 🔻0.04 (31.11%)
 ```
 
 The summary of feature `hr` (hour) says that its effect on the output is highly dependent on the value of features:

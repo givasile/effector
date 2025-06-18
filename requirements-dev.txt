@@ -18,3 +18,5 @@ tensorflow
 keras
 jupyter
 ucimlrepo
+openml
+tabpfn

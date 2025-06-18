@@ -8,8 +8,8 @@ from sklearn.datasets import fetch_california_housing
 california_housing = fetch_california_housing(as_frame=True)
 ```
 
-    2025-02-26 11:16:08.667707: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    /Users/dimitriskyriakopoulos/Documents/ath/Effector/Code/eff-env/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+      from .autonotebook import tqdm as notebook_tqdm
 
 
 
@@ -183,53 +183,53 @@ model.evaluate(X_test, Y_test, verbose=1)
 ```
 
     Epoch 1/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m2s[0m 19ms/step - loss: 0.5963 - mae: 0.5775 - root_mean_squared_error: 0.7677
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 27ms/step - loss: 0.6138 - mae: 0.5828 - root_mean_squared_error: 0.7775
     Epoch 2/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 20ms/step - loss: 0.3338 - mae: 0.4156 - root_mean_squared_error: 0.5777
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 21ms/step - loss: 0.3290 - mae: 0.4119 - root_mean_squared_error: 0.5736
     Epoch 3/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 19ms/step - loss: 0.2985 - mae: 0.3941 - root_mean_squared_error: 0.5463
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 21ms/step - loss: 0.2978 - mae: 0.3914 - root_mean_squared_error: 0.5457
     Epoch 4/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 20ms/step - loss: 0.2891 - mae: 0.3813 - root_mean_squared_error: 0.5377
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2904 - mae: 0.3854 - root_mean_squared_error: 0.5389
     Epoch 5/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 20ms/step - loss: 0.2772 - mae: 0.3718 - root_mean_squared_error: 0.5265
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2771 - mae: 0.3758 - root_mean_squared_error: 0.5263
     Epoch 6/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2798 - mae: 0.3762 - root_mean_squared_error: 0.5289
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 21ms/step - loss: 0.2754 - mae: 0.3687 - root_mean_squared_error: 0.5247
     Epoch 7/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 20ms/step - loss: 0.2643 - mae: 0.3626 - root_mean_squared_error: 0.5140
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2770 - mae: 0.3762 - root_mean_squared_error: 0.5263
     Epoch 8/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 19ms/step - loss: 0.2650 - mae: 0.3613 - root_mean_squared_error: 0.5148
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2696 - mae: 0.3645 - root_mean_squared_error: 0.5192
     Epoch 9/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 19ms/step - loss: 0.2559 - mae: 0.3569 - root_mean_squared_error: 0.5058
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2522 - mae: 0.3506 - root_mean_squared_error: 0.5021
     Epoch 10/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 20ms/step - loss: 0.2578 - mae: 0.3547 - root_mean_squared_error: 0.5077
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2481 - mae: 0.3489 - root_mean_squared_error: 0.4981
     Epoch 11/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 20ms/step - loss: 0.2499 - mae: 0.3488 - root_mean_squared_error: 0.4998
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2512 - mae: 0.3502 - root_mean_squared_error: 0.5012
     Epoch 12/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2500 - mae: 0.3488 - root_mean_squared_error: 0.4999
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2407 - mae: 0.3440 - root_mean_squared_error: 0.4906
     Epoch 13/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 19ms/step - loss: 0.2405 - mae: 0.3424 - root_mean_squared_error: 0.4903
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2383 - mae: 0.3408 - root_mean_squared_error: 0.4881
     Epoch 14/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 19ms/step - loss: 0.2378 - mae: 0.3383 - root_mean_squared_error: 0.4876
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2371 - mae: 0.3417 - root_mean_squared_error: 0.4869
     Epoch 15/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2382 - mae: 0.3391 - root_mean_squared_error: 0.4879
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2430 - mae: 0.3450 - root_mean_squared_error: 0.4929
     Epoch 16/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2360 - mae: 0.3422 - root_mean_squared_error: 0.4858
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2313 - mae: 0.3294 - root_mean_squared_error: 0.4809
     Epoch 17/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 17ms/step - loss: 0.2246 - mae: 0.3293 - root_mean_squared_error: 0.4739
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2270 - mae: 0.3313 - root_mean_squared_error: 0.4764
     Epoch 18/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2233 - mae: 0.3259 - root_mean_squared_error: 0.4725
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2161 - mae: 0.3211 - root_mean_squared_error: 0.4648
     Epoch 19/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2144 - mae: 0.3216 - root_mean_squared_error: 0.4631
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2195 - mae: 0.3257 - root_mean_squared_error: 0.4685
     Epoch 20/20
-    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 18ms/step - loss: 0.2099 - mae: 0.3204 - root_mean_squared_error: 0.4581
-    [1m456/456[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 1ms/step - loss: 0.2090 - mae: 0.3247 - root_mean_squared_error: 0.4572
-    [1m114/114[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 1ms/step - loss: 0.3026 - mae: 0.3725 - root_mean_squared_error: 0.5495
+    [1m15/15[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 22ms/step - loss: 0.2065 - mae: 0.3151 - root_mean_squared_error: 0.4543
+    [1m456/456[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m1s[0m 920us/step - loss: 0.2147 - mae: 0.3106 - root_mean_squared_error: 0.4633
+    [1m114/114[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m0s[0m 1ms/step - loss: 0.3148 - mae: 0.3590 - root_mean_squared_error: 0.5602  
 
 
 
 
 
-    [0.2769879102706909, 0.36055105924606323, 0.5262964367866516]
+    [0.2861937880516052, 0.3479985296726227, 0.5349708199501038]
 
 
 
@@ -255,7 +255,7 @@ scale_x_list =[{"mean": x_mean.iloc[i], "std": x_std.iloc[i]} for i in range(len
 
 
 ```python
-y_limits = [0, 4]
+y_limits = [-0.5, 5]
 dy_limits = [-3, 3]
 ```
 
@@ -325,19 +325,19 @@ reg_rhale.fit("all", space_partitioner=effector.space_partitioning.Best(min_hete
 reg_rhale.summary(features="all", scale_x_list=scale_x_list)
 ```
 
-    100%|██████████| 8/8 [00:34<00:00,  4.30s/it]
+    100%|██████████| 8/8 [00:18<00:00,  2.29s/it]
 
     
     
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    MedInc 🔹 [id: 0 | heter: 0.05 | inst: 14576 | w: 1.00]
+    MedInc 🔹 [id: 0 | heter: 0.06 | inst: 14576 | w: 1.00]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.05
+    Level 0🔹heter: 0.06
     
     
     
@@ -359,11 +359,14 @@ reg_rhale.summary(features="all", scale_x_list=scale_x_list)
     🌳 Full Tree Structure:
     ───────────────────────
     AveRooms 🔹 [id: 0 | heter: 0.04 | inst: 14576 | w: 1.00]
+        MedInc ≤ 3.73 🔹 [id: 1 | heter: 0.03 | inst: 8289 | w: 0.57]
+        MedInc > 3.73 🔹 [id: 2 | heter: 0.03 | inst: 6287 | w: 0.43]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
     Level 0🔹heter: 0.04
+        Level 1🔹heter: 0.03 | 🔻0.01 (28.67%)
     
     
     
@@ -372,11 +375,14 @@ reg_rhale.summary(features="all", scale_x_list=scale_x_list)
     🌳 Full Tree Structure:
     ───────────────────────
     AveBedrms 🔹 [id: 0 | heter: 0.01 | inst: 14576 | w: 1.00]
+        Population ≤ 556.05 🔹 [id: 1 | heter: 0.02 | inst: 1689 | w: 0.12]
+        Population > 556.05 🔹 [id: 2 | heter: 0.01 | inst: 12887 | w: 0.88]
     --------------------------------------------------
     Feature 3 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
     Level 0🔹heter: 0.01
+        Level 1🔹heter: 0.01 | 🔻0.00 (28.71%)
     
     
     
@@ -398,14 +404,17 @@ reg_rhale.summary(features="all", scale_x_list=scale_x_list)
     🌳 Full Tree Structure:
     ───────────────────────
     AveOccup 🔹 [id: 0 | heter: 0.05 | inst: 14576 | w: 1.00]
-        HouseAge ≤ 25.60 🔹 [id: 1 | heter: 0.02 | inst: 5587 | w: 0.38]
-        HouseAge > 25.60 🔹 [id: 2 | heter: 0.04 | inst: 8989 | w: 0.62]
+        MedInc ≤ 3.73 🔹 [id: 1 | heter: 0.03 | inst: 8289 | w: 0.57]
+        MedInc > 3.73 🔹 [id: 2 | heter: 0.04 | inst: 6287 | w: 0.43]
+            HouseAge ≤ 18.40 🔹 [id: 3 | heter: 0.03 | inst: 1756 | w: 0.12]
+            HouseAge > 18.40 🔹 [id: 4 | heter: 0.03 | inst: 4531 | w: 0.31]
     --------------------------------------------------
     Feature 5 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
     Level 0🔹heter: 0.05
-        Level 1🔹heter: 0.03 | 🔻0.01 (30.28%)
+        Level 1🔹heter: 0.03 | 🔻0.02 (37.26%)
+            Level 2🔹heter: 0.01 | 🔻0.02 (61.88%)
     
     
     
@@ -413,15 +422,18 @@ reg_rhale.summary(features="all", scale_x_list=scale_x_list)
     Feature 6 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    Latitude 🔹 [id: 0 | heter: 0.67 | inst: 14576 | w: 1.00]
+    Latitude 🔹 [id: 0 | heter: 0.65 | inst: 14576 | w: 1.00]
         Longitude ≤ -121.55 🔹 [id: 1 | heter: 0.44 | inst: 3810 | w: 0.26]
-        Longitude > -121.55 🔹 [id: 2 | heter: 0.30 | inst: 10766 | w: 0.74]
+        Longitude > -121.55 🔹 [id: 2 | heter: 0.27 | inst: 10766 | w: 0.74]
+            AveOccup ≤ 2.61 🔹 [id: 3 | heter: 0.29 | inst: 3485 | w: 0.24]
+            AveOccup > 2.61 🔹 [id: 4 | heter: 0.14 | inst: 7281 | w: 0.50]
     --------------------------------------------------
     Feature 6 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.67
-        Level 1🔹heter: 0.34 | 🔻0.33 (49.37%)
+    Level 0🔹heter: 0.65
+        Level 1🔹heter: 0.32 | 🔻0.33 (51.06%)
+            Level 2🔹heter: 0.14 | 🔻0.17 (55.31%)
     
     
     
@@ -429,15 +441,20 @@ reg_rhale.summary(features="all", scale_x_list=scale_x_list)
     Feature 7 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    Longitude 🔹 [id: 0 | heter: 0.50 | inst: 14576 | w: 1.00]
-        Latitude ≤ 36.22 🔹 [id: 1 | heter: 0.23 | inst: 8566 | w: 0.59]
-        Latitude > 36.22 🔹 [id: 2 | heter: 0.30 | inst: 6010 | w: 0.41]
+    Longitude 🔹 [id: 0 | heter: 0.53 | inst: 14576 | w: 1.00]
+        Latitude ≤ 35.48 🔹 [id: 1 | heter: 0.21 | inst: 8352 | w: 0.57]
+            AveOccup ≤ 2.61 🔹 [id: 2 | heter: 0.22 | inst: 2686 | w: 0.18]
+            AveOccup > 2.61 🔹 [id: 3 | heter: 0.12 | inst: 5666 | w: 0.39]
+        Latitude > 35.48 🔹 [id: 4 | heter: 0.37 | inst: 6224 | w: 0.43]
+            Latitude ≤ 38.43 🔹 [id: 5 | heter: 0.31 | inst: 4938 | w: 0.34]
+            Latitude > 38.43 🔹 [id: 6 | heter: 0.12 | inst: 1286 | w: 0.09]
     --------------------------------------------------
     Feature 7 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.50
-        Level 1🔹heter: 0.26 | 🔻0.24 (47.85%)
+    Level 0🔹heter: 0.53
+        Level 1🔹heter: 0.28 | 🔻0.25 (47.15%)
+            Level 2🔹heter: 0.20 | 🔻0.08 (28.39%)
     
     
 
@@ -458,6 +475,8 @@ reg_rhale.plot(feature=5, node_idx=0, centering=True, scale_x_list=scale_x_list,
     
 
 
+**Global Trend:** House prices decrease as the average number of people residing in a house increases with the highest slop in the lowest average occupancy values
+
 
 ```python
 for node_idx in [1, 2]:
@@ -466,15 +485,41 @@ for node_idx in [1, 2]:
 
 
     
-![png](02_california_housing_files/02_california_housing_18_0.png)
+![png](02_california_housing_files/02_california_housing_19_0.png)
     
 
 
 
     
-![png](02_california_housing_files/02_california_housing_18_1.png)
+![png](02_california_housing_files/02_california_housing_19_1.png)
     
 
+
+
+```python
+for node_idx in [3, 4]:
+    reg_rhale.plot(feature=5, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+```
+
+
+    
+![png](02_california_housing_files/02_california_housing_20_0.png)
+    
+
+
+
+    
+![png](02_california_housing_files/02_california_housing_20_1.png)
+    
+
+
+**Global Trend:** House prices decrease as the average number of people per household (AveOccup) increases, with the steepest drop at low occupancy levels. This suggests that even small increases in crowding can significantly reduce home values, especially in less crowded areas.
+
+**Regional Trends:**  
+- **Low-Income Areas (MedInc ≤ 3.73):** The initial slope (at low AveOccup) becomes smoother, indicating that house prices decrease more gradually with crowding in poorer regions.
+- **High-Income Areas (MedInc > 3.73):** The initial slope becomes steeper, and starts from higher house values.
+  - **Newer homes (HouseAge ≤ 18.40):** The slope remains smoother, starting from lower prices.
+  - **Older homes (HouseAge > 18.40)** The slope becomes even steeper, and starts from higher house values, meaning older homes in high-income areas lose value rapidly as they become crowded.
 
 ## Latitude (south to north)
 
@@ -485,7 +530,7 @@ reg_rhale.plot(feature=6, node_idx=0, centering=True, scale_x_list=scale_x_list,
 
 
     
-![png](02_california_housing_files/02_california_housing_20_0.png)
+![png](02_california_housing_files/02_california_housing_23_0.png)
     
 
 
@@ -499,13 +544,31 @@ for node_idx in [1, 2]:
 
 
     
-![png](02_california_housing_files/02_california_housing_22_0.png)
+![png](02_california_housing_files/02_california_housing_25_0.png)
     
 
 
 
     
-![png](02_california_housing_files/02_california_housing_22_1.png)
+![png](02_california_housing_files/02_california_housing_25_1.png)
+    
+
+
+
+```python
+for node_idx in [3, 4]:
+    reg_rhale.plot(feature=6, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+```
+
+
+    
+![png](02_california_housing_files/02_california_housing_26_0.png)
+    
+
+
+
+    
+![png](02_california_housing_files/02_california_housing_26_1.png)
     
 
 
@@ -522,7 +585,7 @@ reg_rhale.plot(feature=7, node_idx=0, centering=True, scale_x_list=scale_x_list,
 
 
     
-![png](02_california_housing_files/02_california_housing_25_0.png)
+![png](02_california_housing_files/02_california_housing_29_0.png)
     
 
 
@@ -530,29 +593,58 @@ reg_rhale.plot(feature=7, node_idx=0, centering=True, scale_x_list=scale_x_list,
 
 
 ```python
-for node_idx in [1, 2]:
+for node_idx in [1, 4]:
     reg_rhale.plot(feature=7, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
 ```
 
 
     
-![png](02_california_housing_files/02_california_housing_27_0.png)
+![png](02_california_housing_files/02_california_housing_31_0.png)
     
 
 
 
     
-![png](02_california_housing_files/02_california_housing_27_1.png)
+![png](02_california_housing_files/02_california_housing_31_1.png)
+    
+
+
+
+```python
+for node_idx in [2, 3, 5, 6]:
+    reg_rhale.plot(feature=7, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+```
+
+
+    
+![png](02_california_housing_files/02_california_housing_32_0.png)
+    
+
+
+
+    
+![png](02_california_housing_files/02_california_housing_32_1.png)
+    
+
+
+
+    
+![png](02_california_housing_files/02_california_housing_32_2.png)
+    
+
+
+
+    
+![png](02_california_housing_files/02_california_housing_32_3.png)
     
 
 
 **Global Trend:** House prices decrease as we move east.  
 
 **Regional Trends:**  
-- **North (latitude > 35.85):** Prices drop more sharply in the first half from east to west.  
-- **South (latitude < 35.85):** Prices drop more sharply in the second half from east to west.
-
-
-```python
-
-```
+- **South (latitude <= 35.85):** Prices drop more sharply in the second half from west to east.
+  - **AveOccup <= 2.61:** Prices drop even more steeper, suggesting that in less crowded southern areas, housing demand or value drops off more quickly as you move east.
+  - **AveOccup > 2.61:** Patterns resemble the broader subregion (latitude <= 35.85), with no significant change in trend.
+- **North (latitude > 35.85):** The steepest price decline happens in the western half (closer to the coast).  
+  - **Latitude <= 38.43:** The sharp west-to-east price drop remains the same
+  - **Latitude > 38.43:** The decline flattens, since the eastern part of far-northern California starts from lower prices

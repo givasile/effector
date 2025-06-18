@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.8] - 2025-06-18
+
+### Added
+
+- NO2 real example
+
+### Fix 
+
+- fixed documentation errors, fixed node indexes
+
+### Changed
+
+- added dependecies to `requirement-dev.txt`
+
 ## [0.1.7] - 2025-05-08
 
 ### Added
