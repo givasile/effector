@@ -103,7 +103,7 @@ The PDP is the average of the underlying ICE curves (local effects). An ICE curv
 ```python
 regional_rhale = effector.RegionalPDP(data=X_uncor, model=model, feature_names=['x1', 'x2', 'x3'],
                                       axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, nof_candidate_splits_for_numerical=10)
 regional_rhale.fit(space_partitioner=space_partitioner, centering=True)
 ```
 
@@ -150,7 +150,7 @@ Regional PDP will search for explanations that minimize the interaction-related 
 ```python
 regional_pdp = effector.RegionalPDP(data=X_uncor, model=model, feature_names=['x1', 'x2', 'x3'],
                                     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.3, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, nof_candidate_splits_for_numerical=10)
 regional_pdp.fit(features="all", space_partitioner=space_partitioner, centering=True)
 ```
 
@@ -293,7 +293,7 @@ pdp.plot(feature=2, centering=True, show_avg_output=False, heterogeneity="ice", 
 ```python
 regional_pdp = effector.RegionalPDP(data=X_cor, model=model, feature_names=['x1', 'x2', 'x3'],
                                     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.4, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.4, nof_candidate_splits_for_numerical=10)
 regional_pdp.fit(features="all", space_partitioner=space_partitioner, centering=True)
 ```
 

@@ -126,7 +126,7 @@ regional_shap = effector.RegionalShapDP(
  feature_names=['x1', 'x2', 'x3'],
  axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, nof_candidate_splits_for_numerical=10)
 regional_shap.fit(
  features="all",
  space_partitioner=space_partitioner,
@@ -257,7 +257,7 @@ regional_shap = effector.RegionalShapDP(
  feature_names=['x1', 'x2', 'x3'],
  axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 
-space_partitioner = effector.space_partitioning.Best(heter_pcg_drop_thres=0.6, nof_candidate_splits_for_numerical=10)
+space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, nof_candidate_splits_for_numerical=10)
 regional_shap.fit(
  features="all",
  space_partitioner=space_partitioner,

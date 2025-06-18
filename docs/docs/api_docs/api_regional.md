@@ -67,7 +67,7 @@ jacobian = ... # jacobian of the model
         ```python
         # customize the space partitioning algorithm
         space_partitioner = effector.space_partitioning.Best(
-            heter_pcg_drop_thres=0.3 # percentage drop threshold (default: 0.1),
+            min_heterogeneity_decrease_pcg=0.3, # percentage drop threshold (default: 0.1),
             max_split_levels=1 # maximum number of split levels (default: 2)
         )
         r_method.fit(
