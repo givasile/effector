@@ -7,7 +7,9 @@ Synthetic Examples:
     - [Using a ML model as the predict function](./notebooks/synthetic-examples/04_regional_effects_real_f.md)
 - A conditional interaction model
     - [Global effect](./notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_global.md)
-
+- A model with general form interactions
+    - [Global effect](./notebooks/synthetic-examples/06_general_interaction_independent_uniform_global.md)
+  
 Real Examples:
 
 - [Example 1 - Bike Sharing Dataset](./notebooks/real-examples/01_bike_sharing_dataset.md)
