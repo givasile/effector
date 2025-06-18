@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.9] - 2025-06-18
+
+### Fixed
+
+- bug in github actions
+
 ## [0.1.8] - 2025-06-18
 
 ### Added
