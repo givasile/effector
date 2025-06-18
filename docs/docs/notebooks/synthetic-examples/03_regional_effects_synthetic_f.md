@@ -20,7 +20,6 @@ import effector
 
 We will generate $N=1000$ examples with $D=3$ features, which are uniformly distributed as follows:
 
-<center>
 
 | Feature | Description                                | Distribution                 |
 |-------|------------------------------------------|------------------------------|
@@ -28,7 +27,6 @@ We will generate $N=1000$ examples with $D=3$ features, which are uniformly dist
 | $x_2$   | Uniformly distributed between $-1$ and $1$ | $x_2 \sim \mathcal{U}(-1,1)$ |
 | $x_3$   | Uniformly distributed between $-1$ and $1$ | $x_3 \sim \mathcal{U}(-1,1)$ |
 
-</center>
 
 For the correlated setting we keep the distributional assumptions for $x_2$ and $x_3$ but define $x_1$ such that it is identical to $x_3$ by: $x_1 = x_3$.
 
@@ -119,46 +117,33 @@ The PDP is simply the average over the underlying ICE curves (local effects). Th
 
 
 ```python
-regional_rhale = effector.RegionalPDP(data=X_uncor_train, model=model, feature_names=['x1','x2','x3'], axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
-space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
-regional_rhale.fit("all", space_partitioner=space_partitioner, centering=True)
-effector.axis_partitioning.DynamicProgramming()
-```
-
-    100%|██████████| 3/3 [00:00<00:00, 33.58it/s]
-
-
-
-
-
-    <effector.axis_partitioning.DynamicProgramming at 0x7e77dd18fdf0>
-
-
-
-
-```python
 pdp = effector.PDP(data=X_uncor_train, model=model, feature_names=['x1','x2','x3'], target_name="Y")
-pdp.plot(feature=0, centering=True, show_avg_output=False, heterogeneity="ice", y_limits=[-5, 5])
-pdp.plot(feature=1, centering=True, show_avg_output=False, heterogeneity="ice", y_limits=[-5, 5])
-pdp.plot(feature=2, centering=True, show_avg_output=False, heterogeneity="ice", y_limits=[-5, 5])
+[pdp.plot(feature=i, centering=True, show_avg_output=False, heterogeneity="ice", y_limits=[-5, 5]) for i in range(3)]
 ```
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_10_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_9_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_10_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_9_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_10_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_9_2.png)
     
+
+
+
+
+
+    [None, None, None]
+
 
 
 #### Regional PDP
@@ -169,10 +154,10 @@ Regional PDP will search for explanations that minimize the interaction-related 
 ```python
 regional_pdp = effector.RegionalPDP(data=X_uncor_train, model=model, feature_names=['x1','x2','x3'], axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
 space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
-regional_pdp.fit(features="all", space_partitioner=space_partitioner, centering=True)
+regional_pdp.fit(features="all", space_partitioner=space_partitioner)
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 37.25it/s]
+    100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 107.43it/s]
 
 
 
@@ -185,35 +170,41 @@ regional_pdp.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 3.55 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.09 | inst: 504 | w: 0.50]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.08 | inst: 496 | w: 0.50]
+    x1 🔹 [id: 0 | heter: 3.19 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 463 | w: 0.46]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 537 | w: 0.54]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.55
-        Level 1🔹heter: 0.08 | 🔻3.46 (97.66%)
+    Level 0🔹heter: 3.19
+        Level 1🔹heter: 0.00 | 🔻3.19 (100.00%)
     
     
 
 
 
 ```python
-regional_pdp.plot(feature=0, node_idx=1, heterogeneity="ice", centering=True, y_limits=[-5, 5])
-regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", centering=True, y_limits=[-5, 5])
+[regional_pdp.plot(feature=0, node_idx=i, heterogeneity="ice", centering=True, y_limits=[-5, 5]) for i in [1,2]]
 ```
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_14_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_13_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_14_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_13_1.png)
     
+
+
+
+
+
+    [None, None]
+
 
 
 
@@ -226,12 +217,12 @@ regional_pdp.summary(features=1)
     Feature 1 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x2 🔹 [id: 0 | heter: 3.48 | inst: 1000 | w: 1.00]
+    x2 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.48
+    Level 0🔹heter: 0.00
     
     
 
@@ -246,15 +237,20 @@ regional_pdp.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 3.10 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.75 | inst: 485 | w: 0.48]
-        x1 > 0.00 🔹 [id: 2 | heter: 0.70 | inst: 515 | w: 0.52]
+    x3 🔹 [id: 0 | heter: 2.99 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.76 | inst: 532 | w: 0.53]
+            x1 ≤ -0.40 🔹 [id: 2 | heter: 0.27 | inst: 321 | w: 0.32]
+            x1 > -0.40 🔹 [id: 3 | heter: 0.14 | inst: 211 | w: 0.21]
+        x1 > 0.00 🔹 [id: 4 | heter: 0.77 | inst: 468 | w: 0.47]
+            x1 ≤ 0.60 🔹 [id: 5 | heter: 0.25 | inst: 283 | w: 0.28]
+            x1 > 0.60 🔹 [id: 6 | heter: 0.12 | inst: 185 | w: 0.18]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.10
-        Level 1🔹heter: 0.73 | 🔻2.38 (76.57%)
+    Level 0🔹heter: 2.99
+        Level 1🔹heter: 0.76 | 🔻2.23 (74.52%)
+            Level 2🔹heter: 0.21 | 🔻0.55 (72.60%)
     
     
 
@@ -267,13 +263,13 @@ regional_pdp.plot(feature=2, node_idx=2, heterogeneity="ice", centering=True, y_
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_17_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_16_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_17_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_16_1.png)
     
 
 
@@ -307,27 +303,32 @@ Due to this face, we expect the explanations to be identical with the uncorrelat
 
 ```python
 pdp = effector.PDP(data=X_cor_train, model=model, feature_names=['x1','x2','x3'], target_name="Y")
-pdp.plot(feature=0, centering=True, show_avg_output=False, heterogeneity="ice", y_limits=[-5, 5])
-pdp.plot(feature=1, centering=True, show_avg_output=False, heterogeneity="ice", y_limits=[-5, 5])
-pdp.plot(feature=2, centering=True, show_avg_output=False, heterogeneity="ice", y_limits=[-5, 5])
+[pdp.plot(feature=i, centering=True, show_avg_output=False, heterogeneity="ice", y_limits=[-5, 5]) for i in range(3)]
 ```
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_21_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_20_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_21_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_20_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_21_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_20_2.png)
     
+
+
+
+
+
+    [None, None, None]
+
 
 
 #### Regional-PDP
@@ -335,11 +336,11 @@ pdp.plot(feature=2, centering=True, show_avg_output=False, heterogeneity="ice", 
 
 ```python
 regional_pdp = effector.RegionalPDP(data=X_cor_train, model=model, feature_names=['x1','x2','x3'], axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
-space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
-regional_pdp.fit(features="all", space_partitioner=space_partitioner, centering=True)
+# space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
+regional_pdp.fit(features="all") # , space_partitioner=space_partitioner, centering=True)
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 37.75it/s]
+    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 28.78it/s]
 
 
 
@@ -352,15 +353,15 @@ regional_pdp.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 3.53 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.08 | inst: 495 | w: 0.49]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.08 | inst: 505 | w: 0.51]
+    x1 🔹 [id: 0 | heter: 3.20 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 524 | w: 0.52]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 476 | w: 0.48]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.53
-        Level 1🔹heter: 0.08 | 🔻3.45 (97.78%)
+    Level 0🔹heter: 3.20
+        Level 1🔹heter: 0.00 | 🔻3.20 (100.00%)
     
     
 
@@ -373,13 +374,13 @@ regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", centering=True, y_
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_25_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_24_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_25_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_24_1.png)
     
 
 
@@ -393,15 +394,12 @@ regional_pdp.summary(features=1)
     Feature 1 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x2 🔹 [id: 0 | heter: 1.05 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.40 🔹 [id: 1 | heter: 0.28 | inst: 694 | w: 0.69]
-        x1 > 0.40 🔹 [id: 2 | heter: 0.43 | inst: 306 | w: 0.31]
+    x2 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.05
-        Level 1🔹heter: 0.32 | 🔻0.73 (69.16%)
+    Level 0🔹heter: 0.00
     
     
 
@@ -416,15 +414,20 @@ regional_pdp.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 2.90 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.69 | inst: 495 | w: 0.49]
-        x1 > 0.00 🔹 [id: 2 | heter: 0.72 | inst: 505 | w: 0.51]
+    x3 🔹 [id: 0 | heter: 2.97 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.75 | inst: 524 | w: 0.52]
+            x1 ≤ -0.50 🔹 [id: 2 | heter: 0.20 | inst: 262 | w: 0.26]
+            x1 > -0.50 🔹 [id: 3 | heter: 0.17 | inst: 262 | w: 0.26]
+        x1 > 0.00 🔹 [id: 4 | heter: 0.76 | inst: 476 | w: 0.48]
+            x1 ≤ 0.50 🔹 [id: 5 | heter: 0.19 | inst: 247 | w: 0.25]
+            x1 > 0.50 🔹 [id: 6 | heter: 0.20 | inst: 229 | w: 0.23]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 2.90
-        Level 1🔹heter: 0.70 | 🔻2.20 (75.73%)
+    Level 0🔹heter: 2.97
+        Level 1🔹heter: 0.75 | 🔻2.22 (74.70%)
+            Level 2🔹heter: 0.19 | 🔻0.56 (74.93%)
     
     
 
@@ -437,13 +440,13 @@ regional_pdp.plot(feature=2, node_idx=2, heterogeneity="ice", centering=True, y_
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_28_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_27_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_28_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_27_1.png)
     
 
 
@@ -487,19 +490,19 @@ rhale.plot(feature=2, centering=True, heterogeneity="std", show_avg_output=False
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_32_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_31_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_32_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_31_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_32_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_31_2.png)
     
 
 
@@ -526,9 +529,7 @@ regional_rhale.fit(
 
 ```
 
-      0%|          | 0/3 [00:00<?, ?it/s]/home/givasile/github/packages/effector/effector/space_partitioning.py:281: RuntimeWarning: invalid value encountered in divide
-      heter_drop = (heter[:-1] - heter[1:]) / heter[:-1]
-    100%|██████████| 3/3 [00:00<00:00, 13.96it/s]
+    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 70.20it/s]
 
 
 
@@ -541,15 +542,15 @@ regional_rhale.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 8.97 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 504 | w: 0.50]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 496 | w: 0.50]
+    x1 🔹 [id: 0 | heter: 8.89 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 463 | w: 0.46]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 537 | w: 0.54]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 8.97
-        Level 1🔹heter: 0.00 | 🔻8.97 (100.00%)
+    Level 0🔹heter: 8.89
+        Level 1🔹heter: 0.00 | 🔻8.89 (100.00%)
     
     
 
@@ -562,13 +563,13 @@ regional_rhale.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_36_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_35_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_36_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_35_1.png)
     
 
 
@@ -638,27 +639,32 @@ rhale.fit(features="all", binning_method=binning_method, centering=True)
 
 
 ```python
-rhale.plot(feature=0, centering=True, heterogeneity="std", show_avg_output=False, y_limits=[-5, 5], dy_limits=[-5, 5])
-rhale.plot(feature=1, centering=True, heterogeneity="std", show_avg_output=False, y_limits=[-5, 5], dy_limits=[-5, 5])
-rhale.plot(feature=2, centering=True, heterogeneity="std", show_avg_output=False, y_limits=[-5, 5], dy_limits=[-5, 5])
+[rhale.plot(feature=i, show_avg_output=False, y_limits=[-5, 5], dy_limits=[-5, 5]) for i in range(3)]
 ```
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_42_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_42_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_42_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_2.png)
     
+
+
+
+
+
+    [None, None, None]
+
 
 
 #### Regional RHALE
@@ -682,7 +688,7 @@ regional_rhale.fit(
 
 ```
 
-    100%|██████████| 3/3 [00:00<00:00, 14.10it/s]
+    100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 789.29it/s]
 
 
 
@@ -759,32 +765,34 @@ The global RHALE plots follow the formula obtained after setting $x_1=x_3$ while
 ```python
 shap = effector.ShapDP(data=X_uncor_train, model=model, feature_names=['x1','x2','x3'], target_name="Y")
 binning_method = effector.axis_partitioning.Fixed(nof_bins=5, min_points_per_bin=0)
-shap.fit("all", centering=True, binning_method=binning_method)
-shap.plot(feature=0, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
-shap.plot(feature=1, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
-shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
+shap.fit("all", binning_method=binning_method)
+[shap.plot(feature=i, show_avg_output=False, y_limits=[-3, 3]) for i in range(3)]
+
 ```
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_51_0.png)
-    
-
-
-    /home/givasile/github/packages/effector/effector/global_effect_shap.py:402: RuntimeWarning: invalid value encountered in sqrt
-      np.sqrt(self.feature_effect["feature_" + str(feature)]["spline_std"](x))
-
-
-
-    
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_51_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_50_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_51_3.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_50_1.png)
     
+
+
+
+    
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_50_2.png)
+    
+
+
+
+
+
+    [None, None, None]
+
 
 
 #### Regional SHAP-DP
@@ -797,7 +805,6 @@ regional_shap = effector.RegionalShapDP(
     feature_names=['x1', 'x2', 'x3'],
     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
 
-
 space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, numerical_features_grid_size=10)
 regional_shap.fit(
     features="all",
@@ -806,7 +813,7 @@ regional_shap.fit(
 )
 ```
 
-    100%|██████████| 3/3 [00:00<00:00,  5.10it/s]
+    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00,  5.56it/s]
 
 
 
@@ -819,15 +826,15 @@ regional_shap.summary(0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 0.85 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.02 | inst: 504 | w: 0.50]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.04 | inst: 496 | w: 0.50]
+    x1 🔹 [id: 0 | heter: 0.86 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.02 | inst: 463 | w: 0.46]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.04 | inst: 537 | w: 0.54]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.85
-        Level 1🔹heter: 0.03 | 🔻0.82 (96.32%)
+    Level 0🔹heter: 0.86
+        Level 1🔹heter: 0.03 | 🔻0.83 (96.48%)
     
     
 
@@ -840,13 +847,13 @@ regional_shap.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, y
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_55_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_54_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_55_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_54_1.png)
     
 
 
@@ -880,15 +887,12 @@ regional_shap.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 0.81 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.24 | inst: 485 | w: 0.48]
-        x1 > 0.00 🔹 [id: 2 | heter: 0.38 | inst: 515 | w: 0.52]
+    x3 🔹 [id: 0 | heter: 0.77 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.81
-        Level 1🔹heter: 0.31 | 🔻0.50 (61.34%)
+    Level 0🔹heter: 0.77
     
     
 
@@ -912,27 +916,32 @@ Regional SHAP-DP:
 ```python
 shap = effector.ShapDP(data=X_cor_train, model=model, feature_names=['x1','x2','x3'], target_name="Y")
 
-shap.plot(feature=0, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
-shap.plot(feature=1, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
-shap.plot(feature=2, centering=True, heterogeneity="shap_values", show_avg_output=False, y_limits=[-3, 3])
+[shap.plot(feature=i, y_limits=[-3, 3]) for i in range(3)]
 ```
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_60_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_59_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_60_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_59_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_60_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_59_2.png)
     
+
+
+
+
+
+    [None, None, None]
+
 
 
 #### Regional SHAP
@@ -952,7 +961,7 @@ regional_shap.fit(
 )
 ```
 
-    100%|██████████| 3/3 [00:01<00:00,  2.95it/s]
+    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00,  4.94it/s]
 
 
 
@@ -1013,8 +1022,4 @@ regional_shap.summary(2)
     Level 0🔹heter: 0.00
     
     
-
-
-#### Conclusion
-
 
