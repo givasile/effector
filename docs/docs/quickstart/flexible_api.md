@@ -94,12 +94,10 @@ jacobian = model.jacobian
 `.plot()` all
 
 === "Simple API"
-
      | `node_idx=3`: $x_0$ when $x_1 \leq 0$ and $x_2 \leq 0$ | `node_idx=4`: $x_0$ when $x_1 > 0$ and $x_2 \leq 0$|
      |:---------:|:---------:|
      | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_16_0.png) | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_16_1.png) |
-     | `node_idx=5`: $x_0$ when $x_1 \leq 0$ and $x_2 > 0$ | `node_idx=6`: $x_0$ when $x_1 > 0$ and $x_2 > 0$ |
-     |:---------:|:---------:|
+     | `node_idx=5`: $x_0$ when $x_1 \leq 0$ and $x_2 > 0$ | `node_idx=6`: $x_0$ when $x_1 > 0$ and $x_2 > 0$|
      | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_16_2.png) | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_16_3.png) |
 
 === "Flexible API"
