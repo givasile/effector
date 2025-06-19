@@ -26,8 +26,6 @@ Hopefully, there is a quantity called **heterogeneity** that can be used to chec
 
  `Effector` provides five different feature effect methods, which are summarized in the table below. In all methods, setting `heterogeneity=True` the methods show the level of heterogeneity, along with the average effect.
 
-<center>
-
 | Method                                  | Description                        | API in `Effector`                                                            | Paper                                                             |
 |-----------------------------------------|------------------------------------|------------------------------------------------------------------------------|-------------------------------------------------------------------|
 | [PDP](#partial-dependence-plot-pdp)     | Partial Dependence Plot            | [PDP]((./../../reference/#effector.pdp.DerivativePDP))                       | [Friedman, 2001](https://statweb.stanford.edu/~jhf/ftp/trebst.pdf) |     |
@@ -37,11 +35,7 @@ Hopefully, there is a quantity called **heterogeneity** that can be used to chec
 | [SHAP](#shap-dependence-plot)           | SHAP Dependence Plot               | [SHAPDependence](./../../reference/#effector.shap_dependence.SHAPDependence) | [Lundberg et. al, 2017](https://arxiv.org/pdf/1705.07874.pdf)     |
 
 
-</center>
-
 For the rest of the tutorial, we will use the following notation:
-
-<center>
 
 | Symbol                                                     | Description                                             |
 |------------------------------------------------------------|---------------------------------------------------------|
@@ -52,7 +46,6 @@ For the rest of the tutorial, we will use the following notation:
 | $\mathbf{x} = (x_s, x_c) = (x_1, x_2, ..., x_s, ..., x_D)$ | The input features                                      |
 | $\mathbf{x}^{(i)} = (x_s^{(i)}, x_c^{(i)})$                | The $i$-th instance of the dataset                      |
 
-</center>
 
 ---
 ## Dataset and Model
@@ -60,7 +53,6 @@ For the rest of the tutorial, we will use the following notation:
 In this example, we will use as black-box function, a simple linear model $y = 7x_1 - 3x_2 + 4x_3$. Since there are no interactions 
 terms we expect **all** methods to provide the following feature effects and zero heterogeneity:
 
-<center>
 
 | Feature | Feature Effect | Heterogeneity |
 | --- | --- | --- |
@@ -68,7 +60,6 @@ terms we expect **all** methods to provide the following feature effects and zer
 | $x_2$ | $-3x_2$ | 0 |
 | $x_3$ | $4x_3$ | 0 |
 
-</center>
 
 
 As dataset, we will generate $N=1000$ examples comming from the following distribution:
@@ -367,14 +358,12 @@ The upper subfigure shows how much the feature of interest _contributes_ to the 
 For example, for $x_1$ the upper subplot shows a linear effect and the lower subplot confirms that the gradient is constantly $7$.
 `Effector` offers two alternatives for centering the ALE plot.
 
-<center>
 
 | `centering`               | Description                            | Formula                                                               |
 |---------------------------|----------------------------------------|-----------------------------------------------------------------------|
 | `False` or `zero_start`   | Don't enforce any additional centering | c=0                                                                   |
 | `True` or `zero_integral` | Center around the $y$ axis             | c=$\mathbb{E}_{x_s \sim \mathcal{U(x_{s,min},x_{s, max})}}[ALE(x_s)]$ |
 
-</center>
 Let's see how centering works for $x_1$:
 
 
@@ -472,14 +461,10 @@ In our example, this advantage is not evident; Since there are no interaction te
 
 As with the ALE, there are two alternatives for centering the ALE plot.
 
-<center>
-
 | `centering`               | Description                            | Formula                                                               |
 |---------------------------|----------------------------------------|-----------------------------------------------------------------------|
 | `False` or `zero_start`   | Don't enforce any additional centering | c=0                                                                   |
 | `True` or `zero-integral` | Center around the $y$ axis             | c=$\mathbb{E}_{x_s \sim \mathcal{U(x_{s,min},x_{s, max})}}[ALE(x_s)]$ |
-
-</center>
 
 Let's see how this works for $x_1$:
 
@@ -547,14 +532,10 @@ effector.ShapDP(data=X, model=predict).plot(feature=0, centering=False, show_avg
 
 TODO add content 
 
-<center>
-
 | `centering`               | Description                            | Formula                                                               |
 |---------------------------|----------------------------------------|-----------------------------------------------------------------------|
 | `False` or `zero_start`   | Don't enforce any additional centering | c=0                                                                   |
 | `True` or `zero-integral` | Center around the $y$ axis             | c=$\mathbb{E}_{x_s \sim \mathcal{U(x_{s,min},x_{s, max})}}[ALE(x_s)]$ |
-
-</center>
 
 Let's see how this works for $x_1$:
 
@@ -601,16 +582,12 @@ In summary, given a dataset `X: (N, D)` and a black-box model `model: (N, D) -> 
 the feature effect plot of the $s$-th feature `feature=s` is given with the table below.
 The argument `confidence_interval=True|False` indicates whether to plot the standard deviation of the instance-level effects as $\pm$ interval around the feature effect plot. Some methods also require the gradient of the model `model_jac: (N, D) -> (N, D)`.
 
-<center>
-
 | Method        | How to use                                                                                                                                   |
 |---------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| PDP           | [`effector.PDP(X, model).plot(feature, centering, confidence_interval)`]((./../../reference/#effector.pdp.PDP))                    |
-| d-PDP         | [`effector.DerivativePDP(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../reference/#effector.pdp.DerivativePDP) |
-| ALE           | [`effector.ALE(X, model).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.ALE)                                |
-| RHALE         | [`effector.RHALE(X, model, model_jac).plot(feature, centering, confidence_interval)`](./../../reference/#effector.ale.RHALE)                 |
-
-</center>
+| PDP           | [`effector.PDP(X, model).plot(feature, centering, confidence_interval)`](../../../api_docs/api_global/#effector.global_effect_pdp.PDP)                    |
+| d-PDP         | [`effector.DerivativePDP(X, model, model_jac).plot(feature, centering, confidence_interval)`](../../../api_docs/api_global/#effector.global_effect_pdp.DerPDP) |
+| ALE           | [`effector.ALE(X, model).plot(feature, centering, confidence_interval)`](../../../api_docs/api_global/#effector.global_effect_ale.ALE)                                |
+| RHALE         | [`effector.RHALE(X, model, model_jac).plot(feature, centering, confidence_interval)`](../../../api_docs/api_global/#effector.global_effect_ale.RHALE)                 |
 
 
 ```python
