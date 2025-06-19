@@ -107,6 +107,6 @@ jacobian = model.jacobian
     rhale.plot(feature=0, node_idx=2, y_limits=y_limits, dy_limits=dy_limits)
     ```
 
-     | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
+     | `node_idx=1`: $x_0$ when $x_2 \leq 0$ | `node_idx=2`: $x_0$ when $x_2 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_20_0.png) | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_20_1.png) |
