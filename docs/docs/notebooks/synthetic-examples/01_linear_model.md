@@ -6,7 +6,7 @@
 - **Description**: Apply global effect on a linear model
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/givasile/effector/blob/main/synthetic-examples/01_linear_model.ipynb) 
-[![Show in Github](https://xai-effector.github.io/static/github-mark.png)](https://github.com/givasile/effector/blob/main/synthetic-examples/01_linear_model.ipynb)
+[![Open in Github](https://img.shields.io/badge/Open%20in-GitHub-black?logo=github)](https://github.com/givasile/effector/blob/main/notebooks/synthetic-examples/01_linear_model.ipynb)
 
 
 ```python
