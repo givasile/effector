@@ -420,7 +420,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
      [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
      ```
 
-     | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
+     | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./../static/quickstart/simple_api_files/simple_api_20_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_20_1.png) |
 
@@ -431,7 +431,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
      [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
      ```
 
-     | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
+     | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./../static/quickstart/simple_api_files/simple_api_23_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_23_1.png) |
 
@@ -442,7 +442,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
      [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
      ```
 
-     | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
+     | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./../static/quickstart/simple_api_files/simple_api_26_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_26_1.png) |
 
@@ -453,7 +453,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
      [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
      ```
 
-     | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
+     | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./../static/quickstart/simple_api_files/simple_api_29_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_29_1.png) |
 
@@ -465,7 +465,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
      [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
      ```
 
-     | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
+     | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
      |:---------:|:---------:|
      | ![Alt text](./../static/quickstart/simple_api_files/simple_api_32_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_32_1.png) |
 
