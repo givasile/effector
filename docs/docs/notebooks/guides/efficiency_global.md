@@ -13,7 +13,7 @@ The key factors affecting runtime are $t_f$, $N$, and $D$. Each method involves:
 1. **Preparing the permuted/augmented dataset**: This step depends only on $N$ and is repeated independently for each feature, so it contributes $D T_1(N)$ to the total runtime.  
 2. **Predicting on the permuted dataset**: We here make the hypothesis, that $f(X)$ runs in $t_f$ independently of the number of instances. This is not generally true, however, it is a reasonable assumption as long as $f(X)$ can be computed in a single pass or some batches. Additionally, the prediction must be repeated independently for each feature, contributing $D T_2(t_f)$, except for RHALE, where all gradients are computed in a single pass, resulting in $T_2(t_f)$.  
 
-Therefore, the runtime of each methods is: $$T(t_f, N, D) \approx D T_1(N) + T_2(t_f, D)$$.
+Therefore, the runtime of each methods is: $T(t_f, N, D) \approx D T_1(N) + T_2(t_f, D)$.
 
 
 Now, let's see all these effects in practice!
