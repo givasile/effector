@@ -28,6 +28,10 @@ import matplotlib.pyplot as plt
 np.random.seed(21)
 ```
 
+    /Users/dimitriskyriakopoulos/Documents/ath/Effector/Code/eff-env/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+      from .autonotebook import tqdm as notebook_tqdm
+
+
 
 ```python
 def return_predict(t):
@@ -47,7 +51,7 @@ def return_jacobian(t):
 
 
 ```python
-def measure_time(method_name, features):
+def measure_time(method_name, features, model, N, M, D, repetitions, K, model_jac=None,):
     fit_time_list, eval_time_list = [], []
     X = np.random.uniform(-1, 1, (N, D))
     xx = np.linspace(-1, 1, M)
@@ -144,7 +148,7 @@ for N in vec:
     model = return_predict(t)
     model_jac = return_jacobian(t)
     for method_name in method_names:
-        time_dict[method_name].append(measure_time(method_name, features))
+        time_dict[method_name].append(measure_time(method_name, features, model, N, M, D, repetitions, K, model_jac=model_jac))
 ```
 
 
@@ -184,7 +188,7 @@ for N in vec:
     model = return_predict(t)
     model_jac = return_jacobian(t)
     for method_name in method_names:
-        time_dict[method_name].append(measure_time(method_name, features))
+        time_dict[method_name].append(measure_time(method_name, features, model, N, M, D, repetitions, K, model_jac=model_jac))
 ```
 
 
@@ -249,7 +253,7 @@ for t in vec:
     model = return_predict(t)
     model_jac = return_jacobian(t)
     for method_name in method_names:
-        time_dict[method_name].append(measure_time(method_name, features))
+        time_dict[method_name].append(measure_time(method_name, features, model, N, M, D, repetitions, K, model_jac=model_jac))
 ```
 
 
@@ -300,7 +304,7 @@ for t in vec:
     model = return_predict(t)
     model_jac = return_jacobian(t)
     for method_name in method_names:
-        time_dict[method_name].append(measure_time(method_name, features))
+        time_dict[method_name].append(measure_time(method_name, features, model, N, M, D, repetitions, K, model_jac=model_jac))
 ```
 
 
@@ -346,18 +350,3 @@ Adding the two parts, we have the total runtime:
 | **PDP / d-PDP** | $(c_1 + c_2) N + 2 t_f$       | $D (c_1 + c_2) N + 2 D t_f$    |
 | **ALE**       | $2 t_f$             | $2 D t_f$         |
 | **RHALE**     | $t_f$               | $t_f$             |
-
-
-```python
-
-```
-
-
-```python
-
-```
-
-
-```python
-
-```
