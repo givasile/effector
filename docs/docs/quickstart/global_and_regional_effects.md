@@ -2,67 +2,83 @@
 title: What are global and regional effects
 ---
 
+???+ success "Overview"
+
+    This tutorial is the best place for understanding what global and regional effects are, 
+    why the are a very good choice for interpreting a machine learning model trained on tabular data,
+    and how to use `effector` to compute them.
+
+???+ Note "Glossary"
+   
+    - **Feature effect** or **feature effect plot**: A visual representation of how a feature influences the model's output. 
+      Refers to both global and regional effects.
+    - **Global effect or global effect plot**: A 1D plot $x_i \rightarrow y$ that shows how a feature $x_i$ influences the model's output $y$ across the entire dataset.
+    - **Regional effect or regional effect plot**: A 1D plot $x_i \rightarrow y$ that shows how a feature $x_i$ influences the model's output $y$ across a subset of the dataset, defined by a condition on another feature.
+      To fully understand the effect of a feature, you need to inspect all regional effects for the particular feature.
+
 ## Global effects
 
 ???+ question "Why do we care about global effects?"
      
      Because they are super simple.
 
-✅ You trained a neural network (1) to predict hourly bike rentals using historical data. The dataset includes features like `hour`, `weekday`, `workingday`, `temperature`, `humidity`, and, of course, the `bike-rentals`.
+✅ Suppose that you have trained a neural network (1) to predict hourly bike rentals using historical data. 
+  The dataset includes features like `hour`, `weekday`, `workingday`, `temperature`, `humidity`, and, of course, \
+  the target variable: `bike-rentals`. 
 { .annotate }  
 
 1. 📌 You can find the full notebook [here](./../../notebooks/real-examples/01_bike_sharing_dataset/).
 
-🚀 The model performs well, with an average prediction error of about 43 bikes. Now, you want to understand how it makes predictions.
+🚀 The model has an average prediction error of about $\pm43$ bikes.
+    This means that the model is quite accurate, as the target variable 
+    has an average value of about $189$ bikes per hour and a standard deviation of about $181$ bikes per hour.
 
-📊 Feature effect plots provide a visual way to see how each feature influences the model's output.
+📊 After training, you want to understand how the model makes predictions.
+   Feature effect plots provide a visual way to see how each feature influences the model's output.
 
 === "`month`"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_1.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_16_0.png)
 
 === "`hour`"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_2.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_16_1.png)
     
 === "`temperature`"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_3.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_16_2.png)
     
 === "`humidity`"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_4.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_16_3.png)
     
 === "`windspeed`"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_5.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_16_4.png)
 
-Interesting! The model has a meaningful behavior:
+Interesting! The model has "learned" that:
 
-- 🔍 month, humidity, and windspeed have little impact 
-- 🌡️ Temperature has a stronger positive effect
+- 🔍 month, humidity, and windspeed have little impact on bike rentals.
+- 🌡️ Temperature has a stronger positive effect on bike rentals, with a peak at around 20°C.
 - ⏰ hour is the most important feature; let's focus on that!
 
 ---
 
-Let's focus on feature `hour`:
+Let's focus on feature `hour`. We will compute the global effect of the `hour` feature using three different methods provided by `effector`:
 
 === "PDP"
     ```python
     effector.PDP(X, model).plot(feature=3)
     ```
-
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_0.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_1.png)
 
 === "RHALE"
     ```python
     effector.RHALE(X, model, model_jac).plot(feature=3)
     ```
-
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_22_0.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_0.png)
 
 === "SHAP-DP"
 
     ```python
     effector.ShapDP(X, model).plot(feature=3)
     ```
-
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_23_1.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_1.png)
 
 
 All methods agree on the general trend:
@@ -108,13 +124,13 @@ A simple way to check this is to look at the heterogeneity of the global effect:
 Let's take a look again:
 
 === "PDP"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_0.png)}
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_1.png)}
 
 === "RHALE"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_22_0.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_0.png)
 
 === "SHAP-DP"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_23_1.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_1.png)
 
 They all indicate a high heterogeneity; there are cases that deviate from the average pattern.
 Moreover, PDP-ICE analysis highlights two distinct patterns:
@@ -145,6 +161,12 @@ Moreover, PDP-ICE analysis highlights two distinct patterns:
     it means that the global effect may hide some important information behind average values. 
     In these cases, regional effect analysis can provide a more detailed explanation.
 
+???+ Note "Regional effects build a partition tree per feature"
+
+    Regional effects build a partition tree for each feature.
+    In each node of the partition tree, the instances are separated based on a condition on another feature.
+    In each node, the instances are clustered into subregions where the instances behave similarly.
+
 ???+ Note "When regional effect can provide a good solution"
 
     Unfortunatelly, it does not mean we will always find regional effects that provide a better explanation.
@@ -153,9 +175,7 @@ Moreover, PDP-ICE analysis highlights two distinct patterns:
     If not, the regional effect analysis will not manage to do something better than the global effect analysis.
 
 So let's apply regional effect analysis to the $\mathtt{hour}$ feature.
-`Effector` provides a simple API for that, similar to the global effect API:
-
-We first summarize the regional effect analysis for the `hour` using:
+To print the partition tree, we will use `.summary()` method of the regional effect analysis classes.
 
 === "PDP"
     ```python
@@ -165,18 +185,15 @@ We first summarize the regional effect analysis for the `hour` using:
 
     ```
     Feature 3 - Full partition tree:
-    Node id: 0, name: hr, heter: 0.44 || nof_instances:  5000 || weight: 1.00
-            Node id: 1, name: hr | workingday == 0.00, heter: 0.38 || nof_instances:  1588 || weight: 0.32
-                    Node id: 3, name: hr | workingday == 0.00 and temp <= 6.81, heter: 0.19 || nof_instances:   785 || weight: 0.16
-                    Node id: 4, name: hr | workingday == 0.00 and temp > 6.81, heter: 0.22 || nof_instances:   803 || weight: 0.16
-            Node id: 2, name: hr | workingday != 0.00, heter: 0.30 || nof_instances:  3412 || weight: 0.68
-                    Node id: 5, name: hr | workingday != 0.00 and temp <= 6.81, heter: 0.21 || nof_instances:  1467 || weight: 0.29
-                    Node id: 6, name: hr | workingday != 0.00 and temp > 6.81, heter: 0.21 || nof_instances:  1945 || weight: 0.39
-    --------------------------------------------------
-    Feature 3 - Statistics per tree level:
-    Level 0, heter: 0.44
-            Level 1, heter: 0.32 || heter drop : 0.12 (units), 27.28% (pcg)
-                    Level 2, heter: 0.21 || heter drop : 0.12 (units), 35.73% (pcg)
+    🌳 Full Tree Structure:
+    ───────────────────────
+    hr 🔹 [id: 0 | heter: 0.24 | inst: 5000 | w: 1.00]
+        workingday = 0.00 🔹 [id: 1 | heter: 0.13 | inst: 1548 | w: 0.31]
+            temp ≤ 4.50 🔹 [id: 2 | heter: 0.06 | inst: 618 | w: 0.12]
+            temp > 4.50 🔹 [id: 3 | heter: 0.10 | inst: 930 | w: 0.19]
+        workingday ≠ 0.00 🔹 [id: 4 | heter: 0.12 | inst: 3452 | w: 0.69]
+            yr = 0.00 🔹 [id: 5 | heter: 0.06 | inst: 1719 | w: 0.34]
+            yr ≠ 0.00 🔹 [id: 6 | heter: 0.11 | inst: 1733 | w: 0.35]
     ```
 
 === "RHALE"
@@ -184,15 +201,16 @@ We first summarize the regional effect analysis for the `hour` using:
     r_rhale = effector.RegionalRHALE(X, model, model_jac)
     r_rhale.summary(feature=3)
     ```
+
     ```
     Feature 3 - Full partition tree:
-    Node id: 0, name: hr, heter: 5.68 || nof_instances: 13903 || weight: 1.00
-            Node id: 1, name: hr | workingday == 0.00, heter: 0.75 || nof_instances:  4385 || weight: 0.32
-            Node id: 2, name: hr | workingday != 0.00, heter: 5.44 || nof_instances:  9518 || weight: 0.68
-    --------------------------------------------------
-    Feature 3 - Statistics per tree level:
-    Level 0, heter: 5.68
-            Level 1, heter: 3.96 || heter drop : 1.71 (units), 30.22% (pcg)
+    🌳 Full Tree Structure:
+    ───────────────────────
+    hr 🔹 [id: 0 | heter: 5.68 | inst: 13903 | w: 1.00]
+        workingday = 0.00 🔹 [id: 1 | heter: 0.75 | inst: 4385 | w: 0.32]
+            temp ≤ 6.81 🔹 [id: 2 | heter: 0.44 | inst: 2187 | w: 0.16]
+            temp > 6.81 🔹 [id: 3 | heter: 0.60 | inst: 2198 | w: 0.16]
+        workingday ≠ 0.00 🔹 [id: 4 | heter: 5.44 | inst: 9518 | w: 0.68]
     ```
 
 === "SHAP-DP"
@@ -203,53 +221,85 @@ We first summarize the regional effect analysis for the `hour` using:
 
     ```
     Feature 3 - Full partition tree:
-    Node id: 0, name: hr, heter: 0.06 || nof_instances:   500 || weight: 1.00
-            Node id: 1, name: hr | workingday == 0.00, heter: 0.02 || nof_instances:   155 || weight: 0.31
-                    Node id: 3, name: hr | workingday == 0.00 and temp <= 6.81, heter: 0.01 || nof_instances:    83 || weight: 0.17
-                    Node id: 4, name: hr | workingday == 0.00 and temp > 6.81, heter: 0.03 || nof_instances:    72 || weight: 0.14
-            Node id: 2, name: hr | workingday != 0.00, heter: 0.03 || nof_instances:   345 || weight: 0.69
-                    Node id: 5, name: hr | workingday != 0.00 and temp <= 6.81, heter: 0.02 || nof_instances:   156 || weight: 0.31
-                    Node id: 6, name: hr | workingday != 0.00 and temp > 6.81, heter: 0.02 || nof_instances:   189 || weight: 0.38
-    --------------------------------------------------
-    Feature 3 - Statistics per tree level:
-    Level 0, heter: 0.06
-            Level 1, heter: 0.03 || heter drop : 0.03 (units), 56.04% (pcg)
-                    Level 2, heter: 0.02 || heter drop : 0.01 (units), 20.57% (pcg)
-    ```
+    🌳 Full Tree Structure:
+    ───────────────────────
+    hr 🔹 [id: 0 | heter: 0.06 | inst: 500 | w: 1.00]
+        workingday = 0.00 🔹 [id: 1 | heter: 0.02 | inst: 148 | w: 0.30]
+            temp ≤ 4.50 🔹 [id: 2 | heter: 0.01 | inst: 50 | w: 0.10]
+            temp > 4.50 🔹 [id: 3 | heter: 0.02 | inst: 98 | w: 0.20]
+        workingday ≠ 0.00 🔹 [id: 4 | heter: 0.03 | inst: 352 | w: 0.70]
+            temp ≤ 6.81 🔹 [id: 5 | heter: 0.02 | inst: 145 | w: 0.29]
+            temp > 6.81 🔹 [id: 6 | heter: 0.02 | inst: 207 | w: 0.41]
+```
 
 
 ???+ question "That' is quite interesting"
 
     All methods confirm our intuition: there are two meaninful subregions based on the `workingday` feature. 
     This is the first split in the partition tree and the most important one, for all methods.
-    However PDP and SHAP-DP also provide a second split based on the `temperature` feature.
+    Beyond that, methods differ in the next splits. 
+    Let's focus on the first-level splits first.
+
+### Depth = 1
+
+=== "PDP"
+
+     | non-working day | workingday |
+     |:---------:|:---------:|
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_23_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_23_1.png) |
+
+=== "RHALE"
+
+     | non-working day | workingday |
+     |:---------:|:---------:|
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_1.png) |
+
+=== "SHAP-DP"
+
+    | non-working day | workingday |
+    |:---------:|:---------:|
+    | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_35_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_35_1.png) |
 
 
-Let's visualize the regional effects!
+
+???+ success "Let's reach some conclusions""
+
+    The regional effect analysis confirms our intuition: the data shows two distinct patterns.  
+
+    📅 **Workdays:** Rentals rise at **8:30 AM** and **5:00 PM**, matching commute times.  
+    🌴 **Weekends & Holidays:** Rentals increase at **9:00 AM**, peak at **12:00 PM**, and decline around **4:00 PM**—a typical leisure pattern.  
+
+    ✔️ This makes sense—temperature matters for sightseeing, but not for commuting.
+
+---
+
+### Depth = 2
 
 
 === "PDP"
 
      | non-working day and cold | non-workingday and hot |
      |:---------:|:---------:|
-     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_1.png) |
-     | working day and cold | workingday and hot |
-     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_2.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_3.png) |
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_24_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_24_1.png) |
+     | **working day and cold** | **workingday and hot** |
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_24_2.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_24_3.png) |
 
 
 === "RHALE"
 
-     | non-working day | workingday |
-     |:---------:|:---------:|
-     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_1.png) |
+     | non-working day and cold | non-workingday and hot | working day |
+     |:---------:|:---------:|:---------:|
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_30_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_30_1.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_1.png) | 
+     
 
 === "SHAP-DP"
 
      | non-working day and cold | non-workingday and hot |
      |:---------:|:---------:|
-     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_37_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_37_1.png) |
-     | working day and cold | workingday and hot |
-     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_37_2.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_37_3.png) |
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_36_1.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_36_2.png) |
+     | **working day and first year** | **workingday and second year** |
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_36_3.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_36_4.png) |
+
 
 ???+ success "Let's reach some conclusions""
 
@@ -262,6 +312,3 @@ Let's visualize the regional effects!
     They reveal another key factor: **temperature**. The impact of `hour` on bike rentals differs on non-working days depending on whether it’s hot or cold.  
 
     ✔️ This makes sense—temperature matters for sightseeing, but not for commuting.
-
-
----

@@ -62,3 +62,4 @@ mkdocs serve
 ## Connection between files
 
 `index.md` -> `/quickstart/readme_example.ipynb`
+`docs/docs/quickstart/global_and_regional_effects.ipynb` -> `notebooks/real-examples/01_bike_sharing_dataset.ipynb`

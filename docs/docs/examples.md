@@ -1,14 +1,11 @@
 Synthetic Examples:
 
-- [A linear model](./notebooks/synthetic-examples/01_linear_model.md)
-- [An in-depth example on global effects](./notebooks/synthetic-examples/02_global_effect_methods_comparison.md): this example is used in the orignal [RHALE paper](https://arxiv.org/abs/2309.11193)
-- An in-depth example on regional effects: this example is used in the original [REPID paper](https://proceedings.mlr.press/v151/herbinger22a/herbinger22a.pdf)
-    - [Using a known prediction function](./notebooks/synthetic-examples/03_regional_effects_synthetic_f.md)
-    - [Using a ML model as the predict function](./notebooks/synthetic-examples/04_regional_effects_real_f.md)
-- A conditional interaction model
-    - [Global effect](./notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_global.md)
-- A model with general form interactions
-    - [Global effect](./notebooks/synthetic-examples/06_general_interaction_independent_uniform_global.md)
+- [Example 1 - A linear model](./notebooks/synthetic-examples/01_linear_model.md)
+- [Example 2 - An in-depth example on global effects](./notebooks/synthetic-examples/02_global_effect_methods_comparison.md): same as in [RHALE paper](https://arxiv.org/abs/2309.11193)
+- [Example 3(a) - An in-depth example of regional effects](./notebooks/synthetic-examples/03_regional_effects_synthetic_f.md): same as in [REPID paper](https://proceedings.mlr.press/v151/herbinger22a/herbinger22a.pdf)
+- [Example 3(b) - An in-depth example of regional effects](./notebooks/synthetic-examples/04_regional_effects_real_f.md): same as in [REPID paper](https://proceedings.mlr.press/v151/herbinger22a/herbinger22a.pdf)
+- [Example 4 - A conditional interaction model](./notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_global.md)
+- [Example 5 - A model with general form interactions](./notebooks/synthetic-examples/06_general_interaction_independent_uniform_global.md)
   
 Real Examples:
 
