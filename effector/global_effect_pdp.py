@@ -212,7 +212,11 @@ class PDPBase(GlobalEffectBase):
         else:
             avg_output = None
 
-        title = "Partial Dependence Plot (PDP)" if self.method_name == "pdp" else "derivative Partial Dependence Plot (d-PDP)"
+        title = (
+            "Partial Dependence Plot (PDP)"
+            if self.method_name == "pdp"
+            else "derivative Partial Dependence Plot (d-PDP)"
+        )
         ret = vis.plot_pdp_ice(
             x,
             feature,
@@ -233,6 +237,7 @@ class PDPBase(GlobalEffectBase):
         if not show_plot:
             fig, ax = ret
             return fig, ax
+
 
 class PDP(PDPBase):
     def __init__(
@@ -355,7 +360,7 @@ class PDP(PDPBase):
                 - `zero_start` starts the plot from `y=0`.
 
             nof_points: the grid size for the PDP plot
-            
+
             scale_x: None or Dict with keys ['std', 'mean']
 
                 - If set to None, no scaling will be applied.
@@ -387,10 +392,10 @@ class PDP(PDPBase):
             show_avg_output,
             y_limits,
             use_vectorized,
+            show_plot,
         )
         if not show_plot:
             return ret
-
 
 
 class DerPDP(PDPBase):
@@ -634,6 +639,7 @@ def ice_non_vectorized(
 
     return y
 
+
 def ice_vectorized(
     model: callable,
     model_jac: Optional[callable],
@@ -709,5 +715,3 @@ def ice_vectorized(
         y = model(x_new)
         y = np.reshape(y, (x.shape[0], nof_instances))
     return y
-
-
