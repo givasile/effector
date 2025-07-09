@@ -14,3 +14,4 @@ mkdocs-glightbox
 jupyter
 coverage 
 pytest-cov
+ucimlrepo
