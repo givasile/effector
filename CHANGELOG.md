@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased] - Unreleased
+## [0.1.11] - 2025-07-10
+
+### Added
+
+- added codecov to the project
 
 ### Fixed
 
