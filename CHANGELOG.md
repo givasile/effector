@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] - Unreleased
+
+### Fixed
+
+- fixed all notebooks to work with the latest version of Effector
+- fixed bug in `RegionalPDP` plots, where `centering` was not working properly, it was set to `False` and the user defined argument was not being passed.
+
 ## [0.1.9] - 2025-06-18
 
 ### Fixed

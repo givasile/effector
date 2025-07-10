@@ -387,7 +387,9 @@ class PDP(PDPBase):
             show_avg_output,
             y_limits,
             use_vectorized,
+            show_plot
         )
+
         if not show_plot:
             return ret
 
