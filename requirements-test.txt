@@ -12,3 +12,6 @@ mkdocstrings-python
 mkdocs-material
 mkdocs-glightbox
 jupyter
+coverage 
+pytest-cov
+ucimlrepo

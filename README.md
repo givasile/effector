@@ -6,6 +6,7 @@
 
 [![PyPI version](https://badge.fury.io/py/effector.svg?icon=si%3Apython)](https://badge.fury.io/py/effector)
 ![Execute Tests](https://github.com/givasile/effector/actions/workflows/run_tests.yml/badge.svg)
+[![codecov](https://codecov.io/gh/givasile/effector/branch/main/graph/badge.svg)](https://codecov.io/gh/givasile/effector)
 ![Publish Documentation](https://github.com/givasile/effector/actions/workflows/publish_documentation.yml/badge.svg)
 [![PyPI Downloads](https://static.pepy.tech/badge/effector)](https://pepy.tech/projects/effector)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
