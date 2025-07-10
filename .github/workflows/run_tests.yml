@@ -22,7 +22,7 @@ jobs:
         run: python -m pytest tests -m "not slow"
       
       - name: Run unit tests with coverage
-        run: pytest --cov --cov-branch --cov-report=xml
+        run: pytest --cov=effector --cov-report=xml tests -m "not slow"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
