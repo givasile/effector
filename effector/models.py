@@ -125,7 +125,7 @@ class ConditionalInteraction4Regions(Base):
         Returns:
             Output of the model, shape (N,)
         """
-        y = np.exp(x[:, 3])
+        y = np.exp(x[:, 2])
 
         mask1 = (x[:, 1] < 0) & (x[:, 2] < 0)
         mask2 = (x[:, 1] < 0) & (x[:, 2] >= 0)
@@ -150,7 +150,7 @@ class ConditionalInteraction4Regions(Base):
         """
         y = np.zeros(x.shape)
 
-        y[:, 3] = np.exp(x[:, 3])
+        y[:, 2] = np.exp(x[:, 2])
 
         mask1 = (x[:, 1] < 0) & (x[:, 2] < 0)
         mask2 = (x[:, 1] < 0) & (x[:, 2] >= 0)
