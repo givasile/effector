@@ -1,5 +1,11 @@
 # Changelog
 
+# [0.1.12] - 2025-07-13
+
+### Fixed
+
+- fixed bug in `project.toml`, added dependency to `overrides`
+
 ## [0.1.11] - 2025-07-10
 
 ### Added

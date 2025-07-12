@@ -1,24 +1,3 @@
-# Measuring the Runtime of Global Effect Plots  
-
-This notebook analyzes the runtime $T(\cdot)$ of Global Effect plots, which depends on:  
-
-- **$t_f$**: The time required to evaluate the black-box function $f$ on the entire dataset.  
-- **$N$**: The number of instances in $X$.  
-- **$D$**: The number of features in $X$.  
-- **$K$**: The number of points used for centering the feature effect plot.  
-- **$M$**: The number of evaluation points.  
-
-The key factors affecting runtime are $t_f$, $N$, and $D$. Each method involves:  
-
-1. **Preparing the permuted/augmented dataset**: This step depends only on $N$ and is repeated independently for each feature, so it contributes $D T_1(N)$ to the total runtime.  
-2. **Predicting on the permuted dataset**: We here make the hypothesis, that $f(X)$ runs in $t_f$ independently of the number of instances. This is not generally true, however, it is a reasonable assumption as long as $f(X)$ can be computed in a single pass or some batches. Additionally, the prediction must be repeated independently for each feature, contributing $D T_2(t_f)$, except for RHALE, where all gradients are computed in a single pass, resulting in $T_2(t_f)$.  
-
-Therefore, the runtime of each methods is: $T(t_f, N, D) \approx D T_1(N) + T_2(t_f, D)$.
-
-
-Now, let's see all these effects in practice!
-
-
 ```python
 import effector
 import numpy as np
@@ -27,10 +6,6 @@ import time
 import matplotlib.pyplot as plt
 np.random.seed(21)
 ```
-
-    /Users/dimitriskyriakopoulos/Documents/ath/Effector/Code/eff-env/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
-      from .autonotebook import tqdm as notebook_tqdm
-
 
 
 ```python
@@ -172,7 +147,7 @@ for metric in ["total"]: # ["fit", "eval", "total"]:
 
 
     
-![png](efficiency_global_files/efficiency_global_9_0.png)
+![png](efficiency_global_files/efficiency_global_8_0.png)
     
 
 
@@ -212,7 +187,7 @@ for metric in ["total"]: # ["fit", "eval", "total"]:
 
 
     
-![png](efficiency_global_files/efficiency_global_12_0.png)
+![png](efficiency_global_files/efficiency_global_11_0.png)
     
 
 
@@ -277,7 +252,7 @@ for metric in ["total"]: # ["fit", "eval", "total"]:
 
 
     
-![png](efficiency_global_files/efficiency_global_18_0.png)
+![png](efficiency_global_files/efficiency_global_17_0.png)
     
 
 
@@ -328,7 +303,7 @@ for metric in ["total"]: #["fit", "eval", "total"]:
 
 
     
-![png](efficiency_global_files/efficiency_global_22_0.png)
+![png](efficiency_global_files/efficiency_global_21_0.png)
     
 
 
@@ -345,8 +320,139 @@ for metric in ["total"]: #["fit", "eval", "total"]:
 
 Adding the two parts, we have the total runtime:
 
-| Method        | $T = T_1 + T_2$ (one feature) | $T = T_1 + T_2$ (all features) |
-|---------------|-------------------------------|--------------------------------|
+| Method          | $T = T_1 + T_2$ (one feature) | $T = T_1 + T_2$ (all features) |
+|-----------------|-------------------------------|--------------------------------|
 | **PDP / d-PDP** | $(c_1 + c_2) N + 2 t_f$       | $D (c_1 + c_2) N + 2 D t_f$    |
-| **ALE**       | $2 t_f$             | $2 D t_f$         |
-| **RHALE**     | $t_f$               | $t_f$             |
+| **ALE**         | $2 t_f$                       | $2 D t_f$                      |
+| **RHALE**       | $t_f$                         | $t_f$                          |
+
+## SHAP-DP
+
+SHAP-DP is a much slower method, compared to the others. Let's see how it scales with $N$ and $t_f$.
+
+
+```python
+t = 0.1
+N = 10_000
+D = 3
+K = 100
+M = 100
+features = [0]
+repetitions = 2
+```
+
+
+```python
+method_names = ["shap_dp"]
+vec = np.array([10, 50, 100, 200])
+time_dict = {method_name: [] for method_name in method_names}
+for N in vec:
+    model = return_predict(t)
+    model_jac = return_jacobian(t)
+    for method_name in method_names:
+        time_dict[method_name].append(
+            measure_time(method_name, features, model, N, M, D, repetitions, K, model_jac=model_jac))
+```
+
+    ExactExplainer explainer: 101it [00:20,  2.49it/s]                         
+    ExactExplainer explainer: 101it [00:20,  2.49it/s]                         
+    ExactExplainer explainer: 201it [00:40,  3.73it/s]                         
+    ExactExplainer explainer: 201it [00:40,  3.73it/s]                         
+
+
+
+```python
+plt.figure()
+plt.plot(
+    vec,
+    [tt["total"] for tt in time_dict["shap_dp"]],
+    "o-",
+)
+plt.title("Runtime: SHAP DP")
+plt.xlabel("N: number of instances")
+plt.ylabel("time (sec)")
+plt.xticks(vec)
+plt.show()
+
+```
+
+    /tmp/ipykernel_831737/3543727158.py:11: UserWarning: No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+      plt.legend()
+
+
+
+    
+![png](efficiency_global_files/efficiency_global_27_1.png)
+    
+
+
+
+```python
+t = 0.1
+N = 50
+D = 3
+K = 100
+M = 100
+features = [0]
+repetitions = 2
+```
+
+
+```python
+# compare with t_f
+method_names = ["shap_dp"]
+vec = np.array([.01, .1, .5, 1.])
+time_dict = {method_name: [] for method_name in method_names}
+for t in vec:
+    model = return_predict(t)
+    model_jac = return_jacobian(t)
+    for method_name in method_names:
+        time_dict[method_name].append(
+            measure_time(method_name, features, model, N, M, D, repetitions, K, model_jac=model_jac))
+
+```
+
+    ExactExplainer explainer: 51it [00:49,  1.24s/it]                        
+    ExactExplainer explainer: 51it [00:49,  1.24s/it]                        
+    ExactExplainer explainer: 51it [01:39,  2.20s/it]                        
+    ExactExplainer explainer: 51it [01:39,  2.20s/it]                        
+
+
+
+```python
+plt.figure()
+plt.plot(
+    vec,
+    [tt["total"] for tt in time_dict["shap_dp"]],
+    "o-",
+)
+plt.title("Runtime: SHAP DP")
+plt.xlabel("time (sec) to execute f(dataset)")
+plt.ylabel("time (sec)")
+plt.xticks(vec)
+plt.show()
+
+```
+
+
+    
+![png](efficiency_global_files/efficiency_global_30_0.png)
+    
+
+
+So if we add shap-DP to the table, we have:
+
+| Method          | $T = T_1 + T_2$ (one feature) | $T = T_1 + T_2$ (all features) |
+|-----------------|-------------------------------|--------------------------------|
+| **PDP / d-PDP** | $(c_{PDP}) N + 2 t_f$         | $D c_{PDP} N + 2 D t_f$        |
+| **ALE**         | $2 t_f$                       | $2 D t_f$                      |
+| **RHALE**       | $t_f$                         | $t_f$                          |
+| **SHAP-DP**     | $c_{SHAP-DP} N t_f$           | $c_{SHAP-DP} D N t_f$          |
+
+But $c_{SHAP-DP}$ is a large constant $c_{SHAP-DP} \approx 2 $.
+In contrast, $c_{PDP} \approx 10^{-5}$.
+
+
+```python
+
+```

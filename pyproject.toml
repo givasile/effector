@@ -23,7 +23,7 @@ maintainers = [
 license = {text = "MIT License"}
 requires-python = ">=3.10"
 keywords = ["explainability", "interpretability", "machine learning", "deep learning", "regional XAI", "feature effect"]
-version = "0.1.11"
+version = "0.1.12"
 readme = "README.md"
 dependencies = [
     "matplotlib",
@@ -32,7 +32,8 @@ dependencies = [
     "tqdm",
     "shap",
     "shapiq",
-    "ucimlrepo"
+    "ucimlrepo",
+    "overrides"
 ]
 
 [project.urls]

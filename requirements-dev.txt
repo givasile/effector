@@ -20,3 +20,4 @@ jupyter
 ucimlrepo
 openml
 tabpfn
+overrides
