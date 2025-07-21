@@ -1,5 +1,12 @@
 # Changelog
 
+# [0.2.0] - 2025-07-21
+
+### Changed
+
+- updated the guide that measures runtimes of regional methods
+
+
 # [0.1.12] - 2025-07-13
 
 ### Fixed
