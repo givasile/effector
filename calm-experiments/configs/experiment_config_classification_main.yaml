@@ -1,0 +1,51 @@
+task: classification
+stop_on_error: false
+random_seed: 42
+test_size: 0.2
+output_file: results_classification_main.csv
+append_to_file: true
+kfold_n_splits: 1
+
+datasets:
+  - name: Adult
+    module: effector.calm.datasets.adult
+  - name: COMPAS
+    module: effector.calm.datasets.compas
+  - name: HELOC
+    module: effector.calm.datasets.heloc
+  - name: MIMIC2
+    module: effector.calm.datasets.mimic2
+  - name: PMLB_APPENDICITIS
+    module: effector.calm.datasets.pmlb
+  - name: PMLB_PHONEME
+    module: effector.calm.datasets.pmlb
+  - name: PMLB_SPECTF
+    module: effector.calm.datasets.pmlb
+  - name: Magic
+    module: effector.calm.datasets.magic
+  - name: Bank
+    module: effector.calm.datasets.bank
+  - name: PMLB_CHURN
+    module: effector.calm.datasets.pmlb
+
+methods:
+  - name: XGBClassifier
+    type: blackbox
+  - name: MaskedNAMClassifier
+    type: maskedgam
+    parameters: {}
+  - name: NoInteractionsEBMClassifier
+    type: maskedgam
+    parameters: {}
+  - name: CALMClassifier
+    type: calm
+  - name: EBM2Classifier
+    type: competitor
+  - name: NodeGAM2Classifier
+    type: competitor
+    parameters:
+      max_time: [300]
+  - name: GAMINetClassifier
+    type: competitor
+    
+metrics: [accuracy, balanced_accuracy, f1]

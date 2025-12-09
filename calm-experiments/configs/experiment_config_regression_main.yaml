@@ -1,0 +1,62 @@
+task: regression
+stop_on_error: false
+random_seed: 42
+test_size: 0.2
+output_file: results_regression_main.csv
+append_to_file: true
+kfold_n_splits: 5
+
+datasets:
+  - name: BikeSharing
+    module: effector.calm.datasets.bike_sharing
+  - name: CaliforniaHousing
+    module: effector.calm.datasets.california_housing
+  - name: ParkinsonsMotor
+    module: effector.calm.datasets.parkinsons
+  - name: ParkinsonsTotal
+    module: effector.calm.datasets.parkinsons
+  - name: SeoulBike
+    module: effector.calm.datasets.seoul_bike
+  - name: Wine
+    module: effector.calm.datasets.wine
+  - name: Energy
+    module: effector.calm.datasets.energy
+  - name: CCPP
+    module: effector.calm.datasets.ccpp
+  - name: Electrical
+    module: effector.calm.datasets.electrical
+  - name: Elevators
+    module: effector.calm.datasets.elevators
+  - name: No2
+    module: effector.calm.datasets.no2
+  - name:  Sensory
+    module: effector.calm.datasets.sensory
+  - name: Airfoil
+    module: effector.calm.datasets.airfoil
+  - name: SkillCraft
+    module: effector.calm.datasets.skill_craft
+  - name: Ailerons
+    module: effector.calm.datasets.ailerons
+
+
+methods:
+  - name: XGBRegressor
+    type: blackbox
+  - name: MaskedNAMRegressor
+    type: maskedgam
+    parameters: {}
+  - name: NoInteractionsEBMRegressor
+    type: maskedgam
+    parameters: {}
+  - name: CALMRegressor
+    type: calm
+  - name: EBM2Regressor
+    type: competitor
+  - name: GAMINetRegressor
+    type: competitor
+  - name: NodeGAM2Regressor
+    type: competitor
+    parameters:
+      max_time: [300]
+
+metrics: [r2, mae, rmse]
