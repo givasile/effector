@@ -568,7 +568,7 @@ class ExperimentRunner:
             metric_results["num_interactions"] = model.interactions_info["leaf"] // 2
 
         if method_type == "competitor":
-            from calm.competitors import (
+            from effector.calm.competitors import (
                 EBM2Classifier,
                 EBM2Regressor,
                 NodeGAM2Classifier,
