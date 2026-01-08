@@ -4,7 +4,7 @@ random_seed: 42
 test_size: 0.2
 output_file: results_classification_main.csv
 append_to_file: true
-kfold_n_splits: 1
+kfold_n_splits: 5
 
 datasets:
   - name: Adult
