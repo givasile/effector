@@ -551,3 +551,32 @@ def calm_list_conditions(
         )
 
     return rows
+
+
+def get_min_hr_shift_for_y_shift(results, y_shift=-50):
+
+    out_dists_to_minus_50 = [
+        idx for idx, res in enumerate(results) if res["out_shift"] - y_shift < 0
+    ]
+    sort_by_dist = sorted(
+        out_dists_to_minus_50,
+        key=lambda idx: results[idx]["hr_shift"],
+    )
+    best_idx = sort_by_dist[0]
+    best_result = results[best_idx]
+
+    return best_result
+
+
+def plot_hr_shift_y_shift(results):
+    plt.figure(figsize=(8, 6))
+    plt.title("Hour Shift vs Output Shift")
+
+    plt.xlabel("Hour Shift (h)", fontsize=12)
+    plt.ylabel("Rentals Shift", fontsize=12)
+
+    plt.plot(
+        [r["hr_shift"] for r in results], [r["out_shift"] for r in results], marker="o"
+    )
+
+    plt.show()
