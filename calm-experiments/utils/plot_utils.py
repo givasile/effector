@@ -379,6 +379,8 @@ def plot_ga2m_for_feature(
     label_maps=None,
     format_latex=False,
     fontsize=12,
+    display_labels_map=None,
+    y_display_label=None,
 ):
     def prepare_edges_and_labels(values):
         n = len(values)
@@ -457,8 +459,14 @@ def plot_ga2m_for_feature(
             ax.fill_between(x, lower, upper, alpha=0.2)
 
     xlabel = rf"${{{xlabel}}}$" if format_latex else xlabel
-    ax.set_xlabel(xlabel, fontsize=fontsize + 1)
-    ax.set_ylabel("y", fontsize=fontsize + 1)
+    xlabel_display = (
+        display_labels_map.get(feat_labels[feat_idx], xlabel)
+        if display_labels_map
+        else xlabel
+    )
+    ax.set_xlabel(xlabel_display, fontsize=fontsize + 1)
+    y_label = y_display_label if y_display_label is not None else "y"
+    ax.set_ylabel(y_label, fontsize=fontsize + 1)
     ax.tick_params(
         axis="both",
         labelsize=fontsize,
@@ -585,11 +593,17 @@ def plot_ga2m_for_feature(
         X, Y = np.meshgrid(X_edges, Y_edges)
         shading = "flat"
         xlabel = rf"${{{xlabel}}}$" if format_latex else xlabel
-        ax.set_xlabel(xlabel, fontsize=fontsize + 1)
+        xlabel_display = (
+            display_labels_map.get(xlabel, xlabel) if display_labels_map else xlabel
+        )
+        ax.set_xlabel(xlabel_display, fontsize=fontsize + 1)
         ylabel = rf"${{{ylabel}}}$" if format_latex else ylabel
-        ax.set_ylabel(ylabel, fontsize=fontsize + 1)
+        y_label_display = (
+            display_labels_map.get(ylabel, ylabel) if display_labels_map else ylabel
+        )
+        ax.set_ylabel(y_label_display, fontsize=fontsize + 1)
         if display_title:
-            ax.set_title(f"{xlabel} & {ylabel}")
+            ax.set_title(f"{xlabel_display} & {y_label_display}")
 
         ax.tick_params(
             axis="both",
@@ -613,13 +627,13 @@ def plot_ga2m_for_feature(
 
     fig.tight_layout()
     if save_dir:
-        filename = os.path.join(save_dir, f"ga2m_{feat_labels[feat_idx]}.pdf")
+        filename = os.path.join(save_dir, f"ga2m_{feat_labels[feat_idx]}.jpg")
         plt.savefig(
             filename,
             dpi=300,
             bbox_inches="tight",
             facecolor=fig.get_facecolor(),
-            format="pdf",
+            format="jpg",
         )
         print(f"Saved subplot heatmap to {filename}")
     plt.show()
@@ -643,6 +657,8 @@ def plot_shape_functions_multiple(
     label_maps=None,
     format_latex=False,
     fontsize=12,
+    display_labels_map=None,
+    y_display_label=None,
 ):
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -744,8 +760,12 @@ def plot_shape_functions_multiple(
                 ax.fill_between(x, lower, upper, color=color, alpha=0.2)
 
     xlabel = rf"${{{feature_label}}}$" if format_latex else feature_label
+    xlabel = (
+        display_labels_map.get(feature_label, xlabel) if display_labels_map else xlabel
+    )
     ax.set_xlabel(xlabel, fontsize=fontsize + 1)
-    ax.set_ylabel("y", fontsize=fontsize + 1)
+    y_label = y_display_label if y_display_label is not None else "y"
+    ax.set_ylabel(y_label, fontsize=fontsize + 1)
     ax.tick_params(
         axis="both",
         labelsize=fontsize,
@@ -771,7 +791,7 @@ def plot_shape_functions_multiple(
             dpi=300,
             bbox_inches="tight",
             facecolor=fig.get_facecolor(),
-            format="pdf",
+            format="jpg",
         )
         print(f"Saved combined shape function plot to {save_path}")
     else:
@@ -797,6 +817,8 @@ def plot_calm_gam_shape_function(
     ylim_local=False,
     format_latex=False,
     fontsize=12,
+    display_labels_map=None,
+    y_display_label=None,
 ):
 
     if calm is not None:
@@ -858,7 +880,7 @@ def plot_calm_gam_shape_function(
             figsize=figsize,
             ylim=ylim,
             save_path=(
-                os.path.join(save_dir, f"gam_{feature_label}.pdf") if save_dir else None
+                os.path.join(save_dir, f"gam_{feature_label}.jpg") if save_dir else None
             ),
             t=t,
             categorical_features=categorical_features,
@@ -867,6 +889,8 @@ def plot_calm_gam_shape_function(
             label_maps=label_maps,
             format_latex=format_latex,
             fontsize=fontsize,
+            display_labels_map=display_labels_map,
+            y_display_label=y_display_label,
         )
 
     if calm is not None:
@@ -882,7 +906,7 @@ def plot_calm_gam_shape_function(
             colors=calm_colors,
             ylim=ylim,
             save_path=(
-                os.path.join(save_dir, f"calm_{feature_label}.pdf")
+                os.path.join(save_dir, f"calm_{feature_label}.jpg")
                 if save_dir
                 else None
             ),
@@ -893,6 +917,8 @@ def plot_calm_gam_shape_function(
             label_maps=label_maps,
             format_latex=format_latex,
             fontsize=fontsize,
+            display_labels_map=display_labels_map,
+            y_display_label=y_display_label,
         )
 
     if ga2m is not None:
@@ -913,4 +939,6 @@ def plot_calm_gam_shape_function(
             label_maps=label_maps,
             format_latex=format_latex,
             fontsize=fontsize,
+            display_labels_map=display_labels_map,
+            y_display_label=y_display_label,
         )
