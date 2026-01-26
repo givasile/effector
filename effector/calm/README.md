@@ -1,6 +1,6 @@
 # Interpretability-by-Design with Accurate Locally Additive Models and Conditional Feature Effects
 
-This repository contains the official code for the paper titled **Interpretability-by-Design with Accurate Locally Additive Models and Conditional Feature Effects**. 
+This repository contains the official code for the paper titled **Interpretability-by-Design with Accurate Locally Additive Models and Conditional Feature Effects** implemented as a submodule of Effector.
 
 ## Table of Contents
 - [Package Installation](#package-installation)
@@ -15,7 +15,7 @@ This repository contains the official code for the paper titled **Interpretabili
 
 ## Package Installation
 
-To install the CALM package and its dependencies, follow the steps below.
+To install the CALM package (as effector module) and its dependencies, follow the steps below.
 
 
 ### Set Up a Python Environment
@@ -25,9 +25,6 @@ You can use either **Python's built-in `venv`** or **`conda`**.
 #### Option A: Using `venv` (recommended for most users)
 
 ```bash
-# From the root of the project (e.g., CALM/)
-cd code
-
 # Create and activate virtual environment
 python3.10 -m venv calm-env
 source calm-env/bin/activate   # On Linux/Mac
@@ -35,7 +32,7 @@ source calm-env/bin/activate   # On Linux/Mac
 ```
 
 #### Option B: Using Conda
-```
+```bash
 # Create a new conda environment with Python = 3.10
 conda create -n calm-env python=3.10 -y
 conda activate calm-env
@@ -62,6 +59,7 @@ Use TensorFlow 2.18.0 for compatibility:
 To install the package normally (without editing the source code): 
 
 ```shell
+# From the repo root (the folder that contains pyproject.toml)
 pip install 'effector[calm,windows]'
 ```
 
@@ -71,8 +69,11 @@ pip install 'effector[calm,windows]'
 If you plan to modify the CALM source code:
 
 ```shell
+# From the repo root (the folder that contains pyproject.toml)
 pip install -e '.[calm,windows]' 
 ```
+
+Run this from the repo root (the folder that contains pyproject.toml)
 
 ### 🐧 Linux / 🍎 macOS users
 Use TensorFlow 2.19.0 to match the versions used in the paper:
@@ -81,6 +82,7 @@ Use TensorFlow 2.19.0 to match the versions used in the paper:
 To install the package normally (without editing the source code): 
 
 ```shell
+# From the repo root (the folder that contains pyproject.toml)
 pip install 'effector[calm,linux-mac]'
 ```
 
@@ -89,6 +91,7 @@ pip install 'effector[calm,linux-mac]'
 If you plan to modify the CALM source code:
 
 ```shell
+# From the repo root (the folder that contains pyproject.toml)
 pip install -e '.[calm,linux-mac]'
 ```
 
@@ -112,11 +115,11 @@ The default configuration of the CALM method is:
 All predictive results are obtained using standard 5-fold cross-validation.
 
 ### Synthetic example
-- Notebook: `effector/calm-experiments/synthetic_example.ipynb`
+- Notebook: `calm-experiments/synthetic_example.ipynb`
 - Description: Comparison of CALM against EBM, $EB^{2}M$ methods on 3 synthetic regression datasets
 
 ### Evaluation on Real Datasets
-All scripts should be executed from inside the `effector/calm-experiments/` directory to ensure relative paths and imports work correctly.
+All scripts should be executed from inside the `calm-experiments/` directory to ensure relative paths and imports work correctly.
 
 #### Main Paper Results
 For the main paper results the XGB, EBM, NAM, CALM, $EB^{2}M$, $NODE-GA^{2}M$, GAMI-Net methods were run in both regression and classification datasets. CALM is configured to run with the default configuration.
