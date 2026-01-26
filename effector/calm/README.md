@@ -60,7 +60,7 @@ To install the package normally (without editing the source code):
 
 ```shell
 # From the repo root (the folder that contains pyproject.toml)
-pip install 'effector[calm,windows]'
+pip install '.[calm,windows]'
 ```
 
 
@@ -83,7 +83,7 @@ To install the package normally (without editing the source code):
 
 ```shell
 # From the repo root (the folder that contains pyproject.toml)
-pip install 'effector[calm,linux-mac]'
+pip install '.[calm,linux-mac]'
 ```
 
 #### Editable Installation
