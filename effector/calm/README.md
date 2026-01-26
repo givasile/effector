@@ -15,7 +15,7 @@ This repository contains the official code for the paper titled **Interpretabili
 
 ## Package Installation
 
-To install the CALM package (as effector module) and its dependencies, follow the steps below.
+To install the CALM package (along with Effector) and its dependencies, follow the steps below.
 
 
 ### Set Up a Python Environment
