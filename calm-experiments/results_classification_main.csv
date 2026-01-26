@@ -1,2 +1,0 @@
-dataset,task,method,random_seed,test_size,region_detector,pcg_drop_thres,nof_splits_num,masked_gam,blackbox_model,accuracy,balanced_accuracy,f1,runtime_sec,num_interactions
-PMLB_APPENDICITIS,classification,XGBClassifier,42,0.2,,,,,,0.8181818181818182,0.5972222222222222,0.3333333333333333,0.10451793670654297,
