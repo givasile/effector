@@ -1,7 +1,5 @@
 import copy
-from tqdm import tqdm
 import numpy as np
-from scipy.special import expit
 import matplotlib.pyplot as plt
 
 from pygam import LinearGAM, LogisticGAM, s, f
@@ -12,7 +10,7 @@ from interpret.glassbox import (
     ExplainableBoostingClassifier,
 )
 
-from effector.calm import neural_additive_models
+from calm import neural_additive_models
 
 
 class MaskedGAM:

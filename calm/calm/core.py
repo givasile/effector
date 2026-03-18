@@ -1,3 +1,4 @@
+from random import seed
 from typing import Optional
 from abc import abstractmethod, ABC
 import numpy as np
@@ -128,20 +129,32 @@ class CALMBase(BaseEstimator, ABC):
 
     def set_random_seeds(self):
         import numpy as np
-        import tensorflow as tf
         import random
-        import torch
 
         seed = self.seed
+        if seed is None:
+            return
 
-        if seed is not None:
-            np.random.seed(seed)
+        np.random.seed(seed)
+        random.seed(seed)
+
+        try:
+            import tensorflow as tf
+
             tf.random.set_seed(seed)
-            random.seed(seed)
+        except ImportError:
+            pass
+
+        try:
+            import torch
+
             torch.manual_seed(seed)
-            torch.cuda.manual_seed_all(seed)
-            torch.backends.cudnn.deterministic = True
-            torch.backends.cudnn.benchmark = False
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(seed)
+                torch.backends.cudnn.deterministic = True
+                torch.backends.cudnn.benchmark = False
+        except ImportError:
+            pass
 
     def data_transform(self, X, tree, labels=None):
 

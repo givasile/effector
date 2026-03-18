@@ -1,7 +1,6 @@
 import tensorflow as tf
 import xgboost as xgb
 from abc import abstractmethod, ABC
-import tensorflow as tf
 from tensorflow import keras
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 

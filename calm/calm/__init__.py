@@ -5,11 +5,12 @@ Usage:
     from effector.calm import CALMRegressor, CALMClassifier, ...
 """
 
-from .calm import (
+from .core import (
     CALM_CLASSIFICATION_MODELS,
     CALM_REGRESSION_MODELS,
     RegionalPDPDetector,
     RegionalRHALEDetector,
+    RegionDetector,
     CALMRegressor,
     CALMClassifier,
 )
@@ -30,6 +31,7 @@ __all__ = [
     "CALM_REGRESSION_MODELS",
     "RegionalPDPDetector",
     "RegionalRHALEDetector",
+    "RegionDetector",
     "CALMRegressor",
     "CALMClassifier",
     "NoInteractionsEBMClassifier",

@@ -8,35 +8,35 @@ kfold_n_splits: 5
 
 datasets:
   - name: BikeSharing
-    module: effector.calm.datasets.bike_sharing
+    module: calm.datasets.bike_sharing
   - name: CaliforniaHousing
-    module: effector.calm.datasets.california_housing
+    module: calm.datasets.california_housing
   - name: ParkinsonsMotor
-    module: effector.calm.datasets.parkinsons
+    module: calm.datasets.parkinsons
   - name: ParkinsonsTotal
-    module: effector.calm.datasets.parkinsons
+    module: calm.datasets.parkinsons
   - name: SeoulBike
-    module: effector.calm.datasets.seoul_bike
+    module: calm.datasets.seoul_bike
   - name: Wine
-    module: effector.calm.datasets.wine
+    module: calm.datasets.wine
   - name: Energy
-    module: effector.calm.datasets.energy
+    module: calm.datasets.energy
   - name: CCPP
-    module: effector.calm.datasets.ccpp
+    module: calm.datasets.ccpp
   - name: Electrical
-    module: effector.calm.datasets.electrical
+    module: calm.datasets.electrical
   - name: Elevators
-    module: effector.calm.datasets.elevators
+    module: calm.datasets.elevators
   - name: No2
-    module: effector.calm.datasets.no2
+    module: calm.datasets.no2
   - name:  Sensory
-    module: effector.calm.datasets.sensory
+    module: calm.datasets.sensory
   - name: Airfoil
-    module: effector.calm.datasets.airfoil
+    module: calm.datasets.airfoil
   - name: SkillCraft
-    module: effector.calm.datasets.skill_craft
+    module: calm.datasets.skill_craft
   - name: Ailerons
-    module: effector.calm.datasets.ailerons
+    module: calm.datasets.ailerons
 
 
 methods:

@@ -1,31 +1,33 @@
 # Interpretability-by-Design with Accurate Locally Additive Models and Conditional Feature Effects
 
-This repository contains the official code for the paper titled **Interpretability-by-Design with Accurate Locally Additive Models and Conditional Feature Effects** implemented as a submodule of Effector.
+This repository contains the official code for the paper titled **Interpretability-by-Design with Accurate Locally Additive Models and Conditional Feature Effects**.
+
+CALM is provided as a standalone Python package and uses effector as an external dependency for regional effect estimation and partitioning.
 
 ## Table of Contents
 - [Package Installation](#package-installation)
+- [How to use CALM](#how-to-use-calm)
 - [Empirical Evaluation](#empirical-evaluation)
 - [Configuration File Options](#configuration-file-options)
-- [CALM Method](#calm-method)
+- [Package Structure](#package-structure)
 - [Analysis](#analysis)
 - [User Study](#user-study)
 - [Concept Visualization](#concept-visualization)
-- [GAMI-Net Compatibility Note](#️-note-on-gami-net-compatibility)
+- [Note on GAMI-Net Compatibility](#note-on-gami-net-compatibility)
 
 
 ## Package Installation
 
-To install the CALM package (along with Effector) and its dependencies, follow the steps below.
+The CALM package lives in the `calm/` directory.
 
 
 ### Set Up a Python Environment
 
-You can use either **Python's built-in `venv`** or **`conda`**.
+You can use either `venv` or `conda`.
 
-#### Option A: Using `venv` (recommended for most users)
+#### Option A: Using `venv`
 
 ```bash
-# Create and activate virtual environment
 python3.10 -m venv calm-env
 source calm-env/bin/activate   # On Linux/Mac
 # .\calm-env\Scripts\activate  # On Windows
@@ -33,12 +35,8 @@ source calm-env/bin/activate   # On Linux/Mac
 
 #### Option B: Using Conda
 ```bash
-# Create a new conda environment with Python = 3.10
 conda create -n calm-env python=3.10 -y
 conda activate calm-env
-
-# Change to project directory
-cd code
 ```
 
 ### Upgrade pip and setuptools 
@@ -46,63 +44,142 @@ cd code
 ```bash
 python -m pip install --upgrade pip setuptools
 ```
+### Install CALM
+From the `calm/` directory:
+
+#### Standard installation
+```bash
+pip install .
+```
+This installs the core CALM package
+
+#### Editable installation
+
+If you want to modify the source code and have changes reflected immediately without reinstalling:
+
+```bash
+pip install -e .
+```
+
+### Install CALM with experiments dependencies
+If you also want to run the paper experiments, notebooks, and competitor baselines:
+
+#### Standard installation
+
+```bash
+pip install ".[experiments]"
+```
+
+#### Editable installation
+
+```bash
+pip install -e ".[experiments]"
+```
+
+### Jupyter Notebook Support
+
+If you want to use notebooks:
+```bash
+python -m ipykernel install --user --name=calm-env --display-name="Python (calm-env)"
+```
+Then select `Python (calm-env)` as the notebook kernel.
 
 ⚠️ **TensorFlow Compatibility Note**
 
-Due to known issues with TensorFlow 2.19.0 on Windows, this project uses optional dependencies to ensure platform compatibility while matching the experimental setup used in the paper (TensorFlow 2.19.0).
+TensorFlow is declared with platform-specific dependency markers, so `pip` automatically installs the appropriate version for the current operating system:
 
-### 🪟 Windows users
-Use TensorFlow 2.18.0 for compatibility:
+- **Windows**: TensorFlow `2.18.0`
+- **Linux/macOS**: TensorFlow `2.19.0`
 
+This matches the experimental setup used in the paper and avoids known compatibility issues with TensorFlow 2.19.0 on Windows.
 
-#### Normal Installation
-To install the package normally (without editing the source code): 
+---
 
-```shell
-# From the repo root (the folder that contains pyproject.toml)
-pip install '.[calm,windows]'
+## How to Use CALM
+CALM is designed to be flexible. A user can:
+
+* use the default CALM pipeline
+* choose a different black-box model
+* choose a different region detector
+* choose a different masked GAM 
+* define custom components, as long as they follow the expected interface
+
+The notebook `calm/usage.ipynb` showcases these options in more detail.
+
+### 1. Default CALM usage
+
+The default CALM configuration uses:
+
+* black-box: XGBoost
+* region detector: PDP detector
+* masked GAM: EBM without interactions
+  
+```python
+from calm import CALMRegressor
+
+calm = CALMRegressor()
+calm.fit(X_train, y_train)
+
+y_pred = calm.predict(X_test)
 ```
 
 
-#### Editable Installation
+### 2. Using a different built-in black-box, region detector, and masked GAM
 
-If you plan to modify the CALM source code:
+CALM supports changing each stage of the pipeline.
+```python
+from calm import CALMRegressor, RegionalRHALEDetector
+from calm.blackbox import KerasBlackBoxRegressor
 
-```shell
-# From the repo root (the folder that contains pyproject.toml)
-pip install -e '.[calm,windows]' 
+rhale_region_detector = RegionalRHALEDetector(
+    heter_pcg_threshold=0.2,
+    nof_splits_numerical=20,
+)
+
+calm = CALMRegressor(
+    blackbox_model=KerasBlackBoxRegressor,
+    region_detector=rhale_region_detector,
+    masked_gam_name="MaskedNAMRegressor",
+)
+
+calm.fit(X_train, y_train)
+y_pred = calm.predict(X_test)
 ```
+Supported black-box choices include:
 
-Run this from the repo root (the folder that contains pyproject.toml)
+* `XGBRegressor`
+* `RFRegressor`
+* `KerasBlackBoxRegressor`
 
-### 🐧 Linux / 🍎 macOS users
-Use TensorFlow 2.19.0 to match the versions used in the paper:
+Supported masked GAM choices include:
 
-#### Normal Installation
-To install the package normally (without editing the source code): 
+* `"NoInteractionsEBMRegressor"`
+* `"WithInteractionsEBMRegressor"`
+* `"MaskedNAMRegressor"`
+* `"PyGAMRegressor"`
 
-```shell
-# From the repo root (the folder that contains pyproject.toml)
-pip install '.[calm,linux-mac]'
+and similarly for classification
+
+### 3. Defining a custom black-box model
+A custom black-box model should follow the `BlackBoxModel` interface and provide:
+
+* `fit`
+* `forward`
+* `predict`
+* `jac` if derivative-based regional methods are used
+
+### 4. Defining a custom region detector
+A custom region detector should inherit from `RegionDetector` and implement `detect_regions`.
+
+### 5. Inspecting the learned regional structure
+After fitting, the learned regional trees can be inspected feature by feature.
+
+```bash
+for k, v in calm.tree.items():
+    print(f"Feature: {k}")
+    v.show_full_tree()
+    print()
 ```
-
-#### Editable Installation
-
-If you plan to modify the CALM source code:
-
-```shell
-# From the repo root (the folder that contains pyproject.toml)
-pip install -e '.[calm,linux-mac]'
-```
-
-### Register Environment for Jupyter Notebooks
-
-If you plan to run notebooks, register your virtual environment as a Jupyter kernel:
-   ```bash
-   python -m ipykernel install --user --name=<env-name> --display-name=<display-name>
-
-   ```
-   Then, when you open a notebook, select <virtual-env-display-name> as the kernel.
 
 ---
 
@@ -242,8 +319,16 @@ You can create multiple YAML config files to easily run experiments with differe
 
 ---
 
-## CALM Method
-The core CALM method implementation is located in `effector/calm/calm.py`
+## Package Structure
+The main CALM implementation lives in `calm/calm/`.
+
+The most important modules are:
+
+* calm/core.py: main CALM estimators and region detectors
+* calm/blackbox.py: black-box model wrappers
+* calm/masked_fitting.py: final-stage masked GAM implementations
+* calm/competitors.py: baseline competitor models
+* calm/datasets/: dataset loaders used in experiments
 
 ---
 
@@ -269,7 +354,7 @@ The figures related to the user study are generated using the following notebook
 The notebook `calm-experiments/concept_image.ipynb` reproduces Figures 1–2 from the paper. It visualizes how CALM models conditional feature effects, highlights interaction-based discontinuities, and illustrates region-specific contributions.
 
 
-## ⚠️ Note on GAMI-Net Compatibility
+## Note on GAMI-Net Compatibility
 
 The `GAMI-Net`, included as a **baseline competitor**, depends on a native binary (`lib_ebmcore_mac_x64.dylib`) compiled for **x86_64** architecture.
 

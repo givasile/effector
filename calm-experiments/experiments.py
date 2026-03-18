@@ -14,22 +14,22 @@ import time
 import warnings
 import torch
 from utils import metrics, logging_utils
-from effector.calm.datasets.base import Dataset
-from effector.calm.calm import (
+from calm.datasets.base import Dataset
+from calm import (
     CALM_CLASSIFICATION_MODELS,
     CALM_REGRESSION_MODELS,
     RegionalPDPDetector,
     RegionalRHALEDetector,
 )
-from effector.calm.masked_fitting import (
+from calm.masked_fitting import (
     MASKED_GAM_CLASSIFICATION_MODELS,
     MASKED_GAM_REGRESSION_MODELS,
 )
-from effector.calm.competitors import (
+from calm.competitors import (
     COMPETITOR_CLASSIFICATION_MODELS,
     COMPETITOR_REGRESSION_MODELS,
 )
-from effector.calm.blackbox import (
+from calm.blackbox import (
     CLASSIFICATION_DATASETS_BLACKBOX,
     REGRESSION_DATASETS_BLACKBOX,
 )
@@ -568,7 +568,7 @@ class ExperimentRunner:
             metric_results["num_interactions"] = model.interactions_info["leaf"] // 2
 
         if method_type == "competitor":
-            from effector.calm.competitors import (
+            from calm.competitors import (
                 EBM2Classifier,
                 EBM2Regressor,
                 NodeGAM2Classifier,

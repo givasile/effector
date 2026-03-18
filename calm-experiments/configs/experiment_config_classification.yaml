@@ -8,25 +8,25 @@ kfold_n_splits: 5
 
 datasets:
   - name: Adult
-    module: effector.calm.datasets.adult
+    module: calm.datasets.adult
   - name: COMPAS
-    module: effector.calm.datasets.compas
+    module: calm.datasets.compas
   - name: HELOC
-    module: effector.calm.datasets.heloc
+    module: calm.datasets.heloc
   - name: MIMIC2
-    module: effector.calm.datasets.mimic2
+    module: calm.datasets.mimic2
   - name: PMLB_APPENDICITIS
-    module: effector.calm.datasets.pmlb
+    module: calm.datasets.pmlb
   - name: PMLB_PHONEME
-    module: effector.calm.datasets.pmlb
+    module: calm.datasets.pmlb
   - name: PMLB_SPECTF
-    module: effector.calm.datasets.pmlb
+    module: calm.datasets.pmlb
   - name: Magic
-    module: effector.calm.datasets.magic
+    module: calm.datasets.magic
   - name: Bank
-    module: effector.calm.datasets.bank
+    module: calm.datasets.bank
   - name: PMLB_CHURN
-    module: effector.calm.datasets.pmlb
+    module: calm.datasets.pmlb
 
 methods:
   - name: DNNClassifier
