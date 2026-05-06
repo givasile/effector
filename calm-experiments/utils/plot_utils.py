@@ -489,13 +489,16 @@ def plot_ga2m_for_feature(
         if display_labels_map
         else xlabel
     )
-    ax.set_xlabel(xlabel_display, fontsize=fontsize + 1)
+    if n_terms == 0:
+        ax.set_xlabel(xlabel_display, fontsize=fontsize + 1)
     y_label = y_display_label if y_display_label is not None else "y"
     ax.set_ylabel(y_label, fontsize=fontsize + 1)
     ax.tick_params(
         axis="both",
         labelsize=fontsize,
     )
+    if n_terms > 0:
+        ax.tick_params(axis="x", labelbottom=False)
     if display_title:
         ax.set_title(r"GA$^2$M Shape function")
     if ylim is not None:
@@ -621,7 +624,8 @@ def plot_ga2m_for_feature(
         xlabel_display = (
             display_labels_map.get(xlabel, xlabel) if display_labels_map else xlabel
         )
-        ax.set_xlabel(xlabel_display, fontsize=fontsize + 1)
+        if i == n_terms - 1:
+            ax.set_xlabel(xlabel_display, fontsize=fontsize + 1)
         ylabel = rf"${{{ylabel}}}$" if format_latex else ylabel
         y_label_display = (
             display_labels_map.get(ylabel, ylabel) if display_labels_map else ylabel
@@ -634,6 +638,8 @@ def plot_ga2m_for_feature(
             axis="both",
             labelsize=fontsize,
         )
+        if i < n_terms - 1:
+            ax.tick_params(axis="x", labelbottom=False)
 
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
