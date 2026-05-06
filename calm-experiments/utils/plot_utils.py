@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy.interpolate import make_interp_spline
+from scipy.signal import savgol_filter
 
 from interpret import show
 from sklearn.base import clone
@@ -381,6 +383,10 @@ def plot_ga2m_for_feature(
     fontsize=12,
     display_labels_map=None,
     y_display_label=None,
+    smooth=True,
+    smooth_window=7,
+    smooth_polyorder=3,
+    save_format='pdf',
 ):
     def prepare_edges_and_labels(values):
         n = len(values)
@@ -454,9 +460,28 @@ def plot_ga2m_for_feature(
         ax.set_xticklabels(x, rotation=right_rotate)
     else:
         y = y - np.mean(y)
-        ax.plot(x, y, linewidth=2, color="green")
-        if show_confidence and lower is not None and upper is not None:
-            ax.fill_between(x, lower, upper, alpha=0.2)
+        x = x.astype(float)
+        if smooth and len(x) > 3:
+            sort_idx = np.argsort(x)
+            xs, ys = x[sort_idx], y[sort_idx]
+            w = min(smooth_window, len(ys))
+            if w % 2 == 0:
+                w -= 1
+            p = min(smooth_polyorder, w - 1)
+            ys = savgol_filter(ys.astype(float), window_length=w, polyorder=p)
+            x_dense = np.linspace(xs[0], xs[-1], 300)
+            y_dense = make_interp_spline(xs, ys, k=3)(x_dense)
+            ax.plot(x_dense, y_dense, linewidth=2, color="green")
+            if show_confidence and lower is not None and upper is not None:
+                lower_sm = savgol_filter(lower[sort_idx].astype(float), window_length=w, polyorder=p)
+                upper_sm = savgol_filter(upper[sort_idx].astype(float), window_length=w, polyorder=p)
+                lower_dense = make_interp_spline(xs, lower_sm, k=3)(x_dense)
+                upper_dense = make_interp_spline(xs, upper_sm, k=3)(x_dense)
+                ax.fill_between(x_dense, lower_dense, upper_dense, alpha=0.2)
+        else:
+            ax.plot(x, y, linewidth=2, color="green")
+            if show_confidence and lower is not None and upper is not None:
+                ax.fill_between(x, lower, upper, alpha=0.2)
 
     xlabel = rf"${{{xlabel}}}$" if format_latex else xlabel
     xlabel_display = (
@@ -627,13 +652,13 @@ def plot_ga2m_for_feature(
 
     fig.tight_layout()
     if save_dir:
-        filename = os.path.join(save_dir, f"ga2m_{feat_labels[feat_idx]}.jpg")
+        filename = os.path.join(save_dir, f"ga2m_{feat_labels[feat_idx]}.{save_format}")
         plt.savefig(
             filename,
             dpi=300,
             bbox_inches="tight",
             facecolor=fig.get_facecolor(),
-            format="jpg",
+            format=save_format,
         )
         print(f"Saved subplot heatmap to {filename}")
     plt.show()
@@ -659,6 +684,10 @@ def plot_shape_functions_multiple(
     fontsize=12,
     display_labels_map=None,
     y_display_label=None,
+    smooth=True,
+    smooth_window=7,
+    smooth_polyorder=3,
+    save_format='pdf',
 ):
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -755,9 +784,27 @@ def plot_shape_functions_multiple(
             color = colors[i % len(colors)]
             label = model_labels[i] if model_labels is not None else None
 
-            ax.plot(x, y, label=label, color=color, linewidth=2)
-            if show_confidence and lower is not None and upper is not None:
-                ax.fill_between(x, lower, upper, color=color, alpha=0.2)
+            if smooth and len(x) > 3:
+                sort_idx = np.argsort(x)
+                xs, ys = x[sort_idx], y[sort_idx]
+                w = min(smooth_window, len(ys))
+                if w % 2 == 0:
+                    w -= 1
+                p = min(smooth_polyorder, w - 1)
+                ys = savgol_filter(ys.astype(float), window_length=w, polyorder=p)
+                x_dense = np.linspace(xs[0], xs[-1], 300)
+                y_dense = make_interp_spline(xs, ys, k=3)(x_dense)
+                ax.plot(x_dense, y_dense, label=label, color=color, linewidth=2)
+                if show_confidence and lower is not None and upper is not None:
+                    lower_sm = savgol_filter(lower[sort_idx].astype(float), window_length=w, polyorder=p)
+                    upper_sm = savgol_filter(upper[sort_idx].astype(float), window_length=w, polyorder=p)
+                    lower_dense = make_interp_spline(xs, lower_sm, k=3)(x_dense)
+                    upper_dense = make_interp_spline(xs, upper_sm, k=3)(x_dense)
+                    ax.fill_between(x_dense, lower_dense, upper_dense, color=color, alpha=0.2)
+            else:
+                ax.plot(x, y, label=label, color=color, linewidth=2)
+                if show_confidence and lower is not None and upper is not None:
+                    ax.fill_between(x, lower, upper, color=color, alpha=0.2)
 
     xlabel = rf"${{{feature_label}}}$" if format_latex else feature_label
     xlabel = (
@@ -791,7 +838,7 @@ def plot_shape_functions_multiple(
             dpi=300,
             bbox_inches="tight",
             facecolor=fig.get_facecolor(),
-            format="jpg",
+            format=save_format,
         )
         print(f"Saved combined shape function plot to {save_path}")
     else:
@@ -819,6 +866,11 @@ def plot_calm_gam_shape_function(
     fontsize=12,
     display_labels_map=None,
     y_display_label=None,
+    smooth=True,
+    smooth_window=7,
+    smooth_polyorder=3,
+    save_format='pdf',
+    ga2m_figsize=None,
 ):
 
     if calm is not None:
@@ -880,7 +932,7 @@ def plot_calm_gam_shape_function(
             figsize=figsize,
             ylim=ylim,
             save_path=(
-                os.path.join(save_dir, f"gam_{feature_label}.jpg") if save_dir else None
+                os.path.join(save_dir, f"gam_{feature_label}.{save_format}") if save_dir else None
             ),
             t=t,
             categorical_features=categorical_features,
@@ -891,6 +943,10 @@ def plot_calm_gam_shape_function(
             fontsize=fontsize,
             display_labels_map=display_labels_map,
             y_display_label=y_display_label,
+            smooth=smooth,
+            smooth_window=smooth_window,
+            smooth_polyorder=smooth_polyorder,
+            save_format=save_format,
         )
 
     if calm is not None:
@@ -906,7 +962,7 @@ def plot_calm_gam_shape_function(
             colors=calm_colors,
             ylim=ylim,
             save_path=(
-                os.path.join(save_dir, f"calm_{feature_label}.jpg")
+                os.path.join(save_dir, f"calm_{feature_label}.{save_format}")
                 if save_dir
                 else None
             ),
@@ -919,13 +975,17 @@ def plot_calm_gam_shape_function(
             fontsize=fontsize,
             display_labels_map=display_labels_map,
             y_display_label=y_display_label,
+            smooth=smooth,
+            smooth_window=smooth_window,
+            smooth_polyorder=smooth_polyorder,
+            save_format=save_format,
         )
 
     if ga2m is not None:
         plot_ga2m_for_feature(
             ga2m,
             feat_idx=feat_idx,
-            figsize=(figsize[0], figsize[1]),
+            figsize=ga2m_figsize if ga2m_figsize is not None else figsize,
             save_dir=save_dir,
             ylim=ylim,
             feat_labels=feat_labels,
@@ -941,4 +1001,8 @@ def plot_calm_gam_shape_function(
             fontsize=fontsize,
             display_labels_map=display_labels_map,
             y_display_label=y_display_label,
+            smooth=smooth,
+            smooth_window=smooth_window,
+            smooth_polyorder=smooth_polyorder,
+            save_format=save_format,
         )
