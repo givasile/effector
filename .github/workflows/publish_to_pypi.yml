@@ -6,8 +6,44 @@ on:
       - "v*.*"
 
 jobs:
+  verify-tag-on-main:
+    name: Verify tag is on main
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure tagged commit is on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor ${{ github.sha }} origin/main; then
+            echo "::error::Tag ${{ github.ref_name }} does not point to a commit on main"
+            exit 1
+          fi
+
+  test:
+    name: Run tests
+    needs: verify-tag-on-main
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Run tests
+        run: uv run --python 3.10 --no-default-groups --group test pytest tests -m "not slow"
+
   publish:
     name: Build & Publish to PyPI
+    needs: test
     runs-on: ubuntu-latest
 
     environment: pypi
@@ -26,6 +62,12 @@ jobs:
 
       - name: Build package
         run: uv build --python 3.10
+
+      - name: Smoke test built wheel
+        run: |
+          uv venv /tmp/smoke-env --python 3.10
+          uv pip install --python /tmp/smoke-env/bin/python dist/*.whl
+          /tmp/smoke-env/bin/python -c "import effector"
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
