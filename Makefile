@@ -1,75 +1,42 @@
 # global variables
 SHELL := /bin/bash
-
 PROJECT_NAME = effector
-PYTHON ?= 3.10
-ENV ?= sandbox
-REQUIREMENTS := $(if $(findstring sandbox,$(ENV)),requirements.txt,requirements-$(ENV).txt)
 
-# Conda related commands
-.PHONY: conda-remove-env
-conda-remove-env:
-	@conda env list | grep -q "^$(PROJECT_NAME)-$(ENV) " && conda env remove --name $(PROJECT_NAME)-$(ENV) -y || echo "Environment $(PROJECT_NAME)-$(ENV) does not exist, skipping removal."
+# Environment ---------------------------------------------------------------
+.PHONY: install
+install:  ## create/update .venv with all dev dependencies (uv)
+	uv sync
 
-.PHONY: conda-create-env
-conda-create-env:
-	@conda create --name $(PROJECT_NAME)-$(ENV) python=$(PYTHON) -y
-
-.PHONY: conda-install-requirements
-conda-install-requirements:
-	@conda run -n $(PROJECT_NAME)-$(ENV) pip install --upgrade pip
-	@conda run -n $(PROJECT_NAME)-$(ENV) pip install -r $(REQUIREMENTS)
-	@conda run -n $(PROJECT_NAME)-$(ENV) pip install -e .
-
-.PHONY: conda-init
-conda-init: conda-remove-env conda-create-env conda-install-requirements
-
-.PHONY: conda-update
-conda-update: conda-install-requirements
-
-# Pip related commands
-.PHONY: venv-remove
-venv-remove:
-	rm -rf .venv-$(ENV)
-
-.PHONY: venv-create
-venv-create:
-	python -m venv .venv-$(ENV)
-
-.PHONY: venv-install-requirements
-venv-install-requirements:
-	source .venv-$(ENV)/bin/activate && python -m pip install --upgrade pip
-	source .venv-$(ENV)/bin/activate && python -m pip install -r $(REQUIREMENTS)
-	source .venv-$(ENV)/bin/activate && python -m pip install -e .
-
-.PHONY: venv-init
-venv-init: venv-remove venv-create venv-install-requirements
-
-.PHONY: venv-update
-venv-update: venv-install-requirements
-
-# Documentation related commands
-.PHONY: docs-update
-docs-update:
-	@source .venv-dev/bin/activate && jupyter nbconvert --to markdown ./notebooks/real-examples/* --output-dir docs/docs/Tutorials/real-examples/
-	@source .venv-dev/bin/activate && jupyter nbconvert --to markdown ./notebooks/synthetic-examples/* --output-dir docs/docs/Tutorials/synthetic-examples/
-	@source .venv-dev/bin/activate && jupyter nbconvert --to markdown ./notebooks/getting-started/* --output-dir docs/docs/Tutorials/getting-started/
-
-docs-serve:
-	@source .venv-dev/bin/activate && cd docs/ && mkdocs serve
-
-# Test related commands
+# Tests ---------------------------------------------------------------------
 .PHONY: test
-test:
-	@source .venv-test/bin/activate && pytest -v
+test:  ## run the fast test suite (the merge gate: -m "not slow")
+	uv run --no-default-groups --group test pytest tests -m "not slow"
 
-# Delete all compiled Python files
+.PHONY: test-all
+test-all:  ## run the full test suite, including slow tests
+	uv run --no-default-groups --group test pytest tests
+
+# Code style ----------------------------------------------------------------
+.PHONY: format
+format:  ## format the source code with black
+	uv run --group dev black $(PROJECT_NAME)
+
+# Documentation -------------------------------------------------------------
+.PHONY: docs-serve
+docs-serve:  ## serve the documentation locally
+	uv run --no-default-groups --group docs mkdocs serve -f docs/mkdocs.yml
+
+.PHONY: docs-build
+docs-build:  ## build the documentation site
+	uv run --no-default-groups --group docs mkdocs build -f docs/mkdocs.yml
+
+.PHONY: docs-update
+docs-update:  ## regenerate tutorial markdown from the notebooks
+	uv run --extra tutorials jupyter nbconvert --to markdown ./notebooks/real-examples/* --output-dir docs/docs/Tutorials/real-examples/
+	uv run --extra tutorials jupyter nbconvert --to markdown ./notebooks/synthetic-examples/* --output-dir docs/docs/Tutorials/synthetic-examples/
+
+# Housekeeping --------------------------------------------------------------
 .PHONY: clean
-clean:
+clean:  ## delete compiled Python files
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
-
-## Format source code with black
-.PHONY: format
-format:
-	black --config pyproject.toml $(PROJECT_NAME)

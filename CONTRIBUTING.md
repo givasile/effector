@@ -110,9 +110,15 @@ The tag triggers the publish to PyPI automatically.
 
 ## Running things locally
 
+We use [uv](https://docs.astral.sh/uv/) to manage the environment. Install it once
+([instructions](https://docs.astral.sh/uv/getting-started/installation/)), then:
+
 ```bash
-make test      # run the test suite
-make format    # format the code (black)
+uv sync          # create .venv and install all dev dependencies
+make test        # run the fast test suite (the merge gate)
+make test-all    # run the full suite, including slow tests
+make format      # format the code (black)
+make docs-serve  # preview the docs locally
 ```
 
 ---
