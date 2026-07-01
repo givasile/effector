@@ -420,3 +420,58 @@ asset; these are the gaps that most threaten it, in priority order. They feed Ph
 7. **2D / interaction effects.** The deleted `interaction.py` ideas (H-index, 2D
    PDP/ALE) return as *new* code written once against the unified base — only after
    1–3 are done.
+
+### 6.4a Categorical-FOI spec (detail for item 4)
+
+Decision (2026-07-02): categorical features as feature-of-interest do **not** break the
+method symmetry — it survives at the level that matters: every supported method reduces
+to *per-bin effect + per-bin variance with bins = levels*, so `eval(feature, levels,
+heterogeneity=True)` keeps the one contract and the regional machinery (which only
+consumes the heterogeneity callable) works unchanged.
+
+Capability matrix (becomes two R5-registry fields: `supports_categorical_foi: bool` +
+the cat strategy — code, not convention):
+
+| method | categorical kernel | verdict |
+|---|---|---|
+| PDP | ICE evaluated at levels; h(k) = Var over instances per level | exact |
+| ALE | local differences between *adjacent levels* (never bin edges — invalid category values) | exact for ordinal; induced order for nominal |
+| RHALE | level differences (= discrete derivative) + Greedy/DP merging over the level order = **adaptive level grouping** | principled analog; keeps RHALE's identity (precedent: RHALE already falls back to numerical diff without `model_jac`) |
+| ShapDP | per-level mean/variance of shap values (coalitions need no order/distance); step lookup instead of `interp1d` | exact — cleanest of all |
+| DerPDP | — rejected with a clear error | already the asymmetric method (derivative units, excluded from `FeatureEffect`); its cat analog is derivable from PDP-cat bars |
+
+Design points:
+
+- **Nominal vs ordinal is the user's call**, surfaced as `order=`:
+  `order=[...]` (declared, e.g. education) reduces to the ordinal case;
+  `order="similarity"` (Molnar/iml: summed KS distance of other features across levels →
+  seriate to 1D — adjacent differences meaningful, curve shape order-dependent, say so in
+  docs); `order="effect"` (sort by PDP value — display only).
+- **Centering maps cleanly**: `zero_integral` → frequency-weighted mean over levels = 0;
+  `zero_start` → reference level = 0 (the natural categorical centering, as in dummy
+  coding).
+- **Regional-on-cat is the payoff**: heterogeneity per level → frequency-weighted scalar
+  → the partitioner works as-is; flip `search_partitions_when_categorical` once defined.
+  ("For which subgroups is the *weekday* effect stable?" — no competing package has it.)
+- **Extras that fall out free**: automatic level grouping = existing Greedy merging over
+  the level order; high cardinality = rare-level pooling into `"other"` via `cat_limit`.
+- **Plots**: bars with heterogeneity whiskers; `heterogeneity="ice"` → jittered per-level
+  dots; shap scatter already works per level.
+
+Effort estimate (assumes homogenization + contract suite are done; tests are cheap —
+small N, no SHAP beyond one tiny case):
+
+| phase | scope | est. |
+|---|---|---|
+| 0 | `feature_types` in global classes + registry fields + DerPDP clear error | ~1 h |
+| 1 | PDP-cat: eval at levels, centering, bar plot + tests (new closed-form cat model in `effector.models`) | ~2.5 h |
+| 2 | heterogeneity per level + regional-on-cat (flip the flag, contract + GT tests) | ~2 h |
+| 3 | ALE-cat ordinal: level-pair local-effect kernel, reuse `compute_ale_params` | ~3 h |
+| 4 | RHALE-cat: transition diffs as `data_effect` + Greedy/DP level grouping | ~2 h |
+| 5 | ShapDP-cat: level bins + step lookup | ~1.5 h |
+| 6 | nominal `order=` ("similarity" seriation is most of the code) + docs honesty pass | ~3 h |
+| **total** | | **~15 h ≈ 2 focused days** (phases 0–5; +½ day for nominal ordering) |
+
+Sequencing: 0 → 1 → 2 (differentiator) → 3 → 4 → 5 → 6. Each phase lands with its own
+closed-form ground-truth test per `TESTING_PLAN.md` §8 ("new ground truths over new
+smoke tests").
