@@ -49,6 +49,8 @@ test = [
     "coverage",
     "shap",
     "shapiq",
+    "numba>=0.60; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "ucimlrepo",
 ]
 docs = [
     "mkdocs",
