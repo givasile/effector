@@ -43,3 +43,8 @@ tracker = "https://github.com/givasile/effector/issues"
 
 [project.optional-dependencies]
 tutorials = ["ipython", "pandas", "tensorflow-cpu", "keras", "ucimlrepo", "jupyter", "openml", "tabpfn"]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselected on the merge gate with '-m \"not slow\"')",
+]

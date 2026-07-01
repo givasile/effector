@@ -1,7 +1,9 @@
 import numpy as np
+import pytest
 import effector
 
 
+@pytest.mark.slow
 def test_regional():
     np.random.seed(21)
 

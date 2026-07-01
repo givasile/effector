@@ -1,6 +1,8 @@
 import numpy as np
+import pytest
 import effector
 
+@pytest.mark.slow
 def test_gam():
     """
     Test the vectorized version of the SHAP function for a square model
