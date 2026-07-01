@@ -253,6 +253,56 @@ def plot_pdp_ice(
         return fig, ax
 
 
+def plot_effect_comparison(
+    x: np.ndarray,
+    feature: int,
+    curves: dict,
+    scale_x: typing.Union[None, dict] = None,
+    scale_y: typing.Union[None, dict] = None,
+    avg_output: typing.Union[None, float] = None,
+    feature_names: typing.Union[None, list] = None,
+    target_name: typing.Union[None, str] = None,
+    y_limits: typing.Union[None, tuple] = None,
+    title: typing.Union[None, str] = None,
+    show_plot: bool = True,
+):
+    """Overlay the mean effect of several methods for one feature on a single axis.
+
+    Parameters
+    ----------
+    x: the common grid the curves are evaluated on, shape `(T,)`
+    feature: index of the feature being plotted
+    curves: mapping `{method_label: y}` where each `y` has shape `(T,)`
+    scale_x, scale_y: None or Dict with keys ['mean', 'std'] for de-normalization
+    avg_output: None or float, plotted as a horizontal reference line
+    """
+    fig, ax = plt.subplots()
+    ax.set_title("Feature Effect Comparison" if title is None else title)
+
+    x = x if scale_x is None else trans_affine(x, scale_x["mean"], scale_x["std"])
+
+    for label, y in curves.items():
+        y = y if scale_y is None else trans_affine(y, scale_y["mean"], scale_y["std"])
+        ax.plot(x, y, label=label)
+
+    if avg_output is not None:
+        ax.axhline(y=avg_output, color="black", linestyle="--", label="avg output")
+
+    feature_name = (
+        "x_%d" % (feature + 1) if feature_names is None else feature_names[feature]
+    )
+    ax.set_xlabel(feature_name)
+    ax.set_ylabel("y") if target_name is None else ax.set_ylabel(target_name)
+    ax.legend()
+    if y_limits is not None:
+        ax.set_ylim(y_limits[0], y_limits[1])
+
+    if show_plot:
+        plt.show(block=False)
+    else:
+        return fig, ax
+
+
 def plot_shap(
     x: np.ndarray,
     y: np.ndarray,
