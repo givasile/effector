@@ -57,9 +57,8 @@ jobs:
       with:
           repository: xai-effector/xai-effector.github.io
           ref: gh-pages
-          token: ${{ secrets.EFFECTOR_GITHUB_API_KEY }}
+          ssh-key: ${{ secrets.EFFECTOR_DOCS_DEPLOY_KEY }}
           path: xai-effector.github.io
-          persist-credentials: false
 
     - name: rm old site and copy new site
       run: |
@@ -76,5 +75,5 @@ jobs:
               echo "No changes to commit"
               exit 0
           fi
-          git commit -m "Update site from ntipakos/effector"
-          git push --force https://x-access-token:${{ secrets.EFFECTOR_GITHUB_API_KEY }}@github.com/xai-effector/xai-effector.github.io.git gh-pages
+          git commit -m "Update site from givasile/effector"
+          git push --force origin gh-pages
