@@ -103,18 +103,11 @@
 - shap_dp (both global and regional) can now take custom arguments for the SHAP explainer
 
 ## [0.1.2] - 2025-02-22
->>>>>>> main
 
 ### Changed
 
 - all plots return a `fig, ax` tuple, if the user wants to modify the plot further.
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
 - default plot titles now display full method name, e.g., `Accumulated Local Effects` instead of `ALE`.
->>>>>>> main
-=======
->>>>>>> main
 - changed README.md to reflect the new changes.
 
 ### Added 
