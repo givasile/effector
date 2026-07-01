@@ -1,5 +1,17 @@
 # Changelog
 
+# [0.2.1] - 2026-07-01
+
+### Changed
+
+- modernized GitHub Actions CI: replaced `black`/`flake8`/`isort` with `ruff`, added a Python 3.10-3.13 test matrix, gated PyPI publishing behind a main-ancestry check + test run + wheel smoke test, added a docs build-check on PRs, pinned workflow permissions, added concurrency cancellation, and added `dependabot.yml`
+- PyPI releases now auto-create a matching GitHub Release with notes from this changelog
+
+### Fixed
+
+- fixed a latent `NameError` in `RegionalEffectBase._fit_feature`'s string-based `space_partitioner` fallback (`effector/regional_effect.py`)
+- fixed `prep_dale_fit_params` validating `max_nof_bins` twice instead of `min_points_per_bin` (`effector/helpers.py`)
+
 # [0.2.0] - 2025-07-21
 
 ### Changed
