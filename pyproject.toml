@@ -49,6 +49,8 @@ test = [
     "coverage",
     "shap",
     "shapiq",
+    "numba>=0.60; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "ucimlrepo",
 ]
 docs = [
     "mkdocs",
@@ -60,12 +62,22 @@ docs = [
 dev = [
     {include-group = "test"},
     {include-group = "docs"},
-    "black",
-    "flake8",
-    "isort",
+    "ruff",
 ]
 
 [tool.pytest.ini_options]
 markers = [
     "slow: marks tests as slow (deselected on the merge gate with '-m \"not slow\"')",
 ]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"effector/__init__.py" = ["F401"]
+"tests/*" = ["E731", "F403", "F405"]

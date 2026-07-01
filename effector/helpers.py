@@ -1,7 +1,7 @@
-import typing
-import numpy as np
 import re
+import typing
 
+import numpy as np
 
 BIG_M = 1e8
 EPS = 1e-8
@@ -12,7 +12,7 @@ def prep_features(feat: typing.Union[str, list], D) -> list:
     assert type(feat) in [list, str, int]
     if feat == "all":
         feat = [i for i in range(D)]
-    elif type(feat) == int:
+    elif isinstance(feat, int):
         feat = [feat]
     return feat
 
@@ -58,17 +58,17 @@ def prep_dale_fit_params(par: dict):
         par["bin_method"] = "fixed"
 
     if "nof_bins" in par.keys():
-        assert type(par["nof_bins"]) == int
+        assert isinstance(par["nof_bins"], int)
     else:
         par["nof_bins"] = 100
 
     if "max_nof_bins" in par.keys():
-        assert type(par["max_nof_bins"]) == int
+        assert isinstance(par["max_nof_bins"], int)
     else:
         par["max_nof_bins"] = 20
 
     if "min_points_per_bin" in par.keys():
-        assert type(par["max_nof_bins"]) == int
+        assert isinstance(par["min_points_per_bin"], int)
     else:
         par["min_points_per_bin"] = None
 
@@ -77,7 +77,7 @@ def prep_dale_fit_params(par: dict):
 
 def prep_ale_fit_params(par: dict):
     if "nof_bins" in par.keys():
-        assert type(par["nof_bins"]) == int
+        assert isinstance(par["nof_bins"], int)
     else:
         par["nof_bins"] = 100
     return par
@@ -136,10 +136,13 @@ def indices_within_limits(data: np.ndarray, axis_limits: np.ndarray) -> np.ndarr
     for feature in range(dim):
         accept_left = data[:, feature] >= axis_limits[0, feature]
         accept_right = data[:, feature] <= axis_limits[1, feature]
-        accept_indices = np.logical_and.reduce([accept_indices, accept_left, accept_right])
+        accept_indices = np.logical_and.reduce(
+            [accept_indices, accept_left, accept_right]
+        )
     assert np.sum(accept_indices) > 0
     return accept_indices
 
+
 def camel_to_snake(name: str) -> str:
     """Convert CamelCase to snake_case."""
-    return '_'.join(re.findall(r'[A-Z][a-z]*|\d+', name)).lower()
+    return "_".join(re.findall(r"[A-Z][a-z]*|\d+", name)).lower()

@@ -13,30 +13,16 @@ def test_pdp_1d_vectorized():
     N = 10
     T = 100
 
-    data = np.stack([
-        np.random.rand(N + 1),
-        np.linspace(0, 1, N+1)
-    ], axis=1)
+    data = np.stack([np.random.rand(N + 1), np.linspace(0, 1, N + 1)], axis=1)
 
     model = lambda x: x[:, 1] ** 2
-    model_jac = lambda x: (
-        np.stack(
-            [
-            np.zeros_like(x[:, 1]),
-            2 * x[:, 1]
-            ],
-        axis=1
-    ))
+    model_jac = lambda x: np.stack([np.zeros_like(x[:, 1]), 2 * x[:, 1]], axis=1)
 
     x = np.linspace(0, 1, T)
 
     # test the pdp version
     yy = effector.global_effect_pdp.ice_vectorized(
-        model=model,
-        model_jac=None,
-        data=data,
-        x=x,
-        feature=1
+        model=model, model_jac=None, data=data, x=x, feature=1
     )
 
     # ground truth
@@ -47,15 +33,10 @@ def test_pdp_1d_vectorized():
 
     # test the jacobian version
     yy = effector.global_effect_pdp.ice_vectorized(
-        model=model,
-        model_jac=model_jac,
-        data=data,
-        x=x,
-        feature=1,
-        return_d_ice=True
+        model=model, model_jac=model_jac, data=data, x=x, feature=1, return_d_ice=True
     )
 
-    yy_gt = np.stack([2*x for _ in range(N + 1)], axis=1)
+    yy_gt = np.stack([2 * x for _ in range(N + 1)], axis=1)
     diff = np.abs(yy_gt - yy)
     assert np.all(diff < 1e-6)
 
@@ -68,8 +49,6 @@ def test_pdp_1d_vectorized():
         feature=1,
         return_d_ice=True,
     )
-    yy_gt = np.stack([2*x for _ in range(N + 1)], axis=1)
+    yy_gt = np.stack([2 * x for _ in range(N + 1)], axis=1)
     diff = np.abs(yy - yy_gt)
     assert np.all(diff < 1e-6)
-
-

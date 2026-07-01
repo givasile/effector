@@ -1,9 +1,10 @@
 import typing
 
-import numpy as np
-import effector.utils as utils
-import effector.helpers as helpers
 import matplotlib.pyplot as plt
+import numpy as np
+
+import effector.helpers as helpers
+import effector.utils as utils
 
 
 class Base:
@@ -189,15 +190,16 @@ class Greedy(Base):
         }
         super(Greedy, self).__init__("greedy", method_args)
 
-
-    def find_limits(self, data, data_effect, axis_limits) -> typing.Union[np.ndarray, bool]:
+    def find_limits(
+        self, data, data_effect, axis_limits
+    ) -> typing.Union[np.ndarray, bool]:
 
         self._preprocess_find(data, data_effect, axis_limits)
         xs_min = self.xs_min
         xs_max = self.xs_max
         init_nof_bins = self.method_args["init_nof_bins"]
         discount = self.method_args["discount"]
-        cat_limit = self.method_args["cat_limit"]
+        _cat_limit = self.method_args["cat_limit"]
 
         if self._none_valid_binning():
             self.limits = False
@@ -263,8 +265,13 @@ class Greedy(Base):
 
 
 class DynamicProgramming(Base):
-
-    def __init__(self, max_nof_bins: int = 20, min_points_per_bin: int = 2., discount: float = 0.3, cat_limit: int = 10):
+    def __init__(
+        self,
+        max_nof_bins: int = 20,
+        min_points_per_bin: int = 2.0,
+        discount: float = 0.3,
+        cat_limit: int = 10,
+    ):
         assert min_points_per_bin >= 2, "min_points_per_bin should be at least 2"
         method_args = {
             "max_nof_bins": max_nof_bins,
@@ -298,9 +305,9 @@ class DynamicProgramming(Base):
         return cost
 
     def _argmatrix_to_limits(self, K):
-        assert (
-            "argmatrix" in self.method_outputs
-        ), "argmatrix not found in method_outputs"
+        assert "argmatrix" in self.method_outputs, (
+            "argmatrix not found in method_outputs"
+        )
         argmatrix = self.method_outputs["argmatrix"]
         dx = (self.xs_max - self.xs_min) / K
 
@@ -332,7 +339,7 @@ class DynamicProgramming(Base):
         max_nof_bins = self.method_args["max_nof_bins"]
         min_points = self.method_args["min_points"]
         discount = self.method_args["discount"]
-        cat_limit = self.method_args["cat_limit"]
+        _cat_limit = self.method_args["cat_limit"]
 
         self.min_points = min_points
         big_M = self.big_M
@@ -386,7 +393,7 @@ class DynamicProgramming(Base):
 
 
 class Fixed(Base):
-    def __init__(self, nof_bins: int = 20, min_points_per_bin=0., cat_limit: int = 10):
+    def __init__(self, nof_bins: int = 20, min_points_per_bin=0.0, cat_limit: int = 10):
         method_args = {
             "nof_bins": nof_bins,
             "min_points": min_points_per_bin,
@@ -398,7 +405,7 @@ class Fixed(Base):
         self._preprocess_find(data, data_effect, axis_limits)
         nof_bins = self.method_args["nof_bins"]
         min_points = self.method_args["min_points"]
-        cat_limit = self.method_args["cat_limit"]
+        _cat_limit = self.method_args["cat_limit"]
 
         if self._none_valid_binning():
             self.limits = False

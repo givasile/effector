@@ -1,15 +1,13 @@
 import typing
+from typing import Callable, List, Optional, Union
 
-import effector
-from effector.regional_effect import RegionalEffectBase
-from effector import helpers
 import numpy as np
 from tqdm import tqdm
-from typing import Callable, Optional, Union, List
+
+import effector
 from effector import axis_partitioning as ap
-from effector import utils
-
-
+from effector import helpers, utils
+from effector.regional_effect import RegionalEffectBase
 
 
 class RegionalShapDP(RegionalEffectBase):
@@ -110,18 +108,26 @@ class RegionalShapDP(RegionalEffectBase):
 
             data = self.data[active_indices.astype(bool), :]
             shap_values = self.global_shap_values[active_indices.astype(bool), :]
-            shap_dp = effector.ShapDP(data, self.model, self.axis_limits, "all", shap_values=shap_values)
+            shap_dp = effector.ShapDP(
+                data, self.model, self.axis_limits, "all", shap_values=shap_values
+            )
 
             try:
-                shap_dp.fit(features=foi, binning_method=binning_method, centering=False)
+                shap_dp.fit(
+                    features=foi, binning_method=binning_method, centering=False
+                )
             except utils.AllBinsHaveAtMostOnePointError as e:
-                print(f"RegionalShapDP here: At a particular split, some bins had at most one point. I reject this split. \n Error: {e}")
+                print(
+                    f"RegionalShapDP here: At a particular split, some bins had at most one point. I reject this split. \n Error: {e}"
+                )
                 return self.big_m
             except Exception as e:
-                print(f"RegionalShapDP here: An unexpected error occurred. I reject this split. \n Error: {e}")
+                print(
+                    f"RegionalShapDP here: An unexpected error occurred. I reject this split. \n Error: {e}"
+                )
                 return self.big_m
 
-            mean_spline = shap_dp.feature_effect["feature_" + str(foi)]["spline_mean"]
+            _mean_spline = shap_dp.feature_effect["feature_" + str(foi)]["spline_mean"]
 
             xs = np.linspace(self.axis_limits[0, foi], self.axis_limits[1, foi], 30)
             _, z = shap_dp.eval(feature=foi, xs=xs, centering=False, heterogeneity=True)
@@ -134,7 +140,9 @@ class RegionalShapDP(RegionalEffectBase):
         self,
         features: typing.Union[int, str, list],
         candidate_conditioning_features: typing.Union["str", list] = "all",
-        space_partitioner: typing.Union["str", effector.space_partitioning.Best] = "best",
+        space_partitioner: typing.Union[
+            "str", effector.space_partitioning.Best
+        ] = "best",
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
         budget: int = 512,
         shap_explainer_kwargs: Optional[dict] = None,
@@ -247,26 +255,34 @@ class RegionalShapDP(RegionalEffectBase):
         """
 
         if isinstance(space_partitioner, str):
-            space_partitioner = effector.space_partitioning.return_default(space_partitioner)
+            space_partitioner = effector.space_partitioning.return_default(
+                space_partitioner
+            )
 
-        assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
+        assert space_partitioner.min_points_per_subregion >= 2, (
+            "min_points_per_subregion must be >= 2"
+        )
         features = helpers.prep_features(features, self.dim)
 
         for feat in tqdm(features):
             # assert global SHAP values are available
             if self.global_shap_values is None:
-                global_shap_dp = effector.ShapDP(self.data, self.model, self.axis_limits, "all", backend=self.backend)
+                global_shap_dp = effector.ShapDP(
+                    self.data, self.model, self.axis_limits, "all", backend=self.backend
+                )
                 global_shap_dp.fit(
                     feat,
                     centering=False,
                     binning_method=binning_method,
                     budget=budget,
                     shap_explainer_kwargs=shap_explainer_kwargs,
-                    shap_explanation_kwargs=shap_explanation_kwargs
+                    shap_explanation_kwargs=shap_explanation_kwargs,
                 )
                 self.global_shap_values = global_shap_dp.shap_values
 
-            heter = self._create_heterogeneity_function(feat, space_partitioner.min_points_per_subregion, binning_method)
+            heter = self._create_heterogeneity_function(
+                feat, space_partitioner.min_points_per_subregion, binning_method
+            )
 
             self._fit_feature(
                 feat,
@@ -279,28 +295,31 @@ class RegionalShapDP(RegionalEffectBase):
         all_arguments.pop("self")
 
         # region splitting arguments are the first 3 arguments
-        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:3]}
+        self.kwargs_subregion_detection = {
+            k: all_arguments[k] for k in list(all_arguments.keys())[:3]
+        }
 
         # fit kwargs
         self.kwargs_fitting = {
             "binning_method": binning_method,
             "budget": budget,
             "shap_explainer_kwargs": shap_explainer_kwargs,
-            "shap_explanation_kwargs": shap_explanation_kwargs
+            "shap_explanation_kwargs": shap_explanation_kwargs,
         }
 
-    def plot(self,
-             feature,
-             node_idx,
-             heterogeneity="shap_values",
-             centering=True,
-             nof_points=30,
-             scale_x_list=None,
-             scale_y=None,
-             nof_shap_values='all',
-             show_avg_output=False,
-             y_limits=None,
-             only_shap_values=False
+    def plot(
+        self,
+        feature,
+        node_idx,
+        heterogeneity="shap_values",
+        centering=True,
+        nof_points=30,
+        scale_x_list=None,
+        scale_y=None,
+        nof_shap_values="all",
+        show_avg_output=False,
+        y_limits=None,
+        only_shap_values=False,
     ):
         """
         Plot the regional SHAP.

@@ -4,7 +4,11 @@ on:
   push:
     branches:
       - main
+  pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build-documentation:
@@ -33,6 +37,7 @@ jobs:
 
   push-site:
     name: Copy site to effector.github.io
+    if: github.event_name != 'pull_request'
     needs:
     - build-documentation
 

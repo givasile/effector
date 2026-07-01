@@ -1,6 +1,8 @@
-import typing
-import numpy as np
 import copy
+import typing
+
+import numpy as np
+
 from effector import helpers
 
 BIG_M = helpers.BIG_M
@@ -9,13 +11,14 @@ EPS = helpers.EPS
 
 class AllBinsHaveAtMostOnePointError(ValueError):
     """Custom exception raised when all values in the input are NaN."""
+
     pass
 
 
 def compute_local_effects(
     data: np.ndarray, model: typing.Callable, limits: np.ndarray, feature: int
 ) -> np.ndarray:
-    """Compute the local effects, permuting the feature of interest using the bin limits.
+    r"""Compute the local effects, permuting the feature of interest using the bin limits.
 
     Notes:
         The function (a) allocates the points in the bins based on the feature of interest (foi)
@@ -112,7 +115,7 @@ def filter_points_in_bin(
 def compute_bin_effect(
     xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
-    """Compute the mean effect in each bin.
+    r"""Compute the mean effect in each bin.
 
     Notes:
         The function (a) allocates the instances in the bins and (b) aggregates the instance-level effects to compute
@@ -168,7 +171,7 @@ def compute_bin_effect(
 def compute_bin_variance(
     xs: np.ndarray, df_dxs: np.ndarray, limits: np.ndarray, bin_effect_mean: np.ndarray
 ) -> np.ndarray:
-    """
+    r"""
     Compute the variance of the effect in each bin.
 
     Notes:
@@ -281,9 +284,9 @@ def fill_nans(x: np.ndarray) -> np.ndarray:
 
 
 def apply_bin_value(
-        x: np.ndarray,
-        bin_limits: np.ndarray,
-        bin_value: np.ndarray,
+    x: np.ndarray,
+    bin_limits: np.ndarray,
+    bin_value: np.ndarray,
 ):
     """Apply the bin effect to the points.
 
@@ -306,15 +309,12 @@ def apply_bin_value(
 
     # add the first and last bin value to the bin value
     bin_value = np.concatenate(
-        [
-            bin_value[0, np.newaxis],
-            bin_value,
-            bin_value[-1, np.newaxis]
-        ]
+        [bin_value[0, np.newaxis], bin_value, bin_value[-1, np.newaxis]]
     )
 
     # for each point return the bin effect
     return bin_value[ind]
+
 
 def compute_accumulated_effect(
     x: np.ndarray,
@@ -323,7 +323,7 @@ def compute_accumulated_effect(
     dx: np.ndarray,
     square: bool = False,
 ) -> np.ndarray:
-    """Compute the accumulated effect at each point `x`.
+    r"""Compute the accumulated effect at each point `x`.
 
     Notes:
         The function implements the following formula:
@@ -404,7 +404,9 @@ def compute_accumulated_effect(
     return y
 
 
-def compute_ale_params(xs: np.ndarray, bin_values: np.ndarray, bin_limits: np.ndarray) -> dict:
+def compute_ale_params(
+    xs: np.ndarray, bin_values: np.ndarray, bin_limits: np.ndarray
+) -> dict:
     """
     Compute all important parameters for the ALE plot.
 
@@ -433,7 +435,9 @@ def compute_ale_params(xs: np.ndarray, bin_values: np.ndarray, bin_limits: np.nd
 
     """
     # compute bin-widths
-    dx = np.array([bin_limits[i + 1] - bin_limits[i] for i in range(len(bin_limits) - 1)])
+    dx = np.array(
+        [bin_limits[i + 1] - bin_limits[i] for i in range(len(bin_limits) - 1)]
+    )
 
     # compute mean effect on each bin
     bin_effect_nans, points_per_bin = compute_bin_effect(xs, bin_values, bin_limits)
@@ -485,7 +489,7 @@ def get_feature_types(
 def compute_jacobian_numerically(
     model: typing.Callable, data: np.ndarray, eps: float = 1e-8
 ) -> np.ndarray:
-    """Compute the Jacobian of the model using finite differences.
+    r"""Compute the Jacobian of the model using finite differences.
 
     Notes:
         The function computes the Jacobian of the model using finite differences. The formula is:

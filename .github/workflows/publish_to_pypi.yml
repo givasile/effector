@@ -5,32 +5,110 @@ on:
     tags:
       - "v*.*"
 
+permissions:
+  contents: read
+
 jobs:
+  verify-tag-on-main:
+    name: Verify tag is on main
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure tagged commit is on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor ${{ github.sha }} origin/main; then
+            echo "::error::Tag ${{ github.ref_name }} does not point to a commit on main"
+            exit 1
+          fi
+
+  test:
+    name: Run tests
+    needs: verify-tag-on-main
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Run tests
+        run: uv run --python 3.10 --no-default-groups --group test pytest tests -m "not slow"
+
   publish:
     name: Build & Publish to PyPI
+    needs: test
     runs-on: ubuntu-latest
 
     environment: pypi
 
     permissions:
+      contents: read
       id-token: write  # Needed for OpenID Connect authentication
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.10"
-
-      - name: Install build tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install build
+          enable-cache: true
 
       - name: Build package
-        run: python -m build
+        run: uv build --python 3.10
+
+      - name: Smoke test built wheel
+        run: |
+          uv venv /tmp/smoke-env --python 3.10
+          uv pip install --python /tmp/smoke-env/bin/python dist/*.whl
+          /tmp/smoke-env/bin/python -c "import effector"
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  release:
+    name: Create GitHub Release
+    needs: publish
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract changelog section for this tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v ver="$VERSION" '
+            BEGIN { found=0 }
+            /^#+ \[/ {
+              if (found) exit
+              if ($0 ~ "\\[" ver "\\]") { found=1; next }
+              next
+            }
+            found { print }
+          ' CHANGELOG.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "::error::No CHANGELOG.md section found for version $VERSION"
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes-file release_notes.md

@@ -1,9 +1,11 @@
+import copy
 import typing
 from typing import Callable, List, Optional, Union
-import copy
+
 import numpy as np
-import effector.visualization as vis
+
 import effector.helpers as helpers
+import effector.visualization as vis
 from effector.global_effect import GlobalEffectBase
 
 
@@ -249,7 +251,7 @@ class PDP(PDPBase):
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
     ):
-        """
+        r"""
         Constructor of the PDP class.
 
         Definition:
@@ -392,7 +394,7 @@ class PDP(PDPBase):
             show_avg_output,
             y_limits,
             use_vectorized,
-            show_plot
+            show_plot,
         )
 
         if not show_plot:
@@ -410,7 +412,7 @@ class DerPDP(PDPBase):
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
     ):
-        """
+        r"""
         Constructor of the DerivativePDP class.
 
         Definition:

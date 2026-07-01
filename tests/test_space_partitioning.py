@@ -1,5 +1,6 @@
-from effector.space_partitioning import *
 import numpy as np
+
+from effector.space_partitioning import *
 
 
 def test_space_partitioning():

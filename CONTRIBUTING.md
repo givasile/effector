@@ -117,7 +117,8 @@ We use [uv](https://docs.astral.sh/uv/) to manage the environment. Install it on
 uv sync          # create .venv and install all dev dependencies
 make test        # run the fast test suite (the merge gate)
 make test-all    # run the full suite, including slow tests
-make format      # format the code (black)
+make format      # format the code (ruff)
+make lint        # lint the code (ruff)
 make docs-serve  # preview the docs locally
 ```
 

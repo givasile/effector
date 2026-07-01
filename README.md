@@ -9,7 +9,7 @@
 [![codecov](https://codecov.io/gh/givasile/effector/branch/main/graph/badge.svg)](https://codecov.io/gh/givasile/effector)
 ![Publish Documentation](https://github.com/givasile/effector/actions/workflows/publish_documentation.yml/badge.svg)
 [![PyPI Downloads](https://static.pepy.tech/badge/effector)](https://pepy.tech/projects/effector)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-261230.svg)](https://github.com/astral-sh/ruff)
 
 ---
 

@@ -1,9 +1,11 @@
 import typing
-from typing import Callable, List, Optional, Union, Tuple
-import effector.visualization as vis
-import effector.helpers as helpers
-from effector.global_effect import GlobalEffectBase
+from typing import Callable, List, Optional, Tuple, Union
+
 import numpy as np
+
+import effector.helpers as helpers
+import effector.visualization as vis
+from effector.global_effect import GlobalEffectBase
 
 try:
     import shap
@@ -15,9 +17,10 @@ try:
 except ImportError:
     shapiq = None
 
+from scipy.interpolate import interp1d
+
 import effector.axis_partitioning as ap
 import effector.utils as utils
-from scipy.interpolate import interp1d
 
 
 class ShapDP(GlobalEffectBase):
@@ -32,7 +35,7 @@ class ShapDP(GlobalEffectBase):
         shap_values: Optional[np.ndarray] = None,
         backend: str = "shap",
     ):
-        """
+        r"""
         Constructor of the ShapDP class.
 
         ??? note "Definition"
@@ -149,7 +152,6 @@ class ShapDP(GlobalEffectBase):
         data = self.data
         model = self.model
 
-
         if self.shap_values is None:
             # prepare arguments
             explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
@@ -178,8 +180,14 @@ class ShapDP(GlobalEffectBase):
                 explanation_defaults = {"budget": budget}
             else:
                 raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-            explainer_kwargs = {**explainer_defaults, **explainer_kwargs}  # User args override defaults
-            explanation_kwargs = {**explanation_defaults, **explanation_kwargs}  # User args override defaults
+            explainer_kwargs = {
+                **explainer_defaults,
+                **explainer_kwargs,
+            }  # User args override defaults
+            explanation_kwargs = {
+                **explanation_defaults,
+                **explanation_kwargs,
+            }  # User args override defaults
 
             # actual code
             if self.backend == "shap":
@@ -189,7 +197,9 @@ class ShapDP(GlobalEffectBase):
             elif self.backend == "shapiq":
                 explainer = shapiq.Explainer(model, **explainer_kwargs)
                 explanations = explainer.explain_X(data, **explanation_kwargs)
-                self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
+                self.shap_values = np.stack(
+                    [ex.get_n_order_values(1) for ex in explanations]
+                )
             else:
                 raise ValueError("`backend` should be either 'shap' or 'shapiq'")
 
@@ -200,7 +210,9 @@ class ShapDP(GlobalEffectBase):
         if isinstance(binning_method, str):
             binning_method = ap.return_default(binning_method)
 
-        limits = binning_method.find_limits(data[:, feature], self.shap_values[:, feature], self.axis_limits[:, feature])
+        limits = binning_method.find_limits(
+            data[:, feature], self.shap_values[:, feature], self.axis_limits[:, feature]
+        )
 
         # assert bins can be computed else raise error
         assert limits is not False, (
@@ -212,19 +224,35 @@ class ShapDP(GlobalEffectBase):
             "the parameters of the method"
         )
         # compute the bin effect
-        feature_effect_dict = utils.compute_ale_params(data[:, feature], self.shap_values[:, feature], limits)
+        feature_effect_dict = utils.compute_ale_params(
+            data[:, feature], self.shap_values[:, feature], limits
+        )
         feature_effect_dict["alg_params"] = binning_method
 
         # Compute bin edges and bin centers
         bin_centers = (limits[:-1] + limits[1:]) / 2
 
         # Create piecewise linear interpolation
-        mean_spline = interp1d(bin_centers, feature_effect_dict["bin_effect"], kind='linear', fill_value="extrapolate")
-        var_spline = interp1d(bin_centers, feature_effect_dict["bin_variance"], kind='linear', fill_value="extrapolate")
+        mean_spline = interp1d(
+            bin_centers,
+            feature_effect_dict["bin_effect"],
+            kind="linear",
+            fill_value="extrapolate",
+        )
+        var_spline = interp1d(
+            bin_centers,
+            feature_effect_dict["bin_variance"],
+            kind="linear",
+            fill_value="extrapolate",
+        )
 
         # compute norm constant
         if centering == "zero_integral":
-            x_norm = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], points_for_centering)
+            x_norm = np.linspace(
+                self.axis_limits[0, feature],
+                self.axis_limits[1, feature],
+                points_for_centering,
+            )
             y_norm = mean_spline(x_norm)
             norm_const = np.mean(y_norm)
         elif centering == "zero_start":
@@ -251,7 +279,7 @@ class ShapDP(GlobalEffectBase):
         shap_explainer_kwargs: Optional[dict] = None,
         shap_explanation_kwargs: Optional[dict] = None,
     ) -> None:
-        """Fit the SHAP Dependence Plot to the data.
+        r"""Fit the SHAP Dependence Plot to the data.
 
         Notes:
             The SHAP Dependence Plot (SDP) $\hat{f}^{SDP}_j(x_j)$ is a spline fit to
@@ -380,7 +408,7 @@ class ShapDP(GlobalEffectBase):
                 points_for_centering,
                 budget,
                 shap_explainer_kwargs,
-                shap_explanation_kwargs
+                shap_explanation_kwargs,
             )
             self.is_fitted[s] = True
             self.fit_args["feature_" + str(s)] = {

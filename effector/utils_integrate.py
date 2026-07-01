@@ -1,5 +1,5 @@
-import scipy.integrate as integrate
 import numpy as np
+import scipy.integrate as integrate
 
 
 def integrate_1d_quad(func, start, stop):
@@ -32,7 +32,7 @@ def integrate_1d_linspace(func, start, stop):
 
 
 def mean_1d_linspace(func, start, stop, nof_points=100):
-    """Computes \int_{start}^{stop} func(x) dx
+    r"""Computes \int_{start}^{stop} func(x) dx
     func(x) -> y: gets 1D np.array and return 1D np.array
 
     :param s: index of feature

@@ -1,5 +1,7 @@
 import typing
+
 import numpy as np
+
 from effector import helpers, utils
 from effector.tree import Tree
 
@@ -95,8 +97,8 @@ class Base:
         pos = np.linspace(start, stop, nof_splits + 1)
         return pos[1:-1]
 
-    def _flatten_list(self, l):
-        return [item for sublist in l for item in sublist]
+    def _flatten_list(self, nested_list):
+        return [item for sublist in nested_list for item in sublist]
 
     @staticmethod
     def _get_comparison_symbol(foc_type, i):
@@ -108,7 +110,6 @@ class Base:
 
 
 class Best(Base):
-
     def __init__(
         self,
         min_heterogeneity_decrease_pcg: float = 0.1,
@@ -301,7 +302,6 @@ class Best(Base):
         i, j = np.unravel_index(
             np.argmin(matrix_weighted_heter, axis=None), matrix_weighted_heter.shape
         )
-        feature = ccf[i]
         position = candidate_split_positions[i][j]
 
         after_split_active_indices_list = self._split_dataset(
@@ -595,7 +595,7 @@ class BestLevelWise(Base):
                 optimal_splits = splits[1:]
             else:
                 # find first negative split
-                first_negative = np.where(split_valid == False)[0][0]
+                first_negative = np.where(~split_valid)[0][0]
 
                 # if first negative is the first split, return nothing
                 if first_negative == 0:
@@ -631,7 +631,6 @@ class BestLevelWise(Base):
         splits = self.important_splits if only_important else self.splits[1:]
 
         for i, split in enumerate(splits):
-
             # nof nodes to add
             nodes_to_add = len(split["after_split_nof_instances"])
 

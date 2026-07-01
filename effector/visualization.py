@@ -1,10 +1,7 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import typing
 
-import scipy.interpolate
-
-from effector import helpers
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def trans_affine(x, mu, std):
@@ -56,10 +53,7 @@ def ale_plot(
 
     """
     # assert ale_params contains needed quantities
-    assert all(
-        name in ale_params
-        for name in ["limits", "dx", "bin_effect"]
-    )
+    assert all(name in ale_params for name in ["limits", "dx", "bin_effect"])
 
     x = np.linspace(ale_params["limits"][0], ale_params["limits"][-1], 1000)
     y, std = accum_effect_func(feature, x, True, centering)
@@ -257,7 +251,6 @@ def plot_pdp_ice(
         plt.show(block=False)
     else:
         return fig, ax
-
 
 
 def plot_shap(

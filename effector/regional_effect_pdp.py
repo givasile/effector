@@ -1,11 +1,12 @@
 import typing
+
 import numpy as np
+from tqdm import tqdm
 
 import effector.space_partitioning
-from effector.regional_effect import RegionalEffectBase
 from effector import helpers
 from effector.global_effect_pdp import PDP, DerPDP
-from tqdm import tqdm
+from effector.regional_effect import RegionalEffectBase
 
 BIG_M = helpers.BIG_M
 
@@ -50,9 +51,8 @@ class RegionalPDPBase(RegionalEffectBase):
             yy = self.y_ice["feature_" + str(foi)][active_indices.astype(bool), :]
             z = np.var(yy, axis=0)
             return np.mean(z)
+
         return heter
-
-
 
 
 class RegionalPDP(RegionalPDPBase):
@@ -168,9 +168,13 @@ class RegionalPDP(RegionalPDPBase):
         """
 
         if isinstance(space_partitioner, str):
-            space_partitioner = effector.space_partitioning.return_default(space_partitioner)
+            space_partitioner = effector.space_partitioning.return_default(
+                space_partitioner
+            )
 
-        assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
+        assert space_partitioner.min_points_per_subregion >= 2, (
+            "min_points_per_subregion must be >= 2"
+        )
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
             # define the global method
@@ -183,19 +187,23 @@ class RegionalPDP(RegionalPDPBase):
                 use_vectorized=use_vectorized,
             )
 
-            xx = np.linspace(self.axis_limits[:, feat][0], self.axis_limits[:, feat][1], points_for_mean_heterogeneity)
+            xx = np.linspace(
+                self.axis_limits[:, feat][0],
+                self.axis_limits[:, feat][1],
+                points_for_mean_heterogeneity,
+            )
             y_ice = pdp.eval(
-                    feature=feat,
-                    xs=xx,
-                    heterogeneity=True,
-                    centering=True,
-                    use_vectorized=use_vectorized,
-                    return_all=True
-                )
+                feature=feat,
+                xs=xx,
+                heterogeneity=True,
+                centering=True,
+                use_vectorized=use_vectorized,
+                return_all=True,
+            )
             self.y_ice["feature_" + str(feat)] = y_ice.T
 
             heter = self._create_heterogeneity_function(
-                foi = feat,
+                foi=feat,
                 min_points=space_partitioner.min_points_per_subregion,
             )
 
@@ -210,11 +218,19 @@ class RegionalPDP(RegionalPDPBase):
         all_arguments.pop("self")
 
         # region splitting arguments are the first 8 arguments
-        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:3]}
-        self.kwargs_subregion_detection["points_for_mean_heterogeneity"] = points_for_mean_heterogeneity
+        self.kwargs_subregion_detection = {
+            k: all_arguments[k] for k in list(all_arguments.keys())[:3]
+        }
+        self.kwargs_subregion_detection["points_for_mean_heterogeneity"] = (
+            points_for_mean_heterogeneity
+        )
 
         # centering, points_for_centering, use_vectorized
-        self.kwargs_fitting = {k:v for k,v in all_arguments.items() if k in ["centering", "points_for_centering", "use_vectorized"]}
+        self.kwargs_fitting = {
+            k: v
+            for k, v in all_arguments.items()
+            if k in ["centering", "points_for_centering", "use_vectorized"]
+        }
 
     def plot(
         self,
@@ -352,13 +368,23 @@ class RegionalDerPDP(RegionalPDPBase):
         """
 
         if isinstance(space_partitioner, str):
-            space_partitioner = effector.space_partitioning.return_default(space_partitioner)
+            space_partitioner = effector.space_partitioning.return_default(
+                space_partitioner
+            )
 
-        assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
+        assert space_partitioner.min_points_per_subregion >= 2, (
+            "min_points_per_subregion must be >= 2"
+        )
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
             # define the global method
-            pdp = DerPDP(self.data, self.model, self.model_jac, self.axis_limits, nof_instances="all")
+            pdp = DerPDP(
+                self.data,
+                self.model,
+                self.model_jac,
+                self.axis_limits,
+                nof_instances="all",
+            )
 
             pdp.fit(
                 features=feat,
@@ -366,19 +392,23 @@ class RegionalDerPDP(RegionalPDPBase):
                 use_vectorized=use_vectorized,
             )
 
-            xx = np.linspace(self.axis_limits[:, feat][0], self.axis_limits[:, feat][1], points_for_mean_heterogeneity)
+            xx = np.linspace(
+                self.axis_limits[:, feat][0],
+                self.axis_limits[:, feat][1],
+                points_for_mean_heterogeneity,
+            )
             y_ice = pdp.eval(
-                    feature=feat,
-                    xs=xx,
-                    heterogeneity=True,
-                    centering=False,
-                    use_vectorized=use_vectorized,
-                    return_all=True
-                )
+                feature=feat,
+                xs=xx,
+                heterogeneity=True,
+                centering=False,
+                use_vectorized=use_vectorized,
+                return_all=True,
+            )
             self.y_ice["feature_" + str(feat)] = y_ice.T
 
             heter = self._create_heterogeneity_function(
-                foi = feat,
+                foi=feat,
                 min_points=space_partitioner.min_points_per_subregion,
             )
 
@@ -393,11 +423,19 @@ class RegionalDerPDP(RegionalPDPBase):
         all_arguments.pop("self")
 
         # region splitting arguments are the first 8 arguments
-        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:3]}
-        self.kwargs_subregion_detection["points_for_mean_heterogeneity"] = points_for_mean_heterogeneity
+        self.kwargs_subregion_detection = {
+            k: all_arguments[k] for k in list(all_arguments.keys())[:3]
+        }
+        self.kwargs_subregion_detection["points_for_mean_heterogeneity"] = (
+            points_for_mean_heterogeneity
+        )
 
         # centering, points_for_centering, use_vectorized
-        self.kwargs_fitting = {k:v for k,v in all_arguments.items() if k in ["centering", "points_for_centering", "use_vectorized"]}
+        self.kwargs_fitting = {
+            k: v
+            for k, v in all_arguments.items()
+            if k in ["centering", "points_for_centering", "use_vectorized"]
+        }
 
     def plot(
         self,

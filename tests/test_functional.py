@@ -1,6 +1,6 @@
 import numpy as np
-import effector
 
+import effector
 
 np.random.seed(21)
 
@@ -39,12 +39,12 @@ class TestExample2:
         if seed is not None:
             np.random.seed(seed)
 
-        x1 = np.concatenate((np.array([0]),
-                             np.random.uniform(0, 1, size=int(n-2)),
-                             np.array([1])))
-        x2 = np.concatenate((np.array([0]),
-                             np.random.uniform(0, 1, size=int(n-2)),
-                             np.array([1])))
+        x1 = np.concatenate(
+            (np.array([0]), np.random.uniform(0, 1, size=int(n - 2)), np.array([1]))
+        )
+        x2 = np.concatenate(
+            (np.array([0]), np.random.uniform(0, 1, size=int(n - 2)), np.array([1]))
+        )
         return np.stack([x1, x2]).T
 
     @staticmethod
@@ -57,11 +57,11 @@ class TestExample2:
 
     @staticmethod
     def ale_1(x):
-        return 2*x - 1
+        return 2 * x - 1
 
     @staticmethod
     def ale_2(x):
-        return -4*x + 2
+        return -4 * x + 2
 
     def test_dale(self):
         # generate data
@@ -82,16 +82,18 @@ class TestExample2:
         assert np.allclose(pred, gt, atol=self.atol)
 
         # DALE variable-size
-        dp = effector.axis_partitioning.DynamicProgramming(max_nof_bins=20, min_points_per_bin=10, cat_limit=1)
+        dp = effector.axis_partitioning.DynamicProgramming(
+            max_nof_bins=20, min_points_per_bin=10, cat_limit=1
+        )
         dale.fit(binning_method=dp, centering=True)
 
         pred = dale.eval(feature=0, xs=x, centering=True)
         gt = self.ale_1(x)
-        assert np.allclose(pred, gt, atol=1.e-2)
+        assert np.allclose(pred, gt, atol=1.0e-2)
 
         pred = dale.eval(feature=1, xs=x, centering=True)
         gt = self.ale_2(x)
-        assert np.allclose(pred, gt, atol=1.e-2)
+        assert np.allclose(pred, gt, atol=1.0e-2)
 
 
 class TestBinEstimation:
@@ -102,7 +104,6 @@ class TestBinEstimation:
     @staticmethod
     def model(x, par):
         """f(x1, x2) = a + b*x1 + x1x2"""
-        ind_1 = np.logical_and(x[:, 0] >= par[0]["from"], x[:, 0] < par[0]["to"])
         ind_2 = np.logical_and(x[:, 0] >= par[1]["from"], x[:, 0] < par[1]["to"])
         ind_3 = np.logical_and(x[:, 0] >= par[2]["from"], x[:, 0] < par[2]["to"])
         ind_4 = np.logical_and(x[:, 0] >= par[3]["from"], x[:, 0] <= par[3]["to"])
@@ -199,7 +200,9 @@ class TestBinEstimation:
 
         # test Greedy
         min_points = 2
-        est = effector.axis_partitioning.Greedy(init_nof_bins=100, discount=.3, min_points_per_bin=min_points, cat_limit=1)
+        est = effector.axis_partitioning.Greedy(
+            init_nof_bins=100, discount=0.3, min_points_per_bin=min_points, cat_limit=1
+        )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
 
         assert limits_greedy.size == 3
@@ -208,7 +211,9 @@ class TestBinEstimation:
 
         # test DP
         min_points = 2
-        est = effector.axis_partitioning.DynamicProgramming(max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1)
+        est = effector.axis_partitioning.DynamicProgramming(
+            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+        )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
 
         assert limits_dp.size == 3
@@ -221,12 +226,16 @@ class TestBinEstimation:
         gt_limits = np.array([0, 1.0])
 
         min_points = 3
-        est = effector.axis_partitioning.Greedy(init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1)
+        est = effector.axis_partitioning.Greedy(
+            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1
+        )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert np.allclose(gt_limits, limits_greedy)
 
         min_points = 3
-        est = effector.axis_partitioning.DynamicProgramming(max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1)
+        est = effector.axis_partitioning.DynamicProgramming(
+            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+        )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert np.allclose(gt_limits, limits_dp)
 
@@ -235,12 +244,16 @@ class TestBinEstimation:
         gt_limits = np.array([0, 1.0])
 
         min_points = 4
-        est = effector.axis_partitioning.Greedy(init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1)
+        est = effector.axis_partitioning.Greedy(
+            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1
+        )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert np.allclose(gt_limits, limits_greedy)
 
         min_points = 4
-        est = effector.axis_partitioning.DynamicProgramming(max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1)
+        est = effector.axis_partitioning.DynamicProgramming(
+            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+        )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert np.allclose(gt_limits, limits_dp)
 
@@ -248,12 +261,16 @@ class TestBinEstimation:
         x, y_grad, axis_limits = self.create_4_data_points()
 
         min_points = 5
-        est = effector.axis_partitioning.Greedy(init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1)
+        est = effector.axis_partitioning.Greedy(
+            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1
+        )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert limits_greedy is False
 
         min_points = 5
-        est = effector.axis_partitioning.DynamicProgramming(max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1)
+        est = effector.axis_partitioning.DynamicProgramming(
+            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+        )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert limits_dp is False
 
@@ -263,7 +280,9 @@ class TestBinEstimation:
 
         # test Greedy
         min_points = 10
-        est = effector.axis_partitioning.Greedy(init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1)
+        est = effector.axis_partitioning.Greedy(
+            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1
+        )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert (
             np.sum(
@@ -313,7 +332,9 @@ class TestBinEstimation:
 
         # test DP
         min_points = 10
-        est = effector.axis_partitioning.DynamicProgramming(max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1)
+        est = effector.axis_partitioning.DynamicProgramming(
+            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+        )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert (
             np.sum(

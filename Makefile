@@ -18,8 +18,12 @@ test-all:  ## run the full test suite, including slow tests
 
 # Code style ----------------------------------------------------------------
 .PHONY: format
-format:  ## format the source code with black
-	uv run --group dev black $(PROJECT_NAME)
+format:  ## format the source code with ruff
+	uv run --no-default-groups --group dev ruff format $(PROJECT_NAME) tests
+
+.PHONY: lint
+lint:  ## lint the source code with ruff
+	uv run --no-default-groups --group dev ruff check $(PROJECT_NAME) tests
 
 # Documentation -------------------------------------------------------------
 .PHONY: docs-serve
