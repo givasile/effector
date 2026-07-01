@@ -303,3 +303,25 @@ not *verification* — `test_plots.py` only checks "doesn't crash", and the thre
 functional tests assert nothing (P1). After this plan, every covered line sits behind an
 actual assertion (shapes, closed-form values, or figure content), which is the property
 the refactor needs. Re-measure and update this table at the freeze (§6 step 6).
+
+---
+
+## 8. After the freeze — the suite as permanent enforcement
+
+This suite is not a one-off scaffold for the refactor; it becomes the mechanism that
+keeps the core rules true (see `HOMOGENIZATION_PLAN.md` §6, item 2):
+
+- **Contract layer = merge gate for new methods.** Any new effect class (global or
+  regional) is added to the `conftest.py` registry and must pass the parametrized
+  contract suite (§3.1) unchanged. A method that needs a special case in the contract
+  tests is a design smell to resolve *before* merging, not a test to fork.
+- **Reproducibility contract** (strategic priority 1): once `random_state`/`seed` land,
+  add C8 — two identically-constructed objects produce byte-identical `eval` output —
+  and a seeded-split test for `datasets.*`. These stay in the gate forever.
+- **New ground truths over new smoke tests.** Future features (categorical FOI,
+  2D effects, classification) get the same treatment as §3.3: a closed-form synthetic
+  model in `effector.models` + derivation in a notebook + ported asserts in pytest.
+  Crash-only tests are not accepted as the sole coverage for new functionality.
+- **Budget is law.** The gate stays ≤ ~90 s and `test-all` ≤ 5 min; anything above goes
+  behind `slow`. Re-record the timing table (§0) and the coverage table (§7) whenever a
+  layer is added, so drift is visible in the diff.

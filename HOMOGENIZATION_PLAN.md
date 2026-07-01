@@ -378,3 +378,45 @@ The deeper payoff is structural: after step 2, `eval` exists **once**; every fut
 feature (importance measures, method comparison, exports) is written once against the
 base instead of 5×, and the bug classes found in §3 (`locals()` capture, drifting string
 registries, per-method default drift) become impossible rather than merely fixed.
+
+---
+
+## 6. After testing + homogenization — strategic priorities (2026-07 strategic review)
+
+The composable core (regional = partitioner + any global `.eval`) is the package's real
+asset; these are the gaps that most threaten it, in priority order. They feed Phase 2 of
+`ROADMAP.md` / `V03_IDEAS.md` and should come **before** further feature ideas.
+
+1. **Reproducibility end-to-end** (small, high trust-impact). `nof_instances`
+   subsampling uses global `np.random` with no seed; dataset splits are unseeded — two
+   runs give two different explanations. Add `random_state`/`seed` to every constructor
+   and `datasets.*`, thread it through `prep_nof_instances`, and add a contract test:
+   two identical constructions → identical `eval` output. For an XAI package this is a
+   core value, not a nice-to-have.
+2. **Keep the contract enforced, not conventional.** The §1 rules go into
+   `CONTRIBUTING.md` / `docs/design.md`, and the contract layer of `TESTING_PLAN.md`
+   (§3.1) becomes the merge gate for any new method class: a method is "done" when it
+   passes the parametrized contract suite. This is what prevents the §3 bug classes from
+   re-accumulating.
+3. **Heterogeneity semantics as the brand.** After R2 lands (variance internally, std at
+   the plot layer), document the exact heterogeneity definition per method on one docs
+   page and fill the `TODO` math placeholders in the ALE/RHALE docstrings — the flagship
+   methods currently ship with empty definitions.
+4. **Real-world tabular reach** (the adoption gate, sequenced after 1–3): categorical
+   features as *feature of interest* (today categoricals only work as conditioning
+   features), pandas/DataFrame ingestion (names/types inferred), and a classification
+   story (`predict_proba` guidance or a thin wrapper). These are the first things a
+   practitioner with a real dataset hits; heterogeneity-on-categoricals is also open
+   research space the package is positioned to own.
+5. **Regional UX: stop leaking internals.** Replace magic `node_idx` ints with
+   addressable regions (`for region in reg.regions(feature): region.plot()`, or
+   node names/conditions), and make `summary()` return a structured object with printing
+   optional. Enabled cheaply by the R5 registry + tree refactor.
+6. **Performance posture: decide, then state it.** Regional `eval`/`plot` refits a fresh
+   global object per call; `copy.deepcopy(data)` sits inside the ICE kernels; there is no
+   node-level caching. Decide the supported scale (e.g. "N ≤ 100k interactive"), add one
+   benchmark script, and cache per-node fitted objects — before someone benchmarks
+   effector against `shap` at 1M rows.
+7. **2D / interaction effects.** The deleted `interaction.py` ideas (H-index, 2D
+   PDP/ALE) return as *new* code written once against the unified base — only after
+   1–3 are done.
