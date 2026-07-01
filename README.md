@@ -36,7 +36,13 @@ Effector requires Python 3.10+:
 pip install effector
 ```
 
-Dependencies: `numpy`, `scipy`, `matplotlib`, `tqdm`, `shap`.
+This installs a lightweight core (`numpy`, `scipy`, `matplotlib`, `tqdm`) that covers PDP, ALE, RHALE and their regional variants.
+
+`ShapDP` and `RegionalShapDP` need the heavier `shap`/`shapiq` backends (which pull in `numba`, `scikit-learn`, `pandas`, ...). Install them only if you use those methods:
+
+```bash
+pip install effector[shap]
+```
 
 ---
 

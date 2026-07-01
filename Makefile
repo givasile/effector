@@ -32,8 +32,8 @@ docs-build:  ## build the documentation site
 
 .PHONY: docs-update
 docs-update:  ## regenerate tutorial markdown from the notebooks
-	uv run --extra tutorials jupyter nbconvert --to markdown ./notebooks/real-examples/* --output-dir docs/docs/Tutorials/real-examples/
-	uv run --extra tutorials jupyter nbconvert --to markdown ./notebooks/synthetic-examples/* --output-dir docs/docs/Tutorials/synthetic-examples/
+	uv run --extra tutorials --extra shap jupyter nbconvert --to markdown ./notebooks/real-examples/* --output-dir docs/docs/Tutorials/real-examples/
+	uv run --extra tutorials --extra shap jupyter nbconvert --to markdown ./notebooks/synthetic-examples/* --output-dir docs/docs/Tutorials/synthetic-examples/
 
 # Housekeeping --------------------------------------------------------------
 .PHONY: clean

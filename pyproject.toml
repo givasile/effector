@@ -30,10 +30,6 @@ dependencies = [
     "numpy",
     "scipy",
     "tqdm",
-    "shap",
-    "shapiq",
-    "ucimlrepo",
-    "overrides"
 ]
 
 [project.urls]
@@ -42,13 +38,17 @@ source = "https://github.com/givasile/effector"
 tracker = "https://github.com/givasile/effector/issues"
 
 [project.optional-dependencies]
+shap = ["shap", "shapiq"]
 tutorials = ["ipython", "pandas", "tensorflow-cpu", "keras", "ucimlrepo", "jupyter", "openml", "tabpfn"]
+all = ["effector[shap,tutorials]"]
 
 [dependency-groups]
 test = [
     "pytest",
     "pytest-cov",
     "coverage",
+    "shap",
+    "shapiq",
 ]
 docs = [
     "mkdocs",

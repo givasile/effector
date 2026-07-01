@@ -4,8 +4,17 @@ import effector.visualization as vis
 import effector.helpers as helpers
 from effector.global_effect import GlobalEffectBase
 import numpy as np
-import shap
-import shapiq
+
+try:
+    import shap
+except ImportError:
+    shap = None
+
+try:
+    import shapiq
+except ImportError:
+    shapiq = None
+
 import effector.axis_partitioning as ap
 import effector.utils as utils
 from scipy.interpolate import interp1d
@@ -146,9 +155,19 @@ class ShapDP(GlobalEffectBase):
             explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
             explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
             if self.backend == "shap":
+                if shap is None:
+                    raise ImportError(
+                        "The `shap` package is required for backend='shap'. "
+                        "Install it with `pip install effector[shap]`."
+                    )
                 explainer_defaults = {"masker": data}
                 explanation_defaults = {"max_evals": budget}
             elif self.backend == "shapiq":
+                if shapiq is None:
+                    raise ImportError(
+                        "The `shapiq` package is required for backend='shapiq'. "
+                        "Install it with `pip install effector[shap]`."
+                    )
                 explainer_defaults = {
                     "data": data,
                     "index": "SV",
