@@ -23,7 +23,7 @@ jobs:
       run: |
         cp CHANGELOG.md docs/docs/changelog.md
         cp CONTRIBUTING.md docs/docs/contributing.md
-        uv run --no-default-groups --group docs mkdocs build -f docs/mkdocs.yml
+        uv run --python 3.10 --no-default-groups --group docs mkdocs build -f docs/mkdocs.yml
 
     - name: Save site site as artifact
       uses: actions/upload-artifact@v4
