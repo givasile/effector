@@ -61,7 +61,9 @@ def test_centering_false_is_coerced_with_warning():
     X = _linear_dataset()
     fe = effector.FeatureEffect(X, predict)
     with pytest.warns(UserWarning):
-        ret = fe.plot(feature=0, methods=["PDP", "ALE"], centering=False, show_plot=False)
+        ret = fe.plot(
+            feature=0, methods=["PDP", "ALE"], centering=False, show_plot=False
+        )
     assert ret is not None
 
 
