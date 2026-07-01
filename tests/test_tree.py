@@ -1,5 +1,7 @@
-from effector.tree import Tree, Node
 import numpy as np
+
+from effector.tree import Tree
+
 
 def test_tree_get_level_stats():
     tree = Tree()
@@ -18,7 +20,7 @@ def test_tree_get_level_stats():
         "active_indices": np.array([True, False, True, False, True]),
         "foc_split_position": 3.0,
         "foc_type": "cont",
-        "candidate_split_positions": [0.0, 1.0, 2.0, 3.0, 4., 5.],
+        "candidate_split_positions": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
         "range": [0, 5],
         "level": 1,
     }
@@ -31,7 +33,7 @@ def test_tree_get_level_stats():
         "active_indices": np.array([False, True, False, True, False]),
         "foc_split_position": 3.0,
         "foc_type": "cont",
-        "candidate_split_positions": [0.0, 1.0, 2.0, 3.0, 4., 5.],
+        "candidate_split_positions": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
         "range": [0, 5],
         "level": 1,
     }
@@ -39,11 +41,7 @@ def test_tree_get_level_stats():
     tree.add_node("x2", "x1", info2)
     tree.add_node("x3", "x1", info3)
 
-    scale_x_list=[
-        {"mean": 3, "std":2},
-        {"mean": 3, "std":3},
-        {"mean": 3, "std":2}
-    ]
+    scale_x_list = [{"mean": 3, "std": 2}, {"mean": 3, "std": 3}, {"mean": 3, "std": 2}]
 
     tree.show_full_tree(scale_x_list)
     tree.show_level_stats()

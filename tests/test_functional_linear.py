@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
+
 import effector
+
 
 @pytest.mark.slow
 def test_linear():
@@ -12,8 +14,8 @@ def test_linear():
 
     N = 100
     T = 100
-    rtol = .1
-    atol = .1
+    rtol = 0.1
+    atol = 0.1
 
     data = np.stack(
         [
@@ -43,7 +45,7 @@ def test_linear():
         {"method": effector.ShapDP, "init_kwargs": {"backend": "shapiq"}},
         {"method": effector.ALE, "init_kwargs": {}},
         {"method": effector.RHALE, "init_kwargs": {}},
-        {"method": effector.RHALE, "init_kwargs": {"model_jac": model_jac}}
+        {"method": effector.RHALE, "init_kwargs": {"model_jac": model_jac}},
     ]
 
     # Iterate through test cases
@@ -55,7 +57,9 @@ def test_linear():
         eff = effector_class(data, model, **kwargs)
 
         # Evaluate the effector and retrieve results
-        y, heterogeneity = eff.eval(feature=0, xs=x, heterogeneity=True, centering="zero_start")
+        y, heterogeneity = eff.eval(
+            feature=0, xs=x, heterogeneity=True, centering="zero_start"
+        )
 
         # Check assertions
         np.allclose(y, x, atol=atol, rtol=rtol)

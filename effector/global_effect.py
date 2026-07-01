@@ -1,7 +1,9 @@
-import numpy as np
-from typing import Callable, List, Optional, Union, Tuple
-from effector import helpers
 from abc import ABC, abstractmethod
+from typing import Callable, List, Optional, Tuple, Union
+
+import numpy as np
+
+from effector import helpers
 
 
 class GlobalEffectBase(ABC):
@@ -40,13 +42,17 @@ class GlobalEffectBase(ABC):
             # drop points outside of limits
             accept_indices = helpers.indices_within_limits(data, axis_limits)
             data = data[accept_indices, :]
-            data_effect = data_effect[accept_indices, :] if data_effect is not None else None
+            data_effect = (
+                data_effect[accept_indices, :] if data_effect is not None else None
+            )
         else:
             axis_limits = helpers.axis_limits_from_data(data)
         self.axis_limits: np.ndarray = axis_limits
 
         # data preprocessing (ii): select nof_instances from the remaining data
-        self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
+        self.nof_instances, self.indices = helpers.prep_nof_instances(
+            nof_instances, data.shape[0]
+        )
         data = data[self.indices, :]
         data_effect = data_effect[self.indices, :] if data_effect is not None else None
 
@@ -76,10 +82,10 @@ class GlobalEffectBase(ABC):
 
     @abstractmethod
     def fit(
-            self,
-            features: Union[int, str, list] = "all",
-            centering: Union[bool, str] = False,
-            **kwargs
+        self,
+        features: Union[int, str, list] = "all",
+        centering: Union[bool, str] = False,
+        **kwargs,
     ) -> None:
         """Fit, i.e., compute the quantities that are necessary for evaluating and plotting the feature effect, for the given features.
 
@@ -95,11 +101,11 @@ class GlobalEffectBase(ABC):
 
     @abstractmethod
     def plot(
-            self,
-            feature: int,
-            heterogeneity: Union[bool, str] = False,
-            centering: Union[bool, str] = False,
-            **kwargs
+        self,
+        feature: int,
+        heterogeneity: Union[bool, str] = False,
+        centering: Union[bool, str] = False,
+        **kwargs,
     ) -> None:
         """
 

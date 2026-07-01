@@ -1,5 +1,7 @@
 import numpy as np
+
 from effector import helpers
+
 
 class Base:
     def __init__(self, name: str, dim: int, axis_limits: np.array):
@@ -23,10 +25,9 @@ class Base:
 
 
 class IndependentUniform(Base):
-    def __init__(self, dim: int =2, low: float = 0, high: float = 1):
+    def __init__(self, dim: int = 2, low: float = 0, high: float = 1):
         axis_limits = np.array([[low, high] for _ in range(dim)]).T
         super().__init__(name=self.__class__.__name__, dim=dim, axis_limits=axis_limits)
-
 
     def generate_data(self, n: int, seed: int = 21) -> np.array:
         """Generate N samples
@@ -43,7 +44,9 @@ class IndependentUniform(Base):
 
         """
         np.random.seed(seed)
-        x = np.random.uniform(self.axis_limits[0, :], self.axis_limits[1, :], (n, self.dim))
+        x = np.random.uniform(
+            self.axis_limits[0, :], self.axis_limits[1, :], (n, self.dim)
+        )
         np.random.shuffle(x)
         return x
 
@@ -77,16 +80,20 @@ class RealDatasetBase:
         self.fetch_and_preprocess()
 
         self.x_train, self.x_test, self.y_train, self.y_test = self.split(
-            self.dataset[:, :-1], self.dataset[:, -1], pcg_train)
+            self.dataset[:, :-1], self.dataset[:, -1], pcg_train
+        )
 
         if standardize:
-            self.x_train, self.x_train_mu, self.x_train_std = self.standarize(self.x_train)
+            self.x_train, self.x_train_mu, self.x_train_std = self.standarize(
+                self.x_train
+            )
             self.x_test, self.x_test_mu, self.x_test_std = self.standarize(self.x_test)
-            self.y_train, self.y_train_mu, self.y_train_std = self.standarize(self.y_train)
+            self.y_train, self.y_train_mu, self.y_train_std = self.standarize(
+                self.y_train
+            )
             self.y_test, self.y_test_mu, self.y_test_std = self.standarize(self.y_test)
 
         self.postprocess()
-
 
     def fetch_and_preprocess(self):
         # self.dataset = ...
@@ -94,7 +101,6 @@ class RealDatasetBase:
 
     def postprocess(self):
         raise NotImplementedError
-
 
     @staticmethod
     def standarize(x):
@@ -123,10 +129,13 @@ class RealDatasetBase:
 
 class BikeSharing(RealDatasetBase):
     def __init__(self, pcg_train=0.8, standardize=True):
-        super().__init__(name="BikeSharing", pcg_train=pcg_train, standardize=standardize)
+        super().__init__(
+            name="BikeSharing", pcg_train=pcg_train, standardize=standardize
+        )
 
     def fetch_and_preprocess(self):
         from ucimlrepo import fetch_ucirepo
+
         bike_sharing_dataset = fetch_ucirepo(id=275)
 
         # bike_sharing_dataset.feature_names
@@ -134,7 +143,6 @@ class BikeSharing(RealDatasetBase):
         X = X.drop(["dteday", "atemp"], axis=1)
         self.feature_names = X.columns.to_list()
         X = X.to_numpy()
-
 
         y = bike_sharing_dataset.data.targets
         self.target_name = y.columns.item()
@@ -147,11 +155,8 @@ class BikeSharing(RealDatasetBase):
         self.x_test_mu[8] += 8
         self.x_test_std[8] *= 47
 
-
         self.x_train_std[9] *= 100
         self.x_test_std[9] *= 100
 
         self.x_train_std[10] *= 67
         self.x_test_std[10] *= 67
-
-

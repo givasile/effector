@@ -1,14 +1,14 @@
 import typing
+from typing import Callable, List, Optional, Union
+
+import numpy as np
+from tqdm import tqdm
 
 import effector.space_partitioning
-from effector.regional_effect import RegionalEffectBase
-from effector import helpers, utils
-import numpy as np
-from effector.global_effect_ale import ALE, RHALE
-from tqdm import tqdm
 from effector import axis_partitioning as ap
-from typing import Callable, Optional, Union, List
-
+from effector import helpers, utils
+from effector.global_effect_ale import ALE, RHALE
+from effector.regional_effect import RegionalEffectBase
 
 BIG_M = helpers.BIG_M
 
@@ -109,7 +109,6 @@ class RegionalRHALE(RegionalEffectBase):
             target_name,
         )
 
-
     def compile(self):
         """Prepare everything for fitting, i.e., compute the gradients on data points."""
         if self.data_effect is None and self.model_jac is not None:
@@ -133,21 +132,37 @@ class RegionalRHALE(RegionalEffectBase):
                 instance_effects = self.data_effect[active_indices.astype(bool), :]
             else:
                 instance_effects = None
-            rhale = RHALE(data, self.model, self.model_jac, "all", self.axis_limits, instance_effects)
+            rhale = RHALE(
+                data,
+                self.model,
+                self.model_jac,
+                "all",
+                self.axis_limits,
+                instance_effects,
+            )
             try:
                 rhale.fit(features=foi, binning_method=binning_method, centering=False)
             except utils.AllBinsHaveAtMostOnePointError as e:
-                print(f"RegionalRHALE here: At a particular split, some bins had at most one point. I reject this split. \n Error: {e}")
+                print(
+                    f"RegionalRHALE here: At a particular split, some bins had at most one point. I reject this split. \n Error: {e}"
+                )
                 return BIG_M
             except Exception as e:
-                print(f"RegionalRHALE here: An unexpected error occurred. I reject this split. \n Error: {e}")
+                print(
+                    f"RegionalRHALE here: An unexpected error occurred. I reject this split. \n Error: {e}"
+                )
                 print(np.sum(active_indices))
                 return BIG_M
 
             # heterogeneity is the accumulated std at the end of the curve
-            xs = np.linspace(self.axis_limits[0, foi], self.axis_limits[1, foi], points_for_mean_heterogeneity)
+            xs = np.linspace(
+                self.axis_limits[0, foi],
+                self.axis_limits[1, foi],
+                points_for_mean_heterogeneity,
+            )
             _, z = rhale.eval(feature=foi, xs=xs, heterogeneity=True, centering=False)
             return np.mean(z)
+
         return heter
 
     def fit(
@@ -155,7 +170,12 @@ class RegionalRHALE(RegionalEffectBase):
         features: typing.Union[int, str, list] = "all",
         candidate_conditioning_features: typing.Union[str, list] = "all",
         space_partitioner: typing.Union[str, effector.space_partitioning.Best] = "best",
-        binning_method: typing.Union[str, ap.Fixed, ap.DynamicProgramming, ap.Greedy,] = "greedy",
+        binning_method: typing.Union[
+            str,
+            ap.Fixed,
+            ap.DynamicProgramming,
+            ap.Greedy,
+        ] = "greedy",
         points_for_mean_heterogeneity: int = 30,
     ):
         """
@@ -185,14 +205,21 @@ class RegionalRHALE(RegionalEffectBase):
             self.compile()
 
         if isinstance(space_partitioner, str):
-            space_partitioner = effector.space_partitioning.return_default(space_partitioner)
+            space_partitioner = effector.space_partitioning.return_default(
+                space_partitioner
+            )
 
-        assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
+        assert space_partitioner.min_points_per_subregion >= 2, (
+            "min_points_per_subregion must be >= 2"
+        )
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
             # find global axis limits
             heter = self._create_heterogeneity_function(
-                feat, binning_method, space_partitioner.min_points_per_subregion, points_for_mean_heterogeneity
+                feat,
+                binning_method,
+                space_partitioner.min_points_per_subregion,
+                points_for_mean_heterogeneity,
             )
 
             self._fit_feature(
@@ -206,10 +233,14 @@ class RegionalRHALE(RegionalEffectBase):
         all_arguments.pop("self")
 
         # region splitting arguments are the first 8 arguments
-        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:3]}
+        self.kwargs_subregion_detection = {
+            k: all_arguments[k] for k in list(all_arguments.keys())[:3]
+        }
 
         # centering, points_for_centering, use_vectorized
-        self.kwargs_fitting = {k: v for k, v in all_arguments.items() if k in ["binnning_method"]}
+        self.kwargs_fitting = {
+            k: v for k, v in all_arguments.items() if k in ["binnning_method"]
+        }
 
     def plot(
         self,
@@ -309,20 +340,29 @@ class RegionalALE(RegionalEffectBase):
             target_name,
         )
 
-    def _create_heterogeneity_function(self, foi, min_points, points_for_mean_heterogeneity):
+    def _create_heterogeneity_function(
+        self, foi, min_points, points_for_mean_heterogeneity
+    ):
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return BIG_M
 
-            data_effect = self.global_data_effect["feature_" + str(foi)][active_indices.astype(bool)]
+            data_effect = self.global_data_effect["feature_" + str(foi)][
+                active_indices.astype(bool)
+            ]
             data = self.data[active_indices.astype(bool), foi]
             bin_limits = self.global_bin_limits["feature_" + str(foi)]
 
             params = utils.compute_ale_params(data, data_effect, bin_limits)
 
-            xx = np.linspace(params["limits"][0], params["limits"][-1], points_for_mean_heterogeneity)
-            var = utils.apply_bin_value(x=xx, bin_limits=params["limits"], bin_value=params["bin_variance"])
+            xx = np.linspace(
+                params["limits"][0], params["limits"][-1], points_for_mean_heterogeneity
+            )
+            var = utils.apply_bin_value(
+                x=xx, bin_limits=params["limits"], bin_value=params["bin_variance"]
+            )
             return np.mean(var)
+
         return heter
 
     def fit(
@@ -331,7 +371,7 @@ class RegionalALE(RegionalEffectBase):
         candidate_conditioning_features: typing.Union["str", list] = "all",
         space_partitioner: typing.Union[str, effector.space_partitioning.Best] = "best",
         binning_method: typing.Union[str, ap.Fixed] = "fixed",
-        points_for_mean_heterogeneity: int = 30
+        points_for_mean_heterogeneity: int = 30,
     ):
         """
         Find subregions by minimizing the ALE-based heterogeneity.
@@ -357,19 +397,35 @@ class RegionalALE(RegionalEffectBase):
             points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
         """
         if isinstance(space_partitioner, str):
-            space_partitioner = effector.space_partitioning.return_default(space_partitioner)
+            space_partitioner = effector.space_partitioning.return_default(
+                space_partitioner
+            )
 
-        assert space_partitioner.min_points_per_subregion >= 2, "min_points_per_subregion must be >= 2"
+        assert space_partitioner.min_points_per_subregion >= 2, (
+            "min_points_per_subregion must be >= 2"
+        )
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
             # fit global method
-            global_ale = ALE(self.data, self.model, nof_instances="all", axis_limits=self.axis_limits)
-            global_ale.fit(features=feat, binning_method=binning_method, centering=False)
-            self.global_data_effect["feature_" + str(feat)] = global_ale.data_effect_ale["feature_" + str(feat)]
-            self.global_bin_limits["feature_" + str(feat)] = global_ale.bin_limits["feature_" + str(feat)]
+            global_ale = ALE(
+                self.data, self.model, nof_instances="all", axis_limits=self.axis_limits
+            )
+            global_ale.fit(
+                features=feat, binning_method=binning_method, centering=False
+            )
+            self.global_data_effect["feature_" + str(feat)] = (
+                global_ale.data_effect_ale["feature_" + str(feat)]
+            )
+            self.global_bin_limits["feature_" + str(feat)] = global_ale.bin_limits[
+                "feature_" + str(feat)
+            ]
 
             # create heterogeneity function
-            heter = self._create_heterogeneity_function(feat, space_partitioner.min_points_per_subregion, points_for_mean_heterogeneity)
+            heter = self._create_heterogeneity_function(
+                feat,
+                space_partitioner.min_points_per_subregion,
+                points_for_mean_heterogeneity,
+            )
 
             # fit feature
             self._fit_feature(
@@ -383,10 +439,14 @@ class RegionalALE(RegionalEffectBase):
         all_arguments.pop("self")
 
         # region splitting arguments are the first 8 arguments
-        self.kwargs_subregion_detection = {k: all_arguments[k] for k in list(all_arguments.keys())[:3]}
+        self.kwargs_subregion_detection = {
+            k: all_arguments[k] for k in list(all_arguments.keys())[:3]
+        }
 
         # centering, points_for_centering, use_vectorized
-        self.kwargs_fitting = {k:v for k,v in all_arguments.items() if k in ["binnning_method"]}
+        self.kwargs_fitting = {
+            k: v for k, v in all_arguments.items() if k in ["binnning_method"]
+        }
 
     def plot(
         self,
@@ -402,4 +462,3 @@ class RegionalALE(RegionalEffectBase):
         kwargs = locals()
         kwargs.pop("self")
         self._plot(kwargs)
-

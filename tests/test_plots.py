@@ -1,6 +1,7 @@
-import numpy as np
-import effector
 import matplotlib.pyplot as plt
+import numpy as np
+
+import effector
 
 
 def test_plots():

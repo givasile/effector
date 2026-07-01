@@ -40,9 +40,9 @@ class Tree:
         if parent is None:
             return name
 
-        assert (
-            comp is not None and pos is not None
-        ), "Comparison and position must be provided if parent is specified."
+        assert comp is not None and pos is not None, (
+            "Comparison and position must be provided if parent is specified."
+        )
 
         name = f"{name} {self._comparison_str(comp)} {pos}"
 

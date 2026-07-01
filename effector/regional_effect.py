@@ -1,14 +1,17 @@
+import copy
+import typing
+from typing import Callable, List, Optional, Tuple, Union
+
 import numpy as np
+
 import effector.helpers as helpers
 import effector.space_partitioning
 import effector.utils as utils
-from effector.space_partitioning import Best, Tree
-from effector.global_effect_ale import RHALE, ALE
+from effector.global_effect_ale import ALE, RHALE
 from effector.global_effect_pdp import PDP, DerPDP
 from effector.global_effect_shap import ShapDP
-from typing import Callable, Optional, Union, List, Tuple
-import typing
-import copy
+from effector.space_partitioning import Best, Tree
+
 
 class RegionalEffectBase:
     empty_symbol = helpers.EMPTY_SYMBOL
@@ -48,14 +51,17 @@ class RegionalEffectBase:
             # drop points outside of limits
             accept_indices = helpers.indices_within_limits(data, axis_limits)
             data = data[accept_indices, :]
-            data_effect = data_effect[accept_indices, :] if data_effect is not None else None
+            data_effect = (
+                data_effect[accept_indices, :] if data_effect is not None else None
+            )
         else:
             axis_limits = helpers.axis_limits_from_data(data)
         self.axis_limits: np.ndarray = axis_limits
 
-
         # data preprocessing (ii): select nof_instances from the remaining data
-        self.nof_instances, self.indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
+        self.nof_instances, self.indices = helpers.prep_nof_instances(
+            nof_instances, data.shape[0]
+        )
         data = data[self.indices, :]
         data_effect = data_effect[self.indices, :] if data_effect is not None else None
 
@@ -88,8 +94,8 @@ class RegionalEffectBase:
 
         # parameters used when fitting the regional effect
         # self.method_args: typing.Dict = {}
-        self.kwargs_subregion_detection: typing.Dict = {} # subregion specific arguments
-        self.kwargs_fitting: typing.Dict = {} # fitting specific arguments
+        self.kwargs_subregion_detection: typing.Dict = {}  # subregion specific arguments
+        self.kwargs_fitting: typing.Dict = {}  # fitting specific arguments
 
         # dictionary with all the information required for plotting or evaluating the regional effects
         self.partitioners: typing.Dict[str, Best] = {}
@@ -108,8 +114,12 @@ class RegionalEffectBase:
         """
         assert feature < self.dim, "Feature index out of bounds"
         if isinstance(space_partitioner, str):
-            assert space_partitioner in ["best", "cart"], "space_partitioner must be 'best' or 'cart'"
-            space_partitioner = space_partitioning.return_default(space_partitioner)
+            assert space_partitioner in ["best", "cart"], (
+                "space_partitioner must be 'best' or 'cart'"
+            )
+            space_partitioner = effector.space_partitioning.return_default(
+                space_partitioner
+            )
         else:
             space_partitioner = copy.deepcopy(space_partitioner)
 
@@ -123,7 +133,7 @@ class RegionalEffectBase:
             self.cat_limit,
             candidate_foc,
             self.feature_names,
-            self.target_name
+            self.target_name,
         )
         self.tree["feature_{}".format(feature)] = space_partitioner.fit()
 
@@ -149,7 +159,11 @@ class RegionalEffectBase:
         name = feature_tree.set_display_name(node.name, scale_x_list)
         active_indices = node.info["active_indices"]
         data = self.data[active_indices.astype(bool), :]
-        data_effect = self.data_effect[active_indices.astype(bool), :] if self.data_effect is not None else None
+        data_effect = (
+            self.data_effect[active_indices.astype(bool), :]
+            if self.data_effect is not None
+            else None
+        )
         feature_names = copy.deepcopy(self.feature_names)
         feature_names[feature] = name
 
@@ -201,12 +215,12 @@ class RegionalEffectBase:
             raise NotImplementedError
 
     def eval(
-            self,
-            feature: int,
-            node_idx: int,
-            xs: np.ndarray,
-            heterogeneity: bool = False,
-            centering: Union[bool, str] = True,
+        self,
+        feature: int,
+        node_idx: int,
+        xs: np.ndarray,
+        heterogeneity: bool = False,
+        centering: Union[bool, str] = True,
     ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """
         :point_right: Evaluate the regional effect for a given feature and node.
@@ -246,7 +260,7 @@ class RegionalEffectBase:
         centering = helpers.prep_centering(centering)
 
         kwargs = copy.deepcopy(self.kwargs_fitting)
-        kwargs['centering'] = centering
+        kwargs["centering"] = centering
 
         # select only the three out of all
         fe_method = self._create_fe_object(feature, node_idx, None)
@@ -264,14 +278,20 @@ class RegionalEffectBase:
         self.refit(kwargs["feature"])
 
         # select only the three out of all kwargs
-        fe_method = self._create_fe_object(kwargs["feature"], kwargs["node_idx"], kwargs["scale_x_list"])
+        fe_method = self._create_fe_object(
+            kwargs["feature"], kwargs["node_idx"], kwargs["scale_x_list"]
+        )
 
         kwargs_fitting = copy.deepcopy(self.kwargs_fitting)
-        kwargs_fitting['centering'] = kwargs["centering"]
+        kwargs_fitting["centering"] = kwargs["centering"]
         fe_method.fit(features=kwargs["feature"], **kwargs_fitting)
 
         plot_kwargs = copy.deepcopy(kwargs)
-        plot_kwargs["scale_x"] = kwargs["scale_x_list"][kwargs["feature"]] if kwargs["scale_x_list"] is not None else None
+        plot_kwargs["scale_x"] = (
+            kwargs["scale_x_list"][kwargs["feature"]]
+            if kwargs["scale_x_list"] is not None
+            else None
+        )
         plot_kwargs.pop("scale_x_list")
         plot_kwargs.pop("node_idx")
         return fe_method.plot(**plot_kwargs)
