@@ -5,6 +5,9 @@ on:
     tags:
       - "v*.*"
 
+permissions:
+  contents: read
+
 jobs:
   verify-tag-on-main:
     name: Verify tag is on main
@@ -49,6 +52,7 @@ jobs:
     environment: pypi
 
     permissions:
+      contents: read
       id-token: write  # Needed for OpenID Connect authentication
 
     steps:
