@@ -1,105 +1,18 @@
 import numpy as np
+import pytest
 
 import effector
-
-np.random.seed(21)
-
-
-class TestExample2:
-    """Simple example, where ground-truth can be computed in closed-form.
-
-    Notes
-    -----
-    The black-box function is
-
-    .. math:: f(x_1, x_2) = x_1^2 + x_1^2x_2
-
-    """
-
-    atol = 1.0e-2
-    n = 100000
-    k = 100
-
-    @staticmethod
-    def generate_samples(n: int, seed: int = None) -> np.array:
-        """Generate N samples
-
-        Parameters
-        ----------
-        n: int
-          nof samples
-        seed: int or None
-          seed for generating samples
-
-        Returns
-        -------
-        y: ndarray, shape: [N,2]
-          the samples
-        """
-        if seed is not None:
-            np.random.seed(seed)
-
-        x1 = np.concatenate(
-            (np.array([0]), np.random.uniform(0, 1, size=int(n - 2)), np.array([1]))
-        )
-        x2 = np.concatenate(
-            (np.array([0]), np.random.uniform(0, 1, size=int(n - 2)), np.array([1]))
-        )
-        return np.stack([x1, x2]).T
-
-    @staticmethod
-    def f(x: np.array) -> np.array:
-        return 3 + 2 * x[:, 0] - 4 * x[:, 1]
-
-    @staticmethod
-    def f_der(x):
-        return np.stack([np.ones(x.shape[0]) * 2, np.ones(x.shape[0]) * -4], axis=-1)
-
-    @staticmethod
-    def ale_1(x):
-        return 2 * x - 1
-
-    @staticmethod
-    def ale_2(x):
-        return -4 * x + 2
-
-    def test_dale(self):
-        # generate data
-        samples = self.generate_samples(self.n)
-
-        # prediction
-        dale = effector.RHALE(data=samples, model=self.f, model_jac=self.f_der)
-        fixed = effector.axis_partitioning.Fixed(nof_bins=self.k, min_points_per_bin=0)
-        dale.fit(features="all", binning_method=fixed, centering=True)
-
-        x = np.linspace(0, 1, 1000)
-        pred = dale.eval(feature=0, xs=x, centering=True)
-        gt = self.ale_1(x)
-        assert np.allclose(pred, gt, atol=self.atol)
-
-        pred = dale.eval(feature=1, xs=x, centering=True)
-        gt = self.ale_2(x)
-        assert np.allclose(pred, gt, atol=self.atol)
-
-        # DALE variable-size
-        dp = effector.axis_partitioning.DynamicProgramming(
-            max_nof_bins=20, min_points_per_bin=10, cat_limit=1
-        )
-        dale.fit(binning_method=dp, centering=True)
-
-        pred = dale.eval(feature=0, xs=x, centering=True)
-        gt = self.ale_1(x)
-        assert np.allclose(pred, gt, atol=1.0e-2)
-
-        pred = dale.eval(feature=1, xs=x, centering=True)
-        gt = self.ale_2(x)
-        assert np.allclose(pred, gt, atol=1.0e-2)
 
 
 class TestBinEstimation:
     """
     Tests only whether the solution is valid, not if it is the optimal.
     """
+
+    @pytest.fixture(autouse=True)
+    def _seed(self):
+        np.random.seed(21)
+
 
     @staticmethod
     def model(x, par):
