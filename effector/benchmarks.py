@@ -277,12 +277,14 @@ class CorrelatedInteraction:
         return ff(xs) - _center(ff, -0.5, 0.5)
 
     def d_pdp_gt(self, xs: np.ndarray) -> np.ndarray:
-        """Derivative-PDP (uncentered): d/dx1 of the PDP integrand + E[x2]-terms."""
-        return (
-            2 * np.pi * np.cos(2 * np.pi * xs) * (xs < 0)
-            - 10 * np.pi / 3 * np.cos(2 * np.pi * xs)
-            + 1
-        )
+        """Derivative-PDP (uncentered): E over the marginal of df/dx1.
+
+        df/dx1 = 2 pi cos(2 pi x1) 1{x1<0} - 4 pi cos(2 pi x1) 1{x3<0} + x2,
+        and E[1{x3<0}] = 5/6, E[x2] = 0. (Notebook 02's gt_d_pdp carries a
+        spurious +1 — a slip of dy/dx2 = x1 + 1; fixed here.)"""
+        return 2 * np.pi * np.cos(2 * np.pi * xs) * (xs < 0) - (
+            10 * np.pi / 3
+        ) * np.cos(2 * np.pi * xs)
 
     def ale_gt(self, xs: np.ndarray) -> np.ndarray:
         """ALE conditions on x3 ~ x1, so the -2 sin term only acts where x1 < 0
@@ -294,10 +296,23 @@ class CorrelatedInteraction:
         return self.ale_gt(xs)
 
     def rhale_heter_gt(self, xs: np.ndarray) -> np.ndarray:
-        """RHALE heterogeneity (std) accumulated from the x2 noise in df/dx1."""
+        """Effect-space heterogeneity band (std) accumulated from the x2 noise
+        in df/dx1 — what notebook 02 draws around the RHALE curve.
+
+        Not asserted anywhere yet: ``RHALE.eval(heterogeneity=True)`` returns a
+        derivative-space per-bin std, which is a different quantity. Wire this
+        in once the heterogeneity payload API lands (LOGBOOK #4)."""
         return (xs + 0.5) * self.sigma_2
 
     def shap_gt(self, xs: np.ndarray) -> np.ndarray:
-        """Mean SHAP curve for x1: splits the interaction terms with x3."""
+        """Mean SHAP curve for x1 as derived in notebook 02: -5/6 sin(2 pi x).
+
+        DISPUTED (2026-07-03): this does not match interventional Shapley —
+        an exact brute-force computation (all coalitions, marginal imputation
+        over the joint background) and shap's PermutationExplainer agree with
+        each other and both sit ~0.29 away from this curve, independent of N.
+        The notebook's derivation needs revisiting; until then nothing asserts
+        against this function (test_functional_correlated_features.py::test_shap
+        is skipped)."""
         ff = lambda x: -5 / 6 * np.sin(2 * np.pi * x)
         return ff(xs) - _center(ff, -0.5, 0.5)
