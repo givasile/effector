@@ -309,29 +309,61 @@ the `TODO: needs test, something is wrong` (B9) one way or the other.
 ### 3.3 Functional layer (port the notebook ground truths)
 
 *(Review 2026-07-02: this layer is written **first** — it is the stable anchor of the
-whole effort (§6). The test list below is a proposal; the final selection is agreed
-test-by-test when we write them.)*
+whole effort (§6). Selection agreed one-by-one — **LOGBOOK #8** (survey: #7): 8 tests
+in 5 + 2 files.)*
 
-One file per synthetic model, using `effector.models.*` + `IndependentUniform`
-(N=1_000, `Fixed(nof_bins=31)` where the notebooks do — each runs in ~1 s):
+**Mechanism (LOGBOOK #8): one source of truth.** Closed-form ground truths live once,
+on benchmark pair-objects in `effector.benchmarks`, named `<Model><Distribution>`
+(a GT is a theorem about the *pair* — never the model alone): `.model`, `.dataset`,
+`.pdp_gt(feature, xs)`, `.ale_gt`, `.rhale_gt`, `.heter_gt` (+ regional GT where
+applicable). Tests assert `method.eval(...) ≈ benchmark.*_gt(...)`; notebooks keep
+their derivation prose but call the *same* functions in the *same* asserts (executed
+tier-2). F7–F9 stay test-local by exception (trivial GT, no notebook twin).
 
-- `test_functional_conditional_interaction.py` (from **05_global + 05_heter**):
-  - centered PDP/ALE/RHALE vs closed-form for features 0,1,2 (atol 1e-1, masking the
-    ALE jump-bin exactly as the notebook does),
-  - PDP heterogeneity vs closed form; ALE `bin_variance` vs closed form,
-  - **regional** (from the WIP 05_regional): `RegionalPDP/ALE/RHALE.fit(0)` → root split
-    is on feature 1 at ≈0.0; per-region effect ≈ ±x² (centered) with heterogeneity ≈ 0.
-    This single test is the strongest guard for the whole regional refactor (steps 2.5–2.7).
-- `test_functional_general_interaction.py` (from **06**): PDP/ALE/RHALE vs closed form.
-- `test_functional_4_regions.py` (from **07**): PDP/ALE/RHALE, 4 features; also assert
-  Regional finds *two* split levels (x2 then x3) — 4 leaf regions.
-- Fix + keep `test_functional_linear.py` / `test_functional_gam.py` (P1). Split each
-  into parametrized per-method tests so a failure names the method. Move the non-SHAP
-  cases out of `slow` (they're fast); keep `shap`/`shapiq` cases slow **and** add one
-  tiny fast SHAP case to the gate: N=50, D=2, `budget=128` (a few seconds) so the gate
-  is not SHAP-blind.
-- `test_regional_methods.py`: fix P1; derive `node_idx` from the fitted tree instead of
-  hardcoding 3; reduce ShapDP N (100 → 50) to cut its 36 s.
+- **F1/F2** `test_functional_conditional_interaction.py` — `ConditionalInteractionUniform`
+  (from **05_global + 05_heter**; N=1_000, `Fixed(31)`):
+  - centered PDP/ALE/RHALE vs closed form for features 0,1,2 (atol 1e-1, ALE jump-bin
+    masked); the x2 row differentiates methods (PDP/ALE step ∓1/3 vs RHALE 0),
+  - PDP heterogeneity + ALE `bin_variance` vs closed form (trim N 10k → ~2k) — the
+    only heterogeneity-value checks in the suite,
+  - **F2, regional, written fresh** (05_regional is a stub): `RegionalPDP/ALE/RHALE.fit(0)`
+    → root split on feature 1 at ≈0.0; per-region effect ≈ ±x² (centered),
+    heterogeneity ≈ 0. Strongest guard for the regional refactor (steps 2.5–2.7).
+    Afterwards: *finish the 05_regional notebook* from the same benchmark object.
+- **F3** `test_functional_general_interaction.py` — `GeneralInteractionUniform`
+  (from **06**): PDP/ALE/RHALE vs closed form (interaction-generated slope x/3;
+  interaction invisible in the mean: x2 → 0); **add** h(x2)=x2⁴/3 PDP-heterogeneity
+  closed form (two-line derivation, not in the notebook).
+- **F4** `test_functional_four_regions.py` — `ConditionalInteraction4RegionsUniform`
+  (from **07**): PDP/ALE/RHALE, D=4 (atol 1e-1/2e-1/1e-2); also assert Regional finds
+  *two* split levels (x2 then x3) — 4 leaf regions. **Investigate first**: the
+  notebook's PDP assert *fails on current code* (91% of points, max diff 1.55 —
+  measured 2026-07-02); regression vs stale GT unresolved. If code bug →
+  `xfail(strict=True)` per §4.
+- **F5** `test_functional_correlated_features.py` — `CorrelatedInteraction`
+  (**NEW** — from **02**): the Gkolemis 2023 model (x3 strongly correlated with x1,
+  analytic jac, N≈170). The notebook derives closed forms for PDP, d-PDP, ALE, RHALE
+  **and SHAP** as `*_gt` functions but only overlays them on plots — assert them
+  (they have never run: tune tolerances knowingly; pin SHAP seed + budget). The only
+  test where methods provably *differ* (correlation) and the only closed-form SHAP
+  check in the repo.
+- **F7** `test_functional_all_methods_global.py` — repaired `test_functional_gam.py`,
+  **absorbs and retires `test_functional_linear.py`** (its DerPDP case compared eval
+  to x — wrong; the GAM file branches to derivative GTs correctly). Every method ×
+  backend × jac-path on f = x1³/5 + x2²/5: real asserts (P1), parametrized per case,
+  jac/no-jac parity asserts, non-SHAP cases in the gate, both SHAP backends slow
+  **plus** one tiny fast SHAP case (N=50, budget=128) so the gate is not SHAP-blind.
+- **F8** `test_functional_all_methods_regional.py` — repaired `test_regional_methods.py`:
+  all 5 regional methods incl. RegionalDerPDP + RegionalShapDP (both backends — the
+  only functional coverage of either); real asserts (P1); derive the target leaf from
+  the fitted tree (kill `node_idx=3`) and assert the tree's two split levels; ShapDP
+  N 100 → 50.
+- **F9** `test_functional_binning.py` — `TestExample2` moved out of `test_functional.py`:
+  RHALE vs closed-form ALE of a linear model at **atol 1e-2** (linear is load-bearing:
+  exact under any bin partition). Only functional coverage of DynamicProgramming
+  binning; **add Greedy** → all three binning methods behind one tight guard. Cleanup:
+  fix the docstring (describes a different model), seed inside the test (P4), N 100k → 10k.
+  (`TestBinEstimation` → unit layer, §3.2; `test_functional.py` then retires.)
 
 ### 3.4 Plot-content layer (protects steps 2.3–2.4)
 

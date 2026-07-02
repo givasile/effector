@@ -238,3 +238,95 @@ Next per entry #2: functional anchor (first `tag: code` work), then the other te
 layers as xfail spec, then the refactor.
 
 ---
+
+## 7. 2026-07-02 — Functional anchor: the final test list (tag: theory)  [Part II §3.3]
+
+```
+  sources surveyed (18 notebooks · 4 scripts · 12 test files)
+
+  notebooks 05/06/07 ──port──►  F1 F3 F4     real asserts already, never ran in CI
+  05_regional (stub) ──write──► F2           regional GT known, nothing implemented
+  notebook 02        ──port──►  F5           richest closed forms, never asserted (NEW)
+  linear/gam/regional tests ──repair──► F6 F7 F8   good structure, no-op asserts (P1)
+  TestExample2       ──keep──►  F9
+  everything else    ──reject── scripts = benchmarks · quickstart/guides/real-examples
+                                = no ground truths → tier-2 execution smoke only
+```
+
+| # | file | setup | asserts |
+|---|---|---|---|
+| F1 | `test_functional_conditional_interaction.py` (port 05_global + 05_heter) | `models.ConditionalInteraction`, `IndependentUniform` dim=3 [-1,1], N=1000, `Fixed(31)` | centered PDP/ALE/RHALE vs closed form (atol 1e-1, ALE jump-bin masked); PDP heterogeneity + ALE `bin_variance` vs closed form |
+| F2 | same file, regional section (written fresh — 05_regional is a stub) | same model/data; `RegionalPDP/ALE/RHALE.fit(0)` | root split on x2 ≈ 0; per-region effect ≈ ±x1² centered; per-region heterogeneity ≈ 0 |
+| F3 | `test_functional_general_interaction.py` (port 06) | `models.GeneralInteraction`, same recipe | PDP/ALE/RHALE vs closed form, atol 1e-1 |
+| F4 | `test_functional_4_regions.py` (port 07) | `models.ConditionalInteraction4Regions`, dim=4, N=1000 | PDP/ALE/RHALE vs closed form (atol 1e-1/2e-1/1e-2); Regional finds x2-then-x3 splits → 4 leaves |
+| F5 | `test_functional_correlated.py` (NEW — port notebook 02) | Gkolemis 2023 model, x3 strongly correlated with x1, analytic jac, N≈170 | notebook's `*_gt` closed forms asserted: PDP, d-PDP, ALE, RHALE, SHAP each vs its own GT — only test where methods provably differ; only closed-form SHAP check |
+| F6 | `test_functional_linear.py` (repair P1) | f = x1+x2, N=100; 5 methods + jac variants + both SHAP backends | eval ≈ x, heterogeneity ≈ 0, real asserts, parametrized per method; non-SHAP fast, one tiny SHAP case in the gate |
+| F7 | `test_functional_gam.py` (repair P1) | same grid, GAM model | per-method eval vs closed-form effect + derivative curves |
+| F8 | `test_regional_methods.py` (repair P1) | f = 5·x0 if (x1>0 ∧ x2=0) else 0; 5 regional methods + shapiq | subregion effect ≈ 5x, heterogeneity ≈ 0; `node_idx` derived from fitted tree |
+| F9 | `test_functional.py::TestExample2` (keep) | piecewise-linear, correlated x1,x2 | RHALE vs closed-form ALE, Fixed + DP binning |
+
+**What:** the functional layer's concrete test list (the selection §3.3 left open),
+chosen from a full survey of every notebook, script, and test file. Nine tests:
+port the four asserting synthetic notebooks (F1, F3, F4), write the regional ground
+truth fresh (F2), port notebook 02's unasserted closed forms (F5 — new vs the plan),
+repair the three no-op-assert tests (F6–F8), keep TestExample2 (F9).
+
+**Why:** the survey confirmed real ground-truth asserts exist in exactly five places
+in the whole repo — notebooks 05/06/07 and TestExample2 — and none run in CI. F2
+fills the biggest hole (regional methods have zero working numeric assertions);
+F5 is the only ground truth where PDP/ALE/SHAP provably differ (correlation), which
+is exactly what a refactor can silently break. Scripts and the remaining notebooks
+carry no ground truths — smoke tier only.
+
+**Changes:** this entry. PLAN.md §3.3 to be updated with the two deltas (F5 added;
+F2 written fresh, not ported); code lands next as the first `tag: code` work.
+
+---
+
+## 8. 2026-07-02 — Functional tests, agreed one-by-one: 8 tests, one source of truth (tag: theory)  [Part II §3.3]
+
+```
+        effector.benchmarks.<Model><Distribution>          ← the (f, p) PAIR:
+        .model  ·  .dataset  ·  .pdp_gt / .ale_gt /          a GT is a theorem about
+        .rhale_gt / .heter_gt  (+ regional GT)               model AND distribution,
+                    ┌───────────┴───────────┐                never the model alone
+                    ▼                       ▼
+     tests/test_functional_*.py      notebooks: derivation prose
+     tier-1 gate, parametrized       + the SAME asserts (tier-2 execution)
+```
+
+**What:** went through LOGBOOK #7's F1–F9 one by one (Claude proposed, I decided).
+Final list is **8 tests in 5 + 2 files**, and the keep-mechanism is **C**: closed-form
+ground truths live once, on benchmark pair-objects named `<Model><Distribution>`
+(the name states the scope of validity); tests and notebooks both consume them.
+Files named by scenario; F7–F9 stay test-local (trivial GT, no notebook twin).
+
+| # | file | benchmark object | decision |
+|---|---|---|---|
+| F1 | `test_functional_conditional_interaction.py` | `ConditionalInteractionUniform` | keep; trim heter N 10k→~2k |
+| F2 | same file | same object | keep; write fresh; **finish 05_regional notebook** from same object |
+| F3 | `test_functional_general_interaction.py` | `GeneralInteractionUniform` | keep; **add h(x2)=x2⁴/3** closed form |
+| F4 | `test_functional_four_regions.py` | `ConditionalInteraction4RegionsUniform` | keep; **investigate first** (PDP assert fails on current code, 91% of points — regression or stale GT); xfail(strict) if code bug; add two-level regional assert |
+| F5 | `test_functional_correlated_features.py` | `CorrelatedInteraction` | keep; asserts never ran — tune tolerances knowingly; pin SHAP seed+budget |
+| F7 | `test_functional_all_methods_global.py` | — (test-local) | **absorbs F6** — linear test dropped (its DerPDP check compared eval to x, wrong; GAM file does it right); real asserts, parametrize, jac/no-jac parity, tiny fast SHAP in gate |
+| F8 | `test_functional_all_methods_regional.py` | — (test-local) | keep + repair: real asserts, leaf derived from fitted tree (no `node_idx=3`), assert tree structure, ShapDP N→50 |
+| F9 | `test_functional_binning.py` | — (test-local; linear is load-bearing: exact under any binning → atol 1e-2) | keep + cleanup: fix lying docstring, seed inside test (P4), N→10k, **add Greedy** → all 3 binning methods covered |
+
+Retired: `test_functional_linear.py`, old `test_functional.py` (TestExample2 → F9,
+TestBinEstimation → unit layer), old `test_functional_gam.py` / `test_regional_methods.py`
+names (→ F7/F8).
+
+**Why:** (mechanism) a `.pdp_gt` on the model class alone would be a lie — the ground
+truth is a functional of (prediction function, data distribution); hanging it on the
+pair-object makes it true, and it is the only option where notebook and test cannot
+disagree (under plain porting, drift between the two copies is caught by nobody).
+(list) F1/F2 anchor method semantics + the only heterogeneity numbers; F3 anchors
+averaging; F4 anchors D=4 and multi-level splits — and already caught a real failure;
+F5 is the only place methods provably differ (correlation) and the only SHAP GT;
+F7/F8 are breadth (every method/backend/jac-path, global and regional); F9 is the
+only tight-tolerance and only DP/Greedy binning guard.
+
+**Changes:** PLAN.md §3.3 rewritten to this list (files, benchmark objects, fixes).
+Next: the first `tag: code` work — P1–P5 + F4 investigation, then the tests.
+
+---
