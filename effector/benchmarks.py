@@ -192,10 +192,13 @@ class ConditionalInteraction4RegionsUniform:
         return self.pdp_gt(feature, xs)
 
     # --- regional ground truth (feature of interest: 0) ---
-    # optimal partition is two-level: first on x2 at 0, then on x3 at 0,
-    # giving 4 leaf regions with deterministic effects.
+    # The optimal partition is two-level and its order is determined by the
+    # math: level 1 splits on x3 (the SIGN gate — separating -x1^{2|4} from
+    # +x1^{2|4} explains nearly all the heterogeneity), level 2 on x2 (the
+    # power gate). 4 leaf regions with deterministic effects.
 
-    regional_split_features = (1, 2)
+    regional_level1_split_feature = 2
+    regional_level2_split_feature = 1
     regional_split_position = 0.0
 
     def regional_effect_gt(self, x2_side: str, x3_side: str, xs: np.ndarray) -> np.ndarray:
