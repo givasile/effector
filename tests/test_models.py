@@ -2,14 +2,14 @@ import effector
 
 
 def test_models():
-    # Test ConditionalInteraction model
-    for model in [
-        effector.models.ConditionalInteraction(),
-        effector.models.DoubleConditionalInteraction(),
-        effector.models.ConditionalInteraction4Regions(),
-        effector.models.GeneralInteraction(),
-    ]:
-        x = effector.datasets.IndependentUniform(dim=3, low=-1, high=1).generate_data(
+    models_and_dims = [
+        (effector.models.ConditionalInteraction(), 3),
+        (effector.models.DoubleConditionalInteraction(), 3),
+        (effector.models.ConditionalInteraction4Regions(), 4),
+        (effector.models.GeneralInteraction(), 3),
+    ]
+    for model, dim in models_and_dims:
+        x = effector.datasets.IndependentUniform(dim=dim, low=-1, high=1).generate_data(
             1000, seed=21
         )
 
@@ -19,4 +19,4 @@ def test_models():
 
         # Test jacobian method
         jacobian = model.jacobian(x)
-        assert jacobian.shape == (1000, 3)
+        assert jacobian.shape == (1000, dim)

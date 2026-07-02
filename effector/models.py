@@ -109,12 +109,12 @@ class DoubleConditionalInteraction(Base):
 class ConditionalInteraction4Regions(Base):
     def __init__(self):
         """
-        $f(x_1, x_2, x_3) =
+        $f(x_1, x_2, x_3, x_4) =
         \begin{cases}
-        -x_1^2 + e^{x_3}, & \text{if } x_2 < 0 \text{ and } x_3 < 0 \\
-        x_1^2 + e^{x_3}, & \text{if } x_2 < 0 \text{ and } x_3 \\geq 0 \\
-        -x_1^4 + e^{x_3}, & \text{if } x_2 \\geq 0 \text{ and } x_3 < 0 \\
-        x_1^4 + e^{x_3}, & \text{if } x_2 \\geq 0 \text{ and } x_3 \\geq 0
+        -x_1^2 + e^{x_4}, & \text{if } x_2 < 0 \text{ and } x_3 < 0 \\
+        x_1^2 + e^{x_4}, & \text{if } x_2 < 0 \text{ and } x_3 \\geq 0 \\
+        -x_1^4 + e^{x_4}, & \text{if } x_2 \\geq 0 \text{ and } x_3 < 0 \\
+        x_1^4 + e^{x_4}, & \text{if } x_2 \\geq 0 \text{ and } x_3 \\geq 0
         \\end{cases}
         """
         super().__init__(name=self.__class__.__name__)
@@ -128,7 +128,7 @@ class ConditionalInteraction4Regions(Base):
         Returns:
             Output of the model, shape (N,)
         """
-        y = np.exp(x[:, 2])
+        y = np.exp(x[:, 3])
 
         mask1 = (x[:, 1] < 0) & (x[:, 2] < 0)
         mask2 = (x[:, 1] < 0) & (x[:, 2] >= 0)
@@ -153,7 +153,7 @@ class ConditionalInteraction4Regions(Base):
         """
         y = np.zeros(x.shape)
 
-        y[:, 2] = np.exp(x[:, 2])
+        y[:, 3] = np.exp(x[:, 3])
 
         mask1 = (x[:, 1] < 0) & (x[:, 2] < 0)
         mask2 = (x[:, 1] < 0) & (x[:, 2] >= 0)
