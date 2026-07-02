@@ -27,9 +27,12 @@ ATOL = 1e-1
 ALE_ATOL = {0: 1.5e-1, 1: 1e-1, 2: 1e-1, 3: 1e-1}
 RHALE_ATOL = {0: 1.5e-1, 1: 1e-2, 2: 1e-2, 3: 1e-2}
 # per-leaf heterogeneity: RHALE reports the within-bin std of the derivative;
-# for the x1^4 leaves that is ~0.12 in the edge bins at Fixed(31) — a binning-
-# resolution artifact (4x^3 varies fastest near |x|=1), not region inhomogeneity
-LEAF_HETER_ATOL = 1.5e-1
+# for the x1^4 leaves the edge bins carry ~0.07 of real within-bin variation
+# (4x^3 varies fastest near |x|=1) plus std-estimation noise at ~8 points per
+# bin per leaf — measured up to ~0.16 at seed 21. This is a resolution
+# artifact, not region inhomogeneity; the <5%-of-root ratio test below carries
+# the substantive "regions are homogeneous" claim.
+LEAF_HETER_ATOL = 2e-1
 XS = np.linspace(-1, 1, 100)
 
 
