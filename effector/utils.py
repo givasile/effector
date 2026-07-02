@@ -415,15 +415,15 @@ def compute_ale_params(
         >>> xs = np.array([0.5, 1.2, 2, 2.3])
         >>> df_dxs = np.array([30, 34, 15, 17])
         >>> limits = np.array([0, 1.5, 3.])
-        >>> compute_ale_params(xs, bin_values, bin_limits)
-        {'limits': array([0. , 1.5, 3. ]), 'dx': array([1.5, 1.5]), 'points_per_bin': array([2, 2]), 'bin_effect': array([32., 16.]), 'bin_variance': array([4., 1.]), 'bin_estimator_variance': array([2. , 0.5])}
+        >>> compute_ale_params(xs, df_dxs, limits)
+        {'limits': array([0. , 1.5, 3. ]), 'dx': array([1.5, 1.5]), 'points_per_bin': array([2, 2]), 'bin_effect': array([32., 16.]), 'bin_variance': array([4., 1.])}
 
         >>> # Example with interpolation
         >>> xs = np.array([1, 2, 2.8, 4])
         >>> df_dxs = np.array([31, 34, 37, 40])
         >>> limits = np.array([1, 3, 4])
-        >>> compute_ale_params(xs, bin_values, bin_limits)
-        {'limits': array([1, 3, 4]), 'dx': array([2, 1]), 'points_per_bin': array([3, 1]), 'bin_effect': array([34., 40.]), 'bin_variance': array([6., 6.]), 'bin_estimator_variance': array([2., 2.])}
+        >>> compute_ale_params(xs, df_dxs, limits)
+        {'limits': array([1, 3, 4]), 'dx': array([2, 1]), 'points_per_bin': array([3, 1]), 'bin_effect': array([34., 40.]), 'bin_variance': array([6., 6.])}
 
     Args:
         xs: The values of s-th feature, (N)
@@ -501,7 +501,7 @@ def compute_jacobian_numerically(
     Examples:
         >>> data = np.array([[1, 2], [2, 3.0]])
         >>> model = lambda x: np.sum(x, axis=1)
-        >>> compute_jacobian_numerically(model, data)
+        >>> np.round(compute_jacobian_numerically(model, data), 5)
         array([[1., 1.],
                [1., 1.]])
 
