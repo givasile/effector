@@ -141,6 +141,17 @@ Measured baseline (2026-07, local, uv + pytest):
 
 So there is ~2.5 min of headroom for new tests — plenty, if SHAP usage is kept tiny.
 
+Measured after the functional anchor landed (2026-07-03, `tests/functional-anchor`
+branch — F1–F9 + P2–P5 done, LOGBOOK #8/#9):
+
+| set | tests | time |
+|---|---|---|
+| tier 1: `make test` (`-m "not slow"`) | 106 passed + 1 skipped | **~15 s** |
+| tier 2: full `pytest tests` (SHAP backends, notebooks, BikeSharing) | 121 + 1 skipped | **~2 min 20 s** |
+
+Both tiers sit far under their budgets (3 min / 10 min); the skip is the
+disputed notebook-02 SHAP closed form (see Part III §3 errata note).
+
 ---
 
 ## 1. What exists today (inventory)
@@ -852,6 +863,24 @@ Agree on these first; every submodule change below is an application of one of t
 | B7 | `global_effect.py` (`requires_refit`) | `norm_const is None` branch dead (sentinels stored instead of `None`) | 2.2 |
 | B8 | naming/semantics | ShapDP `spline_std` holds variance; PDP eval returns variance while docstrings promise std | 2.2/2.3 |
 | B9 | `global_effect_pdp.py:694` | vectorized numerical d-ICE marked `TODO: needs test, something is wrong` — decide: test it or route to non-vectorized | 2.3 |
+| B10 | `models.py` (`ConditionalInteraction4Regions`) | exp term read `x[:, 2]` instead of `x[:, 3]` (predict + jacobian) — x4 unused, notebook 07's asserts never passed anywhere | **fixed 2026-07-02** (functional-anchor branch) |
+| B11 | `global_effect_shap.py:423` | `ShapDP.eval` default `heterogeneity=True` — contradicts its own docstring ("if heterogeneity=False (default)") and every sibling class, so bare `eval(...)` returns a tuple only for ShapDP | 2.3 / contract C1 |
+
+Semantics note found while writing F8 (2026-07-03): **RegionalShapDP does not
+recompute shap values within a region** — it subsets the precomputed *global*
+attributions (`global_shap_values`, `regional_effect_shap.py:110`). On the F8
+gated model the active-region slope is 5·7/12 ≈ 2.9, not 5. Defensible design,
+but the opposite of what the old (no-op) test asserted; decide deliberately in
+the regional pass (step 2.5–2.7) and document. Also: the SHAP explainers draw
+from global `np.random` with no exposed seed (HOMOGENIZATION candidate) —
+unseeded, even the fitted regional tree varies between runs.
+
+Notebook-02 math errata (2026-07-03, found porting F5): its `gt_d_pdp` carries
+a spurious `+1` (slip of dy/dx2 = x1+1; corrected in `benchmarks.py`), and its
+SHAP closed form (−5/6 sin 2πx) does **not** match interventional Shapley — an
+exact brute-force coalition computation and the shap package agree with each
+other and both sit ~0.29 from it, N-independent. Needs re-derivation;
+`test_functional_correlated_features.py::test_shap` stays skipped until then.
 
 ---
 

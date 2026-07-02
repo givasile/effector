@@ -76,13 +76,20 @@ def make_fitted(kind, opts, data):
     elif kind == "shapdp":
         # 100 instances: at 50 the subsample is too thin for the partitioner
         # to find the second (categorical) split at all.
-        # The explainers draw from global np.random and effector exposes no
-        # seed (HOMOGENIZATION candidate); unseeded, the fitted tree itself
-        # varies between runs.
+        # Unseeded explainers make even the fitted tree vary between runs, so
+        # seed both backends via shap_explainer_kwargs (effector exposes no
+        # first-class seed — HOMOGENIZATION candidate).
         np.random.seed(0)
         reg = effector.RegionalShapDP(
             data, model, nof_instances=100, backend=opts["backend"]
         )
+        seed_kw = {"shap": {"seed": 0}, "shapiq": {"random_state": 0}}[opts["backend"]]
+        reg.fit(
+            0,
+            space_partitioner=effector.space_partitioning.Best(max_depth=2),
+            shap_explainer_kwargs=seed_kw,
+        )
+        return reg
     reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
     return reg
 

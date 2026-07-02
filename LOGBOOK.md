@@ -330,3 +330,49 @@ only tight-tolerance and only DP/Greedy binning guard.
 Next: the first `tag: code` work — P1–P5 + F4 investigation, then the tests.
 
 ---
+
+## 9. 2026-07-03 — Functional anchor landed (tag: code)  [Part II §3.3; branch `tests/functional-anchor`]
+
+```
+   F4 investigation ──► B10: model bug, FIXED     benchmarks.py (4 pair-objects)
+   (07 never passed)    (exp read x3, not x4)              │
+                                                           ▼
+   8 tests · 7 files · all green        tier 1:  106 tests   ~15 s   (was 18 / 28 s)
+   + P2–P5 wiring fixed                 tier 2:  121 tests   ~2:20   (budget 10 min)
+```
+
+**What:** the agreed functional layer (#8) is code. `effector.benchmarks` holds
+the four (model, distribution) pairs; F1–F9 live in 5 new + 2 repaired test
+files; the old no-op/broken files are retired; P2–P5 fixed (notebooks collected
+as tier-2 `test_notebooks.py` with `kernel_name=python3`, BikeSharing marked
+slow, no import-time seeding anywhere, utils doctests fixed and gated).
+
+**Found along the way (all recorded in PLAN Part III §3):**
+- **B10 (fixed):** `ConditionalInteraction4Regions` read `x[:, 2]` for its exp
+  term — x4 unused; notebook 07's asserts had never passed anywhere. Fixing the
+  model made 07 green end-to-end for the first time.
+- **B11 (open):** `ShapDP.eval` defaults `heterogeneity=True`, contradicting its
+  own docstring and every sibling class — bare `eval` returns a tuple only there.
+- **Regional-SHAP semantics:** `RegionalShapDP` subsets the *global* shap values
+  per region (slope 5·7/12 on the F8 gate, not 5 = within-region recompute).
+  F8 locks the current semantics; the regional pass decides deliberately.
+- **Notebook-02 errata:** `gt_d_pdp` has a spurious `+1` (corrected in
+  benchmarks); the SHAP closed form (−5/6 sin) does not match interventional
+  Shapley (exact brute force + shap package agree with each other, not with it)
+  — needs re-derivation, its assert is skipped until then.
+- Tolerances tuned knowingly where GTs are 0 only in expectation (RHALE of
+  x1-like features ~1.5e-1 at N=1000; leaf heterogeneity at bin resolution).
+
+**Why green means something now:** every method class and both SHAP backends sit
+behind numeric asserts; heterogeneity values, regional splits (incl. two-level
+and categorical), and all three binning strategies each have at least one
+closed-form guard. Zero xfails; one honest skip.
+
+**Changes:** effector: `benchmarks.py` (new), `models.py` (B10), `utils.py`
+(doctests), `__init__.py`; tests: 7 new/repaired files, 4 retired
+(`test_functional.py`, `test_functional_linear.py`, `test_functional_gam.py`,
+`test_regional_methods.py`, `notebook_execution.py`); notebook 07 tolerances;
+PLAN.md (baseline table, §3 bug register + errata). Next per #2: 05_regional
+notebook finish (F2's twin), then the constitution text.
+
+---
