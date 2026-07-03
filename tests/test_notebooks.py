@@ -21,11 +21,7 @@ from nbconvert.preprocessors import ExecutePreprocessor  # noqa: E402
 
 NOTEBOOK_DIR = pathlib.Path(__file__).parent.parent / "notebooks" / "synthetic-examples"
 
-SKIP = {
-    # trains two Keras NNs and its hardcoded node_idx crashes on the freshly
-    # fitted tree (found 2026-07-02); revisit with the notebook overhaul
-    "04_regional_effects_real_f.ipynb",
-}
+SKIP: set = set()
 
 NOTEBOOKS = sorted(p for p in NOTEBOOK_DIR.glob("*.ipynb") if p.name not in SKIP)
 
