@@ -85,5 +85,5 @@ class TestHeterogeneity:
     def test_pdp_heterogeneity(self, bench, feature):
         data = bench.generate_data(N_HETER, seed=21)
         pdp = effector.PDP(data, bench.model.predict, axis_limits=bench.axis_limits)
-        _, heter = pdp.eval(feature=feature, xs=XS, centering=True, heterogeneity=True)
+        heter = pdp.eval_heter(feature, XS)
         np.testing.assert_allclose(heter, bench.pdp_heter_gt(feature, XS), atol=ATOL)

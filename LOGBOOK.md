@@ -619,3 +619,46 @@ ruff clean.
 rename B8).
 
 ---
+## 16. 2026-07-03 — Refactor step 3: one eval, one return type — the global methods slim down (tag: code)  [Part III §2.3, R1–R3, R8–R9; branch `refactor/step-3-global-methods`]
+
+**What:** the breaking API change LOGBOOK #4 accepted, landed:
+- **`eval(feature, xs, centering=None→class default)` is written once on the
+  base** and always returns the `(T,)` mean effect. The `heterogeneity` and
+  PDP's `return_all` kwargs are gone (B11 with them); per-class defaults come
+  from `DEFAULT_CENTERING`. The three per-method `eval` overrides are deleted.
+- **Consumers re-pointed** to the new surface: regional heterogeneity
+  functions use `eval_heter` (identical values); regional PDP/DerPDP build
+  their ICE tables from the kernel + stored norms; regional `eval` keeps its
+  public signature but is built on `eval`+`eval_heter`; facade drops the dead
+  kwarg; ALE plot feeds vis through a small shim (vis redraw is step 4).
+- **R8 constructors:** all five global classes are keyword-only after
+  `(data, model[, model_jac])`; RHALE's params reordered to the canonical
+  `data, model, model_jac, *, data_effect, ...`; three positional call sites
+  in the regional files fixed (they only survived by memorizing per-class
+  orders — exactly the bug class R8 kills).
+- **ShapDP:** B4 fixed (`== "std" or True`); `spline_std` → `spline_var`
+  (B8) with sqrt at the plot boundary; `plot` normalizes `centering` like
+  every sibling; `_compute_shap_values` factored module-level (the 4×
+  duplicated "code behind the scene" docstring blocks now reference it);
+  junk backend raises `ValueError`.
+- **(RH)ALE:** binning validation delegated to the resolver (B2: `"dp"` now
+  works, junk gets one `ValueError`); the 3× duplicated "impossible to
+  compute bins" assert is one `utils.raise_if_no_binning`. B9's settled TODO
+  deleted.
+- Functional tests re-pointed mechanically (`eval(heterogeneity=True)` →
+  `eval` + `eval_heter`), values unchanged — as planned in LOGBOOK #4. The
+  executed notebooks still call the old API: they are updated once, at the
+  end-of-story full pass.
+
+**xfails flipped green (markers removed, 21 → 14):** B11 (C1), the 5
+eval-signature specs, B2. Remaining 14: B1, B5×2, B6, R7 regional plots ×5,
+regional `eval_heter` ×5.
+
+**Verified:** gate 355 passed / 14 xfailed / ~14 s; slow SHAP tier 6 passed;
+ruff clean. B-table updated in PLAN.md (B2/B4/B7/B8/B9/B11 fixed; B3
+downgraded to dead code).
+
+**Next:** step 4 — `visualization.py` (fresh session: shared frame, wire
+`is_derivative` → flips B5×2, bands from `eval_heter`), then steps 5–7.
+
+---

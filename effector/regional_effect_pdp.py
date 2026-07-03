@@ -178,7 +178,9 @@ class RegionalPDP(RegionalPDPBase):
         features = helpers.prep_features(features, self.dim)
         for feat in tqdm(features):
             # define the global method
-            pdp = PDP(self.data, self.model, self.axis_limits, nof_instances="all")
+            pdp = PDP(
+                self.data, self.model, axis_limits=self.axis_limits, nof_instances="all"
+            )
 
             pdp.fit(
                 features=feat,
@@ -192,13 +194,12 @@ class RegionalPDP(RegionalPDPBase):
                 self.axis_limits[:, feat][1],
                 points_for_mean_heterogeneity,
             )
-            y_ice = pdp.eval(
-                feature=feat,
-                xs=xx,
-                heterogeneity=True,
-                centering=True,
-                use_vectorized=use_vectorized,
-                return_all=True,
+            y_ice = pdp._predict(pdp.data, xx, feat, use_vectorized)
+            y_ice = (
+                y_ice
+                - pdp.feature_effect["feature_" + str(feat)]["norm_const"][
+                    np.newaxis, :
+                ]
             )
             self.y_ice["feature_" + str(feat)] = y_ice.T
 
@@ -382,7 +383,7 @@ class RegionalDerPDP(RegionalPDPBase):
                 self.data,
                 self.model,
                 self.model_jac,
-                self.axis_limits,
+                axis_limits=self.axis_limits,
                 nof_instances="all",
             )
 
@@ -397,14 +398,7 @@ class RegionalDerPDP(RegionalPDPBase):
                 self.axis_limits[:, feat][1],
                 points_for_mean_heterogeneity,
             )
-            y_ice = pdp.eval(
-                feature=feat,
-                xs=xx,
-                heterogeneity=True,
-                centering=False,
-                use_vectorized=use_vectorized,
-                return_all=True,
-            )
+            y_ice = pdp._predict(pdp.data, xx, feat, use_vectorized)
             self.y_ice["feature_" + str(feat)] = y_ice.T
 
             heter = self._create_heterogeneity_function(

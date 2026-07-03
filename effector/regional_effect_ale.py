@@ -136,9 +136,9 @@ class RegionalRHALE(RegionalEffectBase):
                 data,
                 self.model,
                 self.model_jac,
-                "all",
-                self.axis_limits,
-                instance_effects,
+                data_effect=instance_effects,
+                nof_instances="all",
+                axis_limits=self.axis_limits,
             )
             try:
                 rhale.fit(features=foi, binning_method=binning_method, centering=False)
@@ -160,7 +160,7 @@ class RegionalRHALE(RegionalEffectBase):
                 self.axis_limits[1, foi],
                 points_for_mean_heterogeneity,
             )
-            _, z = rhale.eval(feature=foi, xs=xs, heterogeneity=True, centering=False)
+            z = rhale.eval_heter(foi, xs)
             return np.mean(z)
 
         return heter

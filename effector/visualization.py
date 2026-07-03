@@ -333,7 +333,8 @@ def plot_shap(
 
     # scale y-axis
     if scale_y is not None:
-        y_std = trans_scale(y_std, scale_y["std"], square=False)
+        if y_std is not None:
+            y_std = trans_scale(y_std, scale_y["std"], square=False)
         y = trans_affine(y, scale_y["mean"], scale_y["std"])
         if yy is not None:
             yy = trans_affine(yy, scale_y["mean"], scale_y["std"])

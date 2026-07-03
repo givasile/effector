@@ -15,6 +15,17 @@ class AllBinsHaveAtMostOnePointError(ValueError):
     pass
 
 
+def raise_if_no_binning(limits, feature: int, binning_method) -> None:
+    """Shared guard after `find_limits`: a `False` result means no binning with
+    enough points per bin exists for this feature/strategy combination."""
+    if limits is False:
+        raise ValueError(
+            f"Impossible to compute bins with enough points for feature "
+            f"{feature} and binning strategy {binning_method!r}. "
+            "Change the binning strategy or its parameters."
+        )
+
+
 def compute_local_effects(
     data: np.ndarray, model: typing.Callable, limits: np.ndarray, feature: int
 ) -> np.ndarray:

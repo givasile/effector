@@ -238,49 +238,53 @@ class GlobalEffectBase(ABC):
 
         return False
 
-    @abstractmethod
     def eval(
         self,
         feature: int,
         xs: np.ndarray,
-        heterogeneity: bool = False,
-        centering: Union[bool, str] = False,
-        **kwargs,
-    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
-        """Evaluate the effect of the s-th feature at positions `xs`.
+        centering: Union[None, bool, str] = None,
+    ) -> np.ndarray:
+        """Evaluate the mean effect of the `feature`-th feature at positions `xs`.
 
         Notes:
-            This is a common method among all the FE classes.
+            This is the one evaluation method of every effect class (R1): it
+            always returns the mean effect as a single `(T,)` array.
+            Heterogeneity lives on its own surface — `eval_heter(feature, xs)`
+            for the curve, `heter_score(feature)` for the scalar, and
+            `payload(feature)` for the method's raw object.
 
         Args:
             feature: index of feature of interest
-            xs: the points along the s-th axis to evaluate the FE plot
+            xs: the points along the s-th axis to evaluate the effect at
 
               - `np.ndarray` of shape `(T, )`
 
-            heterogeneity: whether to return the heterogeneity measures.
+            centering: whether to center the effect
 
-                  - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
-                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
-
-            centering: whether to center the PDP
-
-                - If `centering` is `False`, the PDP not centered
-                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the PDP starts from `y=0`.
+                - `None` (default) uses the class default (`DEFAULT_CENTERING`)
+                - `False`: no centering
+                - `True` or `"zero_integral"`: center around the `y` axis
+                - `"zero_start"`: the effect starts from `y=0`
 
         Returns:
-            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, heterogeneity)` otherwise
-
-        Notes:
-            * If `centering` is `False`, the plot is not centered
-            * If `centering` is `True` or `"zero_integral"`, the plot is centered by subtracting its mean.
-            * If `centering` is `"zero_start"`, the plot starts from zero.
-
-        Notes:
-            * If `heterogeneity` is `False`, the plot returns only the mean effect `y` at the given `xs`.
-            * If `heterogeneity` is `True`, the plot returns `(y, std)` where:
-                * `y` is the mean effect
-                * `std` is the standard deviation of the mean effect
+            the mean effect `y` at the given `xs`, `(T,)`
         """
-        raise NotImplementedError
+        centering = self.DEFAULT_CENTERING if centering is None else centering
+        centering = helpers.prep_centering(centering)
+
+        if self.requires_refit(feature, centering):
+            self.fit(features=feature, centering=centering)
+
+        if not self.axis_limits[0, feature] < self.axis_limits[1, feature]:
+            raise ValueError(
+                f"Feature {feature} has a degenerate axis interval "
+                f"[{self.axis_limits[0, feature]}, {self.axis_limits[1, feature]}]"
+            )
+
+        y = self._eval_unnorm(feature, xs)
+        if centering is not False:
+            norm_const = self.feature_effect["feature_" + str(feature)]["norm_const"]
+            # PDP stores a per-instance array (each ICE centers on its own);
+            # the shift of the mean effect is its average
+            y = y - (norm_const if np.ndim(norm_const) == 0 else np.mean(norm_const))
+        return y

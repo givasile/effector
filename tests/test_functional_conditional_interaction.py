@@ -100,7 +100,7 @@ class TestHeterogeneity:
         pdp = effector.PDP(
             data_heter, bench.model.predict, axis_limits=bench.axis_limits
         )
-        _, heter = pdp.eval(feature=feature, xs=XS, centering=True, heterogeneity=True)
+        heter = pdp.eval_heter(feature, XS)
         np.testing.assert_allclose(heter, bench.pdp_heter_gt(feature, XS), atol=ATOL)
 
     @pytest.mark.parametrize("feature", [0, 1, 2])

@@ -43,15 +43,7 @@ def params(**marks):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "name",
-    params(
-        shapdp=xfail(
-            strict=True,
-            reason="B11: ShapDP.eval defaults heterogeneity=True -> returns a tuple",
-        )
-    ),
-)
+@pytest.mark.parametrize("name", params())
 def test_c1_eval_returns_mean_array(name, global_data):
     m = make_global(name, global_data)
     y = m.eval(0, XS)
@@ -232,10 +224,6 @@ def test_c6_axis_limits_filter(name, global_data):
 
 
 @pytest.mark.parametrize("name", params())
-@pytest.mark.xfail(
-    strict=True,
-    reason="R1/R2: eval must have one return type — no heterogeneity/return_all kwargs",
-)
 def test_new_eval_signature_mean_only(name, global_data):
     m = make_global(name, global_data)
     sig = inspect.signature(type(m).eval)

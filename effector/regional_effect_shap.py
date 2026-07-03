@@ -109,7 +109,11 @@ class RegionalShapDP(RegionalEffectBase):
             data = self.data[active_indices.astype(bool), :]
             shap_values = self.global_shap_values[active_indices.astype(bool), :]
             shap_dp = effector.ShapDP(
-                data, self.model, self.axis_limits, "all", shap_values=shap_values
+                data,
+                self.model,
+                axis_limits=self.axis_limits,
+                nof_instances="all",
+                shap_values=shap_values,
             )
 
             try:
@@ -130,7 +134,7 @@ class RegionalShapDP(RegionalEffectBase):
             _mean_spline = shap_dp.feature_effect["feature_" + str(foi)]["spline_mean"]
 
             xs = np.linspace(self.axis_limits[0, foi], self.axis_limits[1, foi], 30)
-            _, z = shap_dp.eval(feature=foi, xs=xs, centering=False, heterogeneity=True)
+            z = shap_dp.eval_heter(foi, xs)
             # residuals = (shap_values[:, foi] - mean_spline(data[:, foi]))**2
             return np.mean(z)
 
@@ -170,39 +174,8 @@ class RegionalShapDP(RegionalEffectBase):
             shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` or `shapiq.Explainer` class, depending on the backend.
 
                 ??? note "Code behind the scene"
-                    Check the code that is running behind the scene before customizing `shap_explainer_kwargs`.
 
-                    ```python
-                    explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
-                    explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
-                    if self.backend == "shap":
-                        explainer_defaults = {"masker": data}
-                        explanation_defaults = {"max_evals": budget}
-                    elif self.backend == "shapiq":
-                        explainer_defaults = {
-                            "data": data,
-                            "index": "SV",
-                            "max_order": 1,
-                            "approximator": "permutation",
-                            "imputer": "marginal",
-                        }
-                        explanation_defaults = {"budget": budget}
-                    else:
-                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-                    explainer_kwargs = {**explainer_defaults, **explainer_kwargs}  # User args override defaults
-                    explanation_kwargs = {**explanation_defaults, **explanation_kwargs}  # User args override defaults
-
-                    if self.backend == "shap":
-                        explainer = shap.Explainer(model, **explainer_kwargs)
-                        explanation = explainer(data, **explanation_kwargs)
-                        self.shap_values = explanation.values
-                    elif self.backend == "shapiq":
-                        explainer = shapiq.Explainer(model, **explainer_kwargs)
-                        explanations = explainer.explain_X(data, **explanation_kwargs)
-                        self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
-                    else:
-                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-                    ```
+                    See `effector.global_effect_shap._compute_shap_values` — the single place the explainer is constructed and invoked.
 
                 ??? warning "Be careful with custom arguments"
 
@@ -213,39 +186,7 @@ class RegionalShapDP(RegionalEffectBase):
 
                 ??? note "Code behind the scene"
 
-                    Check the code that is running behind the scene before customizing `shap_explanation_kwargs`.
-
-                    ```python
-                    explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
-                    explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
-                    if self.backend == "shap":
-                        explainer_defaults = {"masker": data}
-                        explanation_defaults = {"max_evals": budget}
-                    elif self.backend == "shapiq":
-                        explainer_defaults = {
-                            "data": data,
-                            "index": "SV",
-                            "max_order": 1,
-                            "approximator": "permutation",
-                            "imputer": "marginal",
-                        }
-                        explanation_defaults = {"budget": budget}
-                    else:
-                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-                    explainer_kwargs = {**explainer_defaults, **explainer_kwargs}  # User args override defaults
-                    explanation_kwargs = {**explanation_defaults, **explanation_kwargs}  # User args override defaults
-
-                    if self.backend == "shap":
-                        explainer = shap.Explainer(model, **explainer_kwargs)
-                        explanation = explainer(data, **explanation_kwargs)
-                        self.shap_values = explanation.values
-                    elif self.backend == "shapiq":
-                        explainer = shapiq.Explainer(model, **explainer_kwargs)
-                        explanations = explainer.explain_X(data, **explanation_kwargs)
-                        self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
-                    else:
-                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-                    ```
+                    See `effector.global_effect_shap._compute_shap_values` — the single place the explainer is constructed and invoked.
 
                 ??? warning "Be careful with custom arguments"
 
@@ -268,7 +209,11 @@ class RegionalShapDP(RegionalEffectBase):
             # assert global SHAP values are available
             if self.global_shap_values is None:
                 global_shap_dp = effector.ShapDP(
-                    self.data, self.model, self.axis_limits, "all", backend=self.backend
+                    self.data,
+                    self.model,
+                    axis_limits=self.axis_limits,
+                    nof_instances="all",
+                    backend=self.backend,
                 )
                 global_shap_dp.fit(
                     feat,

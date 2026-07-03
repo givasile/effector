@@ -244,7 +244,10 @@ class RegionalEffectBase:
         # select only the three out of all
         fe_method = self._create_fe_object(feature, node_idx, None)
         fe_method.fit(features=feature, **kwargs)
-        return fe_method.eval(feature, xs, heterogeneity, centering)
+        y = fe_method.eval(feature, xs, centering=centering)
+        if heterogeneity:
+            return y, fe_method.eval_heter(feature, xs)
+        return y
 
     def fit(self, *args, **kwargs):
         raise NotImplementedError

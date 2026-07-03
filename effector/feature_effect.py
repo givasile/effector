@@ -187,9 +187,7 @@ class FeatureEffect:
             mk = method_kwargs.get(name) if method_kwargs else None
             obj = self._get_method(name, mk)
             label = self._DISPLAY[self._canonical(name)]
-            curves[label] = obj.eval(
-                feature, xs, heterogeneity=False, centering=centering
-            )
+            curves[label] = obj.eval(feature, xs, centering=centering)
 
         avg_output = (
             helpers.prep_avg_output(self.data, self.model, None, scale_y)

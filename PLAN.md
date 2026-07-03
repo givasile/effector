@@ -910,16 +910,16 @@ Agree on these first; every submodule change below is an application of one of t
 | # | Where | Bug | Submodule pass |
 |---|---|---|---|
 | B1 | `regional_effect_ale.py:242,448` | `"binnning_method"` typo (and `[:3]` locals slice) → `kwargs_fitting` always empty → regional (RH)ALE eval/plot ignore user's binning method | 2.5 |
-| B2 | `global_effect_ale.py:569` + `axis_partitioning.py:432` | `"dp"` fails RHALE assert; `"dynamic"` passes assert then crashes in `return_default` → DP binning unreachable by string | 2.6 |
-| B3 | `regional_effect.py:117` | assert allows `"cart"` (crashes later), rejects valid `"best_level_wise"` | 2.5 |
-| B4 | `global_effect_shap.py:517` | `heterogeneity == "std" or True` always truthy | 2.3 |
+| B2 | `global_effect_ale.py:569` + `axis_partitioning.py:432` | `"dp"` fails RHALE assert; `"dynamic"` passes assert then crashes in `return_default` → DP binning unreachable by string | **fixed 2026-07-03** (refactor steps 1+3: one alias table, RHALE validates via the resolver) |
+| B3 | `regional_effect.py:117` | assert allows `"cart"` (crashes later), rejects valid `"best_level_wise"` | 2.5 — **downgraded**: dead code (every `fit()` resolves the string first, LOGBOOK #12); fix = delete the assert |
+| B4 | `global_effect_shap.py:517` | `heterogeneity == "std" or True` always truthy | **fixed 2026-07-03** (refactor step 3) |
 | B5 | `visualization.py` (`plot_pdp_ice`) | `is_derivative` never wired → DerPDP + `scale_y` scales values as levels (adds mean); `std_err` is actually std | 2.4 |
 | B6 | `axis_partitioning.py` (`Fixed.find_limits`) | `_none_valid_binning` result overwritten; can return limits when binning was deemed impossible | 2.6 |
-| B7 | `global_effect.py` (`requires_refit`) | `norm_const is None` branch dead (sentinels stored instead of `None`) | 2.2 |
-| B8 | naming/semantics | ShapDP `spline_std` holds variance; PDP eval returns variance while docstrings promise std | 2.2/2.3 |
-| B9 | `global_effect_pdp.py:694` | vectorized numerical d-ICE marked `TODO: needs test, something is wrong` — decide: test it or route to non-vectorized | 2.3 |
+| B7 | `global_effect.py` (`requires_refit`) | `norm_const is None` branch dead (sentinels stored instead of `None`) | **fixed 2026-07-03** (refactor steps 1+2: `None` sentinel, branch live) |
+| B8 | naming/semantics | ShapDP `spline_std` holds variance; PDP eval returns variance while docstrings promise std | **fixed 2026-07-03** (refactor steps 2+3: `spline_var` rename; h is variance by convention, R2 — `eval_heter` docstring says so) |
+| B9 | `global_effect_pdp.py:694` | vectorized numerical d-ICE marked `TODO: needs test, something is wrong` — decide: test it or route to non-vectorized | **resolved-fine 2026-07-03** (unit-tested equal to non-vectorized + analytic jac; TODO deleted in step 3) |
 | B10 | `models.py` (`ConditionalInteraction4Regions`) | exp term read `x[:, 2]` instead of `x[:, 3]` (predict + jacobian) — x4 unused, notebook 07's asserts never passed anywhere | **fixed 2026-07-02** (functional-anchor branch) |
-| B11 | `global_effect_shap.py:423` | `ShapDP.eval` default `heterogeneity=True` — contradicts its own docstring ("if heterogeneity=False (default)") and every sibling class, so bare `eval(...)` returns a tuple only for ShapDP | 2.3 / contract C1 |
+| B11 | `global_effect_shap.py:423` | `ShapDP.eval` default `heterogeneity=True` — contradicts its own docstring ("if heterogeneity=False (default)") and every sibling class, so bare `eval(...)` returns a tuple only for ShapDP | **fixed 2026-07-03** (refactor step 3: the kwarg itself is gone — one `eval`, one return type) |
 
 Semantics note found while writing F8 (2026-07-03): **RegionalShapDP does not
 recompute shap values within a region** — it subsets the precomputed *global*

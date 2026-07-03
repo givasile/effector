@@ -44,11 +44,6 @@ def test_rhale_accepts_fixed_and_greedy(data, binning):
     m.fit(features=0, binning_method=binning)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="B2: 'dp' fails RHALE's assert although return_default resolves it "
-    "-> DP binning unreachable by string",
-)
 def test_rhale_accepts_dp_string(data):
     m = effector.RHALE(data, linear_model, model_jac=linear_model_jac)
     m.fit(features=0, binning_method="dp")
