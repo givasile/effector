@@ -487,15 +487,17 @@ def get_feature_types(
 
 
 def compute_jacobian_numerically(
-    model: typing.Callable, data: np.ndarray, eps: float = 1e-8
+    model: typing.Callable, data: np.ndarray, eps: float = 1e-6
 ) -> np.ndarray:
-    r"""Compute the Jacobian of the model using finite differences.
+    r"""Compute the Jacobian of the model using central finite differences.
 
     Notes:
-        The function computes the Jacobian of the model using finite differences. The formula is:
+        This is the package's single numerical-differentiation scheme (central
+        difference, one `eps`). The formula per feature is:
 
         $$
-        \mathtt{J} = {\mathtt{model}(x + \mathtt{eps}) - \mathtt{model}(x) \over \mathtt{eps}}
+        \mathtt{J}_{:,f} = {\mathtt{model}(x + \mathtt{eps}\,e_f) -
+        \mathtt{model}(x - \mathtt{eps}\,e_f) \over 2\,\mathtt{eps}}
         $$
 
     Examples:
@@ -519,5 +521,32 @@ def compute_jacobian_numerically(
     for f in range(data.shape[1]):
         data_plus = copy.deepcopy(data)
         data_plus[:, f] += eps
-        jacobian[:, f] = (model(data_plus) - model(data)) / eps
+        data_minus = copy.deepcopy(data)
+        data_minus[:, f] -= eps
+        jacobian[:, f] = (model(data_plus) - model(data_minus)) / (2 * eps)
     return jacobian
+
+
+def mean_1d_linspace(
+    func: typing.Callable, start: float, stop: float, nof_points: int = 100
+) -> float:
+    r"""Mean of `func` over `[start, stop]`, estimated on the midpoints of a
+    `nof_points` linspace (the normalization constant of `zero_integral`
+    centering).
+
+    Examples:
+        >>> round(float(mean_1d_linspace(lambda x: 2 * x, 0.0, 1.0)), 10)
+        1.0
+
+    Args:
+        func: callable mapping a 1D array of positions to a 1D array of values
+        start: left end of the interval
+        stop: right end of the interval
+        nof_points: size of the linspace whose midpoints are averaged
+
+    Returns:
+        the estimated mean value of `func` over the interval
+    """
+    x = np.linspace(start, stop, nof_points)
+    x = 0.5 * (x[:-1] + x[1:])
+    return np.mean(func(x))

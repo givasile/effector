@@ -7,8 +7,6 @@ from effector import helpers
 
 
 class GlobalEffectBase(ABC):
-    empty_symbol = helpers.EMPTY_SYMBOL
-
     def __init__(
         self,
         method_name: str,
@@ -24,37 +22,18 @@ class GlobalEffectBase(ABC):
         """
         Constructor for the FeatureEffectBase class.
         """
-        assert data.ndim == 2
-
         self.method_name = method_name.lower()
         self.model = model
         self.model_jac = model_jac
 
         self.dim = data.shape[1]
 
-        # data preprocessing (i): if axis_limits passed manually,
-        # keep only the points within,
-        # otherwise, compute the axis limits from the data
-        if axis_limits is not None:
-            assert axis_limits.shape == (2, self.dim)
-            assert np.all(axis_limits[0, :] <= axis_limits[1, :])
-
-            # drop points outside of limits
-            accept_indices = helpers.indices_within_limits(data, axis_limits)
-            data = data[accept_indices, :]
-            data_effect = (
-                data_effect[accept_indices, :] if data_effect is not None else None
-            )
-        else:
-            axis_limits = helpers.axis_limits_from_data(data)
-        self.axis_limits: np.ndarray = axis_limits
-
-        # data preprocessing (ii): select nof_instances from the remaining data
-        self.nof_instances, self.indices = helpers.prep_nof_instances(
-            nof_instances, data.shape[0]
+        # shared preprocessing: filter to axis_limits (or infer them), then
+        # subsample nof_instances (helpers.prep_data)
+        data, data_effect, axis_limits, self.nof_instances, self.indices = (
+            helpers.prep_data(data, axis_limits, nof_instances, data_effect)
         )
-        data = data[self.indices, :]
-        data_effect = data_effect[self.indices, :] if data_effect is not None else None
+        self.axis_limits: np.ndarray = axis_limits
 
         # store the data
         self.data: np.ndarray = data

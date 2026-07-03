@@ -545,3 +545,37 @@ plot bands to `eval_heter`.
 **Next:** the Part III refactor, step 1 (helpers/utils), one branch+PR per step.
 
 ---
+## 14. 2026-07-03 — Refactor step 1: helpers/utils foundation (tag: code)  [Part III §2.1, §4 step 1; branch `refactor/step-1-helpers-utils`]
+
+**What:** the foundations pass, exactly §2.1:
+- **`helpers.prep_data`** — the axis-limits→subsample block that lived as three
+  copies (GlobalEffectBase, RegionalEffectBase, FeatureEffect) is one function;
+  all three constructors now call it. `data_effect` stays row-aligned through
+  both steps.
+- **R4: `None` for "not computed"** — `norm_const` sentinels unified
+  (`EMPTY_SYMBOL`/`np.nan`/`1e8` → `None`); `EMPTY_SYMBOL` deleted from
+  `helpers`; `requires_refit`'s `norm_const is None` branch is now live (B7's
+  dead branch — the full B7 review completes in step 2).
+- **R9 in the input normalizers** — `prep_features` (now also validates
+  range), `prep_centering`, `prep_confidence_interval`, `prep_nof_instances`
+  raise `ValueError`/`TypeError` instead of bare asserts.
+- **R6 groundwork** — `axis_partitioning.VALID_METHODS` alias table;
+  `return_default` reads it and raises `ValueError` on junk (B2's other half —
+  the RHALE assert — falls in step 3).
+- Dead code deleted: `prep_dale_fit_params`, `prep_ale_fit_params`,
+  `utils_integrate.py` (live `mean_1d_linspace` moved into `utils` with a
+  doctest). One numerical-differentiation scheme:
+  `compute_jacobian_numerically` is now central-difference, `eps=1e-6`
+  (the `ice_*` kernels rewire to it in step 3).
+
+**xfails flipped green (markers removed, 51 → 46):** prep_features
+out-of-range spec, R9 ValueError ×3 (centering / binning / nof_instances), R9
+junk-centering-through-eval.
+
+**Verified:** gate 323 passed / 46 xfailed / ~13 s; slow SHAP tier 6 passed /
+~45 s; ruff clean.
+
+**Next:** step 2 — `global_effect.py` base (`_eval_unnorm` kernel, base
+`eval`/`eval_heter`/`payload`/`heter_score`, base fit loop + norm-const).
+
+---

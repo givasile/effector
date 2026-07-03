@@ -83,3 +83,38 @@ def test_camel_to_snake():
 
 def test_get_feature_names():
     assert helpers.get_feature_names(3) == ["x_0", "x_1", "x_2"]
+
+
+def test_prep_data_infers_limits_and_subsamples():
+    rng = np.random.default_rng(21)
+    raw = rng.uniform(-1, 1, size=(100, 3))
+    np.random.seed(21)
+    data, effect, limits, nof, indices = helpers.prep_data(raw, nof_instances=40)
+    assert data.shape == (40, 3)
+    assert effect is None
+    np.testing.assert_allclose(limits, helpers.axis_limits_from_data(raw))
+    assert nof == 40 and indices.shape == (40,)
+
+
+def test_prep_data_filters_and_keeps_effect_aligned():
+    rng = np.random.default_rng(21)
+    raw = rng.uniform(-1, 1, size=(100, 2))
+    raw_effect = 10 * raw  # recognizable per-row pairing
+    limits = np.array([[-0.5, -0.5], [0.5, 0.5]])
+    data, effect, _, _, _ = helpers.prep_data(
+        raw, axis_limits=limits, nof_instances="all", data_effect=raw_effect
+    )
+    assert 0 < data.shape[0] < 100
+    assert np.all((data >= -0.5) & (data <= 0.5))
+    np.testing.assert_allclose(effect, 10 * data)  # rows stayed aligned
+
+
+def test_prep_data_rejects_bad_input():
+    rng = np.random.default_rng(21)
+    raw = rng.uniform(-1, 1, size=(10, 2))
+    with pytest.raises(ValueError):
+        helpers.prep_data(raw[:, 0])  # not 2D
+    with pytest.raises(ValueError):
+        helpers.prep_data(raw, axis_limits=np.zeros((2, 5)))  # wrong shape
+    with pytest.raises(ValueError):
+        helpers.prep_data(raw, axis_limits=np.array([[1.0, 1.0], [0.0, 0.0]]))

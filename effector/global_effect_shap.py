@@ -258,7 +258,7 @@ class ShapDP(GlobalEffectBase):
         elif centering == "zero_start":
             norm_const = mean_spline(self.axis_limits[0, feature])
         else:
-            norm_const = helpers.EMPTY_SYMBOL
+            norm_const = None
 
         ret_dict = {
             "spline_mean": mean_spline,

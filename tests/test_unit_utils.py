@@ -240,3 +240,11 @@ def test_filter_points_in_bin():
     xs_f, df_f = utils.filter_points_in_bin(xs, None, np.array([1, 2]))
     np.testing.assert_array_equal(xs_f, [1, 2])
     assert df_f is None
+
+
+def test_mean_1d_linspace():
+    assert round(float(utils.mean_1d_linspace(lambda x: 2 * x, 0.0, 1.0)), 10) == 1.0
+    # midpoint rule on x^2 over [0, 1]: close to 1/3
+    np.testing.assert_allclose(
+        utils.mean_1d_linspace(lambda x: x**2, 0.0, 1.0), 1 / 3, atol=1e-3
+    )

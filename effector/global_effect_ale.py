@@ -7,7 +7,6 @@ import numpy as np
 import effector.axis_partitioning as ap
 import effector.helpers as helpers
 import effector.utils as utils
-import effector.utils_integrate as utils_integrate
 import effector.visualization as vis
 from effector.global_effect import GlobalEffectBase
 
@@ -66,7 +65,7 @@ class ALEBase(GlobalEffectBase):
         stop = self.axis_limits[1, feature]
 
         if method == "zero_integral":
-            z = utils_integrate.mean_1d_linspace(partial_eval, start, stop, nof_points)
+            z = utils.mean_1d_linspace(partial_eval, start, stop, nof_points)
         else:
             z = partial_eval(np.array([start])).item()
         return z
@@ -87,9 +86,7 @@ class ALEBase(GlobalEffectBase):
                     )
                 )
             else:
-                self.feature_effect["feature_" + str(s)]["norm_const"] = (
-                    self.empty_symbol
-                )
+                self.feature_effect["feature_" + str(s)]["norm_const"] = None
 
             self.is_fitted[s] = True
             self.fit_args["feature_" + str(s)] = {

@@ -427,22 +427,23 @@ class Fixed(Base):
         return self.limits
 
 
-def return_default(method):
-    assert (
-        method in ["greedy", "dp", "fixed"]
-        or isinstance(method, Fixed)
-        or isinstance(method, DynamicProgramming)
-        or isinstance(method, Greedy)
-    )
+# the single alias table for binning-method strings (R6): validation and
+# resolution both read it, so they cannot disagree
+VALID_METHODS = {
+    "fixed": Fixed,
+    "greedy": Greedy,
+    "dp": DynamicProgramming,
+}
 
+
+def return_default(method):
     if isinstance(method, Base):
         return method
 
-    if method == "greedy":
-        return Greedy()
-    elif method == "dp":
-        return DynamicProgramming()
-    elif method == "fixed":
-        return Fixed()
-    else:
-        raise ValueError("Unknown method")
+    if not isinstance(method, str) or method not in VALID_METHODS:
+        raise ValueError(
+            f"Unknown binning method: {method!r}; valid options are "
+            f"{sorted(VALID_METHODS)} or an axis_partitioning class instance"
+        )
+
+    return VALID_METHODS[method]()

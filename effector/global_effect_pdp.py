@@ -64,7 +64,7 @@ class PDPBase(GlobalEffectBase):
             y = self._predict(data, xx, feature, use_vectorized)
             fe = {"norm_const": y[0]}
         else:
-            fe = {"norm_const": np.nan}
+            fe = {"norm_const": None}
         return fe
 
     def fit(

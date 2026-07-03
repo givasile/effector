@@ -66,22 +66,16 @@ class FeatureEffect:
             feature_names: list of feature names, or `None` for `["x_0", ...]`
             target_name: name of the target, or `None` for `"y"`
         """
-        assert data.ndim == 2
         self.model = model
         self.model_jac = model_jac
         self.dim = data.shape[1]
 
-        # filter to axis limits (or infer them), then subsample ONCE so every
-        # method sees the exact same background data.
-        if axis_limits is not None:
-            assert axis_limits.shape == (2, self.dim)
-            data = data[helpers.indices_within_limits(data, axis_limits), :]
-        else:
-            axis_limits = helpers.axis_limits_from_data(data)
-        self.axis_limits: np.ndarray = axis_limits
-
-        _, indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
-        self.data: np.ndarray = data[indices, :]
+        # shared preprocessing (helpers.prep_data): filter to axis limits (or
+        # infer them), then subsample ONCE so every method sees the exact same
+        # background data.
+        self.data, _, self.axis_limits, _, _ = helpers.prep_data(
+            data, axis_limits, nof_instances
+        )
 
         self.feature_names = (
             helpers.get_feature_names(self.dim)
