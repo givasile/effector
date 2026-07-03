@@ -6,14 +6,13 @@ green = the rule already holds today; ``xfail(strict=True)`` = the
 homogenization refactor must make it true (removing the marker the moment it
 does — PLAN II §4).
 
-Provisional decisions (LOGBOOK #4 left them to constitution-writing time;
-flagged for Vasilis's sign-off, cheap to rename):
-  - payload accessor: ``method.payload(feature) -> dict`` containing at least
-    ``"h"`` (the method-specific heterogeneity object, an ``np.ndarray``);
-  - agnostic score:   ``method.heterogeneity(feature) -> float`` (>= 0,
-    centering-invariant);
-  - ``eval`` loses the ``heterogeneity`` (and PDP's ``return_all``) kwargs:
-    one return type, always (R1/R2).
+The heterogeneity surface (agreed with Vasilis 2026-07-03, LOGBOOK #13):
+  - ``eval(feature, xs, centering=...)`` -> mean effect only, one return type
+    (loses the ``heterogeneity`` and PDP's ``return_all`` kwargs — R1/R2);
+  - ``eval_heter(feature, xs)`` -> the heterogeneity curve h(xs), ``(T,)``,
+    no centering kwarg (invariant by signature), method-specific units;
+  - ``payload(feature)`` -> dict, the method's raw honest object;
+  - ``heter_score(feature)`` -> float >= 0, the method-agnostic scalar.
 """
 
 import inspect
@@ -223,12 +222,13 @@ def test_c6_axis_limits_filter(name, global_data):
 
 
 # ---------------------------------------------------------------------------
-# New surface (R1/R2, LOGBOOK #4) — all xfail until the refactor lands
+# New surface (R1/R2, LOGBOOK #4 + #13 — names agreed with Vasilis 2026-07-03:
+# eval / eval_heter / payload / heter_score) — all xfail until the refactor lands
 # ---------------------------------------------------------------------------
 
 NEW_SURFACE = xfail(
     strict=True,
-    reason="R2/LOGBOOK #4: new heterogeneity surface not implemented yet",
+    reason="R2/LOGBOOK #13: new heterogeneity surface not implemented yet",
 )
 
 
@@ -248,35 +248,60 @@ def test_new_eval_signature_mean_only(name, global_data):
     "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
 )
 def test_new_payload_accessor(name, global_data):
-    """Provisional: payload(feature) -> dict with the method's honest object,
-    at least the key 'h' (np.ndarray)."""
+    """payload(feature) -> non-empty dict with the method's raw honest object
+    (ICE matrix, per-bin variances, shap cloud); exact schema is decided at
+    refactor step 2-3."""
     m = make_global(name, global_data)
     m.fit(features=0)
     p = m.payload(0)
     assert isinstance(p, dict)
-    assert isinstance(p["h"], np.ndarray)
+    assert len(p) > 0
 
 
 @pytest.mark.parametrize(
     "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
 )
-def test_new_H_scalar(name, global_data):
-    """Provisional: heterogeneity(feature) -> non-negative scalar (the single
-    quantity regional splitting and F2 consume)."""
+def test_new_heter_score_scalar(name, global_data):
+    """heter_score(feature) -> non-negative scalar: the single method-agnostic
+    heterogeneity quantity regional splitting and F2 consume."""
     m = make_global(name, global_data)
-    H = m.heterogeneity(0)
-    assert np.isscalar(H)
-    assert H >= 0
+    score = m.heter_score(0)
+    assert np.isscalar(score)
+    assert score >= 0
 
 
 @pytest.mark.parametrize(
     "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
 )
-def test_new_h_centering_invariant(name, global_data):
-    """h (inside the payload) is a variance-like object: centering the mean
-    effect must not change it."""
+def test_new_eval_heter_returns_curve(name, global_data):
+    """eval_heter(feature, xs) -> (T,) ndarray >= 0: the heterogeneity curve
+    h(xs), method-specific units (the plot layer's bands must equal it — R1)."""
+    m = make_global(name, global_data)
+    h = m.eval_heter(0, XS)
+    assert isinstance(h, np.ndarray)
+    assert h.shape == XS.shape
+    assert np.all(h >= 0)
+
+
+@pytest.mark.parametrize(
+    "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
+)
+def test_new_eval_heter_signature_has_no_centering(name, global_data):
+    """Heterogeneity is centering-invariant by definition (R2): the signature
+    itself must make it impossible to ask otherwise."""
+    m = make_global(name, global_data)
+    sig = inspect.signature(type(m).eval_heter)
+    assert "centering" not in sig.parameters
+
+
+@pytest.mark.parametrize(
+    "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
+)
+def test_new_eval_heter_centering_invariant(name, global_data):
+    """eval_heter returns identical values whether the object was fitted
+    centered or uncentered."""
     m_c = make_global(name, global_data)
     m_c.fit(features=0, centering="zero_integral")
     m_u = make_global(name, global_data)
     m_u.fit(features=0, centering=False)
-    np.testing.assert_allclose(m_c.payload(0)["h"], m_u.payload(0)["h"], atol=1e-8)
+    np.testing.assert_allclose(m_c.eval_heter(0, XS), m_u.eval_heter(0, XS), atol=1e-8)

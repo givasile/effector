@@ -55,6 +55,20 @@ def test_rc2_invalid_node_idx_raises(fitted_regional):
         reg.eval(0, len(tree.nodes), XS)
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason="R2/LOGBOOK #13: regional eval_heter(feature, node_idx, xs) not "
+    "implemented yet",
+)
+def test_rc2_eval_heter_root_node(fitted_regional):
+    """New surface: the regional twin of eval_heter, on the root node."""
+    name, reg = fitted_regional
+    h = reg.eval_heter(0, 0, XS)
+    assert isinstance(h, np.ndarray)
+    assert h.shape == XS.shape
+    assert np.all(h >= 0)
+
+
 # ---------------------------------------------------------------------------
 # RC3 — plot contract (R7)
 # ---------------------------------------------------------------------------

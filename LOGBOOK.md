@@ -496,3 +496,52 @@ Part III refactor (steps 1–7). Definition of done unchanged: functional layer
 green, zero xfail markers left.
 
 ---
+## 13. 2026-07-03 — Constitution amendment: the four-object heterogeneity surface (tag: theory)  [Part III §1 R2; approval gate for PLAN II §6 steps 2–3]
+
+```mermaid
+flowchart TB
+    S["stored state (from fit)"]
+    E["eval(feature, xs, centering) → y(xs)<br/>mean effect, ONE return type"]
+    EH["eval_heter(feature, xs) → h(xs)<br/>heterogeneity curve, NO centering kwarg"]
+    P["payload(feature) → dict<br/>the raw honest object"]
+    HS["heter_score(feature) → float ≥ 0<br/>method-AGNOSTIC scalar"]
+    V["plot layer<br/>bands/error-bars == eval_heter (R1)"]
+    R["regional splitting · F2"]
+    S --> E
+    S --> EH
+    S --> P
+    S --> HS
+    P -.raw for method-specific plot modes.-> V
+    EH --> V
+    HS --> R
+```
+
+**What:** Vasilis approved the Phase-A summary (LOGBOOK #12) and amended the
+surface: alongside `eval`, `payload`, and the scalar (now named
+**`heter_score`**), a fourth public object exists — **`eval_heter(feature,
+xs)`**, the heterogeneity curve. Aggregation ladder: `payload` (raw) →
+`eval_heter` (curve) → `heter_score` (scalar); each level has a distinct
+consumer. `eval_heter` takes **no centering argument** — invariance is enforced
+by the signature, not by convention. Method-specific units (PDP: var of
+centered ICE; DerPDP: var of d-ICE; ALE/RHALE: per-bin variance as a step
+function — the step function is the honest object, no interpolation; ShapDP:
+residual spline). Regional twin: `eval_heter(feature, node_idx, xs)`.
+
+**Why:** the plot layer is the concrete consumer that justifies the curve:
+every plot draws heterogeneity vs x, and R1 (plot = thin wrapper, zero own
+computation) is only achievable if the band values come from a uniform accessor
+instead of per-plot method-specific reductions of the payload. `payload` stays
+because curves can't replace the raw objects (ICE lines for the "ice" mode,
+shap cloud for the scatter).
+
+**Changes:** contract tests re-pointed/extended on `tests/contract-and-unit-layers`
+(PR #24): `heterogeneity` → `heter_score`; new xfail C-items for `eval_heter`
+(shape, non-negativity, no-centering signature, centering-invariance — the
+invariance test moved off `payload["h"]`); payload item loosened to "non-empty
+dict" (schema fixed at refactor steps 2–3). PLAN.md R2 rewritten; refactor step
+2 now also builds base `eval_heter`/`payload`/`heter_score`, and step 4 ties
+plot bands to `eval_heter`.
+
+**Next:** the Part III refactor, step 1 (helpers/utils), one branch+PR per step.
+
+---
