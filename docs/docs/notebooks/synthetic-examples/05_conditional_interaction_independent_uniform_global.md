@@ -33,14 +33,11 @@ import effector
 
 np.random.seed(21)
 
-model = effector.models.ConditionalInteraction()
-dataset = effector.datasets.IndependentUniform(dim=3, low=-1, high=1)
-x = dataset.generate_data(1_000)
+bench = effector.benchmarks.ConditionalInteractionUniform()
+model = bench.model
+dataset = bench.dataset
+x = bench.generate_data(1000)
 ```
-
-    /Users/dimitriskyriakopoulos/Documents/ath/Effector/Code/eff-env/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
-      from .autonotebook import tqdm as notebook_tqdm
-
 
 ## PDP
 
@@ -114,25 +111,10 @@ PDP(x_3) &\propto \frac{1}{N} \sum_{i=1}^{n} f(x_3, x_{/3}^i) \\
 
 
 ```python
-def compute_centering_constant(func, start, stop, nof_points):
-    x = np.linspace(start, stop, nof_points)
-    y = func(x)
-    return np.mean(y)
-
-
-def pdp_ground_truth(feature, xs):
-    if feature == 0:
-        ff = lambda x: np.zeros_like(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-    elif feature == 1:
-        ff = lambda x: -1 / 3 * (x < 0) + 1 / 3 * (x >= 0)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-    elif feature == 2:
-        ff = lambda x: np.exp(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
+# The closed form below lives in `effector.benchmarks` — the SAME function the
+# test suite asserts against (tests/test_functional_conditional_interaction.py),
+# so this notebook and the tests can never disagree about the right answer.
+pdp_ground_truth = bench.pdp_gt
 ```
 
 
@@ -266,20 +248,10 @@ ALE(x_3) &\propto \sum_{k=1}^{k_{x_3}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(
 
 
 ```python
-def ale_ground_truth(feature, xs):
-    if feature == 0:
-        ff = lambda x: np.zeros_like(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-    elif feature == 1:
-        K = 51
-        ff = lambda x: -1/3 * (x < 0) + 1/3 * (x >= 0)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-    elif feature == 2:
-        ff = lambda x: np.exp(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
+# The closed form below lives in `effector.benchmarks` — the SAME function the
+# test suite asserts against (tests/test_functional_conditional_interaction.py),
+# so this notebook and the tests can never disagree about the right answer.
+ale_ground_truth = bench.ale_gt
 ```
 
 
@@ -409,21 +381,10 @@ RHALE(x_3) &\propto \sum_{k=1}^{k_{x_3}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k
 
 
 ```python
-def rhale_ground_truth(feature, xs):
-    if feature == 0:
-        ff = lambda x: np.zeros_like(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-    elif feature == 1:
-        K = 31
-        ff = lambda x: np.zeros_like(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-    elif feature == 2:
-        ff = lambda x: np.exp(x)
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-
+# The closed form below lives in `effector.benchmarks` — the SAME function the
+# test suite asserts against (tests/test_functional_conditional_interaction.py),
+# so this notebook and the tests can never disagree about the right answer.
+rhale_ground_truth = bench.rhale_gt
 ```
 
 

@@ -1,4 +1,5 @@
-from effector import axis_partitioning, datasets, models, space_partitioning
+from effector import axis_partitioning, benchmarks, datasets, models, space_partitioning
+from effector.feature_effect import FeatureEffect
 from effector.global_effect_ale import ALE, RHALE
 from effector.global_effect_pdp import PDP, DerPDP
 from effector.global_effect_shap import ShapDP
