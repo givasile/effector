@@ -24,6 +24,8 @@ import effector.utils as utils
 
 
 class ShapDP(GlobalEffectBase):
+    DEFAULT_CENTERING: Union[bool, str] = "zero_integral"
+
     def __init__(
         self,
         data: np.ndarray,
@@ -142,12 +144,12 @@ class ShapDP(GlobalEffectBase):
         self,
         feature: int,
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
-        centering: typing.Union[bool, str] = False,
-        points_for_centering: int = 30,
         budget: int = 512,
-        explainer_kwargs: Optional[dict] = None,
-        explanation_kwargs: Optional[dict] = None,
+        shap_explainer_kwargs: Optional[dict] = None,
+        shap_explanation_kwargs: Optional[dict] = None,
     ) -> typing.Dict:
+        explainer_kwargs = shap_explainer_kwargs
+        explanation_kwargs = shap_explanation_kwargs
 
         data = self.data
         model = self.model
@@ -246,28 +248,20 @@ class ShapDP(GlobalEffectBase):
             fill_value="extrapolate",
         )
 
-        # compute norm constant
-        if centering == "zero_integral":
-            x_norm = np.linspace(
-                self.axis_limits[0, feature],
-                self.axis_limits[1, feature],
-                points_for_centering,
-            )
-            y_norm = mean_spline(x_norm)
-            norm_const = np.mean(y_norm)
-        elif centering == "zero_start":
-            norm_const = mean_spline(self.axis_limits[0, feature])
-        else:
-            norm_const = None
-
         ret_dict = {
             "spline_mean": mean_spline,
             "spline_std": var_spline,
             "xx": xx,
             "yy": yy,
-            "norm_const": norm_const,
         }
         return ret_dict
+
+    def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
+        params = self.feature_effect["feature_" + str(feature)]
+        y = params["spline_mean"](x)
+        if heterogeneity:
+            return y, params["spline_std"](x)
+        return y
 
     def fit(
         self,
@@ -396,25 +390,15 @@ class ShapDP(GlobalEffectBase):
                     check the official documentation of [`shap`](https://shap.readthedocs.io/en/latest/) and [`shapiq`](https://shapiq.readthedocs.io/en/latest/) packages.
 
         """
-        centering = helpers.prep_centering(centering)
-        features = helpers.prep_features(features, self.dim)
-
-        # new implementation
-        for s in features:
-            self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s,
-                binning_method,
-                centering,
-                points_for_centering,
-                budget,
-                shap_explainer_kwargs,
-                shap_explanation_kwargs,
-            )
-            self.is_fitted[s] = True
-            self.fit_args["feature_" + str(s)] = {
-                "centering": centering,
-                "points_for_centering": points_for_centering,
-            }
+        self._fit_loop(
+            features,
+            centering,
+            points_for_centering,
+            binning_method=binning_method,
+            budget=budget,
+            shap_explainer_kwargs=shap_explainer_kwargs,
+            shap_explanation_kwargs=shap_explanation_kwargs,
+        )
 
     def eval(
         self,
@@ -534,9 +518,7 @@ class ShapDP(GlobalEffectBase):
         )
 
         if show_avg_output:
-            avg_output = helpers.prep_avg_output(
-                self.data, self.model, self.avg_output, scale_y
-            )
+            avg_output = helpers.prep_avg_output(self.data, self.model, None, scale_y)
         else:
             avg_output = None
 

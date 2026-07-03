@@ -579,3 +579,43 @@ junk-centering-through-eval.
 `eval`/`eval_heter`/`payload`/`heter_score`, base fit loop + norm-const).
 
 ---
+## 15. 2026-07-03 — Refactor step 2: the base class carries the lifecycle + the new surface (tag: code)  [Part III §2.2, R1–R4; branch `refactor/step-2-global-base`]
+
+**What:** `GlobalEffectBase` now owns the shared machinery:
+- **`_fit_loop`** (hoisted from ALEBase; PDP and ShapDP had inline copies) —
+  one fit skeleton: prep inputs → `_fit_feature` payload → norm-const →
+  `fit_args`/`is_fitted`. `fit_args` now records *all* fit kwargs uniformly.
+- **`_compute_norm_const`** (generalized from ALEBase) — works on any method
+  through the `_eval_unnorm` kernel; PDP overrides it (its normalization is
+  per-instance: each ICE centers on its own — that is what makes h honest).
+- **`_eval_unnorm(feature, xs, heterogeneity)` is the abstract kernel** —
+  ALE already had it; PDP and ShapDP kernels extracted (PDP's computes ICE and
+  h = var of per-instance-centered ICE / raw d-ICE; ShapDP's reads the splines).
+- **The new surface (LOGBOOK #13), implemented once on the base:**
+  `eval_heter` (kernel's h, no centering kwarg), `payload` (the stored fit
+  dict), `heter_score` (mean of `eval_heter` on a 30-grid — same grid
+  convention as regional's `points_for_mean_heterogeneity`).
+- `DEFAULT_CENTERING` class attribute declared (ALE-family/ShapDP:
+  `"zero_integral"`, PDP-family: `False`); signatures converge on it in step 3.
+  Dead `self.avg_output` state removed. ALEBase's double `method_name` set
+  removed.
+
+**Deliberate behavior change (flagged for the notebook oracle):** ShapDP's
+`zero_integral` norm-const now uses the same midpoint scheme as ALE
+(`utils.mean_1d_linspace`) instead of a 30-gridpoint mean — its centered
+curves shift by ~2e-3 on the contract fixture. The C2 zero-integral contract
+test was re-stated semantically (dense grid, atol covering the 30-point
+discretization) instead of pinning the old per-method grid accident.
+
+**xfails flipped green (markers removed, 46 → 21):** the 25 new-surface items —
+`payload` ×5, `heter_score` ×5, `eval_heter` shape/positivity ×5, no-centering
+signature ×5, centering-invariance ×5.
+
+**Verified:** gate 348 passed / 21 xfailed / ~14 s; slow SHAP tier 6 passed;
+ruff clean.
+
+**Next:** step 3 — slim the three global-method files onto the base (eval loses
+`heterogeneity`/`return_all` → B11; keyword-only constructors R8; `spline_var`
+rename B8).
+
+---

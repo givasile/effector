@@ -12,6 +12,8 @@ from effector.global_effect import GlobalEffectBase
 
 
 class ALEBase(GlobalEffectBase):
+    DEFAULT_CENTERING: Union[bool, str] = "zero_integral"
+
     def __init__(
         self,
         data: np.ndarray,
@@ -24,7 +26,6 @@ class ALEBase(GlobalEffectBase):
         target_name: Optional[str] = None,
         method_name: str = "ALE",
     ):
-        self.method_name = method_name
         super(ALEBase, self).__init__(
             method_name,
             data,
@@ -38,60 +39,8 @@ class ALEBase(GlobalEffectBase):
         )
 
     @abstractmethod
-    def _fit_feature(
-        self,
-        feature: int,
-        binning_method: typing.Union[
-            str, ap.DynamicProgramming, ap.Greedy, ap.Fixed
-        ] = "greedy",
-    ) -> typing.Dict:
-        raise NotImplementedError
-
-    @abstractmethod
     def fit(self, features: typing.Union[int, str, list] = "all", **kwargs) -> None:
         raise NotImplementedError
-
-    def _compute_norm_const(
-        self, feature: int, method: str = "zero_integral", nof_points: int = 30
-    ) -> float:
-        """Compute the normalization constant."""
-        assert method in ["zero_integral", "zero_start"]
-
-        def create_partial_eval(feat):
-            return lambda x: self._eval_unnorm(feat, x, heterogeneity=False)
-
-        partial_eval = create_partial_eval(feature)
-        start = self.axis_limits[0, feature]
-        stop = self.axis_limits[1, feature]
-
-        if method == "zero_integral":
-            z = utils.mean_1d_linspace(partial_eval, start, stop, nof_points)
-        else:
-            z = partial_eval(np.array([start])).item()
-        return z
-
-    def _fit_loop(self, features, binning_method, centering, points_for_centering=30):
-        features = helpers.prep_features(features, self.dim)
-        centering = helpers.prep_centering(centering)
-        for s in features:
-            # compute all information required for plotting and evaluating the feature effect
-            self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s, binning_method
-            )
-            # append the "norm_const" to the feature effect if centering is not False
-            if centering is not False:
-                self.feature_effect["feature_" + str(s)]["norm_const"] = (
-                    self._compute_norm_const(
-                        s, method=centering, nof_points=points_for_centering
-                    )
-                )
-            else:
-                self.feature_effect["feature_" + str(s)]["norm_const"] = None
-
-            self.is_fitted[s] = True
-            self.fit_args["feature_" + str(s)] = {
-                "centering": centering,
-            }
 
     def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
         params = self.feature_effect["feature_" + str(feature)]
@@ -222,9 +171,7 @@ class ALEBase(GlobalEffectBase):
         )
 
         if show_avg_output:
-            avg_output = helpers.prep_avg_output(
-                self.data, self.model, self.avg_output, scale_y
-            )
+            avg_output = helpers.prep_avg_output(self.data, self.model, None, scale_y)
         else:
             avg_output = None
 
@@ -398,7 +345,9 @@ class ALE(ALEBase):
             "ALE can work only with the fixed binning method!"
         )
 
-        self._fit_loop(features, binning_method, centering, points_for_centering)
+        self._fit_loop(
+            features, centering, points_for_centering, binning_method=binning_method
+        )
 
 
 class RHALE(ALEBase):
@@ -569,4 +518,6 @@ class RHALE(ALEBase):
             or isinstance(binning_method, ap.Fixed)
         ), "Unknown binning method!"
 
-        self._fit_loop(features, binning_method, centering, points_for_centering)
+        self._fit_loop(
+            features, centering, points_for_centering, binning_method=binning_method
+        )
