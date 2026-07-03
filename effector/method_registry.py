@@ -33,8 +33,8 @@ ALIASES = {
 }
 
 
-def resolve(name: str) -> MethodSpec:
-    """The `MethodSpec` for `name` (case-insensitive, aliases allowed)."""
+def canonical(name: str) -> str:
+    """The canonical registry key for `name` (case-insensitive, aliases allowed)."""
     key = name.lower()
     key = ALIASES.get(key, key)
     if key not in METHODS:
@@ -43,4 +43,9 @@ def resolve(name: str) -> MethodSpec:
                 name, sorted(METHODS), sorted(ALIASES)
             )
         )
-    return METHODS[key]
+    return key
+
+
+def resolve(name: str) -> MethodSpec:
+    """The `MethodSpec` for `name` (case-insensitive, aliases allowed)."""
+    return METHODS[canonical(name)]

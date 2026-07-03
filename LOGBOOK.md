@@ -791,3 +791,43 @@ as the baseline (end-of-story pass pending); ruff clean. B-table: B6 fixed.
 then the end-of-story full pass (notebooks rewired to the new API).
 
 ---
+## 20. 2026-07-03 — Refactor step 7: facade on the registry, dead weight overboard — steps 1–7 complete (tag: code)  [Part III §2.8–2.10, §4; branch `refactor/step-7-facade-cleanup`]
+
+**What:** the last application-order step:
+- **Facade (§2.8):** `FeatureEffect` re-pointed to `method_registry` (R5) —
+  its private `_REGISTRY`/`_ALIASES`/`_DISPLAY` deleted; only a `_POOL`
+  list remains (which registry methods are comparable — DerPDP excluded,
+  derivative units). The registry grew a `canonical(name)` helper. The
+  facade gained **`eval(feature, xs, methods, centering)` →
+  `{display_name: y}`** — the promised "grow eval for free"; `plot` is now
+  a thin wrapper over it (shared grid → `eval` → one `vis.*` call, R1).
+- **Dead modules (§2.9):** `interaction.py` deleted (293 fully-commented
+  lines importing functions that no longer exist); `tree.py`'s 50-line
+  commented `DataTransformer` deleted. (`utils_integrate.py` was already
+  folded into `utils.py` in step 1.)
+- **`datasets.py` (§2.10):** `RealDatasetBase.split` takes `seed=21`
+  (train/test splits reproducible between runs; was unseeded);
+  `standarize` → `standardize`; `np.array` → `np.ndarray` annotations;
+  `BikeSharing.postprocess`'s magic constants documented (UCI id=275
+  normalizations — temp `(t+8)/47`, hum `/100`, windspeed `/67`; indices
+  after dropping dteday/atemp: 8/9/10).
+  **Deliberate deviation:** `IndependentUniform.generate_data`'s "pointless"
+  extra shuffle is *kept* — removing it changes every seeded data stream,
+  which would invalidate the executed notebooks as the end-of-story
+  regression oracle. Revisit after the notebook pass if it still bothers.
+- **The constitution is now user-facing:** R1–R9 copied (as-built) to
+  `docs/design.md`; CONTRIBUTING.md links it as the contract new features
+  must follow (PLAN III §4 closing requirement).
+
+**Verified:** gate 369 passed / 0 xfailed / ~13 s; slow tier: SHAP 6 + 4
+notebooks pass, same 5 known step-3-API notebook failures; ruff clean.
+
+**Steps 1–7 of PLAN III §4 are done: zero xfails, B1–B11 all closed, R1–R9
+hold everywhere the net reaches.**
+
+**Next (separate story):** the end-of-story full pass — rewire the 5
+old-API notebooks (`eval(heterogeneity=...)` → `eval`+`eval_heter`,
+`spline_std` → `spline_var`), re-execute all of them against the new API as
+the regression oracle, re-sign, and merge the step 1–7 branch chain.
+
+---
