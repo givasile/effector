@@ -1,8 +1,8 @@
 import typing
+import warnings
 from typing import Callable, List, Optional, Union
 
 import numpy as np
-from tqdm import tqdm
 
 import effector
 from effector import axis_partitioning as ap
@@ -17,8 +17,9 @@ class RegionalShapDP(RegionalEffectBase):
         self,
         data: np.ndarray,
         model: Callable,
-        axis_limits: Optional[np.ndarray] = None,
+        *,
         nof_instances: Union[int, str] = 1_000,
+        axis_limits: Optional[np.ndarray] = None,
         feature_types: Optional[List[str]] = None,
         cat_limit: Optional[int] = 10,
         feature_names: Optional[List[str]] = None,
@@ -98,9 +99,29 @@ class RegionalShapDP(RegionalEffectBase):
             target_name,
         )
 
-    def _create_heterogeneity_function(self, foi, min_points, binning_method):
-        if isinstance(binning_method, str):
-            binning_method = ap.return_default(binning_method)
+    def _extra_fe_kwargs(self, active_indices: np.ndarray) -> dict:
+        """A node's ShapDP reuses the region's slice of the *global* shap
+        values (attributions are not recomputed within the region)."""
+        return {"shap_values": self.global_shap_values[active_indices, :]}
+
+    def _precompute_global(self, feature: int):
+        """Compute the global SHAP values once; regions score slices of them."""
+        if self.global_shap_values is None:
+            global_shap_dp = effector.ShapDP(
+                self.data,
+                self.model,
+                axis_limits=self.axis_limits,
+                nof_instances="all",
+                backend=self.backend,
+            )
+            global_shap_dp.fit(feature, centering=False, **self.kwargs_fitting)
+            self.global_shap_values = global_shap_dp.shap_values
+
+    def _create_heterogeneity_function(self, feature: int, min_points: int):
+        binning_method = ap.return_default(self.kwargs_fitting["binning_method"])
+        points_for_mean_heterogeneity = self.kwargs_subregion_detection[
+            "points_for_mean_heterogeneity"
+        ]
 
         def heterogeneity_function(active_indices) -> float:
             if np.sum(active_indices) < min_points:
@@ -109,42 +130,50 @@ class RegionalShapDP(RegionalEffectBase):
             data = self.data[active_indices.astype(bool), :]
             shap_values = self.global_shap_values[active_indices.astype(bool), :]
             shap_dp = effector.ShapDP(
-                data, self.model, self.axis_limits, "all", shap_values=shap_values
+                data,
+                self.model,
+                axis_limits=self.axis_limits,
+                nof_instances="all",
+                shap_values=shap_values,
             )
 
             try:
                 shap_dp.fit(
-                    features=foi, binning_method=binning_method, centering=False
+                    features=feature, binning_method=binning_method, centering=False
                 )
             except utils.AllBinsHaveAtMostOnePointError as e:
-                print(
-                    f"RegionalShapDP here: At a particular split, some bins had at most one point. I reject this split. \n Error: {e}"
+                warnings.warn(
+                    f"RegionalShapDP: at a candidate split, some bins had at most "
+                    f"one point; the split is rejected. Error: {e}"
                 )
                 return self.big_m
             except Exception as e:
-                print(
-                    f"RegionalShapDP here: An unexpected error occurred. I reject this split. \n Error: {e}"
+                warnings.warn(
+                    f"RegionalShapDP: an unexpected error occurred at a candidate "
+                    f"split; the split is rejected. Error: {e}"
                 )
                 return self.big_m
 
-            _mean_spline = shap_dp.feature_effect["feature_" + str(foi)]["spline_mean"]
-
-            xs = np.linspace(self.axis_limits[0, foi], self.axis_limits[1, foi], 30)
-            _, z = shap_dp.eval(feature=foi, xs=xs, centering=False, heterogeneity=True)
-            # residuals = (shap_values[:, foi] - mean_spline(data[:, foi]))**2
+            xs = np.linspace(
+                self.axis_limits[0, feature],
+                self.axis_limits[1, feature],
+                points_for_mean_heterogeneity,
+            )
+            z = shap_dp.eval_heter(feature, xs)
             return np.mean(z)
 
         return heterogeneity_function
 
     def fit(
         self,
-        features: typing.Union[int, str, list],
+        features: typing.Union[int, str, list] = "all",
         candidate_conditioning_features: typing.Union["str", list] = "all",
         space_partitioner: typing.Union[
             "str", effector.space_partitioning.Best
         ] = "best",
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
         budget: int = 512,
+        points_for_mean_heterogeneity: int = 30,
         shap_explainer_kwargs: Optional[dict] = None,
         shap_explanation_kwargs: Optional[dict] = None,
     ):
@@ -167,42 +196,13 @@ class RegionalShapDP(RegionalEffectBase):
                 - Increasing the budget improves the approximation at the cost of slower computation.
                 - Decrease the budget for faster computation at the cost of approximation error.
 
+            points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
+
             shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` or `shapiq.Explainer` class, depending on the backend.
 
                 ??? note "Code behind the scene"
-                    Check the code that is running behind the scene before customizing `shap_explainer_kwargs`.
 
-                    ```python
-                    explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
-                    explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
-                    if self.backend == "shap":
-                        explainer_defaults = {"masker": data}
-                        explanation_defaults = {"max_evals": budget}
-                    elif self.backend == "shapiq":
-                        explainer_defaults = {
-                            "data": data,
-                            "index": "SV",
-                            "max_order": 1,
-                            "approximator": "permutation",
-                            "imputer": "marginal",
-                        }
-                        explanation_defaults = {"budget": budget}
-                    else:
-                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-                    explainer_kwargs = {**explainer_defaults, **explainer_kwargs}  # User args override defaults
-                    explanation_kwargs = {**explanation_defaults, **explanation_kwargs}  # User args override defaults
-
-                    if self.backend == "shap":
-                        explainer = shap.Explainer(model, **explainer_kwargs)
-                        explanation = explainer(data, **explanation_kwargs)
-                        self.shap_values = explanation.values
-                    elif self.backend == "shapiq":
-                        explainer = shapiq.Explainer(model, **explainer_kwargs)
-                        explanations = explainer.explain_X(data, **explanation_kwargs)
-                        self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
-                    else:
-                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-                    ```
+                    See `effector.global_effect_shap._compute_shap_values` — the single place the explainer is constructed and invoked.
 
                 ??? warning "Be careful with custom arguments"
 
@@ -213,39 +213,7 @@ class RegionalShapDP(RegionalEffectBase):
 
                 ??? note "Code behind the scene"
 
-                    Check the code that is running behind the scene before customizing `shap_explanation_kwargs`.
-
-                    ```python
-                    explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
-                    explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
-                    if self.backend == "shap":
-                        explainer_defaults = {"masker": data}
-                        explanation_defaults = {"max_evals": budget}
-                    elif self.backend == "shapiq":
-                        explainer_defaults = {
-                            "data": data,
-                            "index": "SV",
-                            "max_order": 1,
-                            "approximator": "permutation",
-                            "imputer": "marginal",
-                        }
-                        explanation_defaults = {"budget": budget}
-                    else:
-                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-                    explainer_kwargs = {**explainer_defaults, **explainer_kwargs}  # User args override defaults
-                    explanation_kwargs = {**explanation_defaults, **explanation_kwargs}  # User args override defaults
-
-                    if self.backend == "shap":
-                        explainer = shap.Explainer(model, **explainer_kwargs)
-                        explanation = explainer(data, **explanation_kwargs)
-                        self.shap_values = explanation.values
-                    elif self.backend == "shapiq":
-                        explainer = shapiq.Explainer(model, **explainer_kwargs)
-                        explanations = explainer.explain_X(data, **explanation_kwargs)
-                        self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
-                    else:
-                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-                    ```
+                    See `effector.global_effect_shap._compute_shap_values` — the single place the explainer is constructed and invoked.
 
                 ??? warning "Be careful with custom arguments"
 
@@ -253,53 +221,12 @@ class RegionalShapDP(RegionalEffectBase):
                     check the official documentation of [`shap`](https://shap.readthedocs.io/en/latest/) and [`shapiq`](https://shapiq.readthedocs.io/en/latest/) packages.
 
         """
-
-        if isinstance(space_partitioner, str):
-            space_partitioner = effector.space_partitioning.return_default(
-                space_partitioner
-            )
-
-        assert space_partitioner.min_points_per_subregion >= 2, (
-            "min_points_per_subregion must be >= 2"
-        )
-        features = helpers.prep_features(features, self.dim)
-
-        for feat in tqdm(features):
-            # assert global SHAP values are available
-            if self.global_shap_values is None:
-                global_shap_dp = effector.ShapDP(
-                    self.data, self.model, self.axis_limits, "all", backend=self.backend
-                )
-                global_shap_dp.fit(
-                    feat,
-                    centering=False,
-                    binning_method=binning_method,
-                    budget=budget,
-                    shap_explainer_kwargs=shap_explainer_kwargs,
-                    shap_explanation_kwargs=shap_explanation_kwargs,
-                )
-                self.global_shap_values = global_shap_dp.shap_values
-
-            heter = self._create_heterogeneity_function(
-                feat, space_partitioner.min_points_per_subregion, binning_method
-            )
-
-            self._fit_feature(
-                feat,
-                heter,
-                space_partitioner,
-                candidate_conditioning_features,
-            )
-
-        all_arguments = locals()
-        all_arguments.pop("self")
-
-        # region splitting arguments are the first 3 arguments
         self.kwargs_subregion_detection = {
-            k: all_arguments[k] for k in list(all_arguments.keys())[:3]
+            "features": features,
+            "candidate_conditioning_features": candidate_conditioning_features,
+            "space_partitioner": space_partitioner,
+            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
-
-        # fit kwargs
         self.kwargs_fitting = {
             "binning_method": binning_method,
             "budget": budget,
@@ -307,19 +234,22 @@ class RegionalShapDP(RegionalEffectBase):
             "shap_explanation_kwargs": shap_explanation_kwargs,
         }
 
+        self._fit_loop(features, candidate_conditioning_features, space_partitioner)
+
     def plot(
         self,
-        feature,
-        node_idx,
-        heterogeneity="shap_values",
-        centering=True,
-        nof_points=30,
-        scale_x_list=None,
-        scale_y=None,
-        nof_shap_values="all",
-        show_avg_output=False,
-        y_limits=None,
-        only_shap_values=False,
+        feature: int,
+        node_idx: int,
+        heterogeneity: Union[bool, str] = "shap_values",
+        centering: Union[None, bool, str] = None,
+        nof_points: int = 30,
+        scale_x_list: Optional[list] = None,
+        scale_y: Optional[dict] = None,
+        nof_shap_values: Union[int, str] = "all",
+        show_avg_output: bool = False,
+        y_limits: Optional[list] = None,
+        only_shap_values: bool = False,
+        show_plot: bool = True,
     ):
         """
         Plot the regional SHAP.
@@ -328,7 +258,7 @@ class RegionalShapDP(RegionalEffectBase):
             feature: the feature to plot
             node_idx: the index of the node to plot
             heterogeneity: whether to plot the heterogeneity
-            centering: whether to center the SHAP values
+            centering: whether to center the SHAP values (`None` uses the class default)
             nof_points: number of points to plot
             scale_x_list: the list of scaling factors for the feature names
             scale_y: the scaling factor for the SHAP values
@@ -336,7 +266,21 @@ class RegionalShapDP(RegionalEffectBase):
             show_avg_output: whether to show the average output
             y_limits: the limits of the y-axis
             only_shap_values: whether to plot only the SHAP values
+            show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`
         """
-        kwargs = locals()
-        kwargs.pop("self")
-        return self._plot(kwargs)
+        return self._plot(
+            feature,
+            node_idx,
+            scale_x_list,
+            dict(
+                heterogeneity=heterogeneity,
+                centering=centering,
+                nof_points=nof_points,
+                scale_y=scale_y,
+                nof_shap_values=nof_shap_values,
+                show_avg_output=show_avg_output,
+                y_limits=y_limits,
+                only_shap_values=only_shap_values,
+                show_plot=show_plot,
+            ),
+        )

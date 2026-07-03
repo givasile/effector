@@ -545,3 +545,337 @@ plot bands to `eval_heter`.
 **Next:** the Part III refactor, step 1 (helpers/utils), one branch+PR per step.
 
 ---
+## 14. 2026-07-03 — Refactor step 1: helpers/utils foundation (tag: code)  [Part III §2.1, §4 step 1; branch `refactor/step-1-helpers-utils`]
+
+**What:** the foundations pass, exactly §2.1:
+- **`helpers.prep_data`** — the axis-limits→subsample block that lived as three
+  copies (GlobalEffectBase, RegionalEffectBase, FeatureEffect) is one function;
+  all three constructors now call it. `data_effect` stays row-aligned through
+  both steps.
+- **R4: `None` for "not computed"** — `norm_const` sentinels unified
+  (`EMPTY_SYMBOL`/`np.nan`/`1e8` → `None`); `EMPTY_SYMBOL` deleted from
+  `helpers`; `requires_refit`'s `norm_const is None` branch is now live (B7's
+  dead branch — the full B7 review completes in step 2).
+- **R9 in the input normalizers** — `prep_features` (now also validates
+  range), `prep_centering`, `prep_confidence_interval`, `prep_nof_instances`
+  raise `ValueError`/`TypeError` instead of bare asserts.
+- **R6 groundwork** — `axis_partitioning.VALID_METHODS` alias table;
+  `return_default` reads it and raises `ValueError` on junk (B2's other half —
+  the RHALE assert — falls in step 3).
+- Dead code deleted: `prep_dale_fit_params`, `prep_ale_fit_params`,
+  `utils_integrate.py` (live `mean_1d_linspace` moved into `utils` with a
+  doctest). One numerical-differentiation scheme:
+  `compute_jacobian_numerically` is now central-difference, `eps=1e-6`
+  (the `ice_*` kernels rewire to it in step 3).
+
+**xfails flipped green (markers removed, 51 → 46):** prep_features
+out-of-range spec, R9 ValueError ×3 (centering / binning / nof_instances), R9
+junk-centering-through-eval.
+
+**Verified:** gate 323 passed / 46 xfailed / ~13 s; slow SHAP tier 6 passed /
+~45 s; ruff clean.
+
+**Next:** step 2 — `global_effect.py` base (`_eval_unnorm` kernel, base
+`eval`/`eval_heter`/`payload`/`heter_score`, base fit loop + norm-const).
+
+---
+## 15. 2026-07-03 — Refactor step 2: the base class carries the lifecycle + the new surface (tag: code)  [Part III §2.2, R1–R4; branch `refactor/step-2-global-base`]
+
+**What:** `GlobalEffectBase` now owns the shared machinery:
+- **`_fit_loop`** (hoisted from ALEBase; PDP and ShapDP had inline copies) —
+  one fit skeleton: prep inputs → `_fit_feature` payload → norm-const →
+  `fit_args`/`is_fitted`. `fit_args` now records *all* fit kwargs uniformly.
+- **`_compute_norm_const`** (generalized from ALEBase) — works on any method
+  through the `_eval_unnorm` kernel; PDP overrides it (its normalization is
+  per-instance: each ICE centers on its own — that is what makes h honest).
+- **`_eval_unnorm(feature, xs, heterogeneity)` is the abstract kernel** —
+  ALE already had it; PDP and ShapDP kernels extracted (PDP's computes ICE and
+  h = var of per-instance-centered ICE / raw d-ICE; ShapDP's reads the splines).
+- **The new surface (LOGBOOK #13), implemented once on the base:**
+  `eval_heter` (kernel's h, no centering kwarg), `payload` (the stored fit
+  dict), `heter_score` (mean of `eval_heter` on a 30-grid — same grid
+  convention as regional's `points_for_mean_heterogeneity`).
+- `DEFAULT_CENTERING` class attribute declared (ALE-family/ShapDP:
+  `"zero_integral"`, PDP-family: `False`); signatures converge on it in step 3.
+  Dead `self.avg_output` state removed. ALEBase's double `method_name` set
+  removed.
+
+**Deliberate behavior change (flagged for the notebook oracle):** ShapDP's
+`zero_integral` norm-const now uses the same midpoint scheme as ALE
+(`utils.mean_1d_linspace`) instead of a 30-gridpoint mean — its centered
+curves shift by ~2e-3 on the contract fixture. The C2 zero-integral contract
+test was re-stated semantically (dense grid, atol covering the 30-point
+discretization) instead of pinning the old per-method grid accident.
+
+**xfails flipped green (markers removed, 46 → 21):** the 25 new-surface items —
+`payload` ×5, `heter_score` ×5, `eval_heter` shape/positivity ×5, no-centering
+signature ×5, centering-invariance ×5.
+
+**Verified:** gate 348 passed / 21 xfailed / ~14 s; slow SHAP tier 6 passed;
+ruff clean.
+
+**Next:** step 3 — slim the three global-method files onto the base (eval loses
+`heterogeneity`/`return_all` → B11; keyword-only constructors R8; `spline_var`
+rename B8).
+
+---
+## 16. 2026-07-03 — Refactor step 3: one eval, one return type — the global methods slim down (tag: code)  [Part III §2.3, R1–R3, R8–R9; branch `refactor/step-3-global-methods`]
+
+**What:** the breaking API change LOGBOOK #4 accepted, landed:
+- **`eval(feature, xs, centering=None→class default)` is written once on the
+  base** and always returns the `(T,)` mean effect. The `heterogeneity` and
+  PDP's `return_all` kwargs are gone (B11 with them); per-class defaults come
+  from `DEFAULT_CENTERING`. The three per-method `eval` overrides are deleted.
+- **Consumers re-pointed** to the new surface: regional heterogeneity
+  functions use `eval_heter` (identical values); regional PDP/DerPDP build
+  their ICE tables from the kernel + stored norms; regional `eval` keeps its
+  public signature but is built on `eval`+`eval_heter`; facade drops the dead
+  kwarg; ALE plot feeds vis through a small shim (vis redraw is step 4).
+- **R8 constructors:** all five global classes are keyword-only after
+  `(data, model[, model_jac])`; RHALE's params reordered to the canonical
+  `data, model, model_jac, *, data_effect, ...`; three positional call sites
+  in the regional files fixed (they only survived by memorizing per-class
+  orders — exactly the bug class R8 kills).
+- **ShapDP:** B4 fixed (`== "std" or True`); `spline_std` → `spline_var`
+  (B8) with sqrt at the plot boundary; `plot` normalizes `centering` like
+  every sibling; `_compute_shap_values` factored module-level (the 4×
+  duplicated "code behind the scene" docstring blocks now reference it);
+  junk backend raises `ValueError`.
+- **(RH)ALE:** binning validation delegated to the resolver (B2: `"dp"` now
+  works, junk gets one `ValueError`); the 3× duplicated "impossible to
+  compute bins" assert is one `utils.raise_if_no_binning`. B9's settled TODO
+  deleted.
+- Functional tests re-pointed mechanically (`eval(heterogeneity=True)` →
+  `eval` + `eval_heter`), values unchanged — as planned in LOGBOOK #4. The
+  executed notebooks still call the old API: they are updated once, at the
+  end-of-story full pass.
+
+**xfails flipped green (markers removed, 21 → 14):** B11 (C1), the 5
+eval-signature specs, B2. Remaining 14: B1, B5×2, B6, R7 regional plots ×5,
+regional `eval_heter` ×5.
+
+**Verified:** gate 355 passed / 14 xfailed / ~14 s; slow SHAP tier 6 passed;
+ruff clean. B-table updated in PLAN.md (B2/B4/B7/B8/B9/B11 fixed; B3
+downgraded to dead code).
+
+**Next:** step 4 — `visualization.py` (fresh session: shared frame, wire
+`is_derivative` → flips B5×2, bands from `eval_heter`), then steps 5–7.
+
+---
+## 17. 2026-07-03 — Refactor step 4: the plot layer draws, it does not compute (tag: code)  [Part III §2.4, R1+R7, B5; branch `refactor/step-4-visualization`]
+
+**What:** `visualization.py` redrawn as a pure plot layer:
+- **Shared frame extracted** — `_scale_x`/`_scale_y` (one scaling rule:
+  affine for level curves, std-only for derivatives), `_feature_label`
+  (fallback now **0-based**, matching API indices and
+  `helpers.get_feature_names`; was `x_%d % (feature+1)`), `_add_avg_output`,
+  `_decorate_ax` (xlabel/ylabel/legend/y_limits), `_finalize` (the one R7
+  exit: show→`None`, else `(fig, ax)`). File shrinks 377→300 lines while
+  gaining docstrings.
+- **B5 fixed, both halves:** `is_derivative` wired from a new
+  `PDPBase.IS_DERIVATIVE` class attribute (False; DerPDP=True) — DerPDP +
+  `scale_y` no longer adds the output mean to dy/dx; `std_err` is now
+  `std/sqrt(N)`, not a second std. Both xfails flipped.
+- **`ale_plot` re-signatured on data, not callables:** takes the `x`/`y`
+  mean curve (the caller's `eval` output — R1) plus the bin payload
+  (`bin_effect`, `bin_variance`, `limits`, `dx`); the `(feature, x, het,
+  centering)` callable + step-3 shim in `ALEBase.plot` are gone.
+  `show_only_aggregated=True` now gets an xlabel (it had none).
+- **One vocabulary:** the kwarg is `heterogeneity` in every vis function
+  (`plot_pdp_ice` had `confidence_interval`, `ale_plot` had `error`); option
+  names documented once in the module docstring (`True`≡`"std"`, enforced by
+  `prep_confidence_interval`). `plot_pdp_ice` computes the ICE mean *after*
+  scaling (one code path), clamps `nof_ice` once, in the only branch that
+  uses it.
+- **ALE gets the `nof_points` knob** (`ALEBase.plot(..., nof_points=1000)`)
+  — same knob as PDP/ShapDP; default 1000 preserves the old hardcoded grid.
+
+**Verified:** gate 357 passed / 12 xfailed / ~13 s; ruff clean. Slow tier:
+the 5 notebook failures are the known step-3 API breakage (verified
+identical on the step-3 commit via stash — zero new failures; they are
+rewired at the end-of-story pass, LOGBOOK #16).
+
+**Next:** step 5 — regional family (template `fit`, kill `locals()` idioms →
+B1, registry `_create_fe_object`, uniform plots → flips R7 regional ×5 and
+regional `eval_heter` ×5).
+
+---
+## 18. 2026-07-03 — Refactor step 5: one regional skeleton, explicit kwargs, the registry is born (tag: code)  [Part III §2.5, R1–R3, R5–R9, B1+B3; branch `refactor/step-5-regional`]
+
+**What:** the regional family redrawn on the base:
+- **Template-method `fit`** — `RegionalEffectBase._fit_loop(features, ccf,
+  space_partitioner)`: resolve the partitioner string once (R6, top of the
+  loop), then per feature `_precompute_global` (hook: ICE table / global ALE
+  effects / shap values) → `_create_heterogeneity_function(feature,
+  min_points)` (hook) → `_fit_feature` (now: fresh `deepcopy` of the
+  partitioner, dead B3 assert deleted, bounds check is a `ValueError`).
+  The five per-method `fit`s keep their public signatures + docstrings and
+  end with two explicit dicts + one `_fit_loop` call.
+- **B1 fixed — `locals()` idioms killed:** `kwargs_fitting` /
+  `kwargs_subregion_detection` are written out per method (the `[:3]` slice
+  and the `"binnning_method"` typo are gone), so regional (RH)ALE `eval`/
+  `plot` now refit node objects with the user's binning method (RC4 flipped).
+- **`method_registry.py` (R5, new):** the one
+  `{canonical: (cls, needs_jac, uses_data_effect, display_name)}` table +
+  aliases + `resolve()`. `_create_fe_object` uses it (five-way if/elif gone);
+  the `global_shap_values` smell moved behind a `_extra_fe_kwargs` hook that
+  only `RegionalShapDP` overrides. The facade re-points to it in step 7.
+- **`eval_heter(feature, node_idx, xs)` (R2)** — the regional twin, built on
+  `_fit_node_effect` (shared with `eval`/`_plot`: create node fe → fit with
+  stored kwargs). The 5 xfails flipped.
+- **R7 plots:** all five regional `plot`s take `show_plot=True` and return
+  the underlying global plot's `(fig, ax)` when `False` (5 xfails flipped);
+  explicit parameters passed as an explicit dict (no `locals()`);
+  `RegionalPDP.plot`'s `heterogeneity: bool = "ice"` annotation fixed.
+- **R3:** regional `eval`/`plot` `centering=None` now means the underlying
+  class default (ALE-family/ShapDP `"zero_integral"`, (d-)PDP `False`) —
+  was a hardcoded `True` for every method (the docstring itself warned it
+  was wrong for DerPDP) and an inconsistent `False` on the PDP plots.
+- **R8:** the five regional constructors are keyword-only after
+  `(data, model[, model_jac])`, canonical parameter order.
+- **R9:** heterogeneity-function failures `warnings.warn` instead of
+  `print`; stray debug print deleted. Unified `features="all"` default
+  (was required-positional in RegionalALE/RegionalShapDP);
+  `RegionalShapDP.fit` gains `points_for_mean_heterogeneity` (was a
+  hardcoded 30); `RegionalDerPDP.plot`'s `node_idx` is required like every
+  sibling.
+
+**xfails flipped green (markers removed, 12 → 1):** B1 (RC4), R7 regional
+plots ×5, regional `eval_heter` ×5. Remaining 1: B6 (step 6).
+
+**Verified:** gate 368 passed / 1 xfailed / ~13 s; slow SHAP tier 7 passed;
+notebooks: same 5 known step-3-API failures as the pre-step baseline, the
+4 regional/real-example ones still pass; ruff clean. B-table: B1, B3 fixed.
+
+**Next:** step 6 — partitioning (`axis_partitioning.py` registries +
+`Fixed` control flow → B6; Best/BestLevelWise dedup in
+`space_partitioning.py`).
+
+---
+## 19. 2026-07-03 — Refactor step 6: partitioning — zero xfails, the net is all green (tag: code)  [Part III §2.6–2.7, R6+R9, B6; branch `refactor/step-6-partitioning`]
+
+**What:**
+- **`axis_partitioning.py` (§2.6):** B6 fixed — `Fixed.find_limits`
+  restructured into early returns like Greedy/DP, so the
+  `_none_valid_binning` verdict is no longer overwritten by the linspace
+  (single-unique-value data now returns `False`, xfail flipped). `Base.find`
+  (never called, returned `NotImplementedError` instead of raising) replaced
+  by an abstract `find_limits` with the real contract; `Base.__init__`
+  docstring rewritten (described a signature from another life);
+  `min_points_per_bin` float defaults (`2.0`/`0.0`) are ints; the 3×
+  commented `_is_categorical` blocks and unused `_cat_limit` locals deleted;
+  `Base.plot` labels 0-based; `effector.binning_methods.*` docstring
+  leftovers renamed to `axis_partitioning`.
+- **`space_partitioning.py` (§2.7):** `Best` and `BestLevelWise` deduped —
+  the shared constructor (params + the long docstring, once) and the shared
+  exhaustive split search `_evaluate_splits(active_indices_list)` hoisted to
+  `Base`; the two classes differ only in recursion strategy (node-wise
+  `_recursive_split` vs level-wise `_search_all_splits`). `Best` no longer
+  names itself `"cart"` (R6: the registry name is `"best"`). The `"all"`
+  normalization of `candidate_conditioning_features` moved to
+  `helpers.prep_conditioning_features` (next to `prep_features`); `compile`'s
+  default is now `"all"` instead of `None`. `_splits_to_tree`'s
+  set-to-`None` "hack to check usage" removed; inline ==/</!=/> chain
+  replaced by `_get_comparison_symbol`; dead commented code deleted.
+
+**xfails flipped green (markers removed, 1 → 0):** B6. **The contract/unit
+net has zero xfails left — every B-bug (B1–B11) is fixed or resolved, and
+all constitution rules R1–R9 hold on the surfaces the tests pin.**
+
+**Verified:** gate 369 passed / 0 xfailed / ~14 s; slow tier: SHAP 6 + the
+4 regional/real notebooks pass, same 5 known step-3-API notebook failures
+as the baseline (end-of-story pass pending); ruff clean. B-table: B6 fixed.
+
+**Next:** step 7 — facade + cleanup (facade onto `method_registry` +
+`eval`; delete `interaction.py`; fold `utils_integrate`; datasets seed),
+then the end-of-story full pass (notebooks rewired to the new API).
+
+---
+## 20. 2026-07-03 — Refactor step 7: facade on the registry, dead weight overboard — steps 1–7 complete (tag: code)  [Part III §2.8–2.10, §4; branch `refactor/step-7-facade-cleanup`]
+
+**What:** the last application-order step:
+- **Facade (§2.8):** `FeatureEffect` re-pointed to `method_registry` (R5) —
+  its private `_REGISTRY`/`_ALIASES`/`_DISPLAY` deleted; only a `_POOL`
+  list remains (which registry methods are comparable — DerPDP excluded,
+  derivative units). The registry grew a `canonical(name)` helper. The
+  facade gained **`eval(feature, xs, methods, centering)` →
+  `{display_name: y}`** — the promised "grow eval for free"; `plot` is now
+  a thin wrapper over it (shared grid → `eval` → one `vis.*` call, R1).
+- **Dead modules (§2.9):** `interaction.py` deleted (293 fully-commented
+  lines importing functions that no longer exist); `tree.py`'s 50-line
+  commented `DataTransformer` deleted. (`utils_integrate.py` was already
+  folded into `utils.py` in step 1.)
+- **`datasets.py` (§2.10):** `RealDatasetBase.split` takes `seed=21`
+  (train/test splits reproducible between runs; was unseeded);
+  `standarize` → `standardize`; `np.array` → `np.ndarray` annotations;
+  `BikeSharing.postprocess`'s magic constants documented (UCI id=275
+  normalizations — temp `(t+8)/47`, hum `/100`, windspeed `/67`; indices
+  after dropping dteday/atemp: 8/9/10).
+  **Deliberate deviation:** `IndependentUniform.generate_data`'s "pointless"
+  extra shuffle is *kept* — removing it changes every seeded data stream,
+  which would invalidate the executed notebooks as the end-of-story
+  regression oracle. Revisit after the notebook pass if it still bothers.
+- **The constitution is now user-facing:** R1–R9 copied (as-built) to
+  `docs/design.md`; CONTRIBUTING.md links it as the contract new features
+  must follow (PLAN III §4 closing requirement).
+
+**Verified:** gate 369 passed / 0 xfailed / ~13 s; slow tier: SHAP 6 + 4
+notebooks pass, same 5 known step-3-API notebook failures; ruff clean.
+
+**Steps 1–7 of PLAN III §4 are done: zero xfails, B1–B11 all closed, R1–R9
+hold everywhere the net reaches.**
+
+**Next (separate story):** the end-of-story full pass — rewire the 5
+old-API notebooks (`eval(heterogeneity=...)` → `eval`+`eval_heter`,
+`spline_std` → `spline_var`), re-execute all of them against the new API as
+the regression oracle, re-sign, and merge the step 1–7 branch chain.
+
+---
+## 21. 2026-07-04 — End-of-story pass: notebooks rewired + re-executed, docs refreshed, the homogenization is done (tag: code)  [PLAN III §4 close-out; branch `refactor/end-of-story-notebooks`]
+
+**What:** the regression-oracle pass that closes the refactor.
+- **Old-API call sites rewired** (the two breaking changes steps 3+5
+  introduced):
+  - `eval(..., heterogeneity=True)` → `eval` (mean) + `eval_heter` (curve)
+    everywhere it returned a tuple — 4 synthetic notebooks, the two
+    efficiency guides' `measure_time` benchmarks, and `simple_api.md`'s 5
+    global snippets + `api_global.md`.
+  - **R8 positional constructors** (the failure the pre-pass baseline missed
+    because it crashed before the eval cells): `effector.PDP(x, model,
+    axis_limits)` → `axis_limits=...` across 4 synthetic notebooks. Only
+    the constructor's 3rd positional arg was affected (everything after
+    `model_jac` is keyword-only now).
+- **All 17 runnable notebooks re-executed in-place against the new API**,
+  fresh outputs, each re-signed with a measured Runtime (quickstart ×3,
+  guides ×2, synthetic ×9, real ×3-minus-TabPFN). The synthetic oracle's
+  internal closed-form asserts all pass (02's "all closed-form checks
+  passed", 05_heter's PDP-heterogeneity `assert_allclose`, 06's, 07's).
+  `test_notebooks.py` tier: **9 passed** (was 5 failing).
+- **Regression check:** diffed every re-executed notebook's printed outputs
+  against the pre-pass version — only expected drift (the ShapDP centering
+  shift noted in LOGBOOK #15; tqdm rates; regional trees re-fit on the
+  seeded splits). Two guide benchmarks (`efficiency_global/regional`) had a
+  cell hang for hours on the old-API path before this pass; both now run in
+  ~11 / ~7 min.
+- **Docs refreshed:** `make docs-images` + `make docs-pages` re-harvested
+  every figure and re-converted every committed page; `make docs-build`
+  clean (only pre-existing griffe docstring warnings). Hand-authored pages
+  re-synced to the fresh trees — `global_and_regional_effects.md` (3 tree
+  summaries), `index.md` + `README.md` (readme-example tree: the second
+  workingday split is now `yr`, not `temp`; prose + captions updated),
+  `simple_api.md`/`api_*.md` eval snippets. One renamed bike figure
+  (`_34_494` → `_34_489`) re-pointed.
+- **TabPFN notebook 03** still deferred (license/CPU) — its converted page
+  re-converts unchanged saved outputs, as before.
+
+**Deferred, unchanged:** notebook-02 SHAP closed form (math, Vasilis's call);
+notebook 03 TabPFN execution.
+
+**Verified:** gate 369 passed / 0 xfailed / ~15 s; ruff clean; docs build
+clean; all 17 executed notebooks green.
+
+**Done.** This closes PLAN Part III (homogenization). The step 1–7 branch
+chain + this pass are one stacked history off `main`; the single final PR
+opens from here for Vasilis's end-to-end verdict.
+
+---

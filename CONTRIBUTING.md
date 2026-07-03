@@ -124,5 +124,14 @@ make docs-serve  # preview the docs locally
 
 ---
 
+## Design contract
+
+Code changes must follow the core rules (R1–R9) in
+[docs/design.md](docs/design.md) — lifecycle, heterogeneity surface, centering
+vocabulary, registries, plot/constructor/error contracts. The
+`tests/test_contract_*.py` layer enforces most of them mechanically.
+
+---
+
 Questions? Open an [issue](https://github.com/givasile/effector/issues) or start a
 draft PR and ask there.

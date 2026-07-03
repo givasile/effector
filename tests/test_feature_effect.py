@@ -85,7 +85,5 @@ def test_overlaid_curves_match_each_methods_eval():
     assert set(lines) == {"PDP", "ALE", "RHALE"}
     for name, line in lines.items():
         method = fe._methods[fe._canonical(name)]
-        y = method.eval(
-            0, line.get_xdata(), heterogeneity=False, centering="zero_integral"
-        )
+        y = method.eval(0, line.get_xdata(), centering="zero_integral")
         np.testing.assert_allclose(line.get_ydata(), y, atol=1e-8)

@@ -1,23 +1,25 @@
 import typing
 from abc import abstractmethod
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import numpy as np
 
 import effector.axis_partitioning as ap
 import effector.helpers as helpers
 import effector.utils as utils
-import effector.utils_integrate as utils_integrate
 import effector.visualization as vis
 from effector.global_effect import GlobalEffectBase
 
 
 class ALEBase(GlobalEffectBase):
+    DEFAULT_CENTERING: Union[bool, str] = "zero_integral"
+
     def __init__(
         self,
         data: np.ndarray,
         model: callable,
         model_jac: typing.Union[None, callable] = None,
+        *,
         data_effect: typing.Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
@@ -25,7 +27,6 @@ class ALEBase(GlobalEffectBase):
         target_name: Optional[str] = None,
         method_name: str = "ALE",
     ):
-        self.method_name = method_name
         super(ALEBase, self).__init__(
             method_name,
             data,
@@ -39,62 +40,8 @@ class ALEBase(GlobalEffectBase):
         )
 
     @abstractmethod
-    def _fit_feature(
-        self,
-        feature: int,
-        binning_method: typing.Union[
-            str, ap.DynamicProgramming, ap.Greedy, ap.Fixed
-        ] = "greedy",
-    ) -> typing.Dict:
-        raise NotImplementedError
-
-    @abstractmethod
     def fit(self, features: typing.Union[int, str, list] = "all", **kwargs) -> None:
         raise NotImplementedError
-
-    def _compute_norm_const(
-        self, feature: int, method: str = "zero_integral", nof_points: int = 30
-    ) -> float:
-        """Compute the normalization constant."""
-        assert method in ["zero_integral", "zero_start"]
-
-        def create_partial_eval(feat):
-            return lambda x: self._eval_unnorm(feat, x, heterogeneity=False)
-
-        partial_eval = create_partial_eval(feature)
-        start = self.axis_limits[0, feature]
-        stop = self.axis_limits[1, feature]
-
-        if method == "zero_integral":
-            z = utils_integrate.mean_1d_linspace(partial_eval, start, stop, nof_points)
-        else:
-            z = partial_eval(np.array([start])).item()
-        return z
-
-    def _fit_loop(self, features, binning_method, centering, points_for_centering=30):
-        features = helpers.prep_features(features, self.dim)
-        centering = helpers.prep_centering(centering)
-        for s in features:
-            # compute all information required for plotting and evaluating the feature effect
-            self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s, binning_method
-            )
-            # append the "norm_const" to the feature effect if centering is not False
-            if centering is not False:
-                self.feature_effect["feature_" + str(s)]["norm_const"] = (
-                    self._compute_norm_const(
-                        s, method=centering, nof_points=points_for_centering
-                    )
-                )
-            else:
-                self.feature_effect["feature_" + str(s)]["norm_const"] = (
-                    self.empty_symbol
-                )
-
-            self.is_fitted[s] = True
-            self.fit_args["feature_" + str(s)] = {
-                "centering": centering,
-            }
 
     def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
         params = self.feature_effect["feature_" + str(feature)]
@@ -109,64 +56,12 @@ class ALEBase(GlobalEffectBase):
         else:
             return y
 
-    def eval(
-        self,
-        feature: int,
-        xs: np.ndarray,
-        heterogeneity: bool = False,
-        centering: typing.Union[bool, str] = True,
-        **kwargs,
-    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
-        """Evalueate the (RH)ALE feature effect of feature `feature` at points `xs`.
-
-        Notes:
-            This is a common method inherited by both ALE and RHALE.
-
-        Args:
-            feature: index of feature of interest
-            xs: the points along the s-th axis to evaluate the FE plot
-              - `np.ndarray` of shape `(T, )`
-            heterogeneity: whether to return heterogeneity:
-
-                  - `False`, returns the mean effect `y` at the given `xs`
-                  - `True`, returns a tuple `(y, H)` of two `ndarrays`; `y` is the mean effect and `H` is the
-                  heterogeneity evaluated at `xs`
-
-            centering: whether to center the plot:
-
-                - `False` means no centering
-                - `True` or `zero_integral` centers around the `y` axis.
-                - `zero_start` starts the plot from `y=0`.
-        Returns:
-            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std)` otherwise
-
-        """
-        centering = helpers.prep_centering(centering)
-
-        if self.requires_refit(feature, centering):
-            self.fit(features=feature, centering=centering)
-
-        # Check if the lower bound is less than the upper bound
-        assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
-
-        # Evaluate the feature
-        yy = self._eval_unnorm(feature, xs, heterogeneity=heterogeneity)
-        y, std = yy if heterogeneity else (yy, None)
-
-        # Center if asked
-        y = (
-            y - self.feature_effect["feature_" + str(feature)]["norm_const"]
-            if centering
-            else y
-        )
-
-        return (y, std) if heterogeneity is not False else y
-
     def plot(
         self,
         feature: int,
         heterogeneity: bool = True,
         centering: Union[bool, str] = True,
+        nof_points: int = 1000,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
         show_avg_output: bool = False,
@@ -194,6 +89,7 @@ class ALEBase(GlobalEffectBase):
                 - `True` or `zero_integral` centers around the `y` axis.
                 - `zero_start` starts the plot from `y=0`.
 
+            nof_points: the grid size for the mean-effect curve
             scale_x: None or Dict with keys ['std', 'mean']
 
                 - If set to None, no scaling will be applied.
@@ -219,15 +115,17 @@ class ALEBase(GlobalEffectBase):
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
 
-        # hack to fit the feature if not fitted
+        # fit the feature if needed (the eval below reuses the stored state)
         self.eval(
             feature, np.array([self.axis_limits[0, feature]]), centering=centering
         )
+        params = self.feature_effect["feature_" + str(feature)]
+
+        x = np.linspace(params["limits"][0], params["limits"][-1], nof_points)
+        y = self.eval(feature, x, centering=centering)
 
         if show_avg_output:
-            avg_output = helpers.prep_avg_output(
-                self.data, self.model, self.avg_output, scale_y
-            )
+            avg_output = helpers.prep_avg_output(self.data, self.model, None, scale_y)
         else:
             avg_output = None
 
@@ -236,12 +134,15 @@ class ALEBase(GlobalEffectBase):
             if self.method_name == "ale"
             else "Robust and Heterogeneity-Aware ALE (RHALE)"
         )
-        ret = vis.ale_plot(
-            self.feature_effect["feature_" + str(feature)],
-            self.eval,
-            feature,
-            centering=centering,
-            error=heterogeneity,
+        return vis.ale_plot(
+            x,
+            y,
+            bin_effect=params["bin_effect"],
+            bin_variance=params["bin_variance"],
+            limits=params["limits"],
+            dx=params["dx"],
+            feature=feature,
+            heterogeneity=heterogeneity,
             scale_x=scale_x,
             scale_y=scale_y,
             title=title,
@@ -254,16 +155,13 @@ class ALEBase(GlobalEffectBase):
             show_plot=show_plot,
         )
 
-        if not show_plot:
-            fig, ax = ret
-            return fig, ax
-
 
 class ALE(ALEBase):
     def __init__(
         self,
         data: np.ndarray,
         model: callable,
+        *,
         nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
         feature_names: Optional[List] = None,
@@ -325,38 +223,28 @@ class ALE(ALEBase):
         super(ALE, self).__init__(
             data,
             model,
-            None,
-            None,
-            nof_instances,
-            axis_limits,
-            feature_names,
-            target_name,
-            "ALE",
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            feature_names=feature_names,
+            target_name=target_name,
+            method_name="ALE",
         )
 
     def _fit_feature(self, feature: int, binning_method="fixed") -> typing.Dict:
 
         data = self.data
-        # assertion
-        assert binning_method == "fixed" or isinstance(binning_method, ap.Fixed), (
-            "ALE can work only with the fixed binning method!"
-        )
+        if not (binning_method == "fixed" or isinstance(binning_method, ap.Fixed)):
+            raise ValueError(
+                f"Invalid binning_method: {binning_method!r}; ALE works only with "
+                "the fixed binning method ('fixed' or an ap.Fixed instance)"
+            )
 
         if isinstance(binning_method, str):
             binning_method = ap.Fixed()
         limits = binning_method.find_limits(
             data[:, feature], None, self.axis_limits[:, feature]
         )
-
-        # assert bins can be computed else raise error
-        assert limits is not False, (
-            "Impossible to compute bins with enough points for feature "
-            + str(feature + 1)
-            + " and binning strategy: "
-            + binning_method.name
-            + ". Change bin strategy or "
-            "the parameters of the method"
-        )
+        utils.raise_if_no_binning(limits, feature, binning_method)
 
         # compute data effect on bin limits
         data_effect = utils.compute_local_effects(data, self.model, limits, feature)
@@ -386,7 +274,7 @@ class ALE(ALEBase):
                 `20` bins with at least `10` points per bin and the feature is considered as categorical if it has
                 less than `15` unique values.
                 - If you want to change the parameters of the method, you pass an instance of the
-                class `effector.binning_methods.Fixed` with the desired parameters.
+                class `effector.axis_partitioning.Fixed` with the desired parameters.
                 For example: `Fixed(nof_bins=20, min_points_per_bin=0, cat_limit=10)`
 
             centering: whether to compute the normalization constant for centering the plot:
@@ -397,11 +285,15 @@ class ALE(ALEBase):
 
             points_for_centering: the number of points to use for centering the plot. Default is 100.
         """
-        assert binning_method == "fixed" or isinstance(binning_method, ap.Fixed), (
-            "ALE can work only with the fixed binning method!"
-        )
+        if not (binning_method == "fixed" or isinstance(binning_method, ap.Fixed)):
+            raise ValueError(
+                f"Invalid binning_method: {binning_method!r}; ALE works only with "
+                "the fixed binning method ('fixed' or an ap.Fixed instance)"
+            )
 
-        self._fit_loop(features, binning_method, centering, points_for_centering)
+        self._fit_loop(
+            features, centering, points_for_centering, binning_method=binning_method
+        )
 
 
 class RHALE(ALEBase):
@@ -410,9 +302,10 @@ class RHALE(ALEBase):
         data: np.ndarray,
         model: callable,
         model_jac: typing.Union[None, callable] = None,
+        *,
+        data_effect: typing.Optional[np.ndarray] = None,
         nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Optional[np.ndarray] = None,
-        data_effect: typing.Optional[np.ndarray] = None,
         feature_names: typing.Optional[list] = None,
         target_name: typing.Optional[str] = None,
     ):
@@ -480,12 +373,12 @@ class RHALE(ALEBase):
             data,
             model,
             model_jac,
-            data_effect,
-            nof_instances,
-            axis_limits,
-            feature_names,
-            target_name,
-            "RHALE",
+            data_effect=data_effect,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            feature_names=feature_names,
+            target_name=target_name,
+            method_name="RHALE",
         )
 
     def compile(self):
@@ -513,16 +406,7 @@ class RHALE(ALEBase):
         limits = binning_method.find_limits(
             data[:, feature], self.data_effect[:, feature], self.axis_limits[:, feature]
         )
-
-        # assert bins can be computed else raise error
-        assert limits is not False, (
-            "Impossible to compute bins with enough points for feature with index: i="
-            + str(feature + 1)
-            + " and binning strategy: "
-            + str(binning_method)
-            + ". Change bin strategy or "
-            "the parameters of the method"
-        )
+        utils.raise_if_no_binning(limits, feature, binning_method)
 
         # compute the bin effect
         dale_params = utils.compute_ale_params(
@@ -551,11 +435,11 @@ class RHALE(ALEBase):
             binning_method (str): the binning method to use.
 
                 - Use `"greedy"` for using the Greedy binning solution with the default parameters.
-                  For custom parameters initialize a `binning_methods.Greedy` object
+                  For custom parameters initialize a `axis_partitioning.Greedy` object
                 - Use `"dp"` for using a Dynamic Programming binning solution with the default parameters.
-                  For custom parameters initialize a `binning_methods.DynamicProgramming` object
+                  For custom parameters initialize a `axis_partitioning.DynamicProgramming` object
                 - Use `"fixed"` for using a Fixed binning solution with the default parameters.
-                  For custom parameters initialize a `binning_methods.Fixed` object
+                  For custom parameters initialize a `axis_partitioning.Fixed` object
 
             centering: whether to compute the normalization constant for centering the plot:
 
@@ -565,11 +449,9 @@ class RHALE(ALEBase):
 
             points_for_centering: the number of points to use for centering the plot. Default is 100.
         """
-        assert (
-            binning_method in ["greedy", "dynamic", "fixed"]
-            or isinstance(binning_method, ap.Greedy)
-            or isinstance(binning_method, ap.DynamicProgramming)
-            or isinstance(binning_method, ap.Fixed)
-        ), "Unknown binning method!"
+        # validation is the resolver's job (R6): one table, one error message
+        binning_method = ap.return_default(binning_method)
 
-        self._fit_loop(features, binning_method, centering, points_for_centering)
+        self._fit_loop(
+            features, centering, points_for_centering, binning_method=binning_method
+        )

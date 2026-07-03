@@ -1,7 +1,7 @@
 # Global Effect - An in-depth tutorial
 
 - Author: [givasile](https://givasile.github.io/)
-- Runtime: ~20 s
+- Runtime: ~10 s
 - Description: An in-depth comparison of the global effect methods (ALE,
   RHALE, PDP-ICE, d-PDP-ICE, SHAP-DP) on a synthetic example with correlated
   features and known closed-form effects, showing why ALE-based methods are
@@ -563,7 +563,7 @@ assert_per_half(ale.eval(feature=0, xs=xx, centering=True), ale_gt(xx), 1.5e-1, 
 # RHALE
 rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
 rhale.fit(features=0)
-assert_per_half(rhale.eval(feature=0, xs=xx, centering=True, heterogeneity=False), rhale_gt(xx), 2e-1, 4e-1)
+assert_per_half(rhale.eval(feature=0, xs=xx, centering=True), rhale_gt(xx), 2e-1, 4e-1)
 
 print("all closed-form checks passed")
 ```

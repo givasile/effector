@@ -44,11 +44,6 @@ def test_rhale_accepts_fixed_and_greedy(data, binning):
     m.fit(features=0, binning_method=binning)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="B2: 'dp' fails RHALE's assert although return_default resolves it "
-    "-> DP binning unreachable by string",
-)
 def test_rhale_accepts_dp_string(data):
     m = effector.RHALE(data, linear_model, model_jac=linear_model_jac)
     m.fit(features=0, binning_method="dp")
@@ -129,10 +124,6 @@ def test_prep_features_variants():
     assert helpers.prep_features([0, 2], 3) == [0, 2]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="spec (PLAN II §3.1): prep_features must reject out-of-range indices",
-)
 def test_prep_features_rejects_out_of_range():
     with pytest.raises(ValueError):
         helpers.prep_features(5, 3)
@@ -143,10 +134,6 @@ def test_prep_features_rejects_out_of_range():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="R9: user-input rejection must raise ValueError, not AssertionError",
-)
 @pytest.mark.parametrize(
     "call",
     [
@@ -167,10 +154,6 @@ def _r9_probe():
     m.eval(0, np.linspace(-0.5, 0.5, 5), centering="zero_mean")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="R9: junk centering through eval must raise ValueError",
-)
 def test_r9_eval_junk_centering_is_valueerror():
     with pytest.raises(ValueError):
         _r9_probe()

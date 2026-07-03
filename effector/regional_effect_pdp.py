@@ -1,9 +1,7 @@
 import typing
 
 import numpy as np
-from tqdm import tqdm
 
-import effector.space_partitioning
 from effector import helpers
 from effector.global_effect_pdp import PDP, DerPDP
 from effector.regional_effect import RegionalEffectBase
@@ -40,15 +38,11 @@ class RegionalPDPBase(RegionalEffectBase):
             target_name,
         )
 
-    def _create_heterogeneity_function(
-        self,
-        foi,
-        min_points,
-    ):
+    def _create_heterogeneity_function(self, feature: int, min_points: int):
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return BIG_M
-            yy = self.y_ice["feature_" + str(foi)][active_indices.astype(bool), :]
+            yy = self.y_ice["feature_" + str(feature)][active_indices.astype(bool), :]
             z = np.var(yy, axis=0)
             return np.mean(z)
 
@@ -60,6 +54,7 @@ class RegionalPDP(RegionalPDPBase):
         self,
         data: np.ndarray,
         model: callable,
+        *,
         nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
@@ -133,6 +128,33 @@ class RegionalPDP(RegionalPDPBase):
             target_name,
         )
 
+    def _precompute_global(self, feature: int):
+        """Fit the global PDP once and keep the centered ICE table on the
+        heterogeneity grid: candidate regions score row-subsets of it."""
+        pdp = PDP(
+            self.data, self.model, axis_limits=self.axis_limits, nof_instances="all"
+        )
+        pdp.fit(
+            features=feature,
+            centering=True,
+            points_for_centering=self.kwargs_fitting["points_for_centering"],
+            use_vectorized=self.kwargs_fitting["use_vectorized"],
+        )
+
+        xx = np.linspace(
+            self.axis_limits[0, feature],
+            self.axis_limits[1, feature],
+            self.kwargs_subregion_detection["points_for_mean_heterogeneity"],
+        )
+        y_ice = pdp._predict(
+            pdp.data, xx, feature, self.kwargs_fitting["use_vectorized"]
+        )
+        y_ice = (
+            y_ice
+            - pdp.feature_effect["feature_" + str(feature)]["norm_const"][np.newaxis, :]
+        )
+        self.y_ice["feature_" + str(feature)] = y_ice.T
+
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
@@ -166,89 +188,66 @@ class RegionalPDP(RegionalPDPBase):
 
 
         """
-
-        if isinstance(space_partitioner, str):
-            space_partitioner = effector.space_partitioning.return_default(
-                space_partitioner
-            )
-
-        assert space_partitioner.min_points_per_subregion >= 2, (
-            "min_points_per_subregion must be >= 2"
-        )
-        features = helpers.prep_features(features, self.dim)
-        for feat in tqdm(features):
-            # define the global method
-            pdp = PDP(self.data, self.model, self.axis_limits, nof_instances="all")
-
-            pdp.fit(
-                features=feat,
-                centering=True,
-                points_for_centering=points_for_centering,
-                use_vectorized=use_vectorized,
-            )
-
-            xx = np.linspace(
-                self.axis_limits[:, feat][0],
-                self.axis_limits[:, feat][1],
-                points_for_mean_heterogeneity,
-            )
-            y_ice = pdp.eval(
-                feature=feat,
-                xs=xx,
-                heterogeneity=True,
-                centering=True,
-                use_vectorized=use_vectorized,
-                return_all=True,
-            )
-            self.y_ice["feature_" + str(feat)] = y_ice.T
-
-            heter = self._create_heterogeneity_function(
-                foi=feat,
-                min_points=space_partitioner.min_points_per_subregion,
-            )
-
-            self._fit_feature(
-                feat,
-                heter,
-                space_partitioner,
-                candidate_conditioning_features,
-            )
-
-        all_arguments = locals()
-        all_arguments.pop("self")
-
-        # region splitting arguments are the first 8 arguments
         self.kwargs_subregion_detection = {
-            k: all_arguments[k] for k in list(all_arguments.keys())[:3]
+            "features": features,
+            "candidate_conditioning_features": candidate_conditioning_features,
+            "space_partitioner": space_partitioner,
+            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
-        self.kwargs_subregion_detection["points_for_mean_heterogeneity"] = (
-            points_for_mean_heterogeneity
-        )
-
-        # centering, points_for_centering, use_vectorized
         self.kwargs_fitting = {
-            k: v
-            for k, v in all_arguments.items()
-            if k in ["centering", "points_for_centering", "use_vectorized"]
+            "points_for_centering": points_for_centering,
+            "use_vectorized": use_vectorized,
         }
+
+        self._fit_loop(features, candidate_conditioning_features, space_partitioner)
 
     def plot(
         self,
         feature: int,
         node_idx: int,
-        heterogeneity: bool = "ice",
-        centering: typing.Union[bool, str] = False,
+        heterogeneity: typing.Union[bool, str] = "ice",
+        centering: typing.Union[None, bool, str] = None,
         nof_points: int = 30,
         scale_x_list: typing.Union[None, list] = None,
-        scale_y: typing.Union[None, list] = None,
-        nof_ice: int = 100,
+        scale_y: typing.Union[None, dict] = None,
+        nof_ice: typing.Union[int, str] = 100,
         show_avg_output: bool = False,
         y_limits: typing.Union[None, list] = None,
         use_vectorized: bool = True,
+        show_plot: bool = True,
     ):
-        kwargs = locals()
-        kwargs.pop("self")
-        self._plot(kwargs)
+        """Plot the regional PDP effect of `feature` at node `node_idx`.
+
+        Args:
+            feature: the feature to plot
+            node_idx: the index of the node to plot
+            heterogeneity: whether to plot the heterogeneity (`"ice"`, `"std"`, or `False`)
+            centering: whether to center the plot (`None` uses the class default)
+            nof_points: the grid size for the PDP curve
+            scale_x_list: list with a `{"mean": ..., "std": ...}` dict per feature, for de-normalizing the x-axes
+            scale_y: `{"mean": ..., "std": ...}` dict for de-normalizing the y-axis
+            nof_ice: number of ICE curves to show
+            show_avg_output: whether to show the average output of the model
+            y_limits: manual limits of the y-axis
+            use_vectorized: whether to use the vectorized ICE computation
+            show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`
+        """
+        return self._plot(
+            feature,
+            node_idx,
+            scale_x_list,
+            dict(
+                heterogeneity=heterogeneity,
+                centering=centering,
+                nof_points=nof_points,
+                scale_y=scale_y,
+                nof_ice=nof_ice,
+                show_avg_output=show_avg_output,
+                y_limits=y_limits,
+                use_vectorized=use_vectorized,
+                show_plot=show_plot,
+            ),
+        )
 
 
 class RegionalDerPDP(RegionalPDPBase):
@@ -257,6 +256,7 @@ class RegionalDerPDP(RegionalPDPBase):
         data: np.ndarray,
         model: callable,
         model_jac: typing.Optional[callable] = None,
+        *,
         nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
@@ -335,6 +335,32 @@ class RegionalDerPDP(RegionalPDPBase):
             target_name,
         )
 
+    def _precompute_global(self, feature: int):
+        """Fit the global DerPDP once and keep the d-ICE table on the
+        heterogeneity grid: candidate regions score row-subsets of it."""
+        pdp = DerPDP(
+            self.data,
+            self.model,
+            self.model_jac,
+            axis_limits=self.axis_limits,
+            nof_instances="all",
+        )
+        pdp.fit(
+            features=feature,
+            centering=False,
+            use_vectorized=self.kwargs_fitting["use_vectorized"],
+        )
+
+        xx = np.linspace(
+            self.axis_limits[0, feature],
+            self.axis_limits[1, feature],
+            self.kwargs_subregion_detection["points_for_mean_heterogeneity"],
+        )
+        y_ice = pdp._predict(
+            pdp.data, xx, feature, self.kwargs_fitting["use_vectorized"]
+        )
+        self.y_ice["feature_" + str(feature)] = y_ice.T
+
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
@@ -366,91 +392,60 @@ class RegionalDerPDP(RegionalPDPBase):
 
 
         """
-
-        if isinstance(space_partitioner, str):
-            space_partitioner = effector.space_partitioning.return_default(
-                space_partitioner
-            )
-
-        assert space_partitioner.min_points_per_subregion >= 2, (
-            "min_points_per_subregion must be >= 2"
-        )
-        features = helpers.prep_features(features, self.dim)
-        for feat in tqdm(features):
-            # define the global method
-            pdp = DerPDP(
-                self.data,
-                self.model,
-                self.model_jac,
-                self.axis_limits,
-                nof_instances="all",
-            )
-
-            pdp.fit(
-                features=feat,
-                centering=False,
-                use_vectorized=use_vectorized,
-            )
-
-            xx = np.linspace(
-                self.axis_limits[:, feat][0],
-                self.axis_limits[:, feat][1],
-                points_for_mean_heterogeneity,
-            )
-            y_ice = pdp.eval(
-                feature=feat,
-                xs=xx,
-                heterogeneity=True,
-                centering=False,
-                use_vectorized=use_vectorized,
-                return_all=True,
-            )
-            self.y_ice["feature_" + str(feat)] = y_ice.T
-
-            heter = self._create_heterogeneity_function(
-                foi=feat,
-                min_points=space_partitioner.min_points_per_subregion,
-            )
-
-            self._fit_feature(
-                feat,
-                heter,
-                space_partitioner,
-                candidate_conditioning_features,
-            )
-
-        all_arguments = locals()
-        all_arguments.pop("self")
-
-        # region splitting arguments are the first 8 arguments
         self.kwargs_subregion_detection = {
-            k: all_arguments[k] for k in list(all_arguments.keys())[:3]
+            "features": features,
+            "candidate_conditioning_features": candidate_conditioning_features,
+            "space_partitioner": space_partitioner,
+            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
-        self.kwargs_subregion_detection["points_for_mean_heterogeneity"] = (
-            points_for_mean_heterogeneity
-        )
+        self.kwargs_fitting = {"use_vectorized": use_vectorized}
 
-        # centering, points_for_centering, use_vectorized
-        self.kwargs_fitting = {
-            k: v
-            for k, v in all_arguments.items()
-            if k in ["centering", "points_for_centering", "use_vectorized"]
-        }
+        self._fit_loop(features, candidate_conditioning_features, space_partitioner)
 
     def plot(
         self,
         feature: int,
-        node_idx: int = 0,
-        heterogeneity: bool = "ice",
-        centering: typing.Union[bool, str] = False,
+        node_idx: int,
+        heterogeneity: typing.Union[bool, str] = "ice",
+        centering: typing.Union[None, bool, str] = None,
         nof_points: int = 30,
         scale_x_list: typing.Union[None, list] = None,
-        scale_y: typing.Union[None, list] = None,
-        nof_ice: int = 100,
+        scale_y: typing.Union[None, dict] = None,
+        nof_ice: typing.Union[int, str] = 100,
         show_avg_output: bool = False,
         dy_limits: typing.Union[None, list] = None,
         use_vectorized: bool = True,
+        show_plot: bool = True,
     ):
-        kwargs = locals()
-        kwargs.pop("self")
-        self._plot(kwargs)
+        """Plot the regional d-PDP effect of `feature` at node `node_idx`.
+
+        Args:
+            feature: the feature to plot
+            node_idx: the index of the node to plot
+            heterogeneity: whether to plot the heterogeneity (`"ice"`, `"std"`, or `False`)
+            centering: whether to center the plot (`None` uses the class default)
+            nof_points: the grid size for the d-PDP curve
+            scale_x_list: list with a `{"mean": ..., "std": ...}` dict per feature, for de-normalizing the x-axes
+            scale_y: `{"mean": ..., "std": ...}` dict for de-normalizing the y-axis
+            nof_ice: number of d-ICE curves to show
+            show_avg_output: whether to show the average output of the model
+            dy_limits: manual limits of the dy/dx-axis
+            use_vectorized: whether to use the vectorized ICE computation
+            show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`
+        """
+        return self._plot(
+            feature,
+            node_idx,
+            scale_x_list,
+            dict(
+                heterogeneity=heterogeneity,
+                centering=centering,
+                nof_points=nof_points,
+                scale_y=scale_y,
+                nof_ice=nof_ice,
+                show_avg_output=show_avg_output,
+                dy_limits=dy_limits,
+                use_vectorized=use_vectorized,
+                show_plot=show_plot,
+            ),
+        )

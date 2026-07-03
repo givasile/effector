@@ -23,11 +23,64 @@ import effector.axis_partitioning as ap
 import effector.utils as utils
 
 
+def _compute_shap_values(
+    model, data, backend, budget, explainer_kwargs=None, explanation_kwargs=None
+):
+    """Compute per-instance SHAP values `(N, D)` with the chosen backend.
+
+    Defaults (user kwargs override them):
+      - `shap`:   `Explainer(model, masker=data)`, `explainer(data, max_evals=budget)`
+      - `shapiq`: `Explainer(model, data=data, index="SV", max_order=1,
+        approximator="permutation", imputer="marginal")`,
+        `explainer.explain_X(data, budget=budget)`
+    """
+    explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
+    explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
+    if backend == "shap":
+        if shap is None:
+            raise ImportError(
+                "The `shap` package is required for backend='shap'. "
+                "Install it with `pip install effector[shap]`."
+            )
+        explainer_defaults = {"masker": data}
+        explanation_defaults = {"max_evals": budget}
+    elif backend == "shapiq":
+        if shapiq is None:
+            raise ImportError(
+                "The `shapiq` package is required for backend='shapiq'. "
+                "Install it with `pip install effector[shap]`."
+            )
+        explainer_defaults = {
+            "data": data,
+            "index": "SV",
+            "max_order": 1,
+            "approximator": "permutation",
+            "imputer": "marginal",
+        }
+        explanation_defaults = {"budget": budget}
+    else:
+        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
+
+    explainer_kwargs = {**explainer_defaults, **explainer_kwargs}
+    explanation_kwargs = {**explanation_defaults, **explanation_kwargs}
+
+    if backend == "shap":
+        explainer = shap.Explainer(model, **explainer_kwargs)
+        explanation = explainer(data, **explanation_kwargs)
+        return explanation.values
+    explainer = shapiq.Explainer(model, **explainer_kwargs)
+    explanations = explainer.explain_X(data, **explanation_kwargs)
+    return np.stack([ex.get_n_order_values(1) for ex in explanations])
+
+
 class ShapDP(GlobalEffectBase):
+    DEFAULT_CENTERING: Union[bool, str] = "zero_integral"
+
     def __init__(
         self,
         data: np.ndarray,
         model: Callable,
+        *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 1_000,
         feature_names: Optional[List[str]] = None,
@@ -124,7 +177,8 @@ class ShapDP(GlobalEffectBase):
             The default value is `1_000` instances, which is a good trade-off between speed and accuracy.
         """
         self.shap_values = shap_values if shap_values is not None else None
-        assert backend in ["shap", "shapiq"]
+        if backend not in ["shap", "shapiq"]:
+            raise ValueError(f"Invalid backend: {backend!r}; use 'shap' or 'shapiq'")
         self.backend = backend
         super(ShapDP, self).__init__(
             "SHAP DP",
@@ -142,66 +196,21 @@ class ShapDP(GlobalEffectBase):
         self,
         feature: int,
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
-        centering: typing.Union[bool, str] = False,
-        points_for_centering: int = 30,
         budget: int = 512,
-        explainer_kwargs: Optional[dict] = None,
-        explanation_kwargs: Optional[dict] = None,
+        shap_explainer_kwargs: Optional[dict] = None,
+        shap_explanation_kwargs: Optional[dict] = None,
     ) -> typing.Dict:
-
         data = self.data
-        model = self.model
 
         if self.shap_values is None:
-            # prepare arguments
-            explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
-            explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
-            if self.backend == "shap":
-                if shap is None:
-                    raise ImportError(
-                        "The `shap` package is required for backend='shap'. "
-                        "Install it with `pip install effector[shap]`."
-                    )
-                explainer_defaults = {"masker": data}
-                explanation_defaults = {"max_evals": budget}
-            elif self.backend == "shapiq":
-                if shapiq is None:
-                    raise ImportError(
-                        "The `shapiq` package is required for backend='shapiq'. "
-                        "Install it with `pip install effector[shap]`."
-                    )
-                explainer_defaults = {
-                    "data": data,
-                    "index": "SV",
-                    "max_order": 1,
-                    "approximator": "permutation",
-                    "imputer": "marginal",
-                }
-                explanation_defaults = {"budget": budget}
-            else:
-                raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-            explainer_kwargs = {
-                **explainer_defaults,
-                **explainer_kwargs,
-            }  # User args override defaults
-            explanation_kwargs = {
-                **explanation_defaults,
-                **explanation_kwargs,
-            }  # User args override defaults
-
-            # actual code
-            if self.backend == "shap":
-                explainer = shap.Explainer(model, **explainer_kwargs)
-                explanation = explainer(data, **explanation_kwargs)
-                self.shap_values = explanation.values
-            elif self.backend == "shapiq":
-                explainer = shapiq.Explainer(model, **explainer_kwargs)
-                explanations = explainer.explain_X(data, **explanation_kwargs)
-                self.shap_values = np.stack(
-                    [ex.get_n_order_values(1) for ex in explanations]
-                )
-            else:
-                raise ValueError("`backend` should be either 'shap' or 'shapiq'")
+            self.shap_values = _compute_shap_values(
+                self.model,
+                data,
+                self.backend,
+                budget,
+                shap_explainer_kwargs,
+                shap_explanation_kwargs,
+            )
 
         # extract x and y
         yy = self.shap_values[:, feature]
@@ -214,15 +223,7 @@ class ShapDP(GlobalEffectBase):
             data[:, feature], self.shap_values[:, feature], self.axis_limits[:, feature]
         )
 
-        # assert bins can be computed else raise error
-        assert limits is not False, (
-            "Impossible to compute bins with enough points for feature with index: i="
-            + str(feature + 1)
-            + " and binning strategy: "
-            + str(binning_method)
-            + ". Change bin strategy or "
-            "the parameters of the method"
-        )
+        utils.raise_if_no_binning(limits, feature, binning_method)
         # compute the bin effect
         feature_effect_dict = utils.compute_ale_params(
             data[:, feature], self.shap_values[:, feature], limits
@@ -246,28 +247,20 @@ class ShapDP(GlobalEffectBase):
             fill_value="extrapolate",
         )
 
-        # compute norm constant
-        if centering == "zero_integral":
-            x_norm = np.linspace(
-                self.axis_limits[0, feature],
-                self.axis_limits[1, feature],
-                points_for_centering,
-            )
-            y_norm = mean_spline(x_norm)
-            norm_const = np.mean(y_norm)
-        elif centering == "zero_start":
-            norm_const = mean_spline(self.axis_limits[0, feature])
-        else:
-            norm_const = helpers.EMPTY_SYMBOL
-
         ret_dict = {
             "spline_mean": mean_spline,
-            "spline_std": var_spline,
+            "spline_var": var_spline,
             "xx": xx,
             "yy": yy,
-            "norm_const": norm_const,
         }
         return ret_dict
+
+    def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
+        params = self.feature_effect["feature_" + str(feature)]
+        y = params["spline_mean"](x)
+        if heterogeneity:
+            return y, params["spline_var"](x)
+        return y
 
     def fit(
         self,
@@ -313,39 +306,8 @@ class ShapDP(GlobalEffectBase):
             shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` or `shapiq.Explainer` class, depending on the backend.
 
                 ??? note "Code behind the scene"
-                    Check the code that is running behind the scene before customizing `shap_explainer_kwargs`.
 
-                    ```python
-                    explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
-                    explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
-                    if self.backend == "shap":
-                        explainer_defaults = {"masker": data}
-                        explanation_defaults = {"max_evals": budget}
-                    elif self.backend == "shapiq":
-                        explainer_defaults = {
-                            "data": data,
-                            "index": "SV",
-                            "max_order": 1,
-                            "approximator": "permutation",
-                            "imputer": "marginal",
-                        }
-                        explanation_defaults = {"budget": budget}
-                    else:
-                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-                    explainer_kwargs = {**explainer_defaults, **explainer_kwargs}  # User args override defaults
-                    explanation_kwargs = {**explanation_defaults, **explanation_kwargs}  # User args override defaults
-
-                    if self.backend == "shap":
-                        explainer = shap.Explainer(model, **explainer_kwargs)
-                        explanation = explainer(data, **explanation_kwargs)
-                        self.shap_values = explanation.values
-                    elif self.backend == "shapiq":
-                        explainer = shapiq.Explainer(model, **explainer_kwargs)
-                        explanations = explainer.explain_X(data, **explanation_kwargs)
-                        self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
-                    else:
-                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-                    ```
+                    See `effector.global_effect_shap._compute_shap_values` — the single place the explainer is constructed and invoked.
 
                 ??? warning "Be careful with custom arguments"
 
@@ -356,39 +318,7 @@ class ShapDP(GlobalEffectBase):
 
                 ??? note "Code behind the scene"
 
-                    Check the code that is running behind the scene before customizing `shap_explanation_kwargs`.
-
-                    ```python
-                    explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
-                    explanation_kwargs = explanation_kwargs.copy() if explanation_kwargs else {}
-                    if self.backend == "shap":
-                        explainer_defaults = {"masker": data}
-                        explanation_defaults = {"max_evals": budget}
-                    elif self.backend == "shapiq":
-                        explainer_defaults = {
-                            "data": data,
-                            "index": "SV",
-                            "max_order": 1,
-                            "approximator": "permutation",
-                            "imputer": "marginal",
-                        }
-                        explanation_defaults = {"budget": budget}
-                    else:
-                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-                    explainer_kwargs = {**explainer_defaults, **explainer_kwargs}  # User args override defaults
-                    explanation_kwargs = {**explanation_defaults, **explanation_kwargs}  # User args override defaults
-
-                    if self.backend == "shap":
-                        explainer = shap.Explainer(model, **explainer_kwargs)
-                        explanation = explainer(data, **explanation_kwargs)
-                        self.shap_values = explanation.values
-                    elif self.backend == "shapiq":
-                        explainer = shapiq.Explainer(model, **explainer_kwargs)
-                        explanations = explainer.explain_X(data, **explanation_kwargs)
-                        self.shap_values = np.stack([ex.get_n_order_values(1) for ex in explanations])
-                    else:
-                        raise ValueError("`backend` should be either 'shap' or 'shapiq'")
-                    ```
+                    See `effector.global_effect_shap._compute_shap_values` — the single place the explainer is constructed and invoked.
 
                 ??? warning "Be careful with custom arguments"
 
@@ -396,73 +326,15 @@ class ShapDP(GlobalEffectBase):
                     check the official documentation of [`shap`](https://shap.readthedocs.io/en/latest/) and [`shapiq`](https://shapiq.readthedocs.io/en/latest/) packages.
 
         """
-        centering = helpers.prep_centering(centering)
-        features = helpers.prep_features(features, self.dim)
-
-        # new implementation
-        for s in features:
-            self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s,
-                binning_method,
-                centering,
-                points_for_centering,
-                budget,
-                shap_explainer_kwargs,
-                shap_explanation_kwargs,
-            )
-            self.is_fitted[s] = True
-            self.fit_args["feature_" + str(s)] = {
-                "centering": centering,
-                "points_for_centering": points_for_centering,
-            }
-
-    def eval(
-        self,
-        feature: int,
-        xs: np.ndarray,
-        heterogeneity: bool = True,
-        centering: typing.Union[bool, str] = True,
-    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray]]:
-        """Evaluate the effect of the s-th feature at positions `xs`.
-
-        Args:
-            feature: index of feature of interest
-            xs: the points along the s-th axis to evaluate the FE plot
-
-              - `np.ndarray` of shape `(T,)`
-            heterogeneity: whether to return the heterogeneity measures.
-
-                  - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
-                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
-
-            centering: whether to center the plot
-
-                - If `centering` is `False`, the SHAP curve is not centered
-                - If `centering` is `True` or `zero_integral`, the SHAP curve is centered around the `y` axis.
-                - If `centering` is `zero_start`, the SHAP curve starts from `y=0`.
-
-        Returns:
-            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std, estimator_var)` otherwise
-        """
-        centering = helpers.prep_centering(centering)
-
-        if self.requires_refit(feature, centering):
-            self.fit(features=feature, centering=centering)
-
-        # Check if the lower bound is less than the upper bound
-        assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
-
-        yy = self.feature_effect["feature_" + str(feature)]["spline_mean"](xs)
-
-        if centering is not False:
-            norm_const = self.feature_effect["feature_" + str(feature)]["norm_const"]
-            yy = yy - norm_const
-
-        if heterogeneity:
-            yy_var = self.feature_effect["feature_" + str(feature)]["spline_std"](xs)
-            return yy, yy_var
-        else:
-            return yy
+        self._fit_loop(
+            features,
+            centering,
+            points_for_centering,
+            binning_method=binning_method,
+            budget=budget,
+            shap_explainer_kwargs=shap_explainer_kwargs,
+            shap_explanation_kwargs=shap_explanation_kwargs,
+        )
 
     def plot(
         self,
@@ -505,16 +377,17 @@ class ShapDP(GlobalEffectBase):
             show_plot: whether to show the plot
         """
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
+        centering = helpers.prep_centering(centering)
 
         x = np.linspace(
             self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
         )
 
         # get the SHAP curve
-        y = self.eval(feature, x, heterogeneity=False, centering=centering)
+        y = self.eval(feature, x, centering=centering)
         y_std = (
-            np.sqrt(self.feature_effect["feature_" + str(feature)]["spline_std"](x))
-            if heterogeneity == "std" or True
+            np.sqrt(self.feature_effect["feature_" + str(feature)]["spline_var"](x))
+            if heterogeneity == "std"
             else None
         )
 
@@ -534,9 +407,7 @@ class ShapDP(GlobalEffectBase):
         )
 
         if show_avg_output:
-            avg_output = helpers.prep_avg_output(
-                self.data, self.model, self.avg_output, scale_y
-            )
+            avg_output = helpers.prep_avg_output(self.data, self.model, None, scale_y)
         else:
             avg_output = None
 

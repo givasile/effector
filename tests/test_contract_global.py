@@ -43,15 +43,7 @@ def params(**marks):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "name",
-    params(
-        shapdp=xfail(
-            strict=True,
-            reason="B11: ShapDP.eval defaults heterogeneity=True -> returns a tuple",
-        )
-    ),
-)
+@pytest.mark.parametrize("name", params())
 def test_c1_eval_returns_mean_array(name, global_data):
     m = make_global(name, global_data)
     y = m.eval(0, XS)
@@ -75,11 +67,15 @@ def test_c1_eval_all_features(name, global_data):
 
 @pytest.mark.parametrize("name", params())
 def test_c2_zero_integral(name, global_data):
+    """The semantic contract: with zero_integral centering the mean effect over
+    the feature's interval is ~0.  Asserted on a dense grid with a tolerance
+    that covers the 30-point discretization of the normalization constant
+    (since step 2 all methods share the same midpoint scheme — the tight
+    per-scheme pin at 1e-6 was an accident of the old per-method grids)."""
     m = make_global(name, global_data)
-    # the same 30-point linspace the fit uses for the normalization constant
-    xs = np.linspace(m.axis_limits[0, 0], m.axis_limits[1, 0], 30)
+    xs = np.linspace(m.axis_limits[0, 0], m.axis_limits[1, 0], 1000)
     y = eval_mean(m, 0, xs, centering="zero_integral")
-    np.testing.assert_allclose(np.mean(y), 0.0, atol=1e-6)
+    np.testing.assert_allclose(np.mean(y), 0.0, atol=1e-2)
 
 
 @pytest.mark.parametrize("name", params())
@@ -223,20 +219,11 @@ def test_c6_axis_limits_filter(name, global_data):
 
 # ---------------------------------------------------------------------------
 # New surface (R1/R2, LOGBOOK #4 + #13 — names agreed with Vasilis 2026-07-03:
-# eval / eval_heter / payload / heter_score) — all xfail until the refactor lands
+# eval / eval_heter / payload / heter_score; implemented in refactor step 2)
 # ---------------------------------------------------------------------------
-
-NEW_SURFACE = xfail(
-    strict=True,
-    reason="R2/LOGBOOK #13: new heterogeneity surface not implemented yet",
-)
 
 
 @pytest.mark.parametrize("name", params())
-@pytest.mark.xfail(
-    strict=True,
-    reason="R1/R2: eval must have one return type — no heterogeneity/return_all kwargs",
-)
 def test_new_eval_signature_mean_only(name, global_data):
     m = make_global(name, global_data)
     sig = inspect.signature(type(m).eval)
@@ -244,9 +231,7 @@ def test_new_eval_signature_mean_only(name, global_data):
     assert "return_all" not in sig.parameters
 
 
-@pytest.mark.parametrize(
-    "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
-)
+@pytest.mark.parametrize("name", params())
 def test_new_payload_accessor(name, global_data):
     """payload(feature) -> non-empty dict with the method's raw honest object
     (ICE matrix, per-bin variances, shap cloud); exact schema is decided at
@@ -258,9 +243,7 @@ def test_new_payload_accessor(name, global_data):
     assert len(p) > 0
 
 
-@pytest.mark.parametrize(
-    "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
-)
+@pytest.mark.parametrize("name", params())
 def test_new_heter_score_scalar(name, global_data):
     """heter_score(feature) -> non-negative scalar: the single method-agnostic
     heterogeneity quantity regional splitting and F2 consume."""
@@ -270,9 +253,7 @@ def test_new_heter_score_scalar(name, global_data):
     assert score >= 0
 
 
-@pytest.mark.parametrize(
-    "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
-)
+@pytest.mark.parametrize("name", params())
 def test_new_eval_heter_returns_curve(name, global_data):
     """eval_heter(feature, xs) -> (T,) ndarray >= 0: the heterogeneity curve
     h(xs), method-specific units (the plot layer's bands must equal it — R1)."""
@@ -283,9 +264,7 @@ def test_new_eval_heter_returns_curve(name, global_data):
     assert np.all(h >= 0)
 
 
-@pytest.mark.parametrize(
-    "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
-)
+@pytest.mark.parametrize("name", params())
 def test_new_eval_heter_signature_has_no_centering(name, global_data):
     """Heterogeneity is centering-invariant by definition (R2): the signature
     itself must make it impossible to ask otherwise."""
@@ -294,9 +273,7 @@ def test_new_eval_heter_signature_has_no_centering(name, global_data):
     assert "centering" not in sig.parameters
 
 
-@pytest.mark.parametrize(
-    "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
-)
+@pytest.mark.parametrize("name", params())
 def test_new_eval_heter_centering_invariant(name, global_data):
     """eval_heter returns identical values whether the object was fitted
     centered or uncentered."""

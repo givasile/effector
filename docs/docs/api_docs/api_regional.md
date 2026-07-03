@@ -175,7 +175,7 @@ jacobian = ... # jacobian of the model
         ```
 
          ```python
-         y, het = r_method.eval(feature, node_idx, xs)
+         y, het = r_method.eval(feature, node_idx, xs, heterogeneity=True)
          ```
 
 ## API

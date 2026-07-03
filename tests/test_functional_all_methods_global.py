@@ -90,9 +90,8 @@ def make_method(kind, opts, data, nof_instances=NOF_INSTANCES):
 @pytest.mark.parametrize("feature", [0, 1])
 def test_effect_matches_component(kind, opts, gt_key, feature, data):
     method = make_method(kind, opts, data)
-    y, heter = method.eval(
-        feature=feature, xs=XS, heterogeneity=True, centering="zero_start"
-    )
+    y = method.eval(feature, XS, centering="zero_start")
+    heter = method.eval_heter(feature, XS)
     np.testing.assert_allclose(y, GT[gt_key][feature], atol=ATOL)
     np.testing.assert_allclose(heter, np.zeros_like(XS), atol=ATOL)
 
@@ -113,5 +112,5 @@ def test_shap_tiny_in_the_gate(data):
     """One fast SHAP case so `make test` is never SHAP-blind (PLAN II 3.3)."""
     method = effector.ShapDP(data[:50], model, nof_instances=50, backend="shap")
     method.fit(features=0, budget=128)
-    y = method.eval(feature=0, xs=XS, centering="zero_start", heterogeneity=False)
+    y = method.eval(feature=0, xs=XS, centering="zero_start")
     np.testing.assert_allclose(y, GT["effect"][0], atol=1.5e-1)

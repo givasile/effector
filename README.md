@@ -133,25 +133,26 @@ r_pdp.summary(
 Feature 3 - Full partition tree:
 🌳 Full Tree Structure:
 ───────────────────────
-hr 🔹 [id: 0 | heter: 0.24 | inst: 3476 | w: 1.00]
-    workingday = 0.00 🔹 [id: 1 | heter: 0.13 | inst: 1129 | w: 0.32]
-        temp ≤ 6.50 🔹 [id: 2 | heter: 0.06 | inst: 568 | w: 0.16]
-        temp > 6.50 🔹 [id: 3 | heter: 0.09 | inst: 561 | w: 0.16]
-    workingday ≠ 0.00 🔹 [id: 4 | heter: 0.12 | inst: 2347 | w: 0.68]
-        temp ≤ 8.76 🔹 [id: 5 | heter: 0.08 | inst: 1083 | w: 0.31]
-        temp > 8.76 🔹 [id: 6 | heter: 0.09 | inst: 1264 | w: 0.36]
+hr 🔹 [id: 0 | heter: 0.27 | inst: 3476 | w: 1.00]
+    workingday = 0.00 🔹 [id: 1 | heter: 0.14 | inst: 1114 | w: 0.32]
+        temp ≤ 8.44 🔹 [id: 2 | heter: 0.07 | inst: 576 | w: 0.17]
+        temp > 8.44 🔹 [id: 3 | heter: 0.10 | inst: 538 | w: 0.15]
+    workingday ≠ 0.00 🔹 [id: 4 | heter: 0.14 | inst: 2362 | w: 0.68]
+        yr = 0.00 🔹 [id: 5 | heter: 0.06 | inst: 1220 | w: 0.35]
+        yr ≠ 0.00 🔹 [id: 6 | heter: 0.12 | inst: 1142 | w: 0.33]
 --------------------------------------------------
 Feature 3 - Statistics per tree level:
 🌳 Tree Summary:
 ─────────────────
-Level 0🔹heter: 0.24
-    Level 1🔹heter: 0.12 | 🔻0.12 (49.88%)
-        Level 2🔹heter: 0.08 | 🔻0.04 (32.25%)
+Level 0🔹heter: 0.27
+    Level 1🔹heter: 0.14 | 🔻0.13 (47.97%)
+        Level 2🔹heter: 0.08 | 🔻0.05 (39.15%)
 ```
 
 The summary of feature `hr` (hour) says that its effect on the output is highly dependent on the value of features:
-- `workingday`, wheteher it is a workingday or not
+- `workingday`, whether it is a workingday or not
 - `temp`, what is the temperature the specific hour
+- `yr`, whether it is the first or the second year of the dataset
 
 Let's see how the effect changes on these subregions!
 
@@ -184,16 +185,16 @@ for node in r_pdp.tree["feature_3"].nodes:  # Node ids depend on the fitted tree
 </table>
 
 
-#### Is it hot or cold?
+#### Second-level splits: is it hot or cold? is it 2011 or 2012?
 
 ```python
-# Plot regional effects after second-level splits (workingday vs non-workingday and hot vs cold temperature)
+# Plot regional effects after second-level splits (temperature on non-workingdays, year on workingdays)
 for node in r_pdp.tree["feature_3"].nodes:
     if node.info["level"] != 2:  # Keep only the nodes of the second-level splits
         continue
     r_pdp.plot(
         feature=3,  # Feature 3 (temperature)
-        node_idx=node.idx,  # Node index (hot/cold temperature and workingday/non-workingday)
+        node_idx=node.idx,  # Node index of the second-level splits
         nof_ice=200,  # Number of ICE curves
         scale_x_list=[  # Scale features by mean and std
             {"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]}

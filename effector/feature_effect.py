@@ -4,10 +4,8 @@ from typing import Callable, List, Optional, Union
 import numpy as np
 
 import effector.helpers as helpers
+import effector.method_registry as method_registry
 import effector.visualization as vis
-from effector.global_effect_ale import ALE, RHALE
-from effector.global_effect_pdp import PDP
-from effector.global_effect_shap import ShapDP
 
 
 class FeatureEffect:
@@ -15,9 +13,9 @@ class FeatureEffect:
 
     `FeatureEffect` holds the shared ingredients (`data`, `model`, feature/target
     names, axis limits) once and lazily builds the underlying method objects
-    (`PDP`, `ALE`, `RHALE`, `ShapDP`) on demand. Its `plot` overlays the mean
-    effect of several methods for one feature on the same axis, so they can be
-    compared directly.
+    (`PDP`, `ALE`, `RHALE`, `ShapDP`) on demand. Its `eval` returns the mean
+    effect of several methods on a shared grid, and its `plot` overlays them
+    on the same axis, so they can be compared directly.
 
     Notes:
         - All methods share the *same* background data: the data is filtered to
@@ -30,15 +28,10 @@ class FeatureEffect:
           units and is not comparable with the output-unit methods.
     """
 
-    # canonical name -> (class, needs model jacobian)
-    _REGISTRY = {
-        "pdp": (PDP, False),
-        "ale": (ALE, False),
-        "rhale": (RHALE, True),
-        "shapdp": (ShapDP, False),
-    }
-    _ALIASES = {"shap": "shapdp", "shap_dp": "shapdp", "shap-dp": "shapdp"}
-    _DISPLAY = {"pdp": "PDP", "ale": "ALE", "rhale": "RHALE", "shapdp": "SHAP-DP"}
+    # the comparison pool: every registry method in output units (R5 — the
+    # per-method knowledge lives in effector.method_registry; DerPDP is in
+    # derivative units, hence excluded)
+    _POOL = ["pdp", "ale", "rhale", "shapdp"]
 
     def __init__(
         self,
@@ -66,22 +59,16 @@ class FeatureEffect:
             feature_names: list of feature names, or `None` for `["x_0", ...]`
             target_name: name of the target, or `None` for `"y"`
         """
-        assert data.ndim == 2
         self.model = model
         self.model_jac = model_jac
         self.dim = data.shape[1]
 
-        # filter to axis limits (or infer them), then subsample ONCE so every
-        # method sees the exact same background data.
-        if axis_limits is not None:
-            assert axis_limits.shape == (2, self.dim)
-            data = data[helpers.indices_within_limits(data, axis_limits), :]
-        else:
-            axis_limits = helpers.axis_limits_from_data(data)
-        self.axis_limits: np.ndarray = axis_limits
-
-        _, indices = helpers.prep_nof_instances(nof_instances, data.shape[0])
-        self.data: np.ndarray = data[indices, :]
+        # shared preprocessing (helpers.prep_data): filter to axis limits (or
+        # infer them), then subsample ONCE so every method sees the exact same
+        # background data.
+        self.data, _, self.axis_limits, _, _ = helpers.prep_data(
+            data, axis_limits, nof_instances
+        )
 
         self.feature_names = (
             helpers.get_feature_names(self.dim)
@@ -94,11 +81,12 @@ class FeatureEffect:
         self._methods: dict = {}
 
     def _canonical(self, name: str) -> str:
-        key = self._ALIASES.get(name.lower(), name.lower())
-        if key not in self._REGISTRY:
+        key = method_registry.canonical(name)
+        if key not in self._POOL:
             raise ValueError(
-                "Unknown method '{}'. Supported methods: {} (aliases: {}).".format(
-                    name, sorted(self._REGISTRY), sorted(self._ALIASES)
+                "Method '{}' is not part of the comparison pool {} "
+                "(d-PDP lives in derivative units and is not comparable).".format(
+                    name, sorted(self._POOL)
                 )
             )
         return key
@@ -109,7 +97,7 @@ class FeatureEffect:
         if key in self._methods:
             return self._methods[key]
 
-        cls, needs_jac = self._REGISTRY[key]
+        spec = method_registry.resolve(key)
         kwargs = dict(
             axis_limits=self.axis_limits,
             nof_instances="all",  # data is already subsampled in __init__
@@ -119,21 +107,57 @@ class FeatureEffect:
         if method_kwargs:
             kwargs.update(method_kwargs)
 
-        if needs_jac:
+        if spec.needs_jac:
             if self.model_jac is None:
                 warnings.warn(
                     "'{}' uses the model's jacobian, but `model_jac` was not passed "
                     "to FeatureEffect. Falling back to numerical differentiation "
                     "(slower and approximate) — pass `model_jac=...` for exact, "
-                    "faster results.".format(self._DISPLAY[key]),
+                    "faster results.".format(spec.display_name),
                     stacklevel=3,
                 )
-            obj = cls(self.data, self.model, self.model_jac, **kwargs)
+            obj = spec.cls(self.data, self.model, self.model_jac, **kwargs)
         else:
-            obj = cls(self.data, self.model, **kwargs)
+            obj = spec.cls(self.data, self.model, **kwargs)
 
         self._methods[key] = obj
         return obj
+
+    def eval(
+        self,
+        feature: int,
+        xs: np.ndarray,
+        methods: Optional[List[str]] = None,
+        centering: Union[bool, str] = True,
+        method_kwargs: Optional[dict] = None,
+    ) -> dict:
+        """Evaluate the mean effect of several methods on a shared grid.
+
+        Args:
+            feature: index of the feature
+            xs: the grid to evaluate on, shape `(T,)`
+            methods: list of method names. Supported: `"PDP"`, `"ALE"`,
+                `"RHALE"`, `"ShapDP"` (alias `"SHAP"`). Defaults to
+                `["PDP", "ALE", "RHALE"]` (`ShapDP` is opt-in as it is slower
+                and needs the `shap` package).
+            centering: how to center the curves (R3 vocabulary)
+            method_kwargs: optional `{method_name: {**constructor_kwargs}}` to
+                customize individual methods
+
+        Returns:
+            `{display_name: y}` with one `(T,)` mean-effect array per method
+        """
+        if methods is None:
+            methods = ["PDP", "ALE", "RHALE"]
+        centering = helpers.prep_centering(centering)
+
+        curves = {}
+        for name in methods:
+            mk = method_kwargs.get(name) if method_kwargs else None
+            obj = self._get_method(name, mk)
+            label = method_registry.resolve(self._canonical(name)).display_name
+            curves[label] = obj.eval(feature, xs, centering=centering)
+        return curves
 
     def plot(
         self,
@@ -171,9 +195,6 @@ class FeatureEffect:
                 customize individual methods (e.g. `{"ShapDP": {"nof_instances": 300}}`)
             show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`
         """
-        if methods is None:
-            methods = ["PDP", "ALE", "RHALE"]
-
         centering = helpers.prep_centering(centering)
         if centering is False:
             warnings.warn(
@@ -187,15 +208,13 @@ class FeatureEffect:
         xs = np.linspace(
             self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
         )
-
-        curves = {}
-        for name in methods:
-            mk = method_kwargs.get(name) if method_kwargs else None
-            obj = self._get_method(name, mk)
-            label = self._DISPLAY[self._canonical(name)]
-            curves[label] = obj.eval(
-                feature, xs, heterogeneity=False, centering=centering
-            )
+        curves = self.eval(
+            feature,
+            xs,
+            methods=methods,
+            centering=centering,
+            method_kwargs=method_kwargs,
+        )
 
         avg_output = (
             helpers.prep_avg_output(self.data, self.model, None, scale_y)
@@ -203,7 +222,7 @@ class FeatureEffect:
             else None
         )
 
-        ret = vis.plot_effect_comparison(
+        return vis.plot_effect_comparison(
             xs,
             feature,
             curves,
@@ -215,5 +234,3 @@ class FeatureEffect:
             y_limits=y_limits,
             show_plot=show_plot,
         )
-        if not show_plot:
-            return ret

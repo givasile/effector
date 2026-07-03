@@ -75,7 +75,7 @@ def test_rhale(bench, data):
         data, bench.predict, bench.jacobian, axis_limits=bench.axis_limits
     )
     rhale.fit(features=0)
-    y = rhale.eval(feature=0, xs=XS, centering=True, heterogeneity=False)
+    y = rhale.eval(feature=0, xs=XS, centering=True)
     assert_per_half(y, bench.rhale_gt(XS), atol_dense=2e-1, atol_sparse=4e-1)
 
 
@@ -101,5 +101,5 @@ def test_shap(bench, data):
         data, bench.predict, axis_limits=bench.axis_limits, nof_instances="all"
     )
     sh.fit(features=0)
-    y = sh.eval(feature=0, xs=XS, centering=True, heterogeneity=False)
+    y = sh.eval(feature=0, xs=XS, centering=True)
     np.testing.assert_allclose(y, bench.shap_gt(XS), atol=2e-1)

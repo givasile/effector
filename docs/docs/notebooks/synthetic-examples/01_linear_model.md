@@ -1,7 +1,7 @@
 # A linear model
 
 - Author: [givasile](https://givasile.github.io/)
-- Runtime: ~20 s
+- Runtime: ~15 s
 - Description: All of `effector`'s global effect methods (PDP, d-PDP, ALE,
   RHALE, SHAP-DP) applied to a linear model, verifying that every method
   recovers the linear effect of each feature with zero heterogeneity.

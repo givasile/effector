@@ -124,7 +124,8 @@ jacobian = ... # jacobian of the model
         ```
 
          ```python
-         y, het = r_method.eval(feature, xs)
+         y = g_method.eval(feature, xs)
+         het = g_method.eval_heter(feature, xs)
          ```
 
 ## API

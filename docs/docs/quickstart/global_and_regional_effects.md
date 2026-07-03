@@ -83,7 +83,7 @@ Let's focus on feature `hour`. We will compute the global effect of the `hour` f
     ```python
     effector.ShapDP(X, model).plot(feature=3)
     ```
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_34_494.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_34_489.png)
 
 
 All methods agree on the general trend:
@@ -135,7 +135,7 @@ Let's take a look again:
     ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_28_0.png)
 
 === "SHAP-DP"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_34_494.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_34_489.png)
 
 They all indicate a high heterogeneity; there are cases that deviate from the average pattern.
 Moreover, PDP-ICE analysis highlights two distinct patterns:
@@ -193,12 +193,12 @@ To print the partition tree, we will use `.summary()` method of the regional eff
     🌳 Full Tree Structure:
     ───────────────────────
     hr 🔹 [id: 0 | heter: 0.24 | inst: 5000 | w: 1.00]
-        workingday = 0.00 🔹 [id: 1 | heter: 0.13 | inst: 1548 | w: 0.31]
-            temp ≤ 4.50 🔹 [id: 2 | heter: 0.06 | inst: 618 | w: 0.12]
-            temp > 4.50 🔹 [id: 3 | heter: 0.10 | inst: 930 | w: 0.19]
-        workingday ≠ 0.00 🔹 [id: 4 | heter: 0.12 | inst: 3452 | w: 0.69]
-            yr = 0.00 🔹 [id: 5 | heter: 0.06 | inst: 1719 | w: 0.34]
-            yr ≠ 0.00 🔹 [id: 6 | heter: 0.11 | inst: 1733 | w: 0.35]
+        workingday = 0.00 🔹 [id: 1 | heter: 0.13 | inst: 1578 | w: 0.32]
+            temp ≤ 6.81 🔹 [id: 2 | heter: 0.07 | inst: 787 | w: 0.16]
+            temp > 6.81 🔹 [id: 3 | heter: 0.09 | inst: 791 | w: 0.16]
+        workingday ≠ 0.00 🔹 [id: 4 | heter: 0.12 | inst: 3422 | w: 0.68]
+            yr = 0.00 🔹 [id: 5 | heter: 0.06 | inst: 1681 | w: 0.34]
+            yr ≠ 0.00 🔹 [id: 6 | heter: 0.10 | inst: 1741 | w: 0.35]
     ```
 
 === "RHALE"
@@ -211,11 +211,11 @@ To print the partition tree, we will use `.summary()` method of the regional eff
     Feature 3 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    hr 🔹 [id: 0 | heter: 5.68 | inst: 13903 | w: 1.00]
-        workingday = 0.00 🔹 [id: 1 | heter: 0.75 | inst: 4385 | w: 0.32]
-            temp ≤ 6.81 🔹 [id: 2 | heter: 0.44 | inst: 2187 | w: 0.16]
-            temp > 6.81 🔹 [id: 3 | heter: 0.60 | inst: 2198 | w: 0.16]
-        workingday ≠ 0.00 🔹 [id: 4 | heter: 5.44 | inst: 9518 | w: 0.68]
+    hr 🔹 [id: 0 | heter: 6.58 | inst: 13903 | w: 1.00]
+        workingday = 0.00 🔹 [id: 1 | heter: 0.72 | inst: 4385 | w: 0.32]
+            temp ≤ 6.81 🔹 [id: 2 | heter: 0.41 | inst: 2187 | w: 0.16]
+            temp > 6.81 🔹 [id: 3 | heter: 0.58 | inst: 2198 | w: 0.16]
+        workingday ≠ 0.00 🔹 [id: 4 | heter: 6.91 | inst: 9518 | w: 0.68]
     ```
 
 === "SHAP-DP"
@@ -228,13 +228,13 @@ To print the partition tree, we will use `.summary()` method of the regional eff
     Feature 3 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    hr 🔹 [id: 0 | heter: 0.06 | inst: 500 | w: 1.00]
-        workingday = 0.00 🔹 [id: 1 | heter: 0.02 | inst: 148 | w: 0.30]
-            temp ≤ 4.50 🔹 [id: 2 | heter: 0.01 | inst: 50 | w: 0.10]
-            temp > 4.50 🔹 [id: 3 | heter: 0.02 | inst: 98 | w: 0.20]
-        workingday ≠ 0.00 🔹 [id: 4 | heter: 0.03 | inst: 352 | w: 0.70]
-            temp ≤ 6.81 🔹 [id: 5 | heter: 0.02 | inst: 145 | w: 0.29]
-            temp > 6.81 🔹 [id: 6 | heter: 0.02 | inst: 207 | w: 0.41]
+    hr 🔹 [id: 0 | heter: 0.05 | inst: 500 | w: 1.00]
+        workingday = 0.00 🔹 [id: 1 | heter: 0.02 | inst: 138 | w: 0.28]
+            temp ≤ 6.81 🔹 [id: 2 | heter: 0.01 | inst: 67 | w: 0.13]
+            temp > 6.81 🔹 [id: 3 | heter: 0.01 | inst: 71 | w: 0.14]
+        workingday ≠ 0.00 🔹 [id: 4 | heter: 0.03 | inst: 362 | w: 0.72]
+            temp ≤ 9.11 🔹 [id: 5 | heter: 0.02 | inst: 185 | w: 0.37]
+            temp > 9.11 🔹 [id: 6 | heter: 0.02 | inst: 177 | w: 0.35]
 ```
 
 

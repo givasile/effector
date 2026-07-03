@@ -10,11 +10,16 @@ from effector.global_effect import GlobalEffectBase
 
 
 class PDPBase(GlobalEffectBase):
+    DEFAULT_CENTERING: Union[bool, str] = False
+    # the vis layer scales derivative plots by std only (no mean shift) — B5
+    IS_DERIVATIVE: bool = False
+
     def __init__(
         self,
         data: np.ndarray,
         model: Callable,
         model_jac: Optional[Callable] = None,
+        *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
         feature_names: Optional[List] = None,
@@ -41,31 +46,55 @@ class PDPBase(GlobalEffectBase):
             y = method(self.model, self.model_jac, self.data, xx, feature, True)
         return y
 
-    def _fit_feature(
-        self,
-        feature: int,
-        centering: Union[bool, str] = False,
-        points_for_centering: int = 30,
-        use_vectorized: bool = True,
-    ) -> dict:
+    def _fit_feature(self, feature: int, use_vectorized: bool = True) -> dict:
+        # the (d-)PDP stores no per-feature payload beyond the normalization
+        # constant (which the base fit loop appends); ICE curves are computed
+        # by the evaluation kernel
+        return {}
 
-        data = self.data
-        if centering is True or centering == "zero_integral":
+    def _compute_norm_const(
+        self, feature: int, method: str = "zero_integral", nof_points: int = 30
+    ):
+        """(d-)PDP overrides the base: its normalization constant is
+        *per-instance* — each ICE curve is centered on its own — so an
+        `(N,)` array is stored instead of a scalar."""
+        assert method in ["zero_integral", "zero_start"]
+        use_vectorized = self.fit_args.get("feature_" + str(feature), {}).get(
+            "use_vectorized", True
+        )
+        if method == "zero_integral":
             xx = np.linspace(
                 self.axis_limits[0, feature],
                 self.axis_limits[1, feature],
-                points_for_centering,
+                nof_points,
             )
-            y = self._predict(data, xx, feature, use_vectorized)
-            norm_const = np.mean(y, axis=0)
-            fe = {"norm_const": norm_const}
-        elif centering == "zero_start":
-            xx = self.axis_limits[0, feature, np.newaxis]
-            y = self._predict(data, xx, feature, use_vectorized)
-            fe = {"norm_const": y[0]}
+            y = self._predict(self.data, xx, feature, use_vectorized)
+            return np.mean(y, axis=0)
+        xx = self.axis_limits[0, feature, np.newaxis]
+        y = self._predict(self.data, xx, feature, use_vectorized)
+        return y[0]
+
+    def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
+        """Kernel: uncentered mean (d-)ICE at `x`; with `heterogeneity`, also
+        h(x) — the variance across the *per-instance centered* ICE curves for
+        the PDP (levels are only comparable after centering) and across the raw
+        d-ICE curves for the DerPDP (slopes are directly comparable)."""
+        y_ice = self._predict(self.data, x, feature, use_vectorized=True)
+        y_mean = np.mean(y_ice, axis=1)
+        if not heterogeneity:
+            return y_mean
+
+        if self.method_name == "pdp":
+            xx = np.linspace(
+                self.axis_limits[0, feature], self.axis_limits[1, feature], 30
+            )
+            per_instance_norm = np.mean(
+                self._predict(self.data, xx, feature, use_vectorized=True), axis=0
+            )
+            y_var = np.var(y_ice - per_instance_norm[np.newaxis, :], axis=1)
         else:
-            fe = {"norm_const": np.nan}
-        return fe
+            y_var = np.var(y_ice, axis=1)
+        return y_mean, y_var
 
     def fit(
         self,
@@ -96,86 +125,9 @@ class PDPBase(GlobalEffectBase):
             use_vectorized: whether to use vectorized operations for the PDP and ICE curves
 
         """
-        centering = helpers.prep_centering(centering)
-        features = helpers.prep_features(features, self.dim)
-
-        for s in features:
-            self.feature_effect["feature_" + str(s)] = self._fit_feature(
-                s, centering, points_for_centering, use_vectorized
-            )
-            self.is_fitted[s] = True
-            self.fit_args["feature_" + str(s)] = {
-                "centering": centering,
-                "points_for_centering": points_for_centering,
-            }
-
-    def eval(
-        self,
-        feature: int,
-        xs: np.ndarray,
-        heterogeneity: bool = False,
-        centering: typing.Union[bool, str] = False,
-        return_all: bool = False,
-        use_vectorized: bool = True,
-    ) -> typing.Union[np.ndarray, typing.Tuple[np.ndarray, np.ndarray]]:
-        """Evaluate the effect of the s-th feature at positions `xs`.
-
-        Args:
-            feature: index of feature of interest
-            xs: the points along the s-th axis to evaluate the FE plot
-
-              - `np.ndarray` of shape `(T, )`
-
-            heterogeneity: whether to return the heterogeneity measures.
-
-                  - if `heterogeneity=False`, the function returns the mean effect at the given `xs`
-                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect
-
-            centering: whether to center the PDP
-
-                - If `centering` is `False`, the PDP not centered
-                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the PDP starts from `y=0`.
-
-            return_all: whether to return PDP and ICE plots evaluated at `xs`
-
-                - If `return_all=False`, the function returns the mean effect at the given `xs`
-                - If `return_all=True`, the function returns a `ndarray` of shape `(T, N)` with the `N` ICE plots evaluated at `xs`
-
-            use_vectorized: whether to use the vectorized version of the computation
-
-        Returns:
-            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std)` otherwise
-
-        """
-        centering = helpers.prep_centering(centering)
-
-        if self.requires_refit(feature, centering):
-            self.fit(
-                features=feature, centering=centering, use_vectorized=use_vectorized
-            )
-
-        # Check if the lower bound is less than the upper bound
-        assert self.axis_limits[0, feature] < self.axis_limits[1, feature]
-
-        # new implementation
-        y_ice = self._predict(self.data, xs, feature, use_vectorized)
-        if centering:
-            norm_consts = np.expand_dims(
-                self.feature_effect["feature_" + str(feature)]["norm_const"], axis=0
-            )
-            y_ice = y_ice - norm_consts
-
-        y_mean = np.mean(y_ice, axis=1)
-
-        if return_all:
-            return y_ice
-
-        if heterogeneity:
-            y_var = np.var(y_ice, axis=1)
-            return y_mean, y_var
-        else:
-            return y_mean
+        self._fit_loop(
+            features, centering, points_for_centering, use_vectorized=use_vectorized
+        )
 
     def _plot(
         self,
@@ -198,19 +150,19 @@ class PDPBase(GlobalEffectBase):
             self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
         )
 
-        yy = self.eval(
-            feature,
-            x,
-            heterogeneity=False,
-            centering=centering,
-            return_all=True,
-            use_vectorized=use_vectorized,
-        )
+        # the ICE table is the method's own object: computed by the kernel and
+        # centered with the stored per-instance norms (payload state)
+        if self.requires_refit(feature, centering):
+            self.fit(
+                features=feature, centering=centering, use_vectorized=use_vectorized
+            )
+        yy = self._predict(self.data, x, feature, use_vectorized)
+        if centering is not False:
+            norm_consts = self.feature_effect["feature_" + str(feature)]["norm_const"]
+            yy = yy - norm_consts[np.newaxis, :]
 
         if show_avg_output:
-            avg_output = helpers.prep_avg_output(
-                self.data, self.model, self.avg_output, scale_y
-            )
+            avg_output = helpers.prep_avg_output(self.data, self.model, None, scale_y)
         else:
             avg_output = None
 
@@ -219,12 +171,12 @@ class PDPBase(GlobalEffectBase):
             if self.method_name == "pdp"
             else "derivative Partial Dependence Plot (d-PDP)"
         )
-        ret = vis.plot_pdp_ice(
+        return vis.plot_pdp_ice(
             x,
             feature,
             yy=yy,
             title=title,
-            confidence_interval=heterogeneity,
+            heterogeneity=heterogeneity,
             y_pdp_label="PDP" if self.method_name == "pdp" else "d-PDP",
             y_ice_label="ICE" if self.method_name == "pdp" else "d-ICE",
             scale_x=scale_x,
@@ -232,20 +184,21 @@ class PDPBase(GlobalEffectBase):
             avg_output=avg_output,
             feature_names=self.feature_names,
             target_name=self.target_name,
+            is_derivative=self.IS_DERIVATIVE,
             nof_ice=nof_ice,
             y_limits=y_limits,
             show_plot=show_plot,
         )
-        if not show_plot:
-            fig, ax = ret
-            return fig, ax
 
 
 class PDP(PDPBase):
+    DEFAULT_CENTERING: Union[bool, str] = False
+
     def __init__(
         self,
         data: np.ndarray,
         model: Callable,
+        *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
         feature_names: Optional[List] = None,
@@ -323,10 +276,10 @@ class PDP(PDPBase):
             data,
             model,
             None,
-            axis_limits,
-            nof_instances,
-            feature_names,
-            target_name,
+            axis_limits=axis_limits,
+            nof_instances=nof_instances,
+            feature_names=feature_names,
+            target_name=target_name,
             method_name="PDP",
         )
 
@@ -402,11 +355,15 @@ class PDP(PDPBase):
 
 
 class DerPDP(PDPBase):
+    DEFAULT_CENTERING: Union[bool, str] = False
+    IS_DERIVATIVE: bool = True
+
     def __init__(
         self,
         data: np.ndarray,
         model: Callable,
         model_jac: Optional[Callable] = None,
+        *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
         feature_names: Optional[List] = None,
@@ -490,10 +447,10 @@ class DerPDP(PDPBase):
             data,
             model,
             model_jac,
-            axis_limits,
-            nof_instances,
-            feature_names,
-            target_name,
+            axis_limits=axis_limits,
+            nof_instances=nof_instances,
+            feature_names=feature_names,
+            target_name=target_name,
             method_name="d-PDP",
         )
 
@@ -690,7 +647,6 @@ def ice_vectorized(
 
     if return_d_ice:
         if model_jac is None:
-            # TODO: needs test, something is wrong
             x_new_1 = copy.deepcopy(x_new)
             x_new_1[:, :, feature] = np.expand_dims(x, axis=-1) + 1e-6
             x_new_1 = np.reshape(

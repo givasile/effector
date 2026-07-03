@@ -3,19 +3,16 @@ import typing
 from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
+from tqdm import tqdm
 
 import effector.helpers as helpers
 import effector.space_partitioning
 import effector.utils as utils
-from effector.global_effect_ale import ALE, RHALE
-from effector.global_effect_pdp import PDP, DerPDP
-from effector.global_effect_shap import ShapDP
+from effector.method_registry import resolve as resolve_method
 from effector.space_partitioning import Best, Tree
 
 
 class RegionalEffectBase:
-    empty_symbol = helpers.EMPTY_SYMBOL
-
     def __init__(
         self,
         method_name: str,
@@ -33,37 +30,18 @@ class RegionalEffectBase:
         """
         Constructor for the RegionalEffect class.
         """
-        assert data.ndim == 2
-
         self.method_name = method_name.lower()
         self.model = model
         self.model_jac = model_jac
 
         self.dim = data.shape[1]
 
-        # data preprocessing (i): if axis_limits passed manually,
-        # keep only the points within,
-        # otherwise, compute the axis limits from the data
-        if axis_limits is not None:
-            assert axis_limits.shape == (2, self.dim)
-            assert np.all(axis_limits[0, :] <= axis_limits[1, :])
-
-            # drop points outside of limits
-            accept_indices = helpers.indices_within_limits(data, axis_limits)
-            data = data[accept_indices, :]
-            data_effect = (
-                data_effect[accept_indices, :] if data_effect is not None else None
-            )
-        else:
-            axis_limits = helpers.axis_limits_from_data(data)
-        self.axis_limits: np.ndarray = axis_limits
-
-        # data preprocessing (ii): select nof_instances from the remaining data
-        self.nof_instances, self.indices = helpers.prep_nof_instances(
-            nof_instances, data.shape[0]
+        # shared preprocessing: filter to axis_limits (or infer them), then
+        # subsample nof_instances (helpers.prep_data)
+        data, data_effect, axis_limits, self.nof_instances, self.indices = (
+            helpers.prep_data(data, axis_limits, nof_instances, data_effect)
         )
-        data = data[self.indices, :]
-        data_effect = data_effect[self.indices, :] if data_effect is not None else None
+        self.axis_limits: np.ndarray = axis_limits
 
         # store the data
         self.data: np.ndarray = data
@@ -92,36 +70,69 @@ class RegionalEffectBase:
         # state variables
         self.is_fitted: np.ndarray = np.ones([self.dim]) < 0
 
-        # parameters used when fitting the regional effect
-        # self.method_args: typing.Dict = {}
-        self.kwargs_subregion_detection: typing.Dict = {}  # subregion specific arguments
-        self.kwargs_fitting: typing.Dict = {}  # fitting specific arguments
+        # parameters used when fitting the regional effect: what detected the
+        # subregions, and what eval/plot must refit the node objects with —
+        # written out explicitly by each subclass's fit (no locals(); B1)
+        self.kwargs_subregion_detection: typing.Dict = {}
+        self.kwargs_fitting: typing.Dict = {}
 
         # dictionary with all the information required for plotting or evaluating the regional effects
         self.partitioners: typing.Dict[str, Best] = {}
-        # self.tree_full: typing.Dict[str, Tree] = {}
         self.tree: typing.Dict[str, Tree] = {}
+
+    def fit(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def _precompute_global(self, feature: int) -> None:
+        """Hook: method-specific global precompute for `feature` (ICE table,
+        global ALE effects, shap values), run once per feature before the
+        heterogeneity function is built."""
+
+    def _create_heterogeneity_function(self, feature: int, min_points: int) -> Callable:
+        """Hook: the heterogeneity function the partitioner minimizes —
+        `active_indices -> float` (BIG_M when the region is invalid)."""
+        raise NotImplementedError
+
+    def _fit_loop(
+        self,
+        features: Union[int, str, list],
+        candidate_conditioning_features: Union[str, list],
+        space_partitioner: Union[str, "effector.space_partitioning.Best"],
+    ):
+        """The regional-fit skeleton (template method): resolve the
+        partitioner once (R6), then per feature: `_precompute_global` →
+        `_create_heterogeneity_function` → partition."""
+        if isinstance(space_partitioner, str):
+            space_partitioner = effector.space_partitioning.return_default(
+                space_partitioner
+            )
+        if space_partitioner.min_points_per_subregion < 2:
+            raise ValueError("min_points_per_subregion must be >= 2")
+
+        features = helpers.prep_features(features, self.dim)
+        for feat in tqdm(features):
+            self._precompute_global(feat)
+            heter = self._create_heterogeneity_function(
+                feat, space_partitioner.min_points_per_subregion
+            )
+            self._fit_feature(
+                feat, heter, space_partitioner, candidate_conditioning_features
+            )
 
     def _fit_feature(
         self,
         feature: int,
         heter_func: Callable,
-        space_partitioner: Union["str", effector.space_partitioning.Best] = "best",
-        candidate_foc: Union[str, List] = "all",
+        space_partitioner: "effector.space_partitioning.Best",
+        candidate_foc: Union[str, List],
     ):
         """
-        Find the subregions for a single feature.
+        Find the subregions for a single feature (on a fresh copy of the
+        partitioner: `compile` mutates it and it is stored per feature).
         """
-        assert feature < self.dim, "Feature index out of bounds"
-        if isinstance(space_partitioner, str):
-            assert space_partitioner in ["best", "cart"], (
-                "space_partitioner must be 'best' or 'cart'"
-            )
-            space_partitioner = effector.space_partitioning.return_default(
-                space_partitioner
-            )
-        else:
-            space_partitioner = copy.deepcopy(space_partitioner)
+        if feature >= self.dim:
+            raise ValueError("Feature index out of bounds")
+        space_partitioner = copy.deepcopy(space_partitioner)
 
         # apply partitioning
         space_partitioner.compile(
@@ -137,9 +148,6 @@ class RegionalEffectBase:
         )
         self.tree["feature_{}".format(feature)] = space_partitioner.fit()
 
-        # # self.tree_full["feature_{}".format(feature)] = regions.splits_to_tree()
-        # self.tree["feature_{}".format(feature)] = space_partitioner.splits_to_tree(True)
-
         # store the partitioning object
         self.partitioners["feature_{}".format(feature)] = space_partitioner
 
@@ -150,69 +158,58 @@ class RegionalEffectBase:
         if not self.is_fitted[feature]:
             self.fit(feature)
 
+    def _resolve_centering(self, centering):
+        """`None` means the underlying method's class default (R3)."""
+        if centering is None:
+            centering = resolve_method(self.method_name).cls.DEFAULT_CENTERING
+        return helpers.prep_centering(centering)
+
+    def _extra_fe_kwargs(self, active_indices: np.ndarray) -> dict:
+        """Hook: method-specific constructor kwargs for a node's fe object."""
+        return {}
+
     def _create_fe_object(self, feature, node_idx, scale_x_list):
         feature_tree = self.tree["feature_{}".format(feature)]
-        assert feature_tree is not None, "Feature {} has no splits".format(feature)
-        assert node_idx < len(feature_tree.nodes)
+        if feature_tree is None:
+            raise ValueError("Feature {} has no splits".format(feature))
+        if not node_idx < len(feature_tree.nodes):
+            raise ValueError(
+                "Node {} does not exist for feature {} (tree has {} nodes)".format(
+                    node_idx, feature, len(feature_tree.nodes)
+                )
+            )
 
         node = feature_tree.get_node_by_idx(node_idx)
         name = feature_tree.set_display_name(node.name, scale_x_list)
-        active_indices = node.info["active_indices"]
-        data = self.data[active_indices.astype(bool), :]
-        data_effect = (
-            self.data_effect[active_indices.astype(bool), :]
-            if self.data_effect is not None
-            else None
-        )
+        mask = node.info["active_indices"].astype(bool)
+        data = self.data[mask, :]
         feature_names = copy.deepcopy(self.feature_names)
         feature_names[feature] = name
 
-        if self.method_name == "rhale":
-            return RHALE(
-                data,
-                self.model,
-                self.model_jac,
-                nof_instances="all",
-                data_effect=data_effect,
-                feature_names=feature_names,
-                target_name=self.target_name,
+        spec = resolve_method(self.method_name)
+        kwargs = dict(
+            nof_instances="all",
+            feature_names=feature_names,
+            target_name=self.target_name,
+        )
+        if spec.uses_data_effect:
+            kwargs["data_effect"] = (
+                self.data_effect[mask, :] if self.data_effect is not None else None
             )
-        elif self.method_name == "ale":
-            return ALE(
-                data,
-                self.model,
-                nof_instances="all",
-                feature_names=feature_names,
-                target_name=self.target_name,
-            )
-        elif self.method_name == "shap":
-            return ShapDP(
-                data,
-                self.model,
-                nof_instances="all",
-                feature_names=feature_names,
-                target_name=self.target_name,
-                shap_values=self.global_shap_values[active_indices.astype(bool), :],
-            )
-        elif self.method_name == "pdp":
-            return PDP(
-                data,
-                self.model,
-                nof_instances="all",
-                feature_names=feature_names,
-                target_name=self.target_name,
-            )
-        elif self.method_name == "d-pdp":
-            return DerPDP(
-                data,
-                self.model,
-                self.model_jac,
-                nof_instances="all",
-                feature_names=feature_names,
-                target_name=self.target_name,
-            )
-        else:
-            raise NotImplementedError
+        kwargs.update(self._extra_fe_kwargs(mask))
+
+        if spec.needs_jac:
+            return spec.cls(data, self.model, self.model_jac, **kwargs)
+        return spec.cls(data, self.model, **kwargs)
+
+    def _fit_node_effect(self, feature, node_idx, centering, scale_x_list=None):
+        """Build the node's fe object and fit it with the *stored* fit kwargs
+        (B1: eval/plot must refit with what the user chose at fit time)."""
+        fe = self._create_fe_object(feature, node_idx, scale_x_list)
+        fit_kwargs = copy.deepcopy(self.kwargs_fitting)
+        fit_kwargs["centering"] = centering
+        fe.fit(features=feature, **fit_kwargs)
+        return fe
 
     def eval(
         self,
@@ -220,81 +217,75 @@ class RegionalEffectBase:
         node_idx: int,
         xs: np.ndarray,
         heterogeneity: bool = False,
-        centering: Union[bool, str] = True,
+        centering: Union[None, bool, str] = None,
     ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """
         :point_right: Evaluate the regional effect for a given feature and node.
 
-        !!! note "This is a common method for all regional effect methods, so use the arguments carefully."
-
-            - `centering=True` is a good option for most methods, but not for all.
-                - `DerPDP`, use `centering=False`
-                - `[RegionalPDP, RegionalShapDP]`, it depends on you :sunglasses:
-                - `[RegionalALE, RegionalRHALE]`, use `centering=True`
-
         !!! note "The `heterogeneity` argument changes the return value of the function."
 
             - If `heterogeneity=False`, the function returns `y`
-            - If `heterogeneity=True`, the function returns a tuple `(y, std)`
+            - If `heterogeneity=True`, the function returns a tuple `(y, h)`
+              where `h` is the heterogeneity curve (`eval_heter`)
 
         Args:
             feature: index of the feature
             node_idx: index of the node
             xs: horizontal grid of points to evaluate on
-            heterogeneity: whether to return the heterogeneity.
+            heterogeneity: whether to also return the heterogeneity curve
 
                   - if `heterogeneity=False`, the function returns `y`, a numpy array of the mean effect at grid points `xs`
-                  - If `heterogeneity=True`, the function returns `(y, std)` where `y` is the mean effect and `std` is the standard deviation of the mean effect at grid points `xs`
+                  - If `heterogeneity=True`, the function returns `(y, h)` where `h` is the heterogeneity curve at grid points `xs`
 
             centering: whether to center the regional effect. The following options are available:
 
+                - If `centering` is `None`, the underlying method's class default is used (R3)
                 - If `centering` is `False`, the regional effect is not centered
                 - If `centering` is `True` or `zero_integral`, the regional effect is centered around the `y` axis.
                 - If `centering` is `zero_start`, the regional effect starts from `y=0`.
 
         Returns:
-            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, std)` otherwise
+            the mean effect `y`, if `heterogeneity=False` (default) or a tuple `(y, h)` otherwise
 
         """
         self.refit(feature)
-        centering = helpers.prep_centering(centering)
+        centering = self._resolve_centering(centering)
 
-        kwargs = copy.deepcopy(self.kwargs_fitting)
-        kwargs["centering"] = centering
+        fe = self._fit_node_effect(feature, node_idx, centering)
+        y = fe.eval(feature, xs, centering=centering)
+        if heterogeneity:
+            return y, fe.eval_heter(feature, xs)
+        return y
 
-        # select only the three out of all
-        fe_method = self._create_fe_object(feature, node_idx, None)
-        fe_method.fit(features=feature, **kwargs)
-        return fe_method.eval(feature, xs, heterogeneity, centering)
+    def eval_heter(self, feature: int, node_idx: int, xs: np.ndarray) -> np.ndarray:
+        """:point_right: The heterogeneity curve h(xs) of the node's regional
+        effect — the regional twin of the global `eval_heter` (R2).
 
-    def fit(self, *args, **kwargs):
-        raise NotImplementedError
+        No centering kwarg: h is invariant to centering by construction.
 
-    def _plot(self, kwargs):
-        # assert "feature", "node_idx" are in the dict
-        assert "feature" in kwargs, "feature not found in kwargs"
-        assert "node_idx" in kwargs, "node_idx not found in kwargs"
+        Args:
+            feature: index of the feature
+            node_idx: index of the node
+            xs: horizontal grid of points to evaluate on, `(T,)`
 
-        self.refit(kwargs["feature"])
+        Returns:
+            the heterogeneity curve `h` at the given `xs`, `(T,)`
+        """
+        self.refit(feature)
+        fe = self._fit_node_effect(feature, node_idx, centering=False)
+        return fe.eval_heter(feature, xs)
 
-        # select only the three out of all kwargs
-        fe_method = self._create_fe_object(
-            kwargs["feature"], kwargs["node_idx"], kwargs["scale_x_list"]
+    def _plot(self, feature, node_idx, scale_x_list, plot_kwargs):
+        """Fit the node's fe object with the stored fit kwargs (B1) and
+        delegate to its plot — the return rule is the global one's (R7)."""
+        self.refit(feature)
+        plot_kwargs["centering"] = self._resolve_centering(plot_kwargs["centering"])
+
+        fe = self._fit_node_effect(
+            feature, node_idx, plot_kwargs["centering"], scale_x_list
         )
-
-        kwargs_fitting = copy.deepcopy(self.kwargs_fitting)
-        kwargs_fitting["centering"] = kwargs["centering"]
-        fe_method.fit(features=kwargs["feature"], **kwargs_fitting)
-
-        plot_kwargs = copy.deepcopy(kwargs)
-        plot_kwargs["scale_x"] = (
-            kwargs["scale_x_list"][kwargs["feature"]]
-            if kwargs["scale_x_list"] is not None
-            else None
-        )
-        plot_kwargs.pop("scale_x_list")
-        plot_kwargs.pop("node_idx")
-        return fe_method.plot(**plot_kwargs)
+        scale_x = scale_x_list[feature] if scale_x_list is not None else None
+        return fe.plot(feature=feature, scale_x=scale_x, **plot_kwargs)
 
     def summary(self, features: List[int], scale_x_list: Optional[List] = None):
         """:point_right: Summarize the partition tree for the selected features.

@@ -249,7 +249,7 @@ For example, to plot the effect of the first feature of the synthetic dataset, u
     ```python
     pdp = effector.PDP(data=X, model=predict)
     y = pdp.eval(0, xs=np.linspace(-1, 1, 100))
-    y_mu, y_sigma = pdp.eval(0, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    y_var = pdp.eval_heter(0, xs=np.linspace(-1, 1, 100))
     ```
 
 === "RHALE"
@@ -257,7 +257,7 @@ For example, to plot the effect of the first feature of the synthetic dataset, u
     ```python
     rhale = effector.RHALE(data=X, model=predict, model_jac=jacobian)
     y = rhale.eval(0, xs=np.linspace(-1, 1, 100))
-    y_mu, y_sigma = rhale.eval(0, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    y_var = rhale.eval_heter(0, xs=np.linspace(-1, 1, 100))
     ```
 
 === "ShapDP"
@@ -265,7 +265,7 @@ For example, to plot the effect of the first feature of the synthetic dataset, u
     ```python
     shap_dp = effector.ShapDP(data=X, model=predict)
     y = shap_dp.eval(0, xs=np.linspace(-1, 1, 100))
-    y_mu, y_sigma = shap_dp.eval(0, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    y_var = shap_dp.eval_heter(0, xs=np.linspace(-1, 1, 100))
     ```
 
 === "ALE"
@@ -273,7 +273,7 @@ For example, to plot the effect of the first feature of the synthetic dataset, u
     ```python
     ale = effector.ALE(data=X, model=predict)
     y = ale.eval(0, xs=np.linspace(-1, 1, 100))
-    y_mu, y_sigma = ale.eval(0, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    y_var = ale.eval_heter(0, xs=np.linspace(-1, 1, 100))
     ```
 
 === "derPDP"
@@ -281,7 +281,7 @@ For example, to plot the effect of the first feature of the synthetic dataset, u
     ```python
     d_pdp = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
     y = d_pdp.eval(0, xs=np.linspace(-1, 1, 100))
-    y_mu, y_sigma = d_pdp.eval(0, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    y_var = d_pdp.eval_heter(0, xs=np.linspace(-1, 1, 100))
     ```
 
 ### `.fit()`
@@ -485,7 +485,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
     ```python
     regional_effect = effector.RegionalPDP(data=X, model=predict)
     y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
-    y_mu, y_sigma = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    y_mu, y_heter = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
     ```
 
 === "RHALE"
@@ -493,7 +493,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
     ```python
     regional_effect = effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian)
     y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
-    y_mu, y_sigma = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    y_mu, y_heter = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
     ```
 
 === "ShapDP"
@@ -501,7 +501,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
     ```python
     regional_effect = effector.RegionalShapDP(data=X, model=predict)
     y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
-    y_mu, y_sigma = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    y_mu, y_heter = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
     ```
 
 === "ALE"
@@ -509,7 +509,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
     ```python
     regional_effect = effector.RegionalALE(data=X, model=predict)
     y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
-    y_mu, y_sigma = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    y_mu, y_heter = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
     ```
 
 === "derPDP"
@@ -517,7 +517,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
     ```python
     regional_effect = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
     y = regional_effect.eval(0, feature=1, xs=np.linspace(-1, 1, 100))
-    y_mu, y_sigma = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    y_mu, y_heter = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
     ```
 
 ### `.fit()`

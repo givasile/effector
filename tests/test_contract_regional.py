@@ -55,11 +55,6 @@ def test_rc2_invalid_node_idx_raises(fitted_regional):
         reg.eval(0, len(tree.nodes), XS)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="R2/LOGBOOK #13: regional eval_heter(feature, node_idx, xs) not "
-    "implemented yet",
-)
 def test_rc2_eval_heter_root_node(fitted_regional):
     """New surface: the regional twin of eval_heter, on the root node."""
     name, reg = fitted_regional
@@ -80,10 +75,6 @@ def test_rc3_plot_smoke(fitted_regional):
     reg.plot(feature=0, node_idx=0)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="R7: regional plots must accept show_plot=False and return (fig, ax)",
-)
 def test_rc3_plot_returns_fig_ax(fitted_regional):
     name, reg = fitted_regional
     ret = reg.plot(feature=0, node_idx=0, show_plot=False)
@@ -107,11 +98,6 @@ def _quad_jac(x):
     return jac
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="B1: 'binnning_method' typo -> kwargs_fitting always empty -> "
-    "regional (RH)ALE eval ignores the user's binning method",
-)
 def test_rc4_fit_kwargs_propagate_to_eval():
     rng = np.random.default_rng(21)
     data = rng.uniform(-1, 1, size=(500, 2))
