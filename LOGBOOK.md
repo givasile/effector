@@ -662,3 +662,41 @@ downgraded to dead code).
 `is_derivative` → flips B5×2, bands from `eval_heter`), then steps 5–7.
 
 ---
+## 17. 2026-07-03 — Refactor step 4: the plot layer draws, it does not compute (tag: code)  [Part III §2.4, R1+R7, B5; branch `refactor/step-4-visualization`]
+
+**What:** `visualization.py` redrawn as a pure plot layer:
+- **Shared frame extracted** — `_scale_x`/`_scale_y` (one scaling rule:
+  affine for level curves, std-only for derivatives), `_feature_label`
+  (fallback now **0-based**, matching API indices and
+  `helpers.get_feature_names`; was `x_%d % (feature+1)`), `_add_avg_output`,
+  `_decorate_ax` (xlabel/ylabel/legend/y_limits), `_finalize` (the one R7
+  exit: show→`None`, else `(fig, ax)`). File shrinks 377→300 lines while
+  gaining docstrings.
+- **B5 fixed, both halves:** `is_derivative` wired from a new
+  `PDPBase.IS_DERIVATIVE` class attribute (False; DerPDP=True) — DerPDP +
+  `scale_y` no longer adds the output mean to dy/dx; `std_err` is now
+  `std/sqrt(N)`, not a second std. Both xfails flipped.
+- **`ale_plot` re-signatured on data, not callables:** takes the `x`/`y`
+  mean curve (the caller's `eval` output — R1) plus the bin payload
+  (`bin_effect`, `bin_variance`, `limits`, `dx`); the `(feature, x, het,
+  centering)` callable + step-3 shim in `ALEBase.plot` are gone.
+  `show_only_aggregated=True` now gets an xlabel (it had none).
+- **One vocabulary:** the kwarg is `heterogeneity` in every vis function
+  (`plot_pdp_ice` had `confidence_interval`, `ale_plot` had `error`); option
+  names documented once in the module docstring (`True`≡`"std"`, enforced by
+  `prep_confidence_interval`). `plot_pdp_ice` computes the ICE mean *after*
+  scaling (one code path), clamps `nof_ice` once, in the only branch that
+  uses it.
+- **ALE gets the `nof_points` knob** (`ALEBase.plot(..., nof_points=1000)`)
+  — same knob as PDP/ShapDP; default 1000 preserves the old hardcoded grid.
+
+**Verified:** gate 357 passed / 12 xfailed / ~13 s; ruff clean. Slow tier:
+the 5 notebook failures are the known step-3 API breakage (verified
+identical on the step-3 commit via stash — zero new failures; they are
+rewired at the end-of-story pass, LOGBOOK #16).
+
+**Next:** step 5 — regional family (template `fit`, kill `locals()` idioms →
+B1, registry `_create_fe_object`, uniform plots → flips R7 regional ×5 and
+regional `eval_heter` ×5).
+
+---

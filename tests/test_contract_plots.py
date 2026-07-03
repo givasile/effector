@@ -69,11 +69,6 @@ def test_scale_affine_pdp(global_data):
     np.testing.assert_allclose(line.get_ydata(), expected, atol=1e-8)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="B5: is_derivative never wired -> DerPDP + scale_y shifts the "
-    "derivative by the mean instead of scaling by std only",
-)
 def test_scale_derivative_is_std_only(global_data):
     m = make_global("derpdp", global_data)
     ret = m.plot(
@@ -95,10 +90,6 @@ def test_scale_derivative_is_std_only(global_data):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="B5: the 'std_err' band is computed as sqrt(var) — i.e. the std",
-)
 def test_stderr_band_is_standard_error(global_data):
     m = make_global("pdp", global_data)
     ret = m.plot(0, heterogeneity="std_err", centering=False, show_plot=False)

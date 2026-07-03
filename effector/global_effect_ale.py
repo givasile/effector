@@ -61,6 +61,7 @@ class ALEBase(GlobalEffectBase):
         feature: int,
         heterogeneity: bool = True,
         centering: Union[bool, str] = True,
+        nof_points: int = 1000,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
         show_avg_output: bool = False,
@@ -88,6 +89,7 @@ class ALEBase(GlobalEffectBase):
                 - `True` or `zero_integral` centers around the `y` axis.
                 - `zero_start` starts the plot from `y=0`.
 
+            nof_points: the grid size for the mean-effect curve
             scale_x: None or Dict with keys ['std', 'mean']
 
                 - If set to None, no scaling will be applied.
@@ -113,19 +115,14 @@ class ALEBase(GlobalEffectBase):
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
 
-        # hack to fit the feature if not fitted
+        # fit the feature if needed (the eval below reuses the stored state)
         self.eval(
             feature, np.array([self.axis_limits[0, feature]]), centering=centering
         )
+        params = self.feature_effect["feature_" + str(feature)]
 
-        # compat shim for the vis layer's old (feature, x, het, centering)
-        # callable, until the visualization pass (step 4) redraws it on
-        # eval/eval_heter directly
-        def curve(feature_, x_, heterogeneity_, centering_):
-            y = self.eval(feature_, x_, centering=centering_)
-            if heterogeneity_:
-                return y, self.eval_heter(feature_, x_)
-            return y
+        x = np.linspace(params["limits"][0], params["limits"][-1], nof_points)
+        y = self.eval(feature, x, centering=centering)
 
         if show_avg_output:
             avg_output = helpers.prep_avg_output(self.data, self.model, None, scale_y)
@@ -137,12 +134,15 @@ class ALEBase(GlobalEffectBase):
             if self.method_name == "ale"
             else "Robust and Heterogeneity-Aware ALE (RHALE)"
         )
-        ret = vis.ale_plot(
-            self.feature_effect["feature_" + str(feature)],
-            curve,
-            feature,
-            centering=centering,
-            error=heterogeneity,
+        return vis.ale_plot(
+            x,
+            y,
+            bin_effect=params["bin_effect"],
+            bin_variance=params["bin_variance"],
+            limits=params["limits"],
+            dx=params["dx"],
+            feature=feature,
+            heterogeneity=heterogeneity,
             scale_x=scale_x,
             scale_y=scale_y,
             title=title,
@@ -154,10 +154,6 @@ class ALEBase(GlobalEffectBase):
             show_only_aggregated=show_only_aggregated,
             show_plot=show_plot,
         )
-
-        if not show_plot:
-            fig, ax = ret
-            return fig, ax
 
 
 class ALE(ALEBase):

@@ -11,6 +11,8 @@ from effector.global_effect import GlobalEffectBase
 
 class PDPBase(GlobalEffectBase):
     DEFAULT_CENTERING: Union[bool, str] = False
+    # the vis layer scales derivative plots by std only (no mean shift) — B5
+    IS_DERIVATIVE: bool = False
 
     def __init__(
         self,
@@ -169,12 +171,12 @@ class PDPBase(GlobalEffectBase):
             if self.method_name == "pdp"
             else "derivative Partial Dependence Plot (d-PDP)"
         )
-        ret = vis.plot_pdp_ice(
+        return vis.plot_pdp_ice(
             x,
             feature,
             yy=yy,
             title=title,
-            confidence_interval=heterogeneity,
+            heterogeneity=heterogeneity,
             y_pdp_label="PDP" if self.method_name == "pdp" else "d-PDP",
             y_ice_label="ICE" if self.method_name == "pdp" else "d-ICE",
             scale_x=scale_x,
@@ -182,13 +184,11 @@ class PDPBase(GlobalEffectBase):
             avg_output=avg_output,
             feature_names=self.feature_names,
             target_name=self.target_name,
+            is_derivative=self.IS_DERIVATIVE,
             nof_ice=nof_ice,
             y_limits=y_limits,
             show_plot=show_plot,
         )
-        if not show_plot:
-            fig, ax = ret
-            return fig, ax
 
 
 class PDP(PDPBase):
@@ -356,6 +356,7 @@ class PDP(PDPBase):
 
 class DerPDP(PDPBase):
     DEFAULT_CENTERING: Union[bool, str] = False
+    IS_DERIVATIVE: bool = True
 
     def __init__(
         self,

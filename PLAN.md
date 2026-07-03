@@ -913,7 +913,7 @@ Agree on these first; every submodule change below is an application of one of t
 | B2 | `global_effect_ale.py:569` + `axis_partitioning.py:432` | `"dp"` fails RHALE assert; `"dynamic"` passes assert then crashes in `return_default` → DP binning unreachable by string | **fixed 2026-07-03** (refactor steps 1+3: one alias table, RHALE validates via the resolver) |
 | B3 | `regional_effect.py:117` | assert allows `"cart"` (crashes later), rejects valid `"best_level_wise"` | 2.5 — **downgraded**: dead code (every `fit()` resolves the string first, LOGBOOK #12); fix = delete the assert |
 | B4 | `global_effect_shap.py:517` | `heterogeneity == "std" or True` always truthy | **fixed 2026-07-03** (refactor step 3) |
-| B5 | `visualization.py` (`plot_pdp_ice`) | `is_derivative` never wired → DerPDP + `scale_y` scales values as levels (adds mean); `std_err` is actually std | 2.4 |
+| B5 | `visualization.py` (`plot_pdp_ice`) | `is_derivative` never wired → DerPDP + `scale_y` scales values as levels (adds mean); `std_err` is actually std | **fixed 2026-07-03** (refactor step 4: `IS_DERIVATIVE` class attr wired through; `std_err = std/sqrt(N)`) |
 | B6 | `axis_partitioning.py` (`Fixed.find_limits`) | `_none_valid_binning` result overwritten; can return limits when binning was deemed impossible | 2.6 |
 | B7 | `global_effect.py` (`requires_refit`) | `norm_const is None` branch dead (sentinels stored instead of `None`) | **fixed 2026-07-03** (refactor steps 1+2: `None` sentinel, branch live) |
 | B8 | naming/semantics | ShapDP `spline_std` holds variance; PDP eval returns variance while docstrings promise std | **fixed 2026-07-03** (refactor steps 2+3: `spline_var` rename; h is variance by convention, R2 — `eval_heter` docstring says so) |
