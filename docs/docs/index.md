@@ -105,7 +105,7 @@ pdp.plot(
 )
 ```
 
-![Feature effect plot](./notebooks/quickstart/readme_example_files/readme_example_3_0.png)
+![Feature effect plot](./static/quickstart/readme_example_files/readme_example_4_0.png)
 
 ### Explain it with regional effect plots
 
@@ -133,7 +133,7 @@ Feature 3 - Full partition tree:
 🌳 Full Tree Structure:
 ───────────────────────
 hr 🔹 [id: 0 | heter: 0.24 | inst: 3476 | w: 1.00]
-    workingday = 0.00 🔹 [id: 1 | heter: 0.12 | inst: 1129 | w: 0.32]
+    workingday = 0.00 🔹 [id: 1 | heter: 0.13 | inst: 1129 | w: 0.32]
         temp ≤ 6.50 🔹 [id: 2 | heter: 0.06 | inst: 568 | w: 0.16]
         temp > 6.50 🔹 [id: 3 | heter: 0.08 | inst: 561 | w: 0.16]
     workingday ≠ 0.00 🔹 [id: 4 | heter: 0.12 | inst: 2347 | w: 0.68]
@@ -144,8 +144,8 @@ Feature 3 - Statistics per tree level:
 🌳 Tree Summary:
 ─────────────────
 Level 0🔹heter: 0.24
-    Level 1🔹heter: 0.12 | 🔻0.12 (48.89%)
-        Level 2🔹heter: 0.08 | 🔻0.04 (31.11%)
+    Level 1🔹heter: 0.12 | 🔻0.12 (49.88%)
+        Level 2🔹heter: 0.08 | 🔻0.04 (32.25%)
 ```
 
 The summary of feature `hr` (hour) says that its effect on the output is highly dependent on the value of features:
@@ -160,10 +160,12 @@ Let's see how the effect changes on these subregions!
 
 ```python
 # Plot regional effects after the first-level split (workingday vs non-workingday)
-for node_idx in [1, 2]:  # Iterate over the nodes of the first-level split
+for node in r_pdp.tree["feature_3"].nodes:  # Node ids depend on the fitted tree
+    if node.info["level"] != 1:  # Keep only the nodes of the first-level split
+        continue
     r_pdp.plot(
         feature=3,  # Feature 3 (temperature)
-        node_idx=node_idx,  # Node index (1: workingday, 2: non-workingday)
+        node_idx=node.idx,  # Node index (workingday / non-workingday)
         nof_ice=200,  # Number of ICE curves
         scale_x_list=[  # scale features by mean and std
             {"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]}
@@ -176,8 +178,8 @@ for node_idx in [1, 2]:  # Iterate over the nodes of the first-level split
 
 <table>
   <tr>
-    <td><img src="./notebooks/quickstart/readme_example_files/readme_example_5_0.png" alt="Feature effect plot"></td>
-    <td><img src="./notebooks/quickstart/readme_example_files/readme_example_5_1.png" alt="Feature effect plot"></td>
+    <td><img src="./static/quickstart/readme_example_files/readme_example_6_0.png" alt="Feature effect plot"></td>
+    <td><img src="./static/quickstart/readme_example_files/readme_example_6_1.png" alt="Feature effect plot"></td>
   </tr>
 </table>
 
@@ -186,10 +188,12 @@ for node_idx in [1, 2]:  # Iterate over the nodes of the first-level split
 
 ```python
 # Plot regional effects after second-level splits (workingday vs non-workingday and hot vs cold temperature)
-for node_idx in [3, 4, 5, 6]:  # Iterate over the nodes of the second-level splits
+for node in r_pdp.tree["feature_3"].nodes:
+    if node.info["level"] != 2:  # Keep only the nodes of the second-level splits
+        continue
     r_pdp.plot(
         feature=3,  # Feature 3 (temperature)
-        node_idx=node_idx,  # Node index (hot/cold temperature and workingday/non-workingday)
+        node_idx=node.idx,  # Node index (hot/cold temperature and workingday/non-workingday)
         nof_ice=200,  # Number of ICE curves
         scale_x_list=[  # Scale features by mean and std
             {"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]}
@@ -203,12 +207,12 @@ for node_idx in [3, 4, 5, 6]:  # Iterate over the nodes of the second-level spli
 
 <table>
   <tr>
-    <td><img src="./notebooks/quickstart/readme_example_files/readme_example_6_0.png" alt="Feature effect plot"></td>
-    <td><img src="./notebooks/quickstart/readme_example_files/readme_example_6_1.png" alt="Feature effect plot"></td>
+    <td><img src="./static/quickstart/readme_example_files/readme_example_7_0.png" alt="Feature effect plot"></td>
+    <td><img src="./static/quickstart/readme_example_files/readme_example_7_1.png" alt="Feature effect plot"></td>
   </tr>
   <tr>
-    <td><img src="./notebooks/quickstart/readme_example_files/readme_example_6_2.png" alt="Feature effect plot"></td>
-    <td><img src="./notebooks/quickstart/readme_example_files/readme_example_6_3.png" alt="Feature effect plot"></td>
+    <td><img src="./static/quickstart/readme_example_files/readme_example_7_2.png" alt="Feature effect plot"></td>
+    <td><img src="./static/quickstart/readme_example_files/readme_example_7_3.png" alt="Feature effect plot"></td>
   </tr>
 </table>
 

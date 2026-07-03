@@ -948,11 +948,13 @@ tutorials = [
 [package.dev-dependencies]
 dev = [
     { name = "coverage" },
+    { name = "jupyter-core" },
     { name = "mkdocs" },
     { name = "mkdocs-glightbox" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings" },
     { name = "mkdocstrings-python" },
+    { name = "nbconvert" },
     { name = "numba", version = "0.65.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -965,11 +967,13 @@ dev = [
     { name = "ucimlrepo" },
 ]
 docs = [
+    { name = "jupyter-core" },
     { name = "mkdocs" },
     { name = "mkdocs-glightbox" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings" },
     { name = "mkdocstrings-python" },
+    { name = "nbconvert" },
 ]
 test = [
     { name = "coverage" },
@@ -1007,11 +1011,13 @@ provides-extras = ["shap", "tutorials", "all"]
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage" },
+    { name = "jupyter-core" },
     { name = "mkdocs" },
     { name = "mkdocs-glightbox" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings" },
     { name = "mkdocstrings-python" },
+    { name = "nbconvert" },
     { name = "numba", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'", specifier = ">=0.60" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -1021,11 +1027,13 @@ dev = [
     { name = "ucimlrepo" },
 ]
 docs = [
+    { name = "jupyter-core" },
     { name = "mkdocs" },
     { name = "mkdocs-glightbox" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings" },
     { name = "mkdocstrings-python" },
+    { name = "nbconvert" },
 ]
 test = [
     { name = "coverage" },

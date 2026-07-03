@@ -1,5 +1,10 @@
 # An overview of `effector`'s API
 
+- Author: [givasile](https://givasile.github.io/)
+- Description: The simple entry point to `effector`: what inputs it needs
+  (data, model, optionally the jacobian) and how to get a global or regional
+  effect plot in a single line with `.plot()` and `.summary()`.
+
 `effector` requires:
 
 - a dataset, normally the test set
@@ -185,7 +190,7 @@ For example, to plot the effect of the first feature of the synthetic dataset, u
     pdp = effector.PDP(data=X, model=predict)
     pdp.plot(0)
     ```
-    ![Global-PDP](./../static/quickstart/simple_api_files/simple_api_8_0.png){ align=center }
+    ![Global-PDP](./../static/quickstart/simple_api_files/simple_api_9_0.png){ align=center }
 
 === "RHALE"
 
@@ -194,7 +199,7 @@ For example, to plot the effect of the first feature of the synthetic dataset, u
     rhale.plot(0)
     ```
 
-    ![Global-RHALE](./../static/quickstart/simple_api_files/simple_api_10_0.png){ align=center }
+    ![Global-RHALE](./../static/quickstart/simple_api_files/simple_api_11_0.png){ align=center }
 
 === "ShapDP"
 
@@ -202,7 +207,7 @@ For example, to plot the effect of the first feature of the synthetic dataset, u
     shap_dp = effector.ShapDP(data=X, model=predict)
     shap_dp.plot(0)
     ```
-    ![Global-ShapDP](./../static/quickstart/simple_api_files/simple_api_12_0.png){ align=center }
+    ![Global-ShapDP](./../static/quickstart/simple_api_files/simple_api_13_0.png){ align=center }
 
 === "ALE"
 
@@ -210,7 +215,7 @@ For example, to plot the effect of the first feature of the synthetic dataset, u
     ale = effector.ALE(data=X, model=predict)
     ale.plot(0)
     ```
-    ![Global-ALE](./../static/quickstart/simple_api_files/simple_api_14_0.png){ align=center }
+    ![Global-ALE](./../static/quickstart/simple_api_files/simple_api_15_0.png){ align=center }
 
 === "derPDP"
 
@@ -219,7 +224,7 @@ For example, to plot the effect of the first feature of the synthetic dataset, u
     d_pdp.plot(0)
     ```
 
-    ![Global-DerPDP](./../static/quickstart/simple_api_files/simple_api_16_0.png){ align=center }
+    ![Global-DerPDP](./../static/quickstart/simple_api_files/simple_api_17_0.png){ align=center }
 
 ???+ "Some important arguments of `.plot()`"
     
@@ -422,7 +427,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
 
      | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
      |:---------:|:---------:|
-     | ![Alt text](./../static/quickstart/simple_api_files/simple_api_20_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_20_1.png) |
+     | ![Alt text](./../static/quickstart/simple_api_files/simple_api_21_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_21_1.png) |
 
 === "RHALE"
 
@@ -433,7 +438,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
 
      | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
      |:---------:|:---------:|
-     | ![Alt text](./../static/quickstart/simple_api_files/simple_api_23_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_23_1.png) |
+     | ![Alt text](./../static/quickstart/simple_api_files/simple_api_24_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_24_1.png) |
 
 === "ShapDP"
 
@@ -444,7 +449,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
 
      | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
      |:---------:|:---------:|
-     | ![Alt text](./../static/quickstart/simple_api_files/simple_api_26_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_26_1.png) |
+     | ![Alt text](./../static/quickstart/simple_api_files/simple_api_27_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_27_1.png) |
 
 === "ALE"
 
@@ -455,7 +460,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
 
      | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
      |:---------:|:---------:|
-     | ![Alt text](./../static/quickstart/simple_api_files/simple_api_29_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_29_1.png) |
+     | ![Alt text](./../static/quickstart/simple_api_files/simple_api_30_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_30_1.png) |
 
 
 === "derPDP"
@@ -467,7 +472,7 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
 
      | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
      |:---------:|:---------:|
-     | ![Alt text](./../static/quickstart/simple_api_files/simple_api_32_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_32_1.png) |
+     | ![Alt text](./../static/quickstart/simple_api_files/simple_api_33_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_33_1.png) |
 
 ---
 

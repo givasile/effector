@@ -1,5 +1,11 @@
 # Model with conditional interaction
 
+- Author: [givasile](https://givasile.github.io/)
+- Runtime: ~10 s
+- Description: Regional effects (PDP, ALE, RHALE) on a model with a
+  conditional interaction: every method must find the split on $x_2$ at 0 and
+  recover the per-region closed forms, tested against `effector.benchmarks`.
+
 In this example, we show regional effects of a model with conditional interactions using PDP, ALE, and RHALE.
 In particular, we:
 
@@ -74,7 +80,7 @@ r_pdp.summary(0)
 
       0%|          | 0/1 [00:00<?, ?it/s]
 
-    100%|██████████| 1/1 [00:00<00:00, 80.38it/s]
+    100%|██████████| 1/1 [00:00<00:00, 76.71it/s]
 
     
     
@@ -155,7 +161,7 @@ r_ale.summary(0)
 
       0%|          | 0/1 [00:00<?, ?it/s]
 
-    100%|██████████| 1/1 [00:00<00:00, 54.05it/s]
+    100%|██████████| 1/1 [00:00<00:00, 48.38it/s]
 
     
     
@@ -216,9 +222,9 @@ r_rhale.summary(0)
 
       0%|          | 0/1 [00:00<?, ?it/s]
 
-    100%|██████████| 1/1 [00:00<00:00,  3.21it/s]
+    100%|██████████| 1/1 [00:00<00:00,  2.80it/s]
 
-    100%|██████████| 1/1 [00:00<00:00,  3.20it/s]
+    100%|██████████| 1/1 [00:00<00:00,  2.79it/s]
 
     
     

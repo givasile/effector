@@ -93,23 +93,23 @@ jacobian = ... # jacobian of the model
    
         === "PDP"
 
-             ![Alt text](./../static/quickstart/simple_api_files/simple_api_8_0.png)
+             ![Alt text](./../static/quickstart/simple_api_files/simple_api_9_0.png)
 
         === "RHALE"
 
-             ![Alt text](./../static/quickstart/simple_api_files/simple_api_10_0.png)        
+             ![Alt text](./../static/quickstart/simple_api_files/simple_api_11_0.png)        
 
         === "ShapDP"
 
-             ![Alt text](./../static/quickstart/simple_api_files/simple_api_12_0.png)
+             ![Alt text](./../static/quickstart/simple_api_files/simple_api_13_0.png)
 
         === "ALE"
 
-              ![Alt text](./../static/quickstart/simple_api_files/simple_api_14_0.png)        
+              ![Alt text](./../static/quickstart/simple_api_files/simple_api_15_0.png)        
         
         === "derPDP"
         
-              ![Alt text](./../static/quickstart/simple_api_files/simple_api_16_0.png)
+              ![Alt text](./../static/quickstart/simple_api_files/simple_api_17_0.png)
 
 4. **Evaluate the global effect of a feature at a specific grid of points**:
    

@@ -130,28 +130,28 @@ jacobian = ... # jacobian of the model
              | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
              |:---------:|:---------:|
              | `r_method.plot(0, 1)` | `r_method.plot(0, 2)` |
-             | ![Alt text](./../static/quickstart/simple_api_files/simple_api_20_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_20_1.png) |
+             | ![Alt text](./../static/quickstart/simple_api_files/simple_api_21_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_21_1.png) |
         
         === "RHALE"
         
              | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
              |:---------:|:---------:|
              | `r_method.plot(0, 1)` | `r_method.plot(0, 2)` |
-             | ![Alt text](./../static/quickstart/simple_api_files/simple_api_23_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_23_1.png) |
+             | ![Alt text](./../static/quickstart/simple_api_files/simple_api_24_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_24_1.png) |
 
         === "ShapDP"
 
              | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
              |:---------:|:---------:|
              | `r_method.plot(0, 1)` | `r_method.plot(0, 2)` |
-             | ![Alt text](./../static/quickstart/simple_api_files/simple_api_26_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_26_1.png) |
+             | ![Alt text](./../static/quickstart/simple_api_files/simple_api_27_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_27_1.png) |
         
         === "ALE"
         
              | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
              |:---------:|:---------:|
              | `r_method.plot(0, 1)` | `r_method.plot(0, 2)` |
-             | ![Alt text](./../static/quickstart/simple_api_files/simple_api_29_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_29_1.png) |
+             | ![Alt text](./../static/quickstart/simple_api_files/simple_api_30_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_30_1.png) |
         
         
         === "derPDP"
@@ -159,7 +159,7 @@ jacobian = ... # jacobian of the model
              | `node_idx=1`: $x_1$ when $x_2 \leq 0$ | `node_idx=2`: $x_1$ when $x_2 > 0$ |
              |:---------:|:---------:|
              | `r_method.plot(0, 1)` | `r_method.plot(0, 2)` |
-             | ![Alt text](./../static/quickstart/simple_api_files/simple_api_32_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_32_1.png) |
+             | ![Alt text](./../static/quickstart/simple_api_files/simple_api_33_0.png) | ![Alt text](./../static/quickstart/simple_api_files/simple_api_33_1.png) |
 
 5. **Evaluate the regional effect of a feature at a specific node at a specific grid of points**:
    

@@ -1,5 +1,11 @@
 # Model with conditional interaction
 
+- Author: [givasile](https://givasile.github.io/)
+- Runtime: ~30 s
+- Description: How PDP, ALE and RHALE quantify the heterogeneity introduced
+  by a conditional interaction; each heterogeneity estimate is derived
+  analytically and tested against `effector.benchmarks`.
+
 In this example, we show the heterogeneity of the global effects, using PDP, ALE, and RHALE, on a model with conditional interactions.
 We will use the following model: 
 

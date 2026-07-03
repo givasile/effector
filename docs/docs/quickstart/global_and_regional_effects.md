@@ -2,6 +2,11 @@
 title: What are global and regional effects
 ---
 
+- Author: [givasile](https://givasile.github.io/)
+- Description: A conceptual introduction to global and regional effects —
+  what they are, why they are a good choice for interpreting models trained
+  on tabular data, and how to compute them with `effector`.
+
 ???+ success "Overview"
 
     This tutorial is the best place for understanding what global and regional effects are, 
@@ -65,20 +70,20 @@ Let's focus on feature `hour`. We will compute the global effect of the `hour` f
     ```python
     effector.PDP(X, model).plot(feature=3)
     ```
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_1.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_22_0.png)
 
 === "RHALE"
     ```python
     effector.RHALE(X, model, model_jac).plot(feature=3)
     ```
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_0.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_28_0.png)
 
 === "SHAP-DP"
 
     ```python
     effector.ShapDP(X, model).plot(feature=3)
     ```
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_1.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_34_494.png)
 
 
 All methods agree on the general trend:
@@ -124,13 +129,13 @@ A simple way to check this is to look at the heterogeneity of the global effect:
 Let's take a look again:
 
 === "PDP"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_20_1.png)}
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_22_0.png)
 
 === "RHALE"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_0.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_28_0.png)
 
 === "SHAP-DP"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_1.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_34_494.png)
 
 They all indicate a high heterogeneity; there are cases that deviate from the average pattern.
 Moreover, PDP-ICE analysis highlights two distinct patterns:
@@ -246,19 +251,19 @@ To print the partition tree, we will use `.summary()` method of the regional eff
 
      | non-working day | workingday |
      |:---------:|:---------:|
-     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_23_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_23_1.png) |
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_25_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_25_1.png) |
 
 === "RHALE"
 
      | non-working day | workingday |
      |:---------:|:---------:|
-     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_1.png) |
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_31_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_31_1.png) |
 
 === "SHAP-DP"
 
     | non-working day | workingday |
     |:---------:|:---------:|
-    | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_35_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_35_1.png) |
+    | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_37_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_37_1.png) |
 
 
 
@@ -280,25 +285,25 @@ To print the partition tree, we will use `.summary()` method of the regional eff
 
      | non-working day and cold | non-workingday and hot |
      |:---------:|:---------:|
-     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_24_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_24_1.png) |
-     | **working day and cold** | **workingday and hot** |
-     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_24_2.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_24_3.png) |
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_1.png) |
+     | **working day and first year** | **workingday and second year** |
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_2.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_3.png) |
 
 
 === "RHALE"
 
      | non-working day and cold | non-workingday and hot | working day |
      |:---------:|:---------:|:---------:|
-     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_30_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_30_1.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_29_1.png) | 
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_1.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_31_1.png) | 
      
 
 === "SHAP-DP"
 
      | non-working day and cold | non-workingday and hot |
      |:---------:|:---------:|
-     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_36_1.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_36_2.png) |
-     | **working day and first year** | **workingday and second year** |
-     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_36_3.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_36_4.png) |
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_38_0.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_38_1.png) |
+     | **working day and cold** | **workingday and hot** |
+     | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_38_2.png) | ![Alt text](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_38_3.png) |
 
 
 ???+ success "Let's reach some conclusions""

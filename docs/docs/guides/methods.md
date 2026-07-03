@@ -1,5 +1,10 @@
 # Methods
 
+- Author: [givasile](https://givasile.github.io/)
+- Description: The mathematical reference of `effector`: how each method
+  (PDP, ALE, RHALE) defines and estimates the global effect and its
+  heterogeneity, with the exact formulas behind the plots.
+
 This section explains how each method (PDP, ALE, RHALE) defines and estimates the global effects and the heterogeneity.
 
 ## Notation

@@ -1,0 +1,29 @@
+# Explicit notebook -> docs mapping. Format: kind  source_notebook  dest_subdir
+# kind = page  : convert saved outputs to a committed doc page under docs/docs/notebooks/<dest>
+# kind = image : harvest the notebook's figures into docs/docs/static/<dest> (feeds authored pages)
+# Notebooks absent from this file are not part of the docs.
+# quickstart notebooks are image-only: their content is retold by the
+# hand-written pages in docs/docs/quickstart/, which read from static/.
+
+# --- PAGES (bucket c): converted notebooks shown as documentation pages ---
+page  notebooks/guides/efficiency_global.ipynb                                   guides
+page  notebooks/guides/efficiency_regional.ipynb                                 guides
+page  notebooks/synthetic-examples/01_linear_model.ipynb                         synthetic-examples
+page  notebooks/synthetic-examples/02_global_effect_methods_comparison.ipynb     synthetic-examples
+page  notebooks/synthetic-examples/03_regional_effects_synthetic_f.ipynb         synthetic-examples
+page  notebooks/synthetic-examples/04_regional_effects_real_f.ipynb              synthetic-examples
+page  notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_global.ipynb  synthetic-examples
+page  notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_heter.ipynb   synthetic-examples
+page  notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_regional.ipynb  synthetic-examples
+page  notebooks/synthetic-examples/06_general_interaction_independent_uniform_global.ipynb      synthetic-examples
+page  notebooks/synthetic-examples/07_conditional_interaction_4_regions_independent_uniform_global.ipynb  synthetic-examples
+page  notebooks/real-examples/01_bike_sharing_dataset.ipynb                      real-examples
+page  notebooks/real-examples/02_california_housing.ipynb                        real-examples
+page  notebooks/real-examples/03_california_housing_tabpfn.ipynb                 real-examples
+page  notebooks/real-examples/04_no2.ipynb                                       real-examples
+
+# --- IMAGES (bucket a): notebooks whose figures feed authored pages ---
+image notebooks/quickstart/simple_api.ipynb                                      quickstart
+image notebooks/quickstart/flexible_api.ipynb                                    quickstart
+image notebooks/quickstart/readme_example.ipynb                                  quickstart
+image notebooks/real-examples/01_bike_sharing_dataset.ipynb                      real-examples

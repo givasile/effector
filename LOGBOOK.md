@@ -410,3 +410,36 @@ deliberately untouched — that belongs to the docs-pipeline work
 (docs/DOCS_PIPELINE_PLAN.md). Next: constitution → contract layer (#2 step 3–4).
 
 ---
+
+## 11. 2026-07-03 — Docs finalized: all notebooks refreshed + signed, pipeline made explicit (tag: code)  [PLAN II §6 step 1; docs/DOCS_PIPELINE_PLAN.md; branch `docs/finalize-notebooks-and-pipeline`]
+
+**What:** the docs-refresh step, complete. All 17 runnable notebooks
+(quickstart ×3, guides ×2, synthetic ×9, real ×3) re-executed green with fresh
+stored outputs, each timed; every notebook and hand-written guide page now
+opens with a signature — `Author / Runtime / Description` (pages that aren't
+executed drop the Runtime line). The docs build follows the four-bucket model
+of DOCS_PIPELINE_PLAN.md: `docs/notebook_map.txt` declares which notebook is a
+`page` (committed converted copy) or an `image` source (figures for authored
+pages); `make docs-pages` / `make docs-images` replace the old blanket
+`docs-update`; conversion renders saved outputs, never executes; nbconvert
+moved to the lightweight `docs` dep group.
+
+**Fixes along the way:** every hardcoded `node_idx` plot (synthetic 04,
+readme_example, real 01/02/04 + the same snippet in README.md and index.md)
+became a loop over the fitted tree's level-1/level-2 nodes — ids depend on the
+fitted tree, which is exactly what crashed synthetic 04 (now un-skipped in
+`test_notebooks.py`). Real 01's ShapDP zero-size-array crash did not reproduce
+across two full re-runs — treated as fixed by the re-run + robust node lookup.
+Dead docs trees deleted (Tutorials output dir, `notebooks/quickstart` copies,
+stray static `.md`, `_bak`, orphan `02_regional_*` + `efficiency_comparison_*`
+pages); `index.md`/README now read readme-example figures from
+`static/quickstart/`; captions in `global_and_regional_effects.md` re-synced to
+the fresh trees (PDP's workingday branch now splits by year, SHAP's by temp).
+
+**Deferred:** `03_california_housing_tabpfn.ipynb` NOT re-run (TabPFN
+license/CPU cost) — signed with Runtime from its stored metadata (~8 min),
+still a docs page (old outputs render fine). Deal with it later.
+
+**Next:** contract layer (PLAN II §6 step 2 / §3.1).
+
+---

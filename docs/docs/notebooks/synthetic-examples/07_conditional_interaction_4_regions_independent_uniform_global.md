@@ -1,5 +1,11 @@
 # Model with conditional interaction
 
+- Author: [givasile](https://givasile.github.io/)
+- Runtime: ~10 s
+- Description: Global effects (PDP, ALE, RHALE) on a model whose three-way
+  conditional interaction defines four regions; the estimates are derived
+  analytically and tested against `effector.benchmarks`.
+
 In this example, we show global effects of a model with conditional interactions using PDP, ALE, and RHALE.
 In particular, we:
 
