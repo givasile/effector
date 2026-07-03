@@ -1,7 +1,7 @@
 # Model with conditional interaction
 
 - Author: [givasile](https://givasile.github.io/)
-- Runtime: ~10 s
+- Runtime: ~5 s
 - Description: Global effects (PDP, ALE, RHALE) on a model whose three-way
   conditional interaction defines four regions; the estimates are derived
   analytically and tested against `effector.benchmarks`.
@@ -58,7 +58,7 @@ Let's see below the PDP effects for each feature, using `effector`.
 
 
 ```python
-pdp = effector.PDP(x, model.predict, dataset.axis_limits)
+pdp = effector.PDP(x, model.predict, axis_limits=dataset.axis_limits)
 pdp.fit(features="all", centering=True)
 for feature in [0, 1, 2, 3]:
     pdp.plot(feature=feature, centering=True, y_limits=[-2, 2], heterogeneity=False)

@@ -1,7 +1,7 @@
 # Model with conditional interaction
 
 - Author: [givasile](https://givasile.github.io/)
-- Runtime: ~30 s
+- Runtime: ~25 s
 - Description: How PDP, ALE and RHALE quantify the heterogeneity introduced
   by a conditional interaction; each heterogeneity estimate is derived
   analytically and tested against `effector.benchmarks`.
@@ -44,7 +44,7 @@ Let's see below the PDP heterogeneity for each feature, using `effector`.
 
 
 ```python
-pdp = effector.PDP(x, model.predict, dataset.axis_limits)
+pdp = effector.PDP(x, model.predict, axis_limits=dataset.axis_limits)
 pdp.fit(features="all", centering=True)
 for feature in [0, 1, 2]:
     pdp.plot(feature=feature, centering=True, heterogeneity=True, y_limits=[-2, 2])
@@ -94,11 +94,11 @@ for feature in [0, 1, 2]:
 
 
 ```python
-pdp = effector.PDP(x, model.predict, dataset.axis_limits, nof_instances="all")
+pdp = effector.PDP(x, model.predict, axis_limits=dataset.axis_limits, nof_instances="all")
 pdp.fit(features="all", centering=True)
 heter_per_feat = []
 for feature in [0, 1, 2]:
-    y_mean, y_var = pdp.eval(feature=feature, xs=np.linspace(-1, 1, 100), centering=True, heterogeneity=True)
+    y_var = pdp.eval_heter(feature=feature, xs=np.linspace(-1, 1, 100))
     print(f"Heterogeneity of x_{feature}: {y_var.mean():.3f}")
     heter_per_feat.append(y_var.mean())
 ```
@@ -171,7 +171,8 @@ pdp_ground_truth = bench.pdp_heter_gt
 # make a test
 xx = np.linspace(-1, 1, 100)
 for feature in [0, 1, 2]:
-    pdp_mean, pdp_heter = pdp.eval(feature=feature, xs=xx, centering=True, heterogeneity=True)
+    pdp_mean = pdp.eval(feature=feature, xs=xx, centering=True)
+    pdp_heter = pdp.eval_heter(feature=feature, xs=xx)
     y_heter = pdp_ground_truth(feature, xx)
     np.testing.assert_allclose(pdp_heter, y_heter, atol=1e-1)
 ```

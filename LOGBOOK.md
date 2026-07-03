@@ -831,3 +831,51 @@ old-API notebooks (`eval(heterogeneity=...)` → `eval`+`eval_heter`,
 the regression oracle, re-sign, and merge the step 1–7 branch chain.
 
 ---
+## 21. 2026-07-04 — End-of-story pass: notebooks rewired + re-executed, docs refreshed, the homogenization is done (tag: code)  [PLAN III §4 close-out; branch `refactor/end-of-story-notebooks`]
+
+**What:** the regression-oracle pass that closes the refactor.
+- **Old-API call sites rewired** (the two breaking changes steps 3+5
+  introduced):
+  - `eval(..., heterogeneity=True)` → `eval` (mean) + `eval_heter` (curve)
+    everywhere it returned a tuple — 4 synthetic notebooks, the two
+    efficiency guides' `measure_time` benchmarks, and `simple_api.md`'s 5
+    global snippets + `api_global.md`.
+  - **R8 positional constructors** (the failure the pre-pass baseline missed
+    because it crashed before the eval cells): `effector.PDP(x, model,
+    axis_limits)` → `axis_limits=...` across 4 synthetic notebooks. Only
+    the constructor's 3rd positional arg was affected (everything after
+    `model_jac` is keyword-only now).
+- **All 17 runnable notebooks re-executed in-place against the new API**,
+  fresh outputs, each re-signed with a measured Runtime (quickstart ×3,
+  guides ×2, synthetic ×9, real ×3-minus-TabPFN). The synthetic oracle's
+  internal closed-form asserts all pass (02's "all closed-form checks
+  passed", 05_heter's PDP-heterogeneity `assert_allclose`, 06's, 07's).
+  `test_notebooks.py` tier: **9 passed** (was 5 failing).
+- **Regression check:** diffed every re-executed notebook's printed outputs
+  against the pre-pass version — only expected drift (the ShapDP centering
+  shift noted in LOGBOOK #15; tqdm rates; regional trees re-fit on the
+  seeded splits). Two guide benchmarks (`efficiency_global/regional`) had a
+  cell hang for hours on the old-API path before this pass; both now run in
+  ~11 / ~7 min.
+- **Docs refreshed:** `make docs-images` + `make docs-pages` re-harvested
+  every figure and re-converted every committed page; `make docs-build`
+  clean (only pre-existing griffe docstring warnings). Hand-authored pages
+  re-synced to the fresh trees — `global_and_regional_effects.md` (3 tree
+  summaries), `index.md` + `README.md` (readme-example tree: the second
+  workingday split is now `yr`, not `temp`; prose + captions updated),
+  `simple_api.md`/`api_*.md` eval snippets. One renamed bike figure
+  (`_34_494` → `_34_489`) re-pointed.
+- **TabPFN notebook 03** still deferred (license/CPU) — its converted page
+  re-converts unchanged saved outputs, as before.
+
+**Deferred, unchanged:** notebook-02 SHAP closed form (math, Vasilis's call);
+notebook 03 TabPFN execution.
+
+**Verified:** gate 369 passed / 0 xfailed / ~15 s; ruff clean; docs build
+clean; all 17 executed notebooks green.
+
+**Done.** This closes PLAN Part III (homogenization). The step 1–7 branch
+chain + this pass are one stacked history off `main`; the single final PR
+opens from here for Vasilis's end-to-end verdict.
+
+---

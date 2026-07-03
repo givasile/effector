@@ -1,7 +1,7 @@
 # Model with general interaction
 
 - Author: [givasile](https://givasile.github.io/)
-- Runtime: ~10 s
+- Runtime: ~5 s
 - Description: Global effects and heterogeneity (PDP, ALE, RHALE) on a model
   with a general-form interaction $x_1 x_2^2$; all estimates are derived
   analytically and tested against `effector.benchmarks`.
@@ -54,7 +54,7 @@ Let's see below the PDP effects for each feature, using `effector`.
 
 
 ```python
-pdp = effector.PDP(x, model.predict, dataset.axis_limits)
+pdp = effector.PDP(x, model.predict, axis_limits=dataset.axis_limits)
 pdp.fit(features="all", centering=True)
 for feature in [0, 1, 2]:
     pdp.plot(feature=feature, centering=True, y_limits=[-2, 2], heterogeneity=False)
@@ -537,7 +537,7 @@ $h(x_3) = 0$.
 
 
 ```python
-pdp = effector.PDP(x, model.predict, dataset.axis_limits, nof_instances="all")
+pdp = effector.PDP(x, model.predict, axis_limits=dataset.axis_limits, nof_instances="all")
 for feature in [0, 1, 2]:
     pdp.plot(feature=feature, centering=True, heterogeneity="ice", y_limits=[-2, 2])
 ```
@@ -567,7 +567,7 @@ for feature in [0, 1, 2]:
 # make a test
 xx = np.linspace(-1, 1, 100)
 for feature in [0, 1, 2]:
-    _, pdp_heter = pdp.eval(feature=feature, xs=xx, centering=True, heterogeneity=True)
+    pdp_heter = pdp.eval_heter(feature=feature, xs=xx)
     np.testing.assert_allclose(pdp_heter, bench.pdp_heter_gt(feature, xx), atol=1e-1)
 ```
 
