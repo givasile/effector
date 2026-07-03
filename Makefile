@@ -34,12 +34,26 @@ docs-serve:  ## serve the documentation locally
 docs-build:  ## build the documentation site
 	uv run --no-default-groups --group docs mkdocs build -f docs/mkdocs.yml
 
-.PHONY: docs-update
-docs-update:  ## regenerate tutorial markdown from the notebooks (into the dirs the site actually reads)
-	uv run --extra tutorials --extra shap jupyter nbconvert --to markdown ./notebooks/real-examples/*.ipynb --output-dir docs/docs/notebooks/real-examples/
-	uv run --extra tutorials --extra shap jupyter nbconvert --to markdown ./notebooks/synthetic-examples/*.ipynb --output-dir docs/docs/notebooks/synthetic-examples/
-	uv run --extra tutorials --extra shap jupyter nbconvert --to markdown ./notebooks/quickstart/*.ipynb --output-dir docs/docs/notebooks/quickstart/
-	uv run --extra tutorials --extra shap jupyter nbconvert --to markdown ./notebooks/guides/*.ipynb --output-dir docs/docs/notebooks/guides/
+.PHONY: docs-pages
+docs-pages:  ## convert selected notebooks (docs/notebook_map.txt) -> committed doc pages
+	@grep '^page' docs/notebook_map.txt | while read _ src dest; do \
+		echo "converting $$src -> docs/docs/notebooks/$$dest"; \
+		uv run --no-default-groups --group docs jupyter nbconvert --to markdown \
+			"$$src" --output-dir "docs/docs/notebooks/$$dest"; \
+	done
+
+.PHONY: docs-images
+docs-images:  ## refresh static images for authored pages from notebooks (docs/notebook_map.txt)
+	@grep '^image' docs/notebook_map.txt | while read _ src dest; do \
+		nb=$$(basename "$$src" .ipynb); tmp=$$(mktemp -d); \
+		echo "harvesting figures from $$src -> docs/docs/static/$$dest/$${nb}_files"; \
+		uv run --no-default-groups --group docs jupyter nbconvert --to markdown \
+			"$$src" --output-dir "$$tmp"; \
+		rm -rf "docs/docs/static/$$dest/$${nb}_files"; \
+		mkdir -p "docs/docs/static/$$dest"; \
+		cp -r "$$tmp/$${nb}_files" "docs/docs/static/$$dest/" 2>/dev/null || true; \
+		rm -rf "$$tmp"; \
+	done
 
 # Housekeeping --------------------------------------------------------------
 .PHONY: clean

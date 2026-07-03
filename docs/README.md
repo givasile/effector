@@ -1,65 +1,46 @@
 # Documentation
 
----
+The docs build follows one explicit model with four buckets (see
+`DOCS_PIPELINE_PLAN.md` for the full rationale):
 
-## TODO before publishing
+| Bucket | What | Where | How to update |
+|---|---|---|---|
+| (a) | Authored pages + static images | `docs/docs/**/*.md`, images in `docs/docs/static/<group>/<nb>_files/` | Edit `.md` by hand; refresh images with `make docs-images` |
+| (b) | Notebooks not in the mapping | `notebooks/` only | Nothing — ignored by the docs |
+| (c) | Selected notebooks → doc pages | `docs/docs/notebooks/<group>/` (committed) | `make docs-pages` |
+| (d) | Standalone scripts | `scripts/` | Untouched; not part of docs |
 
-### Copy changelog
+Which notebooks feed the docs — and whether as a page (c) or as images for an
+authored page (a) — is declared in `docs/notebook_map.txt`. Notebooks absent
+from that file are simply not part of the docs.
 
-```bash
-cp ../CHANGELOG.md docs/changelog.md
-```
+Conversion never executes notebooks; it renders their **saved outputs**
+(`jupyter nbconvert --to markdown`). Re-run a notebook first if you want its
+doc page refreshed. The generated markdown is committed: CI only runs
+`mkdocs build` and deploys, it never converts.
 
----
-
-### Update the notebooks
-
-#### (Optional) Remove the old notebooks
-
-```bash
-rm -rf docs/notebooks
-mkdir docs/notebooks
-```
-
-#### Convert the notebooks to markdown
+## Commands
 
 ```bash
-jupyter nbconvert --to markdown ./../notebooks/real-examples/* --output-dir docs/notebooks/real-examples/
-jupyter nbconvert --to markdown ./../notebooks/synthetic-examples/* --output-dir docs/notebooks/synthetic-examples/
-jupyter nbconvert --to markdown ./../notebooks/quickstart/* --output-dir docs/notebooks/quickstart/
-jupyter nbconvert --to markdown ./../notebooks/guides/* --output-dir docs/notebooks/guides/
+make docs-pages    # (c) regenerate converted notebook pages from the mapping
+make docs-images   # (a) refresh static images for authored pages
+make docs-serve    # preview locally
+make docs-build    # build the site into docs/site/
 ```
----
 
-### Update the images on the `./static` folder
+## Before publishing
 
-#### Create the folders if they don't exist
+CI (`publish_documentation.yml`) copies `CHANGELOG.md` and `CONTRIBUTING.md`
+into `docs/docs/` automatically; for a local preview do the same by hand:
 
 ```bash
-mkdir docs/static/quickstart/
-mkdir docs/static/real-examples/
+cp CHANGELOG.md docs/docs/changelog.md
+cp CONTRIBUTING.md docs/docs/contributing.md
 ```
-
-#### Copy the images
-
-```bash
-cp -r docs/notebooks/quickstart/simple_api_files/ docs/static/quickstart/
-cp -r docs/notebooks/quickstart/flexible_api_files/ docs/static/quickstart/
-cp -r docs/notebooks/quickstart/readme_example_files/ docs/static/quickstart/
-cp -r docs/notebooks/real-examples/01_bike_sharing_dataset_files/ docs/static/real-examples/
-```
-
----
-
-## Run the documentation locally
-
-```zsh
-mkdocs serve
-```
-
-
 
 ## Connection between files
 
-`index.md` -> `/quickstart/readme_example.ipynb`
-`docs/docs/quickstart/global_and_regional_effects.ipynb` -> `notebooks/real-examples/01_bike_sharing_dataset.ipynb`
+- `docs/docs/index.md` → images from `docs/docs/static/quickstart/readme_example_files/` (source: `notebooks/quickstart/readme_example.ipynb`)
+- `docs/docs/quickstart/simple_api.md` / `flexible_api.md` → images from `docs/docs/static/quickstart/{simple_api,flexible_api}_files/`
+- `docs/docs/quickstart/global_and_regional_effects.md` → images from `docs/docs/static/real-examples/01_bike_sharing_dataset_files/`
+- `docs/docs/api_docs/api_global.md` / `api_regional.md` → images from `docs/docs/static/quickstart/simple_api_files/`

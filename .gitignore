@@ -141,9 +141,12 @@ dmypy.json
 
 .emacs.desktop
 paper.prv
+*~
+\#*\#
 
 out/
 
 docs/site/
+docs/docs/Tutorials/
 
 .venv-*

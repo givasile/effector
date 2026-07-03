@@ -58,6 +58,8 @@ docs = [
     "mkdocstrings-python",
     "mkdocs-material",
     "mkdocs-glightbox",
+    "nbconvert",  # docs-pages/docs-images: convert saved notebook outputs, no execution
+    "jupyter-core",
 ]
 dev = [
     {include-group = "test"},
