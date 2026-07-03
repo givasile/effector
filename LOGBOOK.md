@@ -376,3 +376,37 @@ PLAN.md (baseline table, §3 bug register + errata). Next per #2: 05_regional
 notebook finish (F2's twin), then the constitution text.
 
 ---
+
+## 10. 2026-07-03 — Notebooks rewired to benchmarks: mechanism C complete (tag: code)  [LOGBOOK #8; branch `tests/functional-anchor`]
+
+```
+   effector.benchmarks ──────────────► tests/test_functional_*.py   (tier 1, #9)
+        one source of truth  └───────► notebooks 02 · 05×3 · 06 · 07 (tier 2, this entry)
+                                        derivation prose + the SAME asserts
+```
+
+**What:** the notebook half of mechanism C. Notebooks 02, 05_global, 05_heter,
+06, 07 now import their ground truths from `effector.benchmarks` (local GT
+copies deleted); 05_regional is written in full (F2's prose twin — regional
+PDP/ALE/RHALE recover split, position, and ±x1² per region); all execute green
+under `test_notebooks.py`, twice, with fresh outputs stored (the outputs ARE
+the docs).
+
+**Shine fixes along the way:** kernelspec normalized to `python3` in 8 notebooks
+(contributor-local `eff-env` pin); 06 got a heterogeneity section (the new
+h(x1), h(x2) closed forms) and its RHALE summary corrected (was copy-pasted
+from 05 — claimed x1 has zero effect); 07's ALE mask moved to the feature that
+actually has the jump (x2 → x3's step), letting atol tighten 2e-1 → 1e-1, and
+its stray duplicated ALE derivation cell removed; 05_heter's empty RHALE
+derivation placeholders filled (per-bin variance 4c²/0/0) with a new assert —
+also added to F1; notebook 02 got its first-ever asserts (mirroring F5) and an
+honest note that its SHAP closed form is disputed; RHALE fits pinned to
+`Fixed(31)` where bin-variance GTs assume it (default binning is not
+deterministic across kernels — caught by running the suite twice).
+
+**Changes:** 6 notebooks rewritten/executed; `benchmarks.py` +
+`rhale_bin_variance_gt`; F1 + RHALE bin-variance test. Docs `.md` regeneration
+deliberately untouched — that belongs to the docs-pipeline work
+(docs/DOCS_PIPELINE_PLAN.md). Next: constitution → contract layer (#2 step 3–4).
+
+---
