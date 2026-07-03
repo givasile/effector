@@ -448,14 +448,14 @@ steps 1–3 below are **done** — P1–P5 fixed, functional anchor landed (LOGB
 #10), constitution R1–R9 agreed as text (LOGBOOK #3–#6). CI green on 3.10–3.13.
 **Next session, agreed order (2026-07-03, post-merge):**
 
-1. **FIRST — refresh the remaining docs notebooks.** Re-run quickstart, guides
-   and real-examples notebooks (their stored outputs — and therefore their doc
-   pages — date from v0.1.x; only synthetic-examples are fresh), then
-   `make docs-update` to regenerate all four doc groups. Prerequisites to fix
-   along the way: real-examples 01's ShapDP zero-size-array crash; notebook
-   04's hardcoded `node_idx` (then un-skip it in `test_notebooks.py`); note
-   the guides are deliberate multi-minute benchmarks and real-examples need
-   network + keras (03 additionally a TabPFN license — skip/mark if absent).
+1. ~~**FIRST — refresh the remaining docs notebooks.**~~ **DONE (2026-07-03,
+   LOGBOOK #11, branch `docs/finalize-notebooks-and-pipeline`):** all 17
+   runnable notebooks re-run green + signed (author/runtime/description);
+   docs pipeline refactored per docs/DOCS_PIPELINE_PLAN.md
+   (`docs/notebook_map.txt` + `make docs-pages`/`docs-images`); synthetic 04
+   un-skipped in `test_notebooks.py` (hardcoded `node_idx` → level-based
+   loops); ShapDP crash did not reproduce. Only TabPFN notebook 03 not re-run
+   (license) — deferred. **Next session starts at step 2 below.**
 2. **Then step 4: the contract layer.** Rewrite the C-items of §3.1 against
    the LOGBOOK #4 eval surface (C1 simplifies, C7 disappears; new C-items for
    the payload accessor, H, and centering-invariance), agree them
