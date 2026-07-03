@@ -89,6 +89,18 @@ class ConditionalInteractionUniform:
         elif feature == 2:
             return np.zeros_like(bin_centers)
 
+    def rhale_bin_variance_gt(self, feature: int, nof_bins: int = 31) -> np.ndarray:
+        """Per-bin variance of the derivative effects, Fixed(nof_bins) on [-1, 1].
+
+        df/dx1 = -+2 x1 with sign(x2) equiprobable -> variance 4 c_k^2 at the
+        bin center; df/dx2 = 0 a.e. (no NaN bin here, unlike the ALE version:
+        the derivative never sees the jump); df/dx3 = e^{x3} is deterministic.
+        """
+        bin_centers = np.linspace(-1 + 1 / nof_bins, 1 - 1 / nof_bins, nof_bins)
+        if feature == 0:
+            return 4 * bin_centers**2
+        return np.zeros_like(bin_centers)
+
     # --- regional ground truth (feature of interest: 0) ---
 
     regional_split_feature = 1

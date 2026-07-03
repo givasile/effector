@@ -117,6 +117,22 @@ class TestHeterogeneity:
         mask = ~np.isnan(gt_var)  # the jump bin's variance is an artifact
         np.testing.assert_allclose(bin_var[mask], gt_var[mask], atol=ATOL)
 
+    @pytest.mark.parametrize("feature", [0, 1, 2])
+    def test_rhale_bin_variance(self, bench, data_heter, feature):
+        rhale = effector.RHALE(
+            data_heter,
+            bench.model.predict,
+            bench.model.jacobian,
+            axis_limits=bench.axis_limits,
+        )
+        rhale.fit(
+            features=feature,
+            binning_method=effector.axis_partitioning.Fixed(nof_bins=NOF_BINS),
+        )
+        bin_var = rhale.feature_effect[f"feature_{feature}"]["bin_variance"]
+        gt_var = bench.rhale_bin_variance_gt(feature, nof_bins=NOF_BINS)
+        np.testing.assert_allclose(bin_var, gt_var, atol=ATOL)
+
 
 class TestRegionalEffects:
     """F2: the strongest guard for the regional refactor (PLAN III steps 2.5-2.7)."""
