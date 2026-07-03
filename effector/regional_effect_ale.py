@@ -1,8 +1,8 @@
 import typing
+import warnings
 from typing import Callable, List, Optional, Union
 
 import numpy as np
-from tqdm import tqdm
 
 import effector.space_partitioning
 from effector import axis_partitioning as ap
@@ -19,6 +19,7 @@ class RegionalRHALE(RegionalEffectBase):
         data: np.ndarray,
         model: Callable,
         model_jac: Optional[Callable] = None,
+        *,
         data_effect: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 100_000,
         axis_limits: Optional[np.ndarray] = None,
@@ -116,12 +117,11 @@ class RegionalRHALE(RegionalEffectBase):
         elif self.data_effect is None and self.model_jac is None:
             self.data_effect = utils.compute_jacobian_numerically(self.model, self.data)
 
-    def _create_heterogeneity_function(
-        self, foi, binning_method, min_points, points_for_mean_heterogeneity
-    ):
-
-        if isinstance(binning_method, str):
-            binning_method = ap.return_default(binning_method)
+    def _create_heterogeneity_function(self, feature: int, min_points: int):
+        binning_method = ap.return_default(self.kwargs_fitting["binning_method"])
+        points_for_mean_heterogeneity = self.kwargs_subregion_detection[
+            "points_for_mean_heterogeneity"
+        ]
 
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
@@ -141,26 +141,30 @@ class RegionalRHALE(RegionalEffectBase):
                 axis_limits=self.axis_limits,
             )
             try:
-                rhale.fit(features=foi, binning_method=binning_method, centering=False)
+                rhale.fit(
+                    features=feature, binning_method=binning_method, centering=False
+                )
             except utils.AllBinsHaveAtMostOnePointError as e:
-                print(
-                    f"RegionalRHALE here: At a particular split, some bins had at most one point. I reject this split. \n Error: {e}"
+                warnings.warn(
+                    f"RegionalRHALE: at a candidate split, some bins had at most "
+                    f"one point; the split is rejected. Error: {e}"
                 )
                 return BIG_M
             except Exception as e:
-                print(
-                    f"RegionalRHALE here: An unexpected error occurred. I reject this split. \n Error: {e}"
+                warnings.warn(
+                    f"RegionalRHALE: an unexpected error occurred at a candidate "
+                    f"split ({np.sum(active_indices)} active points); the split "
+                    f"is rejected. Error: {e}"
                 )
-                print(np.sum(active_indices))
                 return BIG_M
 
-            # heterogeneity is the accumulated std at the end of the curve
+            # heterogeneity is the mean of the heterogeneity curve
             xs = np.linspace(
-                self.axis_limits[0, foi],
-                self.axis_limits[1, foi],
+                self.axis_limits[0, feature],
+                self.axis_limits[1, feature],
                 points_for_mean_heterogeneity,
             )
-            z = rhale.eval_heter(foi, xs)
+            z = rhale.eval_heter(feature, xs)
             return np.mean(z)
 
         return heter
@@ -204,59 +208,54 @@ class RegionalRHALE(RegionalEffectBase):
         if self.data_effect is None:
             self.compile()
 
-        if isinstance(space_partitioner, str):
-            space_partitioner = effector.space_partitioning.return_default(
-                space_partitioner
-            )
-
-        assert space_partitioner.min_points_per_subregion >= 2, (
-            "min_points_per_subregion must be >= 2"
-        )
-        features = helpers.prep_features(features, self.dim)
-        for feat in tqdm(features):
-            # find global axis limits
-            heter = self._create_heterogeneity_function(
-                feat,
-                binning_method,
-                space_partitioner.min_points_per_subregion,
-                points_for_mean_heterogeneity,
-            )
-
-            self._fit_feature(
-                feat,
-                heter,
-                space_partitioner,
-                candidate_conditioning_features,
-            )
-
-        all_arguments = locals()
-        all_arguments.pop("self")
-
-        # region splitting arguments are the first 8 arguments
         self.kwargs_subregion_detection = {
-            k: all_arguments[k] for k in list(all_arguments.keys())[:3]
+            "features": features,
+            "candidate_conditioning_features": candidate_conditioning_features,
+            "space_partitioner": space_partitioner,
+            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
+        self.kwargs_fitting = {"binning_method": binning_method}
 
-        # centering, points_for_centering, use_vectorized
-        self.kwargs_fitting = {
-            k: v for k, v in all_arguments.items() if k in ["binnning_method"]
-        }
+        self._fit_loop(features, candidate_conditioning_features, space_partitioner)
 
     def plot(
         self,
-        feature,
-        node_idx,
-        heterogeneity=True,
-        centering=True,
-        scale_x_list=None,
-        scale_y=None,
-        y_limits=None,
-        dy_limits=None,
+        feature: int,
+        node_idx: int,
+        heterogeneity: Union[bool, str] = True,
+        centering: Union[None, bool, str] = None,
+        scale_x_list: Optional[list] = None,
+        scale_y: Optional[dict] = None,
+        y_limits: Optional[list] = None,
+        dy_limits: Optional[list] = None,
+        show_plot: bool = True,
     ):
+        """Plot the regional RHALE effect of `feature` at node `node_idx`.
 
-        kwargs = locals()
-        kwargs.pop("self")
-        self._plot(kwargs)
+        Args:
+            feature: the feature to plot
+            node_idx: the index of the node to plot
+            heterogeneity: whether to plot the heterogeneity (std of the bin effects)
+            centering: whether to center the plot (`None` uses the class default)
+            scale_x_list: list with a `{"mean": ..., "std": ...}` dict per feature, for de-normalizing the x-axes
+            scale_y: `{"mean": ..., "std": ...}` dict for de-normalizing the y-axis
+            y_limits: manual limits of the y-axis
+            dy_limits: manual limits of the dy/dx-axis
+            show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`
+        """
+        return self._plot(
+            feature,
+            node_idx,
+            scale_x_list,
+            dict(
+                heterogeneity=heterogeneity,
+                centering=centering,
+                scale_y=scale_y,
+                y_limits=y_limits,
+                dy_limits=dy_limits,
+                show_plot=show_plot,
+            ),
+        )
 
 
 class RegionalALE(RegionalEffectBase):
@@ -264,6 +263,7 @@ class RegionalALE(RegionalEffectBase):
         self,
         data: np.ndarray,
         model: callable,
+        *,
         nof_instances: typing.Union[int, str] = 100_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
         feature_types: typing.Union[list, None] = None,
@@ -340,18 +340,38 @@ class RegionalALE(RegionalEffectBase):
             target_name,
         )
 
-    def _create_heterogeneity_function(
-        self, foi, min_points, points_for_mean_heterogeneity
-    ):
+    def _precompute_global(self, feature: int):
+        """Fit the global ALE once and keep its per-instance bin effects: the
+        candidate regions re-bin those instead of refitting the model."""
+        global_ale = ALE(
+            self.data, self.model, nof_instances="all", axis_limits=self.axis_limits
+        )
+        global_ale.fit(
+            features=feature,
+            binning_method=self.kwargs_fitting["binning_method"],
+            centering=False,
+        )
+        self.global_data_effect["feature_" + str(feature)] = global_ale.data_effect_ale[
+            "feature_" + str(feature)
+        ]
+        self.global_bin_limits["feature_" + str(feature)] = global_ale.bin_limits[
+            "feature_" + str(feature)
+        ]
+
+    def _create_heterogeneity_function(self, feature: int, min_points: int):
+        points_for_mean_heterogeneity = self.kwargs_subregion_detection[
+            "points_for_mean_heterogeneity"
+        ]
+
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return BIG_M
 
-            data_effect = self.global_data_effect["feature_" + str(foi)][
+            data_effect = self.global_data_effect["feature_" + str(feature)][
                 active_indices.astype(bool)
             ]
-            data = self.data[active_indices.astype(bool), foi]
-            bin_limits = self.global_bin_limits["feature_" + str(foi)]
+            data = self.data[active_indices.astype(bool), feature]
+            bin_limits = self.global_bin_limits["feature_" + str(feature)]
 
             params = utils.compute_ale_params(data, data_effect, bin_limits)
 
@@ -367,7 +387,7 @@ class RegionalALE(RegionalEffectBase):
 
     def fit(
         self,
-        features: typing.Union[int, str, list],
+        features: typing.Union[int, str, list] = "all",
         candidate_conditioning_features: typing.Union["str", list] = "all",
         space_partitioner: typing.Union[str, effector.space_partitioning.Best] = "best",
         binning_method: typing.Union[str, ap.Fixed] = "fixed",
@@ -396,69 +416,51 @@ class RegionalALE(RegionalEffectBase):
 
             points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
         """
-        if isinstance(space_partitioner, str):
-            space_partitioner = effector.space_partitioning.return_default(
-                space_partitioner
-            )
-
-        assert space_partitioner.min_points_per_subregion >= 2, (
-            "min_points_per_subregion must be >= 2"
-        )
-        features = helpers.prep_features(features, self.dim)
-        for feat in tqdm(features):
-            # fit global method
-            global_ale = ALE(
-                self.data, self.model, nof_instances="all", axis_limits=self.axis_limits
-            )
-            global_ale.fit(
-                features=feat, binning_method=binning_method, centering=False
-            )
-            self.global_data_effect["feature_" + str(feat)] = (
-                global_ale.data_effect_ale["feature_" + str(feat)]
-            )
-            self.global_bin_limits["feature_" + str(feat)] = global_ale.bin_limits[
-                "feature_" + str(feat)
-            ]
-
-            # create heterogeneity function
-            heter = self._create_heterogeneity_function(
-                feat,
-                space_partitioner.min_points_per_subregion,
-                points_for_mean_heterogeneity,
-            )
-
-            # fit feature
-            self._fit_feature(
-                feat,
-                heter,
-                space_partitioner,
-                candidate_conditioning_features,
-            )
-
-        all_arguments = locals()
-        all_arguments.pop("self")
-
-        # region splitting arguments are the first 8 arguments
         self.kwargs_subregion_detection = {
-            k: all_arguments[k] for k in list(all_arguments.keys())[:3]
+            "features": features,
+            "candidate_conditioning_features": candidate_conditioning_features,
+            "space_partitioner": space_partitioner,
+            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
+        self.kwargs_fitting = {"binning_method": binning_method}
 
-        # centering, points_for_centering, use_vectorized
-        self.kwargs_fitting = {
-            k: v for k, v in all_arguments.items() if k in ["binnning_method"]
-        }
+        self._fit_loop(features, candidate_conditioning_features, space_partitioner)
 
     def plot(
         self,
-        feature,
-        node_idx,
-        heterogeneity=True,
-        centering=True,
-        scale_x_list=None,
-        scale_y=None,
-        y_limits=None,
-        dy_limits=None,
+        feature: int,
+        node_idx: int,
+        heterogeneity: Union[bool, str] = True,
+        centering: Union[None, bool, str] = None,
+        scale_x_list: Optional[list] = None,
+        scale_y: Optional[dict] = None,
+        y_limits: Optional[list] = None,
+        dy_limits: Optional[list] = None,
+        show_plot: bool = True,
     ):
-        kwargs = locals()
-        kwargs.pop("self")
-        self._plot(kwargs)
+        """Plot the regional ALE effect of `feature` at node `node_idx`.
+
+        Args:
+            feature: the feature to plot
+            node_idx: the index of the node to plot
+            heterogeneity: whether to plot the heterogeneity (std of the bin effects)
+            centering: whether to center the plot (`None` uses the class default)
+            scale_x_list: list with a `{"mean": ..., "std": ...}` dict per feature, for de-normalizing the x-axes
+            scale_y: `{"mean": ..., "std": ...}` dict for de-normalizing the y-axis
+            y_limits: manual limits of the y-axis
+            dy_limits: manual limits of the dy/dx-axis
+            show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`
+        """
+        return self._plot(
+            feature,
+            node_idx,
+            scale_x_list,
+            dict(
+                heterogeneity=heterogeneity,
+                centering=centering,
+                scale_y=scale_y,
+                y_limits=y_limits,
+                dy_limits=dy_limits,
+                show_plot=show_plot,
+            ),
+        )

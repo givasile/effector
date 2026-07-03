@@ -909,9 +909,9 @@ Agree on these first; every submodule change below is an application of one of t
 
 | # | Where | Bug | Submodule pass |
 |---|---|---|---|
-| B1 | `regional_effect_ale.py:242,448` | `"binnning_method"` typo (and `[:3]` locals slice) → `kwargs_fitting` always empty → regional (RH)ALE eval/plot ignore user's binning method | 2.5 |
+| B1 | `regional_effect_ale.py:242,448` | `"binnning_method"` typo (and `[:3]` locals slice) → `kwargs_fitting` always empty → regional (RH)ALE eval/plot ignore user's binning method | **fixed 2026-07-03** (refactor step 5: explicit `kwargs_fitting`/`kwargs_subregion_detection` dicts, `locals()` idiom gone) |
 | B2 | `global_effect_ale.py:569` + `axis_partitioning.py:432` | `"dp"` fails RHALE assert; `"dynamic"` passes assert then crashes in `return_default` → DP binning unreachable by string | **fixed 2026-07-03** (refactor steps 1+3: one alias table, RHALE validates via the resolver) |
-| B3 | `regional_effect.py:117` | assert allows `"cart"` (crashes later), rejects valid `"best_level_wise"` | 2.5 — **downgraded**: dead code (every `fit()` resolves the string first, LOGBOOK #12); fix = delete the assert |
+| B3 | `regional_effect.py:117` | assert allows `"cart"` (crashes later), rejects valid `"best_level_wise"` | **fixed 2026-07-03** (refactor step 5: dead assert deleted; strings resolve once, in base `_fit_loop`) |
 | B4 | `global_effect_shap.py:517` | `heterogeneity == "std" or True` always truthy | **fixed 2026-07-03** (refactor step 3) |
 | B5 | `visualization.py` (`plot_pdp_ice`) | `is_derivative` never wired → DerPDP + `scale_y` scales values as levels (adds mean); `std_err` is actually std | **fixed 2026-07-03** (refactor step 4: `IS_DERIVATIVE` class attr wired through; `std_err = std/sqrt(N)`) |
 | B6 | `axis_partitioning.py` (`Fixed.find_limits`) | `_none_valid_binning` result overwritten; can return limits when binning was deemed impossible | 2.6 |

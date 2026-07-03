@@ -700,3 +700,55 @@ B1, registry `_create_fe_object`, uniform plots → flips R7 regional ×5 and
 regional `eval_heter` ×5).
 
 ---
+## 18. 2026-07-03 — Refactor step 5: one regional skeleton, explicit kwargs, the registry is born (tag: code)  [Part III §2.5, R1–R3, R5–R9, B1+B3; branch `refactor/step-5-regional`]
+
+**What:** the regional family redrawn on the base:
+- **Template-method `fit`** — `RegionalEffectBase._fit_loop(features, ccf,
+  space_partitioner)`: resolve the partitioner string once (R6, top of the
+  loop), then per feature `_precompute_global` (hook: ICE table / global ALE
+  effects / shap values) → `_create_heterogeneity_function(feature,
+  min_points)` (hook) → `_fit_feature` (now: fresh `deepcopy` of the
+  partitioner, dead B3 assert deleted, bounds check is a `ValueError`).
+  The five per-method `fit`s keep their public signatures + docstrings and
+  end with two explicit dicts + one `_fit_loop` call.
+- **B1 fixed — `locals()` idioms killed:** `kwargs_fitting` /
+  `kwargs_subregion_detection` are written out per method (the `[:3]` slice
+  and the `"binnning_method"` typo are gone), so regional (RH)ALE `eval`/
+  `plot` now refit node objects with the user's binning method (RC4 flipped).
+- **`method_registry.py` (R5, new):** the one
+  `{canonical: (cls, needs_jac, uses_data_effect, display_name)}` table +
+  aliases + `resolve()`. `_create_fe_object` uses it (five-way if/elif gone);
+  the `global_shap_values` smell moved behind a `_extra_fe_kwargs` hook that
+  only `RegionalShapDP` overrides. The facade re-points to it in step 7.
+- **`eval_heter(feature, node_idx, xs)` (R2)** — the regional twin, built on
+  `_fit_node_effect` (shared with `eval`/`_plot`: create node fe → fit with
+  stored kwargs). The 5 xfails flipped.
+- **R7 plots:** all five regional `plot`s take `show_plot=True` and return
+  the underlying global plot's `(fig, ax)` when `False` (5 xfails flipped);
+  explicit parameters passed as an explicit dict (no `locals()`);
+  `RegionalPDP.plot`'s `heterogeneity: bool = "ice"` annotation fixed.
+- **R3:** regional `eval`/`plot` `centering=None` now means the underlying
+  class default (ALE-family/ShapDP `"zero_integral"`, (d-)PDP `False`) —
+  was a hardcoded `True` for every method (the docstring itself warned it
+  was wrong for DerPDP) and an inconsistent `False` on the PDP plots.
+- **R8:** the five regional constructors are keyword-only after
+  `(data, model[, model_jac])`, canonical parameter order.
+- **R9:** heterogeneity-function failures `warnings.warn` instead of
+  `print`; stray debug print deleted. Unified `features="all"` default
+  (was required-positional in RegionalALE/RegionalShapDP);
+  `RegionalShapDP.fit` gains `points_for_mean_heterogeneity` (was a
+  hardcoded 30); `RegionalDerPDP.plot`'s `node_idx` is required like every
+  sibling.
+
+**xfails flipped green (markers removed, 12 → 1):** B1 (RC4), R7 regional
+plots ×5, regional `eval_heter` ×5. Remaining 1: B6 (step 6).
+
+**Verified:** gate 368 passed / 1 xfailed / ~13 s; slow SHAP tier 7 passed;
+notebooks: same 5 known step-3-API failures as the pre-step baseline, the
+4 regional/real-example ones still pass; ruff clean. B-table: B1, B3 fixed.
+
+**Next:** step 6 — partitioning (`axis_partitioning.py` registries +
+`Fixed` control flow → B6; Best/BestLevelWise dedup in
+`space_partitioning.py`).
+
+---
