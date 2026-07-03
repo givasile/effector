@@ -133,7 +133,9 @@ def test_c3_refit_on_centering_change(name, fit_centering, global_data):
     m = make_global(name, global_data)
     m.fit(features=0, centering=fit_centering)
     y = eval_mean(m, 0, XS, centering="zero_integral")
-    y_fresh = eval_mean(make_global(name, global_data), 0, XS, centering="zero_integral")
+    y_fresh = eval_mean(
+        make_global(name, global_data), 0, XS, centering="zero_integral"
+    )
     np.testing.assert_allclose(y, y_fresh, atol=1e-8)
 
 
@@ -181,7 +183,6 @@ def test_c6_positional_data_model_equals_kwargs(name, global_data):
     """data/model (and model_jac) positionally vs everything by keyword must
     agree — the stable positional prefix of the R8 migration."""
     import effector
-
     from tests.conftest import analytic_shap_values, linear_model, linear_model_jac
 
     if name == "pdp":
@@ -243,7 +244,9 @@ def test_new_eval_signature_mean_only(name, global_data):
     assert "return_all" not in sig.parameters
 
 
-@pytest.mark.parametrize("name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES])
+@pytest.mark.parametrize(
+    "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
+)
 def test_new_payload_accessor(name, global_data):
     """Provisional: payload(feature) -> dict with the method's honest object,
     at least the key 'h' (np.ndarray)."""
@@ -254,7 +257,9 @@ def test_new_payload_accessor(name, global_data):
     assert isinstance(p["h"], np.ndarray)
 
 
-@pytest.mark.parametrize("name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES])
+@pytest.mark.parametrize(
+    "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
+)
 def test_new_H_scalar(name, global_data):
     """Provisional: heterogeneity(feature) -> non-negative scalar (the single
     quantity regional splitting and F2 consume)."""
@@ -264,7 +269,9 @@ def test_new_H_scalar(name, global_data):
     assert H >= 0
 
 
-@pytest.mark.parametrize("name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES])
+@pytest.mark.parametrize(
+    "name", [pytest.param(n, marks=NEW_SURFACE) for n in GLOBAL_NAMES]
+)
 def test_new_h_centering_invariant(name, global_data):
     """h (inside the payload) is a variance-like object: centering the mean
     effect must not change it."""

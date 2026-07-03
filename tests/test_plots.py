@@ -79,9 +79,9 @@ def test_plots():
 
     assert all(
         [
-            effector.ShapDP(
-                data=X, model=predict, shap_values=_shap_values(X)
-            ).plot(feature=i, show_plot=False)
+            effector.ShapDP(data=X, model=predict, shap_values=_shap_values(X)).plot(
+                feature=i, show_plot=False
+            )
             for i in range(3)
         ]
     )

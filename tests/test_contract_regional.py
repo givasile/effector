@@ -12,7 +12,6 @@ import pytest
 
 import effector
 import effector.axis_partitioning as ap
-
 from tests.conftest import make_regional_data
 
 XS = np.linspace(-0.9, 0.9, 30)

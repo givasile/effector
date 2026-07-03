@@ -4,7 +4,6 @@ must be affine (and std-only for derivative plots — B5), y_limits/nof_ice/
 legend must be respected.  Runs on the shared tiny models from conftest
 (ShapDP via precomputed analytic shap values: 0 s of SHAP)."""
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 

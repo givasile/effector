@@ -13,7 +13,6 @@ import effector
 import effector.axis_partitioning as ap
 import effector.space_partitioning as sp
 from effector import helpers
-
 from tests.conftest import linear_model, linear_model_jac, make_global, make_global_data
 
 

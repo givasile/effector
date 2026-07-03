@@ -80,9 +80,7 @@ def test_create_node_name():
     assert tree.create_node_name("x2", None) == "x2"
     assert tree.create_node_name("x2", root, ">=", 3.0) == "x1 | x2 ≥ 3.0"
     child = tree.get_node_by_idx(1)
-    assert (
-        tree.create_node_name("x3", child, "==", 0.0) == "x1 | x2 ≥ 3.0 and x3 = 0.0"
-    )
+    assert tree.create_node_name("x3", child, "==", 0.0) == "x1 | x2 ≥ 3.0 and x3 = 0.0"
 
 
 def test_create_node_name_requires_comp_and_pos():
