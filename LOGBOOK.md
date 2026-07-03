@@ -443,3 +443,56 @@ still a docs page (old outputs render fine). Deal with it later.
 **Next:** contract layer (PLAN II §6 step 2 / §3.1).
 
 ---
+## 12. 2026-07-03 — Test safety net complete: contract + unit + plot layers, frozen (tag: code)  [PLAN II §6 steps 2–3 / §3.1–3.5; branch `tests/contract-and-unit-layers`]
+
+**Process (agreed with Vasilis):** steps 2–3 batched and executed
+autonomously; the test-by-test agreement moved to an end-of-phase summary
+gate. Synthetic tests are the iteration oracle; real-data/guide/timing
+notebooks run once at the very end of the refactor, not during it.
+
+**What landed:**
+- **Contract layer** — `tests/conftest.py` (the method registry: all 11
+  classes constructed one way, tiny linear model N=200 for global, the F8
+  gated model N=500 for regional, ShapDP via *analytic* shap values so the
+  layer is SHAP-free) + `test_contract_global.py` (C1–C6 + new-surface
+  xfails), `test_contract_regional.py` (RC1–RC5),
+  `test_contract_registries.py` (binning/partitioner/centering menus, R9).
+- **Unit layer** — `test_unit_{utils,helpers,axis_partitioning,
+  space_partitioning,tree,pdp_kernels}.py`; absorbed and retired
+  `test_unit.py`, `test_tree.py`, `test_space_partitioning.py`.
+- **Plot-content layer** — `test_contract_plots.py` (mean line == eval,
+  affine scaling, y_limits, nof_ice count, legend labels, band semantics);
+  `test_plots.py` trimmed (N=200, precomputed shap): plot suite 15 s → <2 s.
+- **Facade/data** — overlay-equals-eval check, jacobian-vs-finite-diff per
+  model, seeded-data reproducibility.
+
+**Provisional decisions (encoded as xfail(strict), cheap to rename — need
+Vasilis's sign-off):** payload accessor = `method.payload(feature) -> dict`
+with at least key `"h"` (ndarray); agnostic score = `method.heterogeneity(
+feature) -> float >= 0`, centering-invariant; `eval` loses
+`heterogeneity`/`return_all` kwargs (one return type, always).
+
+**xfail ledger (36, all strict):** B11 (C1, ShapDP tuple), B1 (RC4 via a
+value-level twin comparison), B2 ("dp" string), B5 ×2 (derivative scale_y;
+std_err band), B6 (Fixed on single-unique-value data), R7 (regional
+show_plot ×5 + eval-signature ×5), R2 new surface (payload/H/h-invariance
+×15), R9 (ValueError not assert, ×4), prep_features range spec (×1).
+
+**Empirical corrections to the B-table:** B9 is *resolved-fine* — the
+vectorized finite-diff d-ICE agrees with the non-vectorized path and the
+analytic jacobian (unit-tested; delete the TODO in refactor step 2.3). B3's
+bad assert is dead code (every `fit()` resolves the partitioner string before
+`_fit_feature`), so `"best_level_wise"` already works — RC5 is green; the fix
+is deleting the assert. B6 bites only the single-unique-value case
+(`min_points` violations do return False). B4 is dead compute, no visible
+defect — pinned via "band only when asked".
+
+**Freeze:** gate = 314 passed / 36 xfailed / ~14 s, identical over two runs;
+slow SHAP tier 6 passed / 42 s; coverage 77% → **90%** (regional modules
+18–27% → 88–99%). Tier-2 notebooks not re-run (cost discipline).
+
+**Next:** Vasilis reviews the phase summary + provisional names → then the
+Part III refactor (steps 1–7). Definition of done unchanged: functional layer
+green, zero xfail markers left.
+
+---
