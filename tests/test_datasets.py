@@ -17,3 +17,14 @@ def test_bike_sharing():
     data = effector.datasets.BikeSharing()
     data.fetch_and_preprocess()
     assert data.dataset is not None
+
+
+def test_independent_uniform_seeded_reproducibility():
+    ds = effector.datasets.IndependentUniform(dim=3, low=-1, high=1)
+    a = ds.generate_data(500, seed=21)
+    b = ds.generate_data(500, seed=21)
+    c = ds.generate_data(500, seed=22)
+    import numpy as np
+
+    np.testing.assert_array_equal(a, b)
+    assert not np.array_equal(a, c)

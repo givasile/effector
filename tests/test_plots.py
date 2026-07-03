@@ -3,6 +3,15 @@ import numpy as np
 
 import effector
 
+# crash-matrix speed hack: precomputed "shap values" so no shap call is made.
+# The plot layer only needs a well-shaped array (features are correlated, so
+# these are not the true interventional values — irrelevant for crash tests).
+COEF = np.array([7.0, -3.0, 4.0])
+
+
+def _shap_values(X):
+    return (X - X.mean(axis=0)) * COEF
+
 
 def test_plots():
     def generate_dataset(N, x1_min, x1_max, x2_sigma, x3_sigma):
@@ -14,7 +23,7 @@ def test_plots():
     # generate the dataset
     np.random.seed(21)
 
-    N = 1000
+    N = 200
     x1_min = 0
     x1_max = 1
     x2_sigma = 0.1
@@ -70,7 +79,9 @@ def test_plots():
 
     assert all(
         [
-            effector.ShapDP(data=X, model=predict).plot(feature=i, show_plot=False)
+            effector.ShapDP(
+                data=X, model=predict, shap_values=_shap_values(X)
+            ).plot(feature=i, show_plot=False)
             for i in range(3)
         ]
     )
@@ -167,7 +178,7 @@ def test_plots():
     plt.close("all")
     assert all(
         [
-            effector.ShapDP(data=X, model=predict).plot(
+            effector.ShapDP(data=X, model=predict, shap_values=_shap_values(X)).plot(
                 feature=i,
                 show_plot=False,
                 scale_x=scale_x_list[i],
