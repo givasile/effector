@@ -197,11 +197,11 @@ class RegionalRHALE(RegionalEffectBase):
             binning_method (str): the binning method to use.
 
                 - Use `"greedy"` for using the Greedy binning solution with the default parameters.
-                  For custom parameters initialize a `binning_methods.Greedy` object
+                  For custom parameters initialize a `axis_partitioning.Greedy` object
                 - Use `"dp"` for using a Dynamic Programming binning solution with the default parameters.
-                  For custom parameters initialize a `binning_methods.DynamicProgramming` object
+                  For custom parameters initialize a `axis_partitioning.DynamicProgramming` object
                 - Use `"fixed"` for using a Fixed binning solution with the default parameters.
-                  For custom parameters initialize a `binning_methods.Fixed` object
+                  For custom parameters initialize a `axis_partitioning.Fixed` object
 
             points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
         """
@@ -411,7 +411,7 @@ class RegionalALE(RegionalEffectBase):
                 - If set to `"fixed"`, the ALE plot will be computed with the  default values, which are
                 `20` bins with at least `0` points per bin
                 - If you want to change the parameters of the method, you pass an instance of the
-                class `effector.binning_methods.Fixed` with the desired parameters.
+                class `effector.axis_partitioning.Fixed` with the desired parameters.
                 For example: `Fixed(nof_bins=20, min_points_per_bin=0, cat_limit=10)`
 
             points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity

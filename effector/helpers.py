@@ -40,6 +40,21 @@ def prep_features(feat: typing.Union[str, int, list], D: int) -> list:
     return feat
 
 
+def prep_conditioning_features(
+    ccf: typing.Union[str, list], feature: int, D: int
+) -> list:
+    """Normalize the `candidate_conditioning_features` argument: `"all"` means
+    every feature except the feature of interest."""
+    if isinstance(ccf, str):
+        if ccf != "all":
+            raise ValueError(
+                f"Invalid candidate_conditioning_features argument: {ccf!r}; "
+                "the only valid string is 'all'"
+            )
+        return [i for i in range(D) if i != feature]
+    return ccf
+
+
 def prep_centering(centering: typing.Union[bool, str]) -> typing.Union[bool, str]:
     """Normalize the `centering` argument to `False | "zero_integral" | "zero_start"`."""
     if isinstance(centering, bool):

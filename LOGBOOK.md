@@ -752,3 +752,42 @@ notebooks: same 5 known step-3-API failures as the pre-step baseline, the
 `space_partitioning.py`).
 
 ---
+## 19. 2026-07-03 — Refactor step 6: partitioning — zero xfails, the net is all green (tag: code)  [Part III §2.6–2.7, R6+R9, B6; branch `refactor/step-6-partitioning`]
+
+**What:**
+- **`axis_partitioning.py` (§2.6):** B6 fixed — `Fixed.find_limits`
+  restructured into early returns like Greedy/DP, so the
+  `_none_valid_binning` verdict is no longer overwritten by the linspace
+  (single-unique-value data now returns `False`, xfail flipped). `Base.find`
+  (never called, returned `NotImplementedError` instead of raising) replaced
+  by an abstract `find_limits` with the real contract; `Base.__init__`
+  docstring rewritten (described a signature from another life);
+  `min_points_per_bin` float defaults (`2.0`/`0.0`) are ints; the 3×
+  commented `_is_categorical` blocks and unused `_cat_limit` locals deleted;
+  `Base.plot` labels 0-based; `effector.binning_methods.*` docstring
+  leftovers renamed to `axis_partitioning`.
+- **`space_partitioning.py` (§2.7):** `Best` and `BestLevelWise` deduped —
+  the shared constructor (params + the long docstring, once) and the shared
+  exhaustive split search `_evaluate_splits(active_indices_list)` hoisted to
+  `Base`; the two classes differ only in recursion strategy (node-wise
+  `_recursive_split` vs level-wise `_search_all_splits`). `Best` no longer
+  names itself `"cart"` (R6: the registry name is `"best"`). The `"all"`
+  normalization of `candidate_conditioning_features` moved to
+  `helpers.prep_conditioning_features` (next to `prep_features`); `compile`'s
+  default is now `"all"` instead of `None`. `_splits_to_tree`'s
+  set-to-`None` "hack to check usage" removed; inline ==/</!=/> chain
+  replaced by `_get_comparison_symbol`; dead commented code deleted.
+
+**xfails flipped green (markers removed, 1 → 0):** B6. **The contract/unit
+net has zero xfails left — every B-bug (B1–B11) is fixed or resolved, and
+all constitution rules R1–R9 hold on the surfaces the tests pin.**
+
+**Verified:** gate 369 passed / 0 xfailed / ~14 s; slow tier: SHAP 6 + the
+4 regional/real notebooks pass, same 5 known step-3-API notebook failures
+as the baseline (end-of-story pass pending); ruff clean. B-table: B6 fixed.
+
+**Next:** step 7 — facade + cleanup (facade onto `method_registry` +
+`eval`; delete `interaction.py`; fold `utils_integrate`; datasets seed),
+then the end-of-story full pass (notebooks rewired to the new API).
+
+---

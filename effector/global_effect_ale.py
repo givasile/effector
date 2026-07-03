@@ -274,7 +274,7 @@ class ALE(ALEBase):
                 `20` bins with at least `10` points per bin and the feature is considered as categorical if it has
                 less than `15` unique values.
                 - If you want to change the parameters of the method, you pass an instance of the
-                class `effector.binning_methods.Fixed` with the desired parameters.
+                class `effector.axis_partitioning.Fixed` with the desired parameters.
                 For example: `Fixed(nof_bins=20, min_points_per_bin=0, cat_limit=10)`
 
             centering: whether to compute the normalization constant for centering the plot:
@@ -435,11 +435,11 @@ class RHALE(ALEBase):
             binning_method (str): the binning method to use.
 
                 - Use `"greedy"` for using the Greedy binning solution with the default parameters.
-                  For custom parameters initialize a `binning_methods.Greedy` object
+                  For custom parameters initialize a `axis_partitioning.Greedy` object
                 - Use `"dp"` for using a Dynamic Programming binning solution with the default parameters.
-                  For custom parameters initialize a `binning_methods.DynamicProgramming` object
+                  For custom parameters initialize a `axis_partitioning.DynamicProgramming` object
                 - Use `"fixed"` for using a Fixed binning solution with the default parameters.
-                  For custom parameters initialize a `binning_methods.Fixed` object
+                  For custom parameters initialize a `axis_partitioning.Fixed` object
 
             centering: whether to compute the normalization constant for centering the plot:
 

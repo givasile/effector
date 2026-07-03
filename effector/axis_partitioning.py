@@ -19,10 +19,9 @@ class Base:
 
         Parameters
         ----------
-        feature: feature index
-        data: np.ndarray with X if binning is based on data, else, None
-        data_effect: np.ndarray with dy/dX if binning is based on data, else, None
-        axis_limits: np.ndarray (2, D) or None, if None, then axis_limits are set to [xs_min, xs_max]
+        name: the method's canonical name (e.g. "fixed", "greedy")
+        method_args: the method's hyperparameters; `find_limits` reads them
+            (all subclasses store at least `min_points`)
         """
         self.name = name
 
@@ -107,46 +106,18 @@ class Base:
         enough_for_one_bin = min_points <= dy_dxs.size < 2 * min_points
         return is_categorical or enough_for_one_bin
 
-    # def _is_categorical(self, cat_limit):
-    #     """Check if the feature is categorical, i.e. has less than cat_limit unique values, and if so, set the limits
-    #
-    #     Returns:
-    #         Boolean, True if the feature is categorical, False otherwise
-    #     """
-    #     # if unique values are leq 10, then it is categorical
-    #     is_cat = len(np.unique(self.data)) <= cat_limit
-    #     # if only one unique value, then it is categorical and set the limits
-    #     if len(np.unique(self.data)) == 1:
-    #         self.limits = False
-    #
-    #     if is_cat:
-    #         # set unique values as the center of the bins
-    #         uniq = np.sort(np.unique(self.data))
-    #         dx = [uniq[i + 1] - uniq[i] for i in range(len(uniq) - 1)]
-    #         lims = np.array(
-    #             [uniq[0] - dx[0] / 2]
-    #             + [uniq[i] + dx[i] / 2 for i in range(len(uniq) - 1)]
-    #             + [uniq[-1] + dx[-1] / 2]
-    #         )
-    #
-    #         # if all limits are valid, then set them
-    #         if np.all(
-    #             [self._bin_valid(lims[i], lims[i + 1]) for i in range(len(lims) - 1)]
-    #         ):
-    #             self.limits = lims
-    #         else:
-    #             self.limits = False
-    #     return is_cat
-
     def _preprocess_find(self, data, data_effect, axis_limits):
         self.xs_min: float = axis_limits[0] if axis_limits is not None else data.min()
         self.xs_max: float = axis_limits[1] if axis_limits is not None else data.max()
         self.data: np.ndarray = data
         self.data_effect: np.ndarray = data_effect
 
-    def find(self, data, data_effect, axis_limits):
-        """Find the optimal binning for the feature."""
-        return NotImplementedError
+    def find_limits(
+        self, data, data_effect, axis_limits
+    ) -> typing.Union[np.ndarray, bool]:
+        """Find the optimal binning for the feature: `(K+1,)` bin limits, or
+        `False` when no valid binning exists."""
+        raise NotImplementedError
 
     def plot(self, feature=0, block=False):
         assert self.limits is not None
@@ -156,15 +127,15 @@ class Base:
         limits = self.limits
 
         plt.figure()
-        plt.title("Bin splitting for feature %d" % (feature + 1))
+        plt.title("Bin splitting for feature %d" % feature)
         xs = self.data
         dy_dxs = self.data_effect
         plt.plot(xs, dy_dxs, "bo", label="local effects")
         y_min = np.min(dy_dxs)
         y_max = np.max(dy_dxs)
         plt.vlines(limits, ymin=y_min, ymax=y_max, linestyles="dashed", label="bins")
-        plt.xlabel("x_%d" % (feature + 1))
-        plt.ylabel("dy/dx_%d" % (feature + 1))
+        plt.xlabel("x_%d" % feature)
+        plt.ylabel("dy/dx_%d" % feature)
         plt.legend()
         plt.show(block=block)
 
@@ -199,12 +170,9 @@ class Greedy(Base):
         xs_max = self.xs_max
         init_nof_bins = self.method_args["init_nof_bins"]
         discount = self.method_args["discount"]
-        _cat_limit = self.method_args["cat_limit"]
 
         if self._none_valid_binning():
             self.limits = False
-        # elif self._is_categorical(cat_limit):
-        #     return self.limits
         elif self._only_one_bin_possible():
             self.limits = np.array([self.xs_min, self.xs_max])
         else:
@@ -268,7 +236,7 @@ class DynamicProgramming(Base):
     def __init__(
         self,
         max_nof_bins: int = 20,
-        min_points_per_bin: int = 2.0,
+        min_points_per_bin: int = 2,
         discount: float = 0.3,
         cat_limit: int = 10,
     ):
@@ -339,18 +307,14 @@ class DynamicProgramming(Base):
         max_nof_bins = self.method_args["max_nof_bins"]
         min_points = self.method_args["min_points"]
         discount = self.method_args["discount"]
-        _cat_limit = self.method_args["cat_limit"]
 
         self.min_points = min_points
         big_M = self.big_M
         nof_limits = max_nof_bins + 1
         nof_bins = max_nof_bins
 
-        # if is categorical, then only one bin is possible
         if self._none_valid_binning():
             self.limits = False
-        # elif self._is_categorical(cat_limit):
-        #     return self.limits
         elif self._only_one_bin_possible():
             self.limits = np.array([self.xs_min, self.xs_max])
             self.dx_list = np.array([self.xs_max - self.xs_min])
@@ -393,7 +357,9 @@ class DynamicProgramming(Base):
 
 
 class Fixed(Base):
-    def __init__(self, nof_bins: int = 20, min_points_per_bin=0.0, cat_limit: int = 10):
+    def __init__(
+        self, nof_bins: int = 20, min_points_per_bin: int = 0, cat_limit: int = 10
+    ):
         method_args = {
             "nof_bins": nof_bins,
             "min_points": min_points_per_bin,
@@ -405,22 +371,19 @@ class Fixed(Base):
         self._preprocess_find(data, data_effect, axis_limits)
         nof_bins = self.method_args["nof_bins"]
         min_points = self.method_args["min_points"]
-        _cat_limit = self.method_args["cat_limit"]
 
+        # early return, like Greedy/DP — B6 was this result being overwritten
         if self._none_valid_binning():
             self.limits = False
+            return self.limits
 
-        # if self._is_categorical(cat_limit):
-        #     return self.limits
-
-        limits, dx = np.linspace(
+        limits, _ = np.linspace(
             self.xs_min, self.xs_max, num=nof_bins + 1, endpoint=True, retstep=True
         )
-        if min_points is not None:
-            limits_valid = all(
-                self._bin_valid(limits[i], limits[i + 1]) for i in range(nof_bins)
-            )
-            self.limits = limits if limits_valid else False
+        if min_points is not None and not all(
+            self._bin_valid(limits[i], limits[i + 1]) for i in range(nof_bins)
+        ):
+            self.limits = False
         else:
             self.limits = limits
 

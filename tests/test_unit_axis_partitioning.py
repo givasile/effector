@@ -311,11 +311,6 @@ class TestFixed:
         est = effector.axis_partitioning.Fixed(nof_bins=4, min_points_per_bin=2)
         assert est.find_limits(x, None, np.array([0.0, 1.0])) is False
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="B6: _none_valid_binning result overwritten -> degenerate limits "
-        "returned instead of False",
-    )
     def test_single_unique_value_returns_false(self):
         x = np.ones(50) * 0.3
         est = effector.axis_partitioning.Fixed(nof_bins=4)

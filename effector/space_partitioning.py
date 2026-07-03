@@ -9,8 +9,69 @@ BIG_M = helpers.BIG_M
 
 
 class Base:
-    def __init__(self, name: str):
+    def __init__(
+        self,
+        name: str,
+        min_heterogeneity_decrease_pcg: float = 0.1,
+        heter_small_enough: float = 0.001,
+        max_depth: int = 2,
+        min_samples_leaf: int = 10,
+        numerical_features_grid_size: int = 20,
+        search_partitions_when_categorical: bool = False,
+    ):
+        """Shared configuration of the space partitioners.
+
+        Args:
+            min_heterogeneity_decrease_pcg: Minimum percentage of heterogeneity decrease to accept a split.
+
+                ??? Example "Example"
+                    - `0.1`: if the heterogeneity before any split is 1, the heterogeneity after the first split must be at most 0.9 to be accepted. Otherwise, no split will be accepted.
+
+            heter_small_enough: When heterogeneity is smaller than this value, no more splits are performed.
+
+                ??? Note "Default is `0.001`"
+                    Value 0.001 is small enough for most cases.
+                    It is advisable to set this value to a small number to avoid unnecessary splits.
+
+                ??? Note "Custom value"
+                    If you know a priori that a specific heterogeneity value is small enough,
+                    you can set this parameter to a higher value than the default.
+
+            max_depth: Maximum number of splits to perform
+
+                ??? Note "Default is `2`"
+                    2 splits already create 4 subregions, i.e. 4 regional plots per feature, which are already enough.
+                    Setting this value to a higher number will increase the number of subregions and plots, which may be too much for the user to analyze.
+
+            min_samples_leaf: Minimum number of instances per subregion
+
+                ??? Note "Default is `10`"
+                    If a subregion has less than 10 instances, it may not be representative enough to be analyzed.
+
+            numerical_features_grid_size: Number of candidate split positions for numerical features
+
+                ??? Note "Default is `20`"
+                    For numerical features, the algorithm will create a grid of 20 equally spaced values between the minimum and maximum values of the feature.
+
+            search_partitions_when_categorical: Whether to search for partitions when the feature is categorical
+
+                ??? warning "refers to a categorical feature of interest"
+                    This argument asks whether to search for partitions when the feature of interest is categorical.
+                    If the feature of interest is numerical, the algorithm will always search for partitions and will consider
+                    categorical features for conditioning.
+
+                ??? Note "Default is `False`"
+                    It is difficult to compute the heterogeneity for categorical features, so by default, the algorithm will not search for partitions when the feature of interest is categorical.
+
+        """
         self.name = helpers.camel_to_snake(name)
+
+        self.min_points_per_subregion = min_samples_leaf
+        self.nof_candidate_splits_for_numerical = numerical_features_grid_size
+        self.max_split_levels = max_depth
+        self.heter_pcg_drop_thres = min_heterogeneity_decrease_pcg
+        self.heter_small_enough = heter_small_enough
+        self.split_categorical_features = search_partitions_when_categorical
 
         # all methods will set these attributes
         self.feature = None  # feature of interest
@@ -38,7 +99,7 @@ class Base:
         axis_limits: np.ndarray,
         feature_types: typing.Union[list, None] = None,
         categorical_limit: int = 10,
-        candidate_conditioning_features: typing.Union[None, list] = None,
+        candidate_conditioning_features: typing.Union[str, list] = "all",
         feature_names: typing.Union[None, list] = None,
         target_name: typing.Union[None, str] = None,
     ):
@@ -53,10 +114,8 @@ class Base:
         self.feature_names = feature_names
         self.target_name = target_name
 
-        self.candidate_conditioning_features = (
-            [i for i in range(self.dim) if i != self.feature]
-            if candidate_conditioning_features == "all"
-            else candidate_conditioning_features
+        self.candidate_conditioning_features = helpers.prep_conditioning_features(
+            candidate_conditioning_features, feature, self.dim
         )
 
         self.feature_types = (
@@ -108,8 +167,95 @@ class Base:
         else:
             return "<=" if i == 0 else ">"
 
+    def _evaluate_splits(self, before_split_active_indices_list: list) -> dict:
+        """The shared split search (§2.7): exhaustive scan over every
+        (conditioning feature, split position) pair, applied to *each* set of
+        active indices in the list (one set = node-wise, a whole level =
+        level-wise), and return the split minimizing the weighted
+        heterogeneity."""
+        foc_types = self.foc_types
+        ccf = self.candidate_conditioning_features
+        nof_splits = self.nof_candidate_splits_for_numerical
+        heter_func = self.heter_func
+        data = self.data
+
+        # matrix_weighted_heter[i,j] (i index of ccf and j index of split position) is
+        # the weighted heterogeneity if the node(s) split in ccf[i] at position j
+        matrix_weighted_heter = (
+            np.ones([len(ccf), max(nof_splits - 1, self.cat_limit)]) * BIG_M
+        )
+
+        # candidate_split_positions[i] is the list of split positions for the
+        # i-th feature of conditioning
+        candidate_split_positions = [
+            (
+                self._find_positions_cat(data, foc_i)
+                if foc_types[i] == "cat"
+                else self._find_positions_cont(foc_i, nof_splits)
+            )
+            for i, foc_i in enumerate(ccf)
+        ]
+
+        def apply_split(foc_i, position, foc_type):
+            return self._flatten_list(
+                [
+                    self._split_dataset(active_indices, foc_i, position, foc_type)
+                    for active_indices in before_split_active_indices_list
+                ]
+            )
+
+        # exhaustive search on all split positions
+        for i, foc_i in enumerate(ccf):
+            for j, position in enumerate(candidate_split_positions[i]):
+                after_split_active_indices_list = apply_split(
+                    foc_i, position, foc_types[i]
+                )
+                heter_list_after_split = [
+                    heter_func(x) for x in after_split_active_indices_list
+                ]
+
+                # weights analogous to the populations in each split
+                populations = np.array(
+                    [np.sum(x) for x in after_split_active_indices_list]
+                )
+                after_split_weight_list = (populations + 1) / (np.sum(populations + 1))
+
+                matrix_weighted_heter[i, j] = np.sum(
+                    after_split_weight_list * np.array(heter_list_after_split)
+                )
+
+        # the split with the minimum weighted heterogeneity
+        i, j = np.unravel_index(
+            np.argmin(matrix_weighted_heter, axis=None), matrix_weighted_heter.shape
+        )
+        position = candidate_split_positions[i][j]
+        after_split_active_indices_list = apply_split(ccf[i], position, foc_types[i])
+
+        return {
+            "foc_index": ccf[i],
+            "foc_split_position": position,
+            "foc_range": [np.min(data[:, ccf[i]]), np.max(data[:, ccf[i]])],
+            "foc_type": foc_types[i],
+            "split_i": i,
+            "split_j": j,
+            "candidate_split_positions": candidate_split_positions[i],
+            "candidate_conditioning_features": ccf,
+            "after_split_nof_instances": [
+                np.sum(x) for x in after_split_active_indices_list
+            ],
+            "after_split_heter_list": [
+                heter_func(x) for x in after_split_active_indices_list
+            ],
+            "after_split_active_indices_list": after_split_active_indices_list,
+            "after_split_weighted_heter": matrix_weighted_heter[i, j],
+            "matrix_weighted_heter": matrix_weighted_heter,
+        }
+
 
 class Best(Base):
+    """Node-wise recursive partitioning: find the best split for each node,
+    recurse into the children (see `Base.__init__` for the parameters)."""
+
     def __init__(
         self,
         min_heterogeneity_decrease_pcg: float = 0.1,
@@ -119,62 +265,15 @@ class Best(Base):
         numerical_features_grid_size: int = 20,
         search_partitions_when_categorical: bool = False,
     ):
-        """Choose the algorithm `Cart`.
-        The algorithm is a greedy algorithm that finds the best split for each level in a greedy fashion.
-
-
-        Args:
-            min_heterogeneity_decrease_pcg: Minimum percentage of heterogeneity decrease to accept a split.
-
-                ??? Example "Example"
-                    - `0.1`: if the heterogeneity before any split is 1, the heterogeneity after the first split must be at most 0.9 to be accepted. Otherwise, no split will be accepted.
-
-            heter_small_enough: When heterogeneity is smaller than this value, no more splits are performed.
-
-                ??? Note "Default is `0.001`"
-                    Value 0.001 is small enough for most cases.
-                    It is advisable to set this value to a small number to avoid unnecessary splits.
-
-                ??? Note "Custom value"
-                    If you know a priori that a specific heterogeneity value is small enough,
-                    you can set this parameter to a higher value than the default.
-
-            max_depth: Maximum number of splits to perform
-
-                ??? Note "Default is `2`"
-                    2 splits already create 4 subregions, i.e. 4 regional plots per feature, which are already enough.
-                    Setting this value to a higher number will increase the number of subregions and plots, which may be too much for the user to analyze.
-
-            min_samples_leaf: Minimum number of instances per subregion
-
-                ??? Note "Default is `10`"
-                    If a subregion has less than 10 instances, it may not be representative enough to be analyzed.
-
-            numerical_features_grid_size: Number of candidate split positions for numerical features
-
-                ??? Note "Default is `20`"
-                    For numerical features, the algorithm will create a grid of 20 equally spaced values between the minimum and maximum values of the feature.
-
-            search_partitions_when_categorical: Whether to search for partitions when the feature is categorical
-
-                ??? warning "refers to a categorical feature of interest"
-                    This argument asks whether to search for partitions when the feature of interest is categorical.
-                    If the feature of interest is numerical, the algorithm will always search for partitions and will consider
-                    categorical features for conditioning.
-
-                ??? Note "Default is `False`"
-                    It is difficult to compute the heterogeneity for categorical features, so by default, the algorithm will not search for partitions when the feature of interest is categorical.
-
-        """
-        # setters
-        self.min_points_per_subregion = min_samples_leaf
-        self.nof_candidate_splits_for_numerical = numerical_features_grid_size
-        self.max_split_levels = max_depth
-        self.heter_pcg_drop_thres = min_heterogeneity_decrease_pcg
-        self.heter_small_enough = heter_small_enough
-        self.split_categorical_features = search_partitions_when_categorical
-
-        super().__init__("Cart")
+        super().__init__(
+            "Best",
+            min_heterogeneity_decrease_pcg,
+            heter_small_enough,
+            max_depth,
+            min_samples_leaf,
+            numerical_features_grid_size,
+            search_partitions_when_categorical,
+        )
 
     def fit(self) -> Tree:
         self.splits_tree = Tree()
@@ -208,7 +307,7 @@ class Best(Base):
             return None
 
         # find the best split
-        split = self._single_node_split(parent_node.info["active_indices"])
+        split = self._evaluate_splits([parent_node.info["active_indices"]])
 
         # weighted heterogeneity of the best split
         weights = split["after_split_nof_instances"] / np.sum(
@@ -245,85 +344,13 @@ class Best(Base):
 
                 self._recursive_split(child_node)
 
-    def _single_node_split(self, before_split_active_indices: np.ndarray):
-        """Find the best split for the current node."""
-        foc_types = self.foc_types
-        ccf = self.candidate_conditioning_features
-        nof_splits = self.nof_candidate_splits_for_numerical
-        heter_func = self.heter_func
-
-        data = self.data
-
-        # matrix_weighted_heter[i,j] (i index of ccf and j index of split position) is
-        # the weighted heterogeneity if the active node is split in ccf[i] at
-        # position with index j
-        matrix_weighted_heter = (
-            np.ones([len(ccf), max(nof_splits - 1, self.cat_limit)]) * BIG_M
-        )
-
-        # candidate_split_positions[i][j] is a list of lists
-        # candidate_split_positions[i][j] is the j-th split position for the i-th feature of conditioning
-        candidate_split_positions = [
-            (
-                self._find_positions_cat(data, foc_i)
-                if foc_types[i] == "cat"
-                else self._find_positions_cont(foc_i, nof_splits)
-            )
-            for i, foc_i in enumerate(ccf)
-        ]
-
-        # exhaustive search on all split positions
-        for i, foc_i in enumerate(self.candidate_conditioning_features):
-            for j, position in enumerate(candidate_split_positions[i]):
-                after_split_active_indices_list = self._split_dataset(
-                    before_split_active_indices, foc_i, position, foc_types[i]
-                )
-                heter_list_after_split = [
-                    heter_func(x) for x in after_split_active_indices_list
-                ]
-
-                # populations: list with the number of instances in each dataset after split of foc_i at position j
-                populations = np.array(
-                    [np.sum(x) for x in after_split_active_indices_list]
-                )
-
-                # after_split_weight_list analogous to the populations in each split
-                after_split_weight_list = (populations + 1) / (np.sum(populations + 1))
-
-                # first: computed the weighted heterogeneity after the split
-                after_split_weighted_heter = np.sum(
-                    after_split_weight_list * np.array(heter_list_after_split)
-                )
-
-                # matrix_weighted_heter[i,j] is the weighted accumulated heterogeneity if I split ccf[i] at index j
-                matrix_weighted_heter[i, j] = after_split_weighted_heter
-
-        # find the split with the minimum weighted heterogeneity
-        i, j = np.unravel_index(
-            np.argmin(matrix_weighted_heter, axis=None), matrix_weighted_heter.shape
-        )
-        position = candidate_split_positions[i][j]
-
-        after_split_active_indices_list = self._split_dataset(
-            before_split_active_indices, ccf[i], position, foc_types[i]
-        )
-
-        nof_instances_l = [np.sum(x) for x in after_split_active_indices_list]
-        after_split_heter_l = [heter_func(ai) for ai in after_split_active_indices_list]
-
-        # store the split info in a dict
-        split = {
-            "foc_index": ccf[i],
-            "foc_split_position": position,
-            "foc_type": foc_types[i],
-            "after_split_nof_instances": nof_instances_l,
-            "after_split_heter_list": after_split_heter_l,
-            "after_split_active_indices_list": after_split_active_indices_list,
-        }
-        return split
-
 
 class BestLevelWise(Base):
+    """Level-wise partitioning: find the single best split for each level
+    (applied to every node of that level at once), then keep the prefix of
+    levels whose heterogeneity drop is large enough (see `Base.__init__` for
+    the parameters)."""
+
     def __init__(
         self,
         min_heterogeneity_decrease_pcg: float = 0.1,
@@ -333,73 +360,25 @@ class BestLevelWise(Base):
         numerical_features_grid_size: int = 20,
         search_partitions_when_categorical: bool = False,
     ):
-        """Choose the algorithm `Best`.
-        The algorithm is a greedy algorithm that finds the best split for each level in a greedy fashion.
-
-
-        Args:
-            min_heterogeneity_decrease_pcg: Minimum percentage of heterogeneity decrease to accept a split.
-
-                ??? Example "Example"
-                    - `0.1`: if the heterogeneity before any split is 1, the heterogeneity after the first split must be at most 0.9 to be accepted. Otherwise, no split will be accepted.
-
-            heter_small_enough: When heterogeneity is smaller than this value, no more splits are performed.
-
-                ??? Note "Default is `0.001`"
-                    Value 0.001 is small enough for most cases.
-                    It is advisable to set this value to a small number to avoid unnecessary splits.
-
-                ??? Note "Custom value"
-                    If you know a priori that a specific heterogeneity value is small enough,
-                    you can set this parameter to a higher value than the default.
-
-            max_depth: Maximum number of splits to perform
-
-                ??? Note "Default is `2`"
-                    2 splits already create 4 subregions, i.e. 4 regional plots per feature, which are already enough.
-                    Setting this value to a higher number will increase the number of subregions and plots, which may be too much for the user to analyze.
-
-            min_samples_leaf: Minimum number of instances per subregion
-
-                ??? Note "Default is `10`"
-                    If a subregion has less than 10 instances, it may not be representative enough to be analyzed.
-
-            numerical_features_grid_size: Number of candidate split positions for numerical features
-
-                ??? Note "Default is `20`"
-                    For numerical features, the algorithm will create a grid of 20 equally spaced values between the minimum and maximum values of the feature.
-
-            search_partitions_when_categorical: Whether to search for partitions when the feature is categorical
-
-                ??? warning "refers to a categorical feature of interest"
-                    This argument asks whether to search for partitions when the feature of interest is categorical.
-                    If the feature of interest is numerical, the algorithm will always search for partitions and will consider
-                    categorical features for conditioning.
-
-                ??? Note "Default is `False`"
-                    It is difficult to compute the heterogeneity for categorical features, so by default, the algorithm will not search for partitions when the feature of interest is categorical.
-
-        """
-        # setters
-        self.min_points_per_subregion = min_samples_leaf
-        self.nof_candidate_splits_for_numerical = numerical_features_grid_size
-        self.max_split_levels = max_depth
-        self.heter_pcg_drop_thres = min_heterogeneity_decrease_pcg
-        self.heter_small_enough = heter_small_enough
-        self.split_categorical_features = search_partitions_when_categorical
+        super().__init__(
+            "best_level_wise",
+            min_heterogeneity_decrease_pcg,
+            heter_small_enough,
+            max_depth,
+            min_samples_leaf,
+            numerical_features_grid_size,
+            search_partitions_when_categorical,
+        )
 
         # init splits
         self.splits: dict = {}
         self.important_splits: dict = {}
 
-        # self.splits_tree: typing.Union[Tree, None] = None
         self.important_splits_tree: typing.Union[Tree, None] = None
 
         # state variable
         self.split_found: bool = False
         self.important_splits_selected: bool = False
-
-        super().__init__("best_level_wise")
 
     def fit(self):
         self._search_all_splits()
@@ -447,7 +426,7 @@ class BestLevelWise(Base):
                     break
 
                 # find optimal split
-                new_split = self.single_level_splits(
+                new_split = self._evaluate_splits(
                     splits[-1]["after_split_active_indices_list"]
                 )
                 splits.append(new_split)
@@ -456,110 +435,6 @@ class BestLevelWise(Base):
         # update state
         self.split_found = True
         return self.splits
-
-    def single_level_splits(
-        self,
-        before_split_active_indices_list: typing.Union[list, None] = None,
-    ):
-        """Find all splits for a single level."""
-        foc_types = self.foc_types
-        ccf = self.candidate_conditioning_features
-        nof_splits = self.nof_candidate_splits_for_numerical
-        heter_func = self.heter_func
-
-        data = self.data
-
-        # matrix_weighted_heter[i,j] (i index of ccf and j index of split position) is
-        # the accumulated heterogeneity if I split ccf[i] at index j
-        matrix_weighted_heter = (
-            np.ones(
-                [
-                    len(self.candidate_conditioning_features),
-                    max(self.nof_candidate_splits_for_numerical - 1, self.cat_limit),
-                ]
-            )
-            * BIG_M
-        )
-
-        # list with len(ccf) elements
-        # each element is a list with the split positions for the corresponding feature of conditioning
-        candidate_split_positions = [
-            (
-                self._find_positions_cat(data, foc_i)
-                if foc_types[i] == "cat"
-                else self._find_positions_cont(foc_i, nof_splits)
-            )
-            for i, foc_i in enumerate(self.candidate_conditioning_features)
-        ]
-
-        # exhaustive search on all split positions
-        for i, foc_i in enumerate(self.candidate_conditioning_features):
-            for j, position in enumerate(candidate_split_positions[i]):
-                after_split_active_indices_list = self._flatten_list(
-                    [
-                        self._split_dataset(
-                            active_indices, foc_i, position, foc_types[i]
-                        )
-                        for active_indices in before_split_active_indices_list
-                    ]
-                )
-
-                heter_list_after_split = [
-                    heter_func(x) for x in after_split_active_indices_list
-                ]
-
-                # populations: list with the number of instances in each dataset after split of foc_i at position j
-                populations = np.array(
-                    [np.sum(x) for x in after_split_active_indices_list]
-                )
-
-                # after_split_weight_list analogous to the populations in each split
-                after_split_weight_list = (populations + 1) / (np.sum(populations + 1))
-
-                # first: computed the weighted heterogeneity after the split
-                after_split_weighted_heter = np.sum(
-                    after_split_weight_list * np.array(heter_list_after_split)
-                )
-
-                # matrix_weighted_heter[i,j] is the weighted accumulated heterogeneity if I split ccf[i] at index j
-                matrix_weighted_heter[i, j] = after_split_weighted_heter
-
-        # find the split with the largest weighted heterogeneity drop
-        i, j = np.unravel_index(
-            np.argmin(matrix_weighted_heter, axis=None), matrix_weighted_heter.shape
-        )
-        feature = ccf[i]
-        position = candidate_split_positions[i][j]
-        split_positions = candidate_split_positions[i]
-
-        after_split_active_indices_list = self._flatten_list(
-            [
-                self._split_dataset(active_indices, ccf[i], position, foc_types[i])
-                for active_indices in before_split_active_indices_list
-            ]
-        )
-
-        nof_instances_l = [np.sum(x) for x in after_split_active_indices_list]
-
-        # TODO change that
-        after_split_heter_l = [heter_func(ai) for ai in after_split_active_indices_list]
-        split = {
-            "foc_index": ccf[i],
-            "foc_split_position": position,
-            "foc_range": [np.min(data[:, feature]), np.max(data[:, feature])],
-            "foc_type": foc_types[i],
-            "split_i": i,
-            "split_j": j,
-            "candidate_split_positions": split_positions,
-            "candidate_conditioning_features": ccf,
-            "after_split_nof_instances": nof_instances_l,
-            "after_split_heter_list": after_split_heter_l,
-            "after_split_active_indices_list": after_split_active_indices_list,
-            "after_split_weighted_heter": matrix_weighted_heter[i, j],
-            # "matrix_weighted_heter_drop": matrix_weighted_heter_drop,
-            "matrix_weighted_heter": matrix_weighted_heter,
-        }
-        return split
 
     def _choose_important_splits(self):
         assert self.split_found, "No splits found for feature {}".format(self.feature)
@@ -668,16 +543,7 @@ class BestLevelWise(Base):
                 active_indices_new = (
                     active_indices_1 if j % 2 == 0 else active_indices_2
                 )
-                if j % 2 == 0:
-                    if split["foc_type"] == "cat":
-                        comparison = "=="
-                    else:
-                        comparison = "<="
-                else:
-                    if split["foc_type"] == "cat":
-                        comparison = "!="
-                    else:
-                        comparison = ">"
+                comparison = self._get_comparison_symbol(split["foc_type"], j % 2)
 
                 name = tree.create_node_name(
                     foc_name,
@@ -711,23 +577,7 @@ class BestLevelWise(Base):
             parent_level_nodes = new_parent_level_nodes
             parent_level_active_indices = new_parent_level_active_indices
 
-        # hack to check if .important_splits and .splits are used
-        # after the tree is created
-        self.important_splits = None
-        self.splits = None
         return tree
-
-    # def visualize_all_splits(self, split_ind):
-    #     split_ind = split_ind + 1
-    #     heter_matr = copy.deepcopy(self.splits[split_ind]["matrix_weighted_heter"])
-    #     heter_matr[heter_matr > 1e6] = np.nan
-
-    #     plt.figure()
-    #     plt.title("split {}, parent heter: {:.2f}".format(split_ind, self.splits[split_ind - 1]["after_split_weighted_heter"]))
-    #     plt.imshow(heter_matr)
-    #     plt.colorbar()
-    #     plt.yticks([i for i in range(len(self.candidate_conditioning_features))], [self.feature_names[foc] for foc in self.candidate_conditioning_features])
-    #     plt.show(block=False)
 
 
 def return_default(partitioner_name):
