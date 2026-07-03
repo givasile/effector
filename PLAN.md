@@ -456,14 +456,27 @@ steps 1–3 below are **done** — P1–P5 fixed, functional anchor landed (LOGB
    un-skipped in `test_notebooks.py` (hardcoded `node_idx` → level-based
    loops); ShapDP crash did not reproduce. Only TabPFN notebook 03 not re-run
    (license) — deferred. **Next session starts at step 2 below.**
-2. **Then step 4: the contract layer.** Rewrite the C-items of §3.1 against
-   the LOGBOOK #4 eval surface (C1 simplifies, C7 disappears; new C-items for
-   the payload accessor, H, and centering-invariance), agree them
-   test-by-test, then encode as `test_contract_*.py` + `conftest.py` method
-   registry — green where a rule holds, `xfail(strict=True)` where the
-   refactor must make it true (B11 is an immediate xfail case; B1–B9 per §4).
-3. Then step 5 (unit layer §3.2 + plot-content layer §3.4 + facade/data §3.5),
-   then step 6 (freeze), then the Part III refactor itself.
+2. ~~**Then step 4: the contract layer.**~~ **DONE (2026-07-03, LOGBOOK #12,
+   branch `tests/contract-and-unit-layers`):** C-items rewritten against the
+   LOGBOOK #4 surface (C1 simplified, C7 gone; new xfail C-items for the
+   payload accessor, H, and h's centering-invariance — provisional names
+   pending Vasilis's sign-off) and encoded as `test_contract_*.py` +
+   `conftest.py` method registry. Process change agreed 2026-07-03: steps 2–3
+   executed autonomously in one batch; the agreement moved to an end-of-phase
+   summary gate before any `effector/` change.
+3. ~~Then step 5 (unit layer §3.2 + plot-content layer §3.4 + facade/data
+   §3.5), then step 6 (freeze)~~ **DONE (same branch/LOGBOOK entry).**
+   **Freeze measurements (2026-07-03):** gate `make test` = 314 passed /
+   1 skipped (F5 SHAP errata) / 16 deselected / **36 xfailed(strict)** in
+   ~14 s, identical across two runs (seed-stable); slow non-notebook tier
+   (SHAP functional) 6 passed in ~42 s; gate coverage **90%** (from 77% —
+   see §7). Tier-2 notebooks deliberately not re-run (cost discipline: they
+   run once at the end of the refactor).
+   **Approval gate passed (2026-07-03, LOGBOOK #13):** Vasilis signed off the
+   phase summary with one amendment — the heterogeneity surface gains
+   `eval_heter(feature, xs)` and the scalar is named `heter_score(feature)`
+   (encoded as xfail C-items on the same branch/PR #24).
+   **Next: the Part III refactor itself (steps 1–7), one branch+PR per step.**
 
 Open side-item, not blocking (math, Vasilis): notebook-02 SHAP closed form
 re-derivation — Part III §3 errata.
@@ -529,6 +542,13 @@ not *verification* — `test_plots.py` only checks "doesn't crash", and the thre
 functional tests assert nothing (P1). After this plan, every covered line sits behind an
 actual assertion (shapes, closed-form values, or figure content), which is the property
 the refactor needs. Re-measure and update this table at the freeze (§6 step 6).
+
+**Freeze measurement (2026-07-03, gate `-m "not slow"`): TOTAL 90%** (2116
+stmts, 219 missed) — target met. Regional modules 18–27% → 88–99%; `utils.py`
+100%; `axis_partitioning.py` 90%; still low and expected: `helpers.py` 76%
+(dead `prep_dale/ale_fit_params`, deleted in refactor step 1),
+`utils_integrate.py` 28% (module deleted in step 1), `datasets.py` 33%
+(BikeSharing is tier-2/network).
 
 ---
 
@@ -607,22 +627,31 @@ Agree on these first; every submodule change below is an application of one of t
   always** — and never recomputes unless `requires_refit`; `plot` is always a thin
   wrapper over `eval`/stored state + one `vis.*` call, zero own computation. Exact
   signatures are decided at constitution-writing time, not here.
-- **R2 — Heterogeneity semantics** *(revised 2026-07-02, LOGBOOK #4 — heterogeneity
-  does NOT go through `eval`)*:
+- **R2 — Heterogeneity semantics** *(revised 2026-07-02, LOGBOOK #4; final names +
+  `eval_heter` agreed 2026-07-03, LOGBOOK #13 — heterogeneity does NOT go through
+  `eval`)*:
   - **h, method-specific**: the variance of the method's own per-instance effect
     object (PDP: ICE levels; DerPDP: d-ICE slopes; ALE/RHALE: local slopes per bin;
     ShapDP: shap values). Convention: **variance** internally, std only at the plot
     layer; invariant to centering (contract-testable). Units differ per method —
     accepted, since nothing method-agnostic consumes h directly.
-  - **payload accessor** (name/shape TBD): every method exposes its honest
+  - **`eval_heter(feature, xs)` → `(T,)`**: the heterogeneity curve h(xs) — PDP:
+    var of centered ICE at xs; DerPDP: var of d-ICE; ALE/RHALE: per-bin variance
+    as a step function; ShapDP: the residual spline. **No centering kwarg**
+    (invariance enforced by the signature). Consumed by the plot layer (every
+    band/error-bar equals `eval_heter` — R1's thin-wrapper rule extended to
+    heterogeneity) and by users; regional twin `eval_heter(feature, node_idx, xs)`.
+  - **`payload(feature)` → dict**: every method exposes its honest
     method-specific object (ICE table, per-bin variances, shap cloud) from stored
-    state. PDP's old `eval(return_all=True)` exception disappears — the exception
-    becomes the rule.
-  - **H, method-agnostic score**: one scalar per feature, the single heterogeneity
-    quantity consumed by regional splitting (weighted child-H minimization) and the
-    future interaction submodule (F2: vector = normalized H; matrix = drop of H under
-    conditioning). Aggregation internals + weighting (uniform vs data-density) +
-    normalization: deferred.
+    state; exact schema fixed at refactor steps 2–3. PDP's old
+    `eval(return_all=True)` exception disappears — the exception becomes the rule.
+  - **`heter_score(feature)` → float ≥ 0**: one method-agnostic scalar per feature,
+    the single heterogeneity quantity consumed by regional splitting (weighted
+    child-score minimization) and the future interaction submodule (F2: vector =
+    normalized scores; matrix = score drop under conditioning). Aggregation
+    internals + weighting (uniform vs data-density) + normalization: deferred.
+  - Aggregation ladder: `payload` (raw object) → `eval_heter` (curve) → `heter_score`
+    (scalar); each level has a distinct consumer.
   - Conscious cost: removing `eval(..., heterogeneity=True)` is a **breaking API
     change** — right time, pre-1.0. (Today's dialects folded into h: ALE returns bin
     *variance* named std, PDP returns `np.var`, ShapDP names a variance-spline

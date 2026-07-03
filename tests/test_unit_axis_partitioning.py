@@ -293,3 +293,58 @@ class TestBinEstimation:
             )
             >= 1
         )
+
+
+class TestFixed:
+    """Spec for the Fixed binning method (PLAN II §3.2; B6 territory)."""
+
+    def test_limits_are_exact_linspace(self):
+        rng = np.random.default_rng(21)
+        x = rng.uniform(0, 1, 100)
+        est = effector.axis_partitioning.Fixed(nof_bins=4)
+        limits = est.find_limits(x, None, np.array([0.0, 1.0]))
+        np.testing.assert_allclose(limits, np.linspace(0.0, 1.0, 5))
+
+    def test_min_points_violation_returns_false(self):
+        # 3 points, 4 bins, min 2 per bin: no valid binning exists
+        x = np.array([0.05, 0.1, 0.9])
+        est = effector.axis_partitioning.Fixed(nof_bins=4, min_points_per_bin=2)
+        assert est.find_limits(x, None, np.array([0.0, 1.0])) is False
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="B6: _none_valid_binning result overwritten -> degenerate limits "
+        "returned instead of False",
+    )
+    def test_single_unique_value_returns_false(self):
+        x = np.ones(50) * 0.3
+        est = effector.axis_partitioning.Fixed(nof_bins=4)
+        assert est.find_limits(x, None, np.array([0.3, 0.3])) is False
+
+
+class TestConstantEffectMerging:
+    """Greedy/DP on constant-effect data must merge to few bins (behavioral pin)."""
+
+    def _data(self):
+        rng = np.random.default_rng(21)
+        x = np.sort(rng.uniform(0, 1, 1000))
+        y_grad = np.ones_like(x) * 5.0  # constant effect: nothing to separate
+        return x, y_grad
+
+    def test_greedy_merges(self):
+        x, y_grad = self._data()
+        est = effector.axis_partitioning.Greedy(
+            init_nof_bins=20, min_points_per_bin=2, discount=0.3
+        )
+        limits = est.find_limits(x, y_grad, np.array([0.0, 1.0]))
+        assert limits is not False
+        assert len(limits) <= 5  # 20 initial bins collapse to a handful
+
+    def test_dp_merges(self):
+        x, y_grad = self._data()
+        est = effector.axis_partitioning.DynamicProgramming(
+            max_nof_bins=20, min_points_per_bin=2, discount=0.3
+        )
+        limits = est.find_limits(x, y_grad, np.array([0.0, 1.0]))
+        assert limits is not False
+        assert len(limits) <= 5

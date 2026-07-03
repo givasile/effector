@@ -443,3 +443,105 @@ still a docs page (old outputs render fine). Deal with it later.
 **Next:** contract layer (PLAN II §6 step 2 / §3.1).
 
 ---
+## 12. 2026-07-03 — Test safety net complete: contract + unit + plot layers, frozen (tag: code)  [PLAN II §6 steps 2–3 / §3.1–3.5; branch `tests/contract-and-unit-layers`]
+
+**Process (agreed with Vasilis):** steps 2–3 batched and executed
+autonomously; the test-by-test agreement moved to an end-of-phase summary
+gate. Synthetic tests are the iteration oracle; real-data/guide/timing
+notebooks run once at the very end of the refactor, not during it.
+
+**What landed:**
+- **Contract layer** — `tests/conftest.py` (the method registry: all 11
+  classes constructed one way, tiny linear model N=200 for global, the F8
+  gated model N=500 for regional, ShapDP via *analytic* shap values so the
+  layer is SHAP-free) + `test_contract_global.py` (C1–C6 + new-surface
+  xfails), `test_contract_regional.py` (RC1–RC5),
+  `test_contract_registries.py` (binning/partitioner/centering menus, R9).
+- **Unit layer** — `test_unit_{utils,helpers,axis_partitioning,
+  space_partitioning,tree,pdp_kernels}.py`; absorbed and retired
+  `test_unit.py`, `test_tree.py`, `test_space_partitioning.py`.
+- **Plot-content layer** — `test_contract_plots.py` (mean line == eval,
+  affine scaling, y_limits, nof_ice count, legend labels, band semantics);
+  `test_plots.py` trimmed (N=200, precomputed shap): plot suite 15 s → <2 s.
+- **Facade/data** — overlay-equals-eval check, jacobian-vs-finite-diff per
+  model, seeded-data reproducibility.
+
+**Provisional decisions (encoded as xfail(strict), cheap to rename — need
+Vasilis's sign-off):** payload accessor = `method.payload(feature) -> dict`
+with at least key `"h"` (ndarray); agnostic score = `method.heterogeneity(
+feature) -> float >= 0`, centering-invariant; `eval` loses
+`heterogeneity`/`return_all` kwargs (one return type, always).
+
+**xfail ledger (36, all strict):** B11 (C1, ShapDP tuple), B1 (RC4 via a
+value-level twin comparison), B2 ("dp" string), B5 ×2 (derivative scale_y;
+std_err band), B6 (Fixed on single-unique-value data), R7 (regional
+show_plot ×5 + eval-signature ×5), R2 new surface (payload/H/h-invariance
+×15), R9 (ValueError not assert, ×4), prep_features range spec (×1).
+
+**Empirical corrections to the B-table:** B9 is *resolved-fine* — the
+vectorized finite-diff d-ICE agrees with the non-vectorized path and the
+analytic jacobian (unit-tested; delete the TODO in refactor step 2.3). B3's
+bad assert is dead code (every `fit()` resolves the partitioner string before
+`_fit_feature`), so `"best_level_wise"` already works — RC5 is green; the fix
+is deleting the assert. B6 bites only the single-unique-value case
+(`min_points` violations do return False). B4 is dead compute, no visible
+defect — pinned via "band only when asked".
+
+**Freeze:** gate = 314 passed / 36 xfailed / ~14 s, identical over two runs;
+slow SHAP tier 6 passed / 42 s; coverage 77% → **90%** (regional modules
+18–27% → 88–99%). Tier-2 notebooks not re-run (cost discipline).
+
+**Next:** Vasilis reviews the phase summary + provisional names → then the
+Part III refactor (steps 1–7). Definition of done unchanged: functional layer
+green, zero xfail markers left.
+
+---
+## 13. 2026-07-03 — Constitution amendment: the four-object heterogeneity surface (tag: theory)  [Part III §1 R2; approval gate for PLAN II §6 steps 2–3]
+
+```mermaid
+flowchart TB
+    S["stored state (from fit)"]
+    E["eval(feature, xs, centering) → y(xs)<br/>mean effect, ONE return type"]
+    EH["eval_heter(feature, xs) → h(xs)<br/>heterogeneity curve, NO centering kwarg"]
+    P["payload(feature) → dict<br/>the raw honest object"]
+    HS["heter_score(feature) → float ≥ 0<br/>method-AGNOSTIC scalar"]
+    V["plot layer<br/>bands/error-bars == eval_heter (R1)"]
+    R["regional splitting · F2"]
+    S --> E
+    S --> EH
+    S --> P
+    S --> HS
+    P -.raw for method-specific plot modes.-> V
+    EH --> V
+    HS --> R
+```
+
+**What:** Vasilis approved the Phase-A summary (LOGBOOK #12) and amended the
+surface: alongside `eval`, `payload`, and the scalar (now named
+**`heter_score`**), a fourth public object exists — **`eval_heter(feature,
+xs)`**, the heterogeneity curve. Aggregation ladder: `payload` (raw) →
+`eval_heter` (curve) → `heter_score` (scalar); each level has a distinct
+consumer. `eval_heter` takes **no centering argument** — invariance is enforced
+by the signature, not by convention. Method-specific units (PDP: var of
+centered ICE; DerPDP: var of d-ICE; ALE/RHALE: per-bin variance as a step
+function — the step function is the honest object, no interpolation; ShapDP:
+residual spline). Regional twin: `eval_heter(feature, node_idx, xs)`.
+
+**Why:** the plot layer is the concrete consumer that justifies the curve:
+every plot draws heterogeneity vs x, and R1 (plot = thin wrapper, zero own
+computation) is only achievable if the band values come from a uniform accessor
+instead of per-plot method-specific reductions of the payload. `payload` stays
+because curves can't replace the raw objects (ICE lines for the "ice" mode,
+shap cloud for the scatter).
+
+**Changes:** contract tests re-pointed/extended on `tests/contract-and-unit-layers`
+(PR #24): `heterogeneity` → `heter_score`; new xfail C-items for `eval_heter`
+(shape, non-negativity, no-centering signature, centering-invariance — the
+invariance test moved off `payload["h"]`); payload item loosened to "non-empty
+dict" (schema fixed at refactor steps 2–3). PLAN.md R2 rewritten; refactor step
+2 now also builds base `eval_heter`/`payload`/`heter_score`, and step 4 ties
+plot bands to `eval_heter`.
+
+**Next:** the Part III refactor, step 1 (helpers/utils), one branch+PR per step.
+
+---

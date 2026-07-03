@@ -72,3 +72,20 @@ def test_shap_alias():
     fe = effector.FeatureEffect(X, predict)
     assert fe._canonical("SHAP") == "shapdp"
     assert fe._canonical("shap-dp") == "shapdp"
+
+
+def test_overlaid_curves_match_each_methods_eval():
+    """§3.5: every overlaid curve equals the corresponding method's own
+    centered eval on the same grid (the facade adds no computation of its own)."""
+    X = _linear_dataset()
+    fe = effector.FeatureEffect(X, predict, model_jac=predict_grad)
+    ret = fe.plot(feature=0, methods=["PDP", "ALE", "RHALE"], show_plot=False)
+    fig, ax = ret
+    lines = {ln.get_label(): ln for ln in ax.get_lines()}
+    assert set(lines) == {"PDP", "ALE", "RHALE"}
+    for name, line in lines.items():
+        method = fe._methods[fe._canonical(name)]
+        y = method.eval(
+            0, line.get_xdata(), heterogeneity=False, centering="zero_integral"
+        )
+        np.testing.assert_allclose(line.get_ydata(), y, atol=1e-8)
