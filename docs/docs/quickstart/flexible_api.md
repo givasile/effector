@@ -1,5 +1,10 @@
 # Customize `.fit()`
 
+- Author: [givasile](https://givasile.github.io/)
+- Description: The flexible side of `effector`: how to use `.fit()` to control
+  the processing steps of each global or regional effect method — centering,
+  binning, space partitioning — when the defaults are not enough.
+
 `Effector` is designed to work well with its default settings, 
 but it also allows for customization if the user needs more control over the processing steps.
 This flexibility is achieved through the use of the `.fit()` routine, 
@@ -48,7 +53,7 @@ Then, we will customize the `.fit()` routine to use a number of 5 equal-width bi
     rhale = effector.RHALE(X_test, predict, jacobian, axis_limits=axis_limits, nof_instances="all")
     rhale.plot(feature=0, y_limits=y_limits, dy_limits=dy_limits)
     ```
-    ![Global-RHALE](./../static/quickstart/flexible_api_files/flexible_api_7_0.png){ align=center }
+    ![Global-RHALE](./../static/quickstart/flexible_api_files/flexible_api_8_0.png){ align=center }
 
 === "Customized `.fit()`"
 
@@ -58,7 +63,7 @@ Then, we will customize the `.fit()` routine to use a number of 5 equal-width bi
     rhale.plot(feature=0, y_limits=y_limits, dy_limits=dy_limits)
     ```
     
-    ![Global-RHALE](./../static/quickstart/flexible_api_files/flexible_api_8_0.png){ align=center }
+    ![Global-RHALE](./../static/quickstart/flexible_api_files/flexible_api_9_0.png){ align=center }
 
 ## Regional Effect
 
@@ -120,9 +125,9 @@ Then, we will customize the `.fit()` routine to use a number of 5 equal-width bi
 === "Default settings"
      | `node_idx=3`: $x_0$ when $x_1 \leq 0$ and $x_2 \leq 0$ | `node_idx=4`: $x_0$ when $x_1 > 0$ and $x_2 \leq 0$|
      |:---------:|:---------:|
-     | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_16_0.png) | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_16_1.png) |
+     | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_17_0.png) | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_17_1.png) |
      | `node_idx=5`: $x_0$ when $x_1 \leq 0$ and $x_2 > 0$ | `node_idx=6`: $x_0$ when $x_1 > 0$ and $x_2 > 0$|
-     | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_16_2.png) | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_16_3.png) |
+     | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_17_2.png) | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_17_3.png) |
 
 === "Customized `.fit()`"
 
@@ -133,4 +138,4 @@ Then, we will customize the `.fit()` routine to use a number of 5 equal-width bi
 
      | `node_idx=1`: $x_0$ when $x_2 \leq 0$ | `node_idx=2`: $x_0$ when $x_2 > 0$ |
      |:---------:|:---------:|
-     | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_20_0.png) | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_20_1.png) |
+     | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_21_0.png) | ![Alt text](./../static/quickstart/flexible_api_files/flexible_api_21_1.png) |

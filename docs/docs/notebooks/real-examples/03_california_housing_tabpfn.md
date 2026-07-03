@@ -1,3 +1,12 @@
+# California Housing with TabPFN
+
+- Author: [givasile](https://givasile.github.io/)
+- Runtime: ~8 min (TabPFN on CPU)
+- Description: Global and regional ALE effects on the California-housing
+  dataset, using a TabPFN foundation model as the black box — a showcase of
+  `effector` explaining a model that is expensive to query.
+
+
 ```python
 import numpy as np
 import keras
@@ -654,49 +663,49 @@ for i in range(8):
 
 
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_16_0.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_17_0.png)
     
 
 
 
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_16_1.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_17_1.png)
     
 
 
 
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_16_2.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_17_2.png)
     
 
 
 
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_16_3.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_17_3.png)
     
 
 
 
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_16_4.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_17_4.png)
     
 
 
 
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_16_5.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_17_5.png)
     
 
 
 
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_16_6.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_17_6.png)
     
 
 
 
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_16_7.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_17_7.png)
     
 
 
@@ -749,7 +758,7 @@ r_ale.plot(feature=6, node_idx=0, scale_x_list=scale_x_list, scale_y=scale_y, y_
 
 
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_21_0.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_22_0.png)
     
 
 
@@ -758,24 +767,6 @@ r_ale.plot(feature=6, node_idx=0, scale_x_list=scale_x_list, scale_y=scale_y, y_
 
 ```python
 for node_idx in [1, 4]:
-    r_ale.plot(feature=6, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
-```
-
-
-    
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_23_0.png)
-    
-
-
-
-    
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_23_1.png)
-    
-
-
-
-```python
-for node_idx in [2,3,5,6]:
     r_ale.plot(feature=6, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
 ```
 
@@ -792,14 +783,32 @@ for node_idx in [2,3,5,6]:
 
 
 
+```python
+for node_idx in [2,3,5,6]:
+    r_ale.plot(feature=6, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+```
+
+
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_24_2.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_25_0.png)
     
 
 
 
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_24_3.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_25_1.png)
+    
+
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_25_2.png)
+    
+
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_25_3.png)
     
 
 
@@ -847,7 +856,7 @@ r_ale.plot(feature=7, node_idx=0, centering=True, scale_x_list=scale_x_list, sca
 
 
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_28_1.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_29_1.png)
     
 
 
@@ -856,24 +865,6 @@ r_ale.plot(feature=7, node_idx=0, centering=True, scale_x_list=scale_x_list, sca
 
 ```python
 for node_idx in [1, 4]:
-    r_ale.plot(feature=7, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
-```
-
-
-    
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_30_0.png)
-    
-
-
-
-    
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_30_1.png)
-    
-
-
-
-```python
-for node_idx in [2, 3, 5, 6]:
     r_ale.plot(feature=7, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
 ```
 
@@ -890,14 +881,32 @@ for node_idx in [2, 3, 5, 6]:
 
 
 
+```python
+for node_idx in [2, 3, 5, 6]:
+    r_ale.plot(feature=7, node_idx=node_idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+```
+
+
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_31_2.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_32_0.png)
     
 
 
 
     
-![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_31_3.png)
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_32_1.png)
+    
+
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_32_2.png)
+    
+
+
+
+    
+![png](03_california_housing_tabpfn_files/03_california_housing_tabpfn_32_3.png)
     
 
 

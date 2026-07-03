@@ -1,5 +1,12 @@
 # Global Effect - An in-depth tutorial
 
+- Author: [givasile](https://givasile.github.io/)
+- Runtime: ~20 s
+- Description: An in-depth comparison of the global effect methods (ALE,
+  RHALE, PDP-ICE, d-PDP-ICE, SHAP-DP) on a synthetic example with correlated
+  features and known closed-form effects, showing why ALE-based methods are
+  preferable under correlation and how RHALE's automatic binning helps.
+
 In this tutorial, we use the synthetic example from [(Gkolemis et al., 2023)](https://arxiv.org/abs/2309.11193) and apply various global effect methods (ALE, RHALE, PDP-ICE, d-PDP-ICE, and SHAP Dependence Plots) to reproduce its results.  
 
 This example serves two main purposes:  

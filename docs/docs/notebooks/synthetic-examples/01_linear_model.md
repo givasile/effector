@@ -1,13 +1,10 @@
 # A linear model
 
 - Author: [givasile](https://givasile.github.io/)
-- Date created: 2024/04/29
-- Last modified: 2025/03/24
-- **Description**: Apply all global effect methods on a linear model
-
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/givasile/effector/blob/main/notebooks/synthetic-examples/01_linear_model.ipynb) 
-
-[![Open in GitHub](https://img.shields.io/badge/Open%20in-GitHub-black?logo=github)](https://github.com/givasile/effector/blob/main/notebooks/synthetic-examples/01_linear_model.ipynb)
+- Runtime: ~20 s
+- Description: All of `effector`'s global effect methods (PDP, d-PDP, ALE,
+  RHALE, SHAP-DP) applied to a linear model, verifying that every method
+  recovers the linear effect of each feature with zero heterogeneity.
 
 
 ```python

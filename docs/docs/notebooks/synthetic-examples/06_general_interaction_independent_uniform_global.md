@@ -1,5 +1,11 @@
 # Model with general interaction
 
+- Author: [givasile](https://givasile.github.io/)
+- Runtime: ~10 s
+- Description: Global effects and heterogeneity (PDP, ALE, RHALE) on a model
+  with a general-form interaction $x_1 x_2^2$; all estimates are derived
+  analytically and tested against `effector.benchmarks`.
+
 In this example, we show global effects of a model with general form interactions using PDP, ALE, and RHALE.
 In particular, we:
 

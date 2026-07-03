@@ -1,5 +1,12 @@
 # Regional Effects (known black-box function)
 
+- Author: [givasile](https://givasile.github.io/)
+- Runtime: ~30 s
+- Description: A gentle introduction to regional effects: PDP, RHALE and
+  SHAP-DP and their regional counterparts applied to a known black-box
+  function with an interaction term, under uncorrelated and correlated
+  features.
+
 This tutorial provides a gentle overview of Regional Effect methods and introduces the `Effector` package. Regional Effects serve as a bridge between local and global feature effects. Αs shown in [REPID](https://proceedings.mlr.press/v151/herbinger22a/herbinger22a.pdf), regional effect methods split the feature space in subregions where the feature interactions are minimized.
 
 In this tutorial, we show how to use `Effector` to explain a black box function using regional effect plots. The tutorial is organized as follows:
@@ -157,7 +164,11 @@ space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_
 regional_pdp.fit(features="all", space_partitioner=space_partitioner)
 ```
 
-    100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 107.43it/s]
+      0%|          | 0/3 [00:00<?, ?it/s]
+
+    100%|██████████| 3/3 [00:00<00:00, 150.90it/s]
+
+    
 
 
 
@@ -170,15 +181,15 @@ regional_pdp.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 3.19 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 463 | w: 0.46]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 537 | w: 0.54]
+    x1 🔹 [id: 0 | heter: 3.20 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 519 | w: 0.52]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 481 | w: 0.48]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.19
-        Level 1🔹heter: 0.00 | 🔻3.19 (100.00%)
+    Level 0🔹heter: 3.20
+        Level 1🔹heter: 0.00 | 🔻3.20 (100.00%)
     
     
 
@@ -237,20 +248,20 @@ regional_pdp.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 2.99 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.76 | inst: 532 | w: 0.53]
-            x1 ≤ -0.40 🔹 [id: 2 | heter: 0.27 | inst: 321 | w: 0.32]
-            x1 > -0.40 🔹 [id: 3 | heter: 0.14 | inst: 211 | w: 0.21]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.77 | inst: 468 | w: 0.47]
-            x1 ≤ 0.60 🔹 [id: 5 | heter: 0.25 | inst: 283 | w: 0.28]
-            x1 > 0.60 🔹 [id: 6 | heter: 0.12 | inst: 185 | w: 0.18]
+    x3 🔹 [id: 0 | heter: 3.12 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.78 | inst: 487 | w: 0.49]
+            x1 ≤ -0.60 🔹 [id: 2 | heter: 0.12 | inst: 212 | w: 0.21]
+            x1 > -0.60 🔹 [id: 3 | heter: 0.26 | inst: 275 | w: 0.28]
+        x1 > 0.00 🔹 [id: 4 | heter: 0.76 | inst: 513 | w: 0.51]
+            x1 ≤ 0.60 🔹 [id: 5 | heter: 0.27 | inst: 309 | w: 0.31]
+            x1 > 0.60 🔹 [id: 6 | heter: 0.12 | inst: 204 | w: 0.20]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 2.99
-        Level 1🔹heter: 0.76 | 🔻2.23 (74.52%)
-            Level 2🔹heter: 0.21 | 🔻0.55 (72.60%)
+    Level 0🔹heter: 3.12
+        Level 1🔹heter: 0.77 | 🔻2.36 (75.45%)
+            Level 2🔹heter: 0.21 | 🔻0.56 (73.11%)
     
     
 
@@ -340,7 +351,11 @@ regional_pdp = effector.RegionalPDP(data=X_cor_train, model=model, feature_names
 regional_pdp.fit(features="all") # , space_partitioner=space_partitioner, centering=True)
 ```
 
-    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 28.78it/s]
+      0%|          | 0/3 [00:00<?, ?it/s]
+
+    100%|██████████| 3/3 [00:00<00:00, 77.18it/s]
+
+    
 
 
 
@@ -353,15 +368,15 @@ regional_pdp.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 3.20 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 524 | w: 0.52]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 476 | w: 0.48]
+    x1 🔹 [id: 0 | heter: 3.21 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 506 | w: 0.51]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 494 | w: 0.49]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.20
-        Level 1🔹heter: 0.00 | 🔻3.20 (100.00%)
+    Level 0🔹heter: 3.21
+        Level 1🔹heter: 0.00 | 🔻3.21 (100.00%)
     
     
 
@@ -414,20 +429,20 @@ regional_pdp.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 2.97 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.75 | inst: 524 | w: 0.52]
-            x1 ≤ -0.50 🔹 [id: 2 | heter: 0.20 | inst: 262 | w: 0.26]
-            x1 > -0.50 🔹 [id: 3 | heter: 0.17 | inst: 262 | w: 0.26]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.76 | inst: 476 | w: 0.48]
-            x1 ≤ 0.50 🔹 [id: 5 | heter: 0.19 | inst: 247 | w: 0.25]
-            x1 > 0.50 🔹 [id: 6 | heter: 0.20 | inst: 229 | w: 0.23]
+    x3 🔹 [id: 0 | heter: 3.04 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.72 | inst: 506 | w: 0.51]
+            x1 ≤ -0.50 🔹 [id: 2 | heter: 0.19 | inst: 260 | w: 0.26]
+            x1 > -0.50 🔹 [id: 3 | heter: 0.20 | inst: 246 | w: 0.25]
+        x1 > 0.00 🔹 [id: 4 | heter: 0.70 | inst: 494 | w: 0.49]
+            x1 ≤ 0.50 🔹 [id: 5 | heter: 0.19 | inst: 236 | w: 0.24]
+            x1 > 0.50 🔹 [id: 6 | heter: 0.16 | inst: 258 | w: 0.26]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 2.97
-        Level 1🔹heter: 0.75 | 🔻2.22 (74.70%)
-            Level 2🔹heter: 0.19 | 🔻0.56 (74.93%)
+    Level 0🔹heter: 3.04
+        Level 1🔹heter: 0.71 | 🔻2.34 (76.79%)
+            Level 2🔹heter: 0.18 | 🔻0.52 (73.90%)
     
     
 
@@ -529,7 +544,11 @@ regional_rhale.fit(
 
 ```
 
-    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 70.20it/s]
+      0%|          | 0/3 [00:00<?, ?it/s]
+
+    100%|██████████| 3/3 [00:00<00:00, 132.32it/s]
+
+    
 
 
 
@@ -542,15 +561,15 @@ regional_rhale.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 8.89 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 463 | w: 0.46]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 537 | w: 0.54]
+    x1 🔹 [id: 0 | heter: 8.78 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 519 | w: 0.52]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 481 | w: 0.48]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 8.89
-        Level 1🔹heter: 0.00 | 🔻8.89 (100.00%)
+    Level 0🔹heter: 8.78
+        Level 1🔹heter: 0.00 | 🔻8.78 (100.00%)
     
     
 
@@ -688,7 +707,11 @@ regional_rhale.fit(
 
 ```
 
-    100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00, 789.29it/s]
+      0%|          | 0/3 [00:00<?, ?it/s]
+
+    100%|██████████| 3/3 [00:00<00:00, 1104.64it/s]
+
+    
 
 
 
@@ -813,7 +836,13 @@ regional_shap.fit(
 )
 ```
 
-    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00,  5.56it/s]
+      0%|          | 0/3 [00:00<?, ?it/s]
+
+     33%|███▎      | 1/3 [00:00<00:00,  2.20it/s]
+
+    100%|██████████| 3/3 [00:00<00:00,  5.81it/s]
+
+    
 
 
 
@@ -826,15 +855,15 @@ regional_shap.summary(0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 0.86 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.02 | inst: 463 | w: 0.46]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.04 | inst: 537 | w: 0.54]
+    x1 🔹 [id: 0 | heter: 0.89 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.03 | inst: 519 | w: 0.52]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.03 | inst: 481 | w: 0.48]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.86
-        Level 1🔹heter: 0.03 | 🔻0.83 (96.48%)
+    Level 0🔹heter: 0.89
+        Level 1🔹heter: 0.03 | 🔻0.86 (96.65%)
     
     
 
@@ -887,12 +916,15 @@ regional_shap.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 0.77 | inst: 1000 | w: 1.00]
+    x3 🔹 [id: 0 | heter: 0.81 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.25 | inst: 487 | w: 0.49]
+        x1 > 0.00 🔹 [id: 2 | heter: 0.37 | inst: 513 | w: 0.51]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.77
+    Level 0🔹heter: 0.81
+        Level 1🔹heter: 0.31 | 🔻0.50 (61.48%)
     
     
 
@@ -925,15 +957,19 @@ shap = effector.ShapDP(data=X_cor_train, model=model, feature_names=['x1','x2','
     
 
 
-
-    
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_59_1.png)
-    
+    /home/givasile/github/packages/effector/effector/global_effect_shap.py:516: RuntimeWarning: invalid value encountered in sqrt
+      np.sqrt(self.feature_effect["feature_" + str(feature)]["spline_std"](x))
 
 
 
     
 ![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_59_2.png)
+    
+
+
+
+    
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_59_3.png)
     
 
 
@@ -961,7 +997,13 @@ regional_shap.fit(
 )
 ```
 
-    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 3/3 [00:00<00:00,  4.94it/s]
+      0%|          | 0/3 [00:00<?, ?it/s]
+
+     33%|███▎      | 1/3 [00:00<00:00,  2.23it/s]
+
+    100%|██████████| 3/3 [00:00<00:00,  5.80it/s]
+
+    
 
 
 
