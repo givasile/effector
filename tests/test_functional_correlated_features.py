@@ -65,9 +65,7 @@ def test_d_pdp(bench, data):
 
 def test_ale(bench, data):
     ale = effector.ALE(data, bench.predict, axis_limits=bench.axis_limits)
-    ale.fit(
-        features=0, binning_method=effector.axis_partitioning.Fixed(nof_bins=31)
-    )
+    ale.fit(features=0, binning_method=effector.axis_partitioning.Fixed(nof_bins=31))
     y = ale.eval(feature=0, xs=XS, centering=True)
     assert_per_half(y, bench.ale_gt(XS), atol_dense=1.5e-1, atol_sparse=3e-1)
 

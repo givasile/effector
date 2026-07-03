@@ -11,9 +11,13 @@ python3: several notebooks pin a contributor-local kernelspec (eff-env).
 
 import pathlib
 
-import nbformat
 import pytest
-from nbconvert.preprocessors import ExecutePreprocessor
+
+nbformat = pytest.importorskip(
+    "nbformat", reason="jupyter deps are not in the CI test group (tier-2 only)"
+)
+nbconvert = pytest.importorskip("nbconvert")
+from nbconvert.preprocessors import ExecutePreprocessor  # noqa: E402
 
 NOTEBOOK_DIR = pathlib.Path(__file__).parent.parent / "notebooks" / "synthetic-examples"
 
@@ -23,9 +27,7 @@ SKIP = {
     "04_regional_effects_real_f.ipynb",
 }
 
-NOTEBOOKS = sorted(
-    p for p in NOTEBOOK_DIR.glob("*.ipynb") if p.name not in SKIP
-)
+NOTEBOOKS = sorted(p for p in NOTEBOOK_DIR.glob("*.ipynb") if p.name not in SKIP)
 
 
 @pytest.mark.slow

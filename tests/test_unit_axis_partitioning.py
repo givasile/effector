@@ -13,7 +13,6 @@ class TestBinEstimation:
     def _seed(self):
         np.random.seed(21)
 
-
     @staticmethod
     def model(x, par):
         """f(x1, x2) = a + b*x1 + x1x2"""

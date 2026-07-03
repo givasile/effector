@@ -163,18 +163,17 @@ class TestRegionalEffects:
         assert len(children) == 2
         for node in children:
             assert node.info["foc_index"] == bench.regional_split_feature
-            assert abs(
-                node.info["foc_split_position"] - bench.regional_split_position
-            ) <= 0.15
+            assert (
+                abs(node.info["foc_split_position"] - bench.regional_split_position)
+                <= 0.15
+            )
 
     def test_region_effects_are_plus_minus_x_squared(self, fitted, bench):
         tree = fitted.tree["feature_0"]
         children = [n for n in tree.nodes if n.info["level"] == 1]
         for node in children:
             side = "left" if node.info["comparison"] == "<=" else "right"
-            y, heter = fitted.eval(
-                0, node.idx, XS, heterogeneity=True, centering=True
-            )
+            y, heter = fitted.eval(0, node.idx, XS, heterogeneity=True, centering=True)
             gt = bench.regional_effect_gt(side, XS)
             np.testing.assert_allclose(y, gt, atol=ATOL)
             np.testing.assert_allclose(heter, np.zeros_like(XS), atol=ATOL)

@@ -59,8 +59,15 @@ CASES = [
     pytest.param("derpdp", {}, id="regional-derpdp"),
     pytest.param("ale", {}, id="regional-ale"),
     pytest.param("rhale", {}, id="regional-rhale"),
-    pytest.param("shapdp", {"backend": "shap"}, id="regional-shapdp-shap", marks=pytest.mark.slow),
-    pytest.param("shapdp", {"backend": "shapiq"}, id="regional-shapdp-shapiq", marks=pytest.mark.slow),
+    pytest.param(
+        "shapdp", {"backend": "shap"}, id="regional-shapdp-shap", marks=pytest.mark.slow
+    ),
+    pytest.param(
+        "shapdp",
+        {"backend": "shapiq"},
+        id="regional-shapdp-shapiq",
+        marks=pytest.mark.slow,
+    ),
 ]
 
 

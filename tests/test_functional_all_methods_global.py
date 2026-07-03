@@ -52,8 +52,20 @@ CASES = [
     pytest.param("ale", {}, "effect", id="ale"),
     pytest.param("rhale", {}, "effect", id="rhale-nojac"),
     pytest.param("rhale", {"use_jac": True}, "effect", id="rhale-jac"),
-    pytest.param("shapdp", {"backend": "shap"}, "effect", id="shapdp-shap", marks=pytest.mark.slow),
-    pytest.param("shapdp", {"backend": "shapiq"}, "effect", id="shapdp-shapiq", marks=pytest.mark.slow),
+    pytest.param(
+        "shapdp",
+        {"backend": "shap"},
+        "effect",
+        id="shapdp-shap",
+        marks=pytest.mark.slow,
+    ),
+    pytest.param(
+        "shapdp",
+        {"backend": "shapiq"},
+        "effect",
+        id="shapdp-shapiq",
+        marks=pytest.mark.slow,
+    ),
 ]
 
 

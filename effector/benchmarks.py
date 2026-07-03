@@ -46,11 +46,20 @@ class ConditionalInteractionUniform:
 
     def pdp_gt(self, feature: int, xs: np.ndarray) -> np.ndarray:
         if feature == 0:
-            ff = lambda x: np.zeros_like(x)
+
+            def ff(x):
+                return np.zeros_like(x)
+
         elif feature == 1:
-            ff = lambda x: -1 / 3 * (x < 0) + 1 / 3 * (x >= 0)
+
+            def ff(x):
+                return -1 / 3 * (x < 0) + 1 / 3 * (x >= 0)
+
         elif feature == 2:
-            ff = lambda x: np.exp(x)
+
+            def ff(x):
+                return np.exp(x)
+
         return ff(xs) - _center(ff, -1, 1)
 
     def ale_gt(self, feature: int, xs: np.ndarray) -> np.ndarray:
@@ -60,7 +69,9 @@ class ConditionalInteractionUniform:
     def rhale_gt(self, feature: int, xs: np.ndarray) -> np.ndarray:
         if feature == 1:
             # the derivative w.r.t. x2 is zero a.e., so RHALE misses the step
-            ff = lambda x: np.zeros_like(x)
+            def ff(x):
+                return np.zeros_like(x)
+
             return ff(xs) - _center(ff, -1, 1)
         return self.pdp_gt(feature, xs)
 
@@ -113,7 +124,10 @@ class ConditionalInteractionUniform:
         Per-region heterogeneity is 0: the effect is deterministic within a region.
         """
         sign = -1.0 if side == "left" else 1.0
-        ff = lambda x: sign * x**2
+
+        def ff(x):
+            return sign * x**2
+
         return ff(xs) - _center(ff, -1, 1)
 
 
@@ -137,11 +151,20 @@ class GeneralInteractionUniform:
 
     def pdp_gt(self, feature: int, xs: np.ndarray) -> np.ndarray:
         if feature == 0:
-            ff = lambda x: x / 3  # x * E[x2^2], E[x2^2] = 1/3
+
+            def ff(x):
+                return x / 3  # x * E[x2^2], E[x2^2] = 1/3
+
         elif feature == 1:
-            ff = lambda x: np.zeros_like(x)  # E[x1] * x2^2 = 0
+
+            def ff(x):
+                return np.zeros_like(x)  # E[x1] * x2^2 = 0
+
         elif feature == 2:
-            ff = lambda x: np.exp(x)
+
+            def ff(x):
+                return np.exp(x)
+
         return ff(xs) - _center(ff, -1, 1)
 
     def ale_gt(self, feature: int, xs: np.ndarray) -> np.ndarray:
@@ -184,12 +207,20 @@ class ConditionalInteraction4RegionsUniform:
 
     def pdp_gt(self, feature: int, xs: np.ndarray) -> np.ndarray:
         if feature in (0, 1):
-            ff = lambda x: np.zeros_like(x)
+
+            def ff(x):
+                return np.zeros_like(x)
+
         elif feature == 2:
             # 0.5*E[x1^2] + 0.5*E[x1^4] = 0.5/3 + 0.5/5 = 4/15, sign flips at 0
-            ff = lambda x: -4 / 15 * (x < 0) + 4 / 15 * (x >= 0)
+            def ff(x):
+                return -4 / 15 * (x < 0) + 4 / 15 * (x >= 0)
+
         elif feature == 3:
-            ff = lambda x: np.exp(x)
+
+            def ff(x):
+                return np.exp(x)
+
         return ff(xs) - _center(ff, -1, 1)
 
     def ale_gt(self, feature: int, xs: np.ndarray) -> np.ndarray:
@@ -199,7 +230,9 @@ class ConditionalInteraction4RegionsUniform:
         if feature == 2:
             # zero derivative a.e.: RHALE misses the step (cf. rhale of feature 1
             # in ConditionalInteractionUniform)
-            ff = lambda x: np.zeros_like(x)
+            def ff(x):
+                return np.zeros_like(x)
+
             return ff(xs) - _center(ff, -1, 1)
         return self.pdp_gt(feature, xs)
 
@@ -213,11 +246,16 @@ class ConditionalInteraction4RegionsUniform:
     regional_level2_split_feature = 1
     regional_split_position = 0.0
 
-    def regional_effect_gt(self, x2_side: str, x3_side: str, xs: np.ndarray) -> np.ndarray:
+    def regional_effect_gt(
+        self, x2_side: str, x3_side: str, xs: np.ndarray
+    ) -> np.ndarray:
         """Centered effect of x1 inside each of the 4 leaf regions."""
         sign = -1.0 if x3_side == "left" else 1.0
         power = 2 if x2_side == "left" else 4
-        ff = lambda x: sign * x**power
+
+        def ff(x):
+            return sign * x**power
+
         return ff(xs) - _center(ff, -1, 1)
 
 
@@ -285,7 +323,10 @@ class CorrelatedInteraction:
     def pdp_gt(self, xs: np.ndarray) -> np.ndarray:
         """PDP averages over the *marginal* of x3, ignoring its correlation
         with x1: the -2 sin term contributes with probability 5/6 everywhere."""
-        ff = lambda x: np.sin(2 * np.pi * x) * (x < 0) - 5 / 3 * np.sin(2 * np.pi * x)
+
+        def ff(x):
+            return np.sin(2 * np.pi * x) * (x < 0) - 5 / 3 * np.sin(2 * np.pi * x)
+
         return ff(xs) - _center(ff, -0.5, 0.5)
 
     def d_pdp_gt(self, xs: np.ndarray) -> np.ndarray:
@@ -301,7 +342,10 @@ class CorrelatedInteraction:
     def ale_gt(self, xs: np.ndarray) -> np.ndarray:
         """ALE conditions on x3 ~ x1, so the -2 sin term only acts where x1 < 0
         ... and there it flips the sign: sin - 2 sin = -sin."""
-        ff = lambda x: -np.sin(2 * np.pi * x) * (x < 0)
+
+        def ff(x):
+            return -np.sin(2 * np.pi * x) * (x < 0)
+
         return ff(xs) - _center(ff, -0.5, 0.5)
 
     def rhale_gt(self, xs: np.ndarray) -> np.ndarray:
@@ -326,5 +370,8 @@ class CorrelatedInteraction:
         The notebook's derivation needs revisiting; until then nothing asserts
         against this function (test_functional_correlated_features.py::test_shap
         is skipped)."""
-        ff = lambda x: -5 / 6 * np.sin(2 * np.pi * x)
+
+        def ff(x):
+            return -5 / 6 * np.sin(2 * np.pi * x)
+
         return ff(xs) - _center(ff, -0.5, 0.5)
