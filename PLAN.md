@@ -442,6 +442,32 @@ to pytest anyway — §3.3), don't relax the budget.
 
 ## 6. Order of work (revised 2026-07-02 — interleaved with Part III)
 
+**STATUS CHECKPOINT (2026-07-03, end of `tests/functional-anchor` / PR #21):**
+steps 1–3 below are **done** — P1–P5 fixed, functional anchor landed (LOGBOOK
+#9), notebooks rewired to `effector.benchmarks` + docs regenerated (LOGBOOK
+#10), constitution R1–R9 agreed as text (LOGBOOK #3–#6). CI green on 3.10–3.13.
+**Next session, agreed order (2026-07-03, post-merge):**
+
+1. **FIRST — refresh the remaining docs notebooks.** Re-run quickstart, guides
+   and real-examples notebooks (their stored outputs — and therefore their doc
+   pages — date from v0.1.x; only synthetic-examples are fresh), then
+   `make docs-update` to regenerate all four doc groups. Prerequisites to fix
+   along the way: real-examples 01's ShapDP zero-size-array crash; notebook
+   04's hardcoded `node_idx` (then un-skip it in `test_notebooks.py`); note
+   the guides are deliberate multi-minute benchmarks and real-examples need
+   network + keras (03 additionally a TabPFN license — skip/mark if absent).
+2. **Then step 4: the contract layer.** Rewrite the C-items of §3.1 against
+   the LOGBOOK #4 eval surface (C1 simplifies, C7 disappears; new C-items for
+   the payload accessor, H, and centering-invariance), agree them
+   test-by-test, then encode as `test_contract_*.py` + `conftest.py` method
+   registry — green where a rule holds, `xfail(strict=True)` where the
+   refactor must make it true (B11 is an immediate xfail case; B1–B9 per §4).
+3. Then step 5 (unit layer §3.2 + plot-content layer §3.4 + facade/data §3.5),
+   then step 6 (freeze), then the Part III refactor itself.
+
+Open side-item, not blocking (math, Vasilis): notebook-02 SHAP closed form
+re-derivation — Part III §3 errata.
+
 The contract layer is Part III §1 compiled into executable form, so the working
 order interleaves the two parts: **anchor behavior first, then agree the rules,
 then encode them as tests, then refactor until the encoded rules hold.**
