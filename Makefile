@@ -35,9 +35,11 @@ docs-build:  ## build the documentation site
 	uv run --no-default-groups --group docs mkdocs build -f docs/mkdocs.yml
 
 .PHONY: docs-update
-docs-update:  ## regenerate tutorial markdown from the notebooks
-	uv run --extra tutorials --extra shap jupyter nbconvert --to markdown ./notebooks/real-examples/* --output-dir docs/docs/Tutorials/real-examples/
-	uv run --extra tutorials --extra shap jupyter nbconvert --to markdown ./notebooks/synthetic-examples/* --output-dir docs/docs/Tutorials/synthetic-examples/
+docs-update:  ## regenerate tutorial markdown from the notebooks (into the dirs the site actually reads)
+	uv run --extra tutorials --extra shap jupyter nbconvert --to markdown ./notebooks/real-examples/*.ipynb --output-dir docs/docs/notebooks/real-examples/
+	uv run --extra tutorials --extra shap jupyter nbconvert --to markdown ./notebooks/synthetic-examples/*.ipynb --output-dir docs/docs/notebooks/synthetic-examples/
+	uv run --extra tutorials --extra shap jupyter nbconvert --to markdown ./notebooks/quickstart/*.ipynb --output-dir docs/docs/notebooks/quickstart/
+	uv run --extra tutorials --extra shap jupyter nbconvert --to markdown ./notebooks/guides/*.ipynb --output-dir docs/docs/notebooks/guides/
 
 # Housekeeping --------------------------------------------------------------
 .PHONY: clean

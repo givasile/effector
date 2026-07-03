@@ -1,7 +1,10 @@
 # Global Effect - An in-depth tutorial
 
-In this tutorial, we will compare all the global effect methods implemented in `Effector`, namely: ALE, RHALE, PDP-ICE, d-PDP-ICE and SHAP Dependence Plots. 
-The synthetic example that we will used, was introduced by [(Gkolemis et. al, 2023)](https://arxiv.org/abs/2309.11193).
+In this tutorial, we use the synthetic example from [(Gkolemis et al., 2023)](https://arxiv.org/abs/2309.11193) and apply various global effect methods (ALE, RHALE, PDP-ICE, d-PDP-ICE, and SHAP Dependence Plots) to reproduce its results.  
+
+This example serves two main purposes:  
+- **Demonstrate that ALE and RHALE are preferable when input features are correlated.**  
+- **Show that RHALE improves ALE by automatically adjusting bin splitting for greater robustness.**  
 
 
 ```python
@@ -12,39 +15,27 @@ import matplotlib.pyplot as plt
 
 ## Problem setup
 
-We will generate $N=60$ examples with $D=3$ features, as described in the following table. Observe that $x_3$ is highly-dependent on $x_1$, i.e., $x_3 \approx x_1$.; this will later help us to compute the ground truth ALE effect.
+We will generate $N=170$ examples with $D=3$ features. The setup — data
+distribution, black-box function and all closed-form effects — lives in
+`effector.benchmarks.CorrelatedInteraction`: the SAME object the test suite
+asserts against (`tests/test_functional_correlated_features.py`), so this
+notebook and the tests can never disagree about the right answer.
 
-| Feature | Description                                                           | Distribution                                                                                    |
-|---------|-----------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
-| $x_1$   | $x_1$ lies in $[-0.5, 0.5]$ with most samples in $[-0.5, 0]$          | $x_1 \sim p(x_1) = \frac{5}{6} \mathcal{U}(x_1; -0.5, 0) + \frac{1}{6} \mathcal{U}(x_1; 0, 0.5)$ |
-| $x_2$   | Normally distributed with $\mu = 0$, $\sigma = 2$                     | $x_2 \sim p(x_2) = \mathcal{N}(x_2; \mu=0, \sigma = 2)$                                         |
-| $x_3$   | $x_3 = x_1 + \delta$, where $\delta \sim \mathcal{N}(0, \sigma=0.01)$ | $x_3 = x_1 + \delta$                                                                            |
+The features:
 
-
+- $x_1$: mixture-uniform on $[-0.5, 0.5]$ with $5/6$ of the mass below zero,
+- $x_2 \sim \mathcal{N}(0, \sigma_2^2), \; \sigma_2 = 2$,
+- $x_3 = x_1 + \epsilon, \; \epsilon \sim \mathcal{N}(0, \sigma_3^2), \; \sigma_3 = 0.01$ —
+  **strongly correlated** with $x_1$; this correlation is what makes the
+  methods provably differ.
 
 
 ```python
-def generate_samples(N1, N2, sigma_2=1, sigma_3=.01):
-    N = N1 + N2
-    x1 = np.concatenate((np.array([-0.5]),
-                         np.random.uniform(-0.5, 0, size=int(N1 - 2)),
-                         np.array([-0.00001]),
-                         np.array([0.]),
-                         np.random.uniform(0, 0.5, size=int(N2 - 2)),
-                         np.array([0.5])))
-    x2 = np.random.normal(0, sigma_2, N)
-    x3 = x1 + np.random.normal(0, sigma_3, N)
-    x = np.stack([x1, x2, x3], -1)
-    return x
+bench = effector.benchmarks.CorrelatedInteraction()
+axis_limits = bench.axis_limits
+sigma_2 = bench.sigma_2
 
-
-np.random.seed(seed=2121)
-axis_limits = np.array([[-.5, .5], [-5, 5], [-.5, .5]]).T
-sigma_2 = 2
-sigma_3 = .01
-N1 = 150
-N2 = 20
-x = generate_samples(N1, N2, sigma_2=sigma_2, sigma_3=sigma_3)
+x = bench.generate_data(170, seed=21)
 ```
 
 The _black-box_ function is:
@@ -62,47 +53,16 @@ $$
 
 
 ```python
-def f(x):
-    """Evaluate function:
-    y = sin(2*pi*x1)*(if x1<0) - 2*sin(2*pi*x1)*(if x3<0) + x1*x2 + x2
-
-    """
-    y = np.zeros_like(x[:,0])
-
-    ind = np.logical_and(x[:, 0] >= -2, x[:, 0] < 0)
-    y[ind] = np.sin(2 * np.pi * x[ind, 0])
-
-    ind = np.logical_and(x[:, 2] >= -2, x[:, 2] < 0)
-    y[ind] -= 2 * np.sin(2 * np.pi * x[ind, 0])
-
-    y += x[:, 0] * x[:, 1] + x[:, 1]
-    return y
+# f(x) = sin(2*pi*x1) * (1{x1<0} - 2 * 1{x3<0}) + x1*x2 + x2
+f = bench.predict
 ```
 
 
 ```python
-def dfdx(x):
-    """Evaluate jacobian of:
-    y = sin(2*pi*x1)*(if x1<0) - 2*sin(2*pi*x1)*(if x3<0) + x1*x2 + x2
-
-    dy/dx1 = 2*pi*x1*cos(2*pi*x1)*(if x1<0) - 4*pi*x1*cos(2*pi*x1)*(if x3<0) + x2
-    dy/dx2 = x1 + 1
-    dy/dx3 = 0
-    """
-
-    dydx = np.zeros_like(x)
-
-    ind = np.logical_and(x[:, 0] >= -2, x[:, 0] <= 0)
-    dydx[ind, 0] = 2 * np.pi * np.cos(2*np.pi * x[ind, 0])
-
-    ind = np.logical_and(x[:, 2] >= -2, x[:, 2] <= 0)
-    dydx[ind, 0] += - 2 * 2 * np.pi * np.cos(2*np.pi * x[ind, 0])
-
-    dydx[:, 0] += x[:, 1]
-
-    dydx[:, 1] = x[:, 0] + 1
-    return dydx
-
+# df/dx1 = 2*pi*cos(2*pi*x1) * (1{x1<0} - 2 * 1{x3<0}) + x2
+# df/dx2 = x1 + 1
+# df/dx3 = 0
+dfdx = bench.jacobian
 ```
 
 ## ALE-based methods
@@ -127,19 +87,7 @@ $$\text{ALE}(x_1) = \int_{z=0}^{x_1} \mathbb{E}_{x_2, x_3|x_1=z} \left [ \frac{\
 
 
 ```python
-def ale_gt(x):
-    y = np.zeros_like(x)
-    ind = x < 0
-    y[ind] = - np.sin(2 * np.pi * x[ind])
-    c = 0.31
-    return y - c
-
-def ale_gt_derivative_effect(x):
-    dydx = np.zeros_like(x)
-    ind = x < 0
-    dydx[ind] = - 2 * np.pi * np.cos(2 * np.pi * x[ind])
-    return dydx, sigma_2
-
+ale_gt = bench.ale_gt
 ```
 
 
@@ -181,17 +129,15 @@ The heterogeneity informs that the instance-level effects are deviating from the
 
 
 ```python
-def rhale_gt(x):
-    y = np.zeros_like(x)
-    ind = x < 0
-    y[ind] = - np.sin(2 * np.pi * x[ind])
-    c = 0.31
-    return y - c, (x + .5) * sigma_2
+rhale_gt = bench.rhale_gt              # mean effect (identical to ALE)
+rhale_heter_gt = bench.rhale_heter_gt  # effect-space heterogeneity band
+
 
 def rhale_gt_derivative_effect(x):
+    # derivative-space view, used only for the illustration below
     dydx = np.zeros_like(x)
     ind = x < 0
-    dydx[ind] = - 2 * np.pi * np.cos(2 * np.pi * x[ind])
+    dydx[ind] = -2 * np.pi * np.cos(2 * np.pi * x[ind])
     return dydx, sigma_2
 ```
 
@@ -200,7 +146,9 @@ def rhale_gt_derivative_effect(x):
 plt.figure()
 plt.ylim(-2, 2)
 xx = np.linspace(-.5, .5, 100)
-plt.plot(xx, rhale_gt(xx)[0], "b--", label="average effect")
+plt.plot(xx, rhale_gt(xx), "b--", label="average effect")
+plt.fill_between(xx, rhale_gt(xx) - rhale_heter_gt(xx), rhale_gt(xx) + rhale_heter_gt(xx),
+                 alpha=0.2, color="red", label="$\pm$ heterogeneity")
 plt.title("RHALE and ALE: ground truth main effect")
 plt.xlabel("$x_1$")
 plt.ylabel("y")
@@ -400,9 +348,7 @@ $$\text{ICE}^{(i)}(x_1, x^{(i)}_2, x^{(i)}_3) = f(x_1, x^{(i)}_2, x^{(i)}_3) = \
 
 
 ```python
-def gt_pdp(x):
-    y = np.sin(2 * np.pi * x) * (x < 0) - 5/3 * np.sin(2 * np.pi * x)
-    return y
+gt_pdp = bench.pdp_gt
 
 def gt_ice(x, N):
     K = x.shape[0]
@@ -464,9 +410,9 @@ $$\text{d-ICE}^{(i)}(x_1, x^{(i)}_2, x^{(i)}_3) = \frac{\partial}{\partial x_1} 
 
 
 ```python
-def gt_d_pdp(x):
-    y = 2 * np.pi * np.cos(2 * np.pi * x) * (x < 0) - 10 * np.pi / 3 * np.cos(2 * np.pi * x) + 1
-    return y
+# (the earlier version of this notebook carried a spurious `+1` here —
+#  a slip of dy/dx2 = x1 + 1; the corrected closed form lives in benchmarks)
+gt_d_pdp = bench.d_pdp_gt
 
 def gt_d_ice(x, N):
     K = x.shape[0]
@@ -514,18 +460,22 @@ effector.DerPDP(data=x, model=f, model_jac=dfdx, nof_instances=50).plot(feature=
 
 ## SHAP Dependence Plots
 
-
+> **Note (2026-07):** the closed form below ($-\frac{5}{6}\sin(2\pi x_1)$), as
+> derived in the paper's era, does **not** match what interventional Shapley
+> values (the quantity the `shap` package computes) converge to: an exact
+> brute-force coalition computation and `shap` agree with each other and both
+> sit $\approx 0.3$ away from this curve, independent of the sample size. The
+> derivation is being revisited; until then the curve is shown for reference
+> and is *not* asserted (the corresponding test is skipped).
 
 
 ```python
-def gt_shape(x):
-    y = -5/6*np.sin(2 * np.pi * x)
-    return y
+gt_shape = bench.shap_gt  # DISPUTED — see the note above
 
 def gt_shap_values(N):
     N1 = int(5*N/6)
     N2 = N - N1
-    x = generate_samples(N1, N2, sigma_2=sigma_2, sigma_3=sigma_3)
+    x = bench.generate_data(N1 + N2, seed=7)
     
     # drop when x_1 < 0.5 or > 0.5
     x = x[np.logical_and(x[:, 0] >= -0.5, x[:, 0] <= 0.5), :]
@@ -573,7 +523,43 @@ shap_dp.plot(feature=0, centering=True, heterogeneity="shap_values", y_limits=[-
     
 
 
+## Tests
+
+The asserts below mirror `tests/test_functional_correlated_features.py` — the
+tolerances are per-half because only $1/6$ of the $x_1$ mass lies above zero,
+so estimates there are intrinsically noisier.
+
 
 ```python
+xx = np.linspace(-0.5, 0.5, 100)
+dense = xx <= 0  # 5/6 of the x1 mass
 
+
+def assert_per_half(y, gt, atol_dense, atol_sparse):
+    np.testing.assert_allclose(y[dense], gt[dense], atol=atol_dense)
+    np.testing.assert_allclose(y[~dense], gt[~dense], atol=atol_sparse)
+
+
+# PDP
+pdp = effector.PDP(data=x, model=f, axis_limits=axis_limits)
+np.testing.assert_allclose(pdp.eval(feature=0, xs=xx, centering=True), gt_pdp(xx), atol=1e-1)
+
+# d-PDP
+dpdp = effector.DerPDP(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+np.testing.assert_allclose(dpdp.eval(feature=0, xs=xx, centering=False), gt_d_pdp(xx), atol=5e-1)
+
+# ALE
+ale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
+ale.fit(features=0, binning_method=effector.axis_partitioning.Fixed(nof_bins=31))
+assert_per_half(ale.eval(feature=0, xs=xx, centering=True), ale_gt(xx), 1.5e-1, 3e-1)
+
+# RHALE
+rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+rhale.fit(features=0)
+assert_per_half(rhale.eval(feature=0, xs=xx, centering=True, heterogeneity=False), rhale_gt(xx), 2e-1, 4e-1)
+
+print("all closed-form checks passed")
 ```
+
+    all closed-form checks passed
+

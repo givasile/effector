@@ -34,14 +34,11 @@ import effector
 
 np.random.seed(21)
 
-model = effector.models.GeneralInteraction()
-dataset = effector.datasets.IndependentUniform(dim=3, low=-1, high=1)
-x = dataset.generate_data(1_000)
+bench = effector.benchmarks.GeneralInteractionUniform()
+model = bench.model
+dataset = bench.dataset
+x = bench.generate_data(1_000)
 ```
-
-    /Users/dimitriskyriakopoulos/Documents/ath/Effector/Code/eff-env/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
-      from .autonotebook import tqdm as notebook_tqdm
-
 
 ## PDP
 
@@ -152,26 +149,14 @@ Are the PDP effects intuitive?
 * For $x_3$, the effect is $e^{x_3}$, as expected, since this term directly corresponds to $x_3$ and has no interaction with other variables.
 
 
+### Tests
+
 
 ```python
-def compute_centering_constant(func, start, stop, nof_points):
-    x = np.linspace(start, stop, nof_points)
-    y = func(x)
-    return np.mean(y)
-
-def pdp_ground_truth(feature, xs):
-    if feature == 0:  
-        func = lambda x: (1/3) * x  
-        z = compute_centering_constant(func, -1, 1, 1000)
-        return func(xs) - z
-    elif feature == 1:  
-        func = lambda x: np.zeros_like(x)  
-        z = compute_centering_constant(func, -1, 1, 1000)
-        return func(xs) - z
-    elif feature == 2:  
-        func = lambda x: np.exp(x)  
-        z = compute_centering_constant(func, -1, 1, 1000)
-        return func(xs) - z
+# The closed form below lives in `effector.benchmarks` — the SAME function the
+# test suite asserts against (tests/test_functional_general_interaction.py),
+# so this notebook and the tests can never disagree about the right answer.
+pdp_ground_truth = bench.pdp_gt
 ```
 
 
@@ -205,7 +190,7 @@ plt.show()
 
 
     
-![png](06_general_interaction_independent_uniform_global_files/06_general_interaction_independent_uniform_global_13_0.png)
+![png](06_general_interaction_independent_uniform_global_files/06_general_interaction_independent_uniform_global_14_0.png)
     
 
 
@@ -236,19 +221,19 @@ for feature in [0, 1, 2]:
 
 
     
-![png](06_general_interaction_independent_uniform_global_files/06_general_interaction_independent_uniform_global_17_0.png)
+![png](06_general_interaction_independent_uniform_global_files/06_general_interaction_independent_uniform_global_18_0.png)
     
 
 
 
     
-![png](06_general_interaction_independent_uniform_global_files/06_general_interaction_independent_uniform_global_17_1.png)
+![png](06_general_interaction_independent_uniform_global_files/06_general_interaction_independent_uniform_global_18_1.png)
     
 
 
 
     
-![png](06_general_interaction_independent_uniform_global_files/06_general_interaction_independent_uniform_global_17_2.png)
+![png](06_general_interaction_independent_uniform_global_files/06_general_interaction_independent_uniform_global_18_2.png)
     
 
 
@@ -259,12 +244,6 @@ ALE states that:
 - For $x_2$: The ALE effect is constant, as $x_2^2$ contributes symmetrically to the model output. This results in no variation with $x_2$, and the effect is consistent with the PDP. The interaction terms cancel out on average, leaving only the baseline constant.
 
 - For $x_3$: The ALE effect is $e^{x_3}$, reflecting the direct contribution of the exponential term $e^{x_3}$ in the model. This is identical to the PDP effect since $x_3$ does not interact with other features.
-
-
-ALE states that:
-- For \(x_1\): The effect is proportional to $\frac{1}{3} x_1$, matching the PDP.
-- For \(x_2\): The effect is constant due to the symmetric contribution of $x_2^2$, consistent with the PDP.
-- For \(x_3\): The effect is $e^{x_3}$, identical to the PDP.
 
 
 ### Derivations
@@ -318,20 +297,10 @@ ALE(x_3) &\propto \sum_{k=1}^{k_{x_3}} \frac{1}{| \mathcal{S}_k |} \sum_{i: x^{(
 
 
 ```python
-def ale_ground_truth(feature, xs):
-    if feature == 0:  
-        ff = lambda x: (1 / 3) * x  
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-    elif feature == 1:  
-        ff = lambda x: np.zeros_like(x)  
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-    elif feature == 2:  
-        ff = lambda x: np.exp(x)  
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-
+# The closed form below lives in `effector.benchmarks` — the SAME function the
+# test suite asserts against (tests/test_functional_general_interaction.py),
+# so this notebook and the tests can never disagree about the right answer.
+ale_ground_truth = bench.ale_gt
 ```
 
 
@@ -426,10 +395,15 @@ for feature in [0, 1, 2]:
 
 
 RHALE states that:
-- $x_1$ has a zero average effect on the model output (same as PDP)
-- $x_2$ has a zero average effect on the model output (different than PDP and ALE)
-- $x_3$ has an effect of $e^{x_3}$ (same as PDP)
 
+- $x_1$ has an average effect proportional to $\frac{1}{3} x_1$ (same as PDP and ALE)
+- $x_2$ has a zero average effect: $\mathbb{E}[x_1] = 0$, so the interaction term
+  $x_1 x_2^2$ vanishes on average (same as PDP and ALE)
+- $x_3$ has an effect of $e^{x_3}$ (same as PDP and ALE)
+
+For this model — smooth, with independent features — all three methods agree
+everywhere; the differences between them only appear under discontinuities
+(notebook 05) or correlated features (notebook 02).
 
 ### Derivations
 
@@ -480,20 +454,10 @@ RHALE(x_3) &\propto \sum_{k=1}^{k_{x_3}} \frac{1}{| \mathcal{S}_k |} (z_k - z_{k
 
 
 ```python
-def rhale_ground_truth(feature, xs):
-    if feature == 0:  
-        ff = lambda x: (1 / 3) * x  
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-    elif feature == 1:  
-        ff = lambda x: np.zeros_like(x)  
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-    elif feature == 2: 
-        ff = lambda x: np.exp(x) 
-        z = compute_centering_constant(ff, -1, 1, 1000)
-        return ff(xs) - z
-
+# The closed form below lives in `effector.benchmarks` — the SAME function the
+# test suite asserts against (tests/test_functional_general_interaction.py),
+# so this notebook and the tests can never disagree about the right answer.
+rhale_ground_truth = bench.rhale_gt
 ```
 
 
@@ -545,3 +509,65 @@ Are the RHALE effects intuitive?
 
 Since $f(x_1, x_2, x_3)$ is smooth and differentiable with respect to all features, RHALE behaves consistently with ALE and PDP for all features. It correctly captures the linear effect of $x_1$, the symmetric constant contribution of $x_2^2$ as zero, and the exponential effect of $x_3$.
 
+
+## Heterogeneity
+
+The mean effects hide the most interesting property of this model: the
+interaction $x_1 x_2^2$ is **invisible in the mean effect of $x_2$**
+(because $\mathbb{E}[x_1] = 0$) but fully visible in its *heterogeneity* —
+the variance of the (centered) ICE curves.
+
+For $x_1$: the centered ICE at position $x_1$ is $x_1 (x_{2,i}^2 - \text{const})$,
+so its variance across instances is
+
+$$h(x_1) = x_1^2 \, \mathrm{Var}[x_2^2] = \frac{4}{45} x_1^2.$$
+
+For $x_2$: the centered ICE is $x_{1,i}(x_2^2 - \mathbb{E}[x_2^2])$, so
+
+$$h(x_2) = \left(x_2^2 - \tfrac{1}{3}\right)^2 \mathbb{E}[x_1^2] = \frac{(x_2^2 - 1/3)^2}{3}.$$
+
+For $x_3$: the additive $e^{x_3}$ term is the same for every instance, so
+$h(x_3) = 0$.
+
+
+```python
+pdp = effector.PDP(x, model.predict, dataset.axis_limits, nof_instances="all")
+for feature in [0, 1, 2]:
+    pdp.plot(feature=feature, centering=True, heterogeneity="ice", y_limits=[-2, 2])
+```
+
+
+    
+![png](06_general_interaction_independent_uniform_global_files/06_general_interaction_independent_uniform_global_42_0.png)
+    
+
+
+
+    
+![png](06_general_interaction_independent_uniform_global_files/06_general_interaction_independent_uniform_global_42_1.png)
+    
+
+
+
+    
+![png](06_general_interaction_independent_uniform_global_files/06_general_interaction_independent_uniform_global_42_2.png)
+    
+
+
+### Tests
+
+
+```python
+# make a test
+xx = np.linspace(-1, 1, 100)
+for feature in [0, 1, 2]:
+    _, pdp_heter = pdp.eval(feature=feature, xs=xx, centering=True, heterogeneity=True)
+    np.testing.assert_allclose(pdp_heter, bench.pdp_heter_gt(feature, xx), atol=1e-1)
+```
+
+### Conclusions
+
+$x_2$ is the textbook case for why heterogeneity matters: its mean effect is
+exactly zero, yet the ICE curves fan out with variance $(x_2^2 - 1/3)^2 / 3$ —
+an interaction that a mean-only reading would miss entirely. This is also the
+signal that regional methods exploit to find meaningful subspaces.
