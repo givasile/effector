@@ -442,6 +442,27 @@ to pytest anyway — §3.3), don't relax the budget.
 
 ## 6. Order of work (revised 2026-07-02 — interleaved with Part III)
 
+**STATUS CHECKPOINT (2026-07-03, end of `tests/functional-anchor` / PR #21):**
+steps 1–3 below are **done** — P1–P5 fixed, functional anchor landed (LOGBOOK
+#9), notebooks rewired to `effector.benchmarks` + docs regenerated (LOGBOOK
+#10), constitution R1–R9 agreed as text (LOGBOOK #3–#6). CI green on 3.10–3.13.
+**The next session starts at step 4: the contract layer.** Concretely:
+- rewrite the C-items of §3.1 against the LOGBOOK #4 eval surface (C1
+  simplifies, C7 disappears; new C-items for the payload accessor, H, and
+  centering-invariance), agree them test-by-test, then encode as
+  `test_contract_*.py` + `conftest.py` method registry — green where a rule
+  holds, `xfail(strict=True)` where the refactor must make it true (B11 is an
+  immediate xfail case; B1–B9 per §4).
+- then step 5 (unit layer §3.2 + plot-content layer §3.4 + facade/data §3.5),
+  then step 6 (freeze), then the Part III refactor itself.
+Open side-items, not blocking: notebook-02 SHAP closed form re-derivation
+(math, Vasilis — Part III §3 errata); notebook 04's hardcoded `node_idx` fix
+(skipped in `test_notebooks.py`); real-examples 01's ShapDP zero-size-array
+crash; quickstart/guides/real-examples notebooks still carry OLD stored outputs
+(only synthetic-examples were re-executed + their docs pages regenerated — the
+other doc groups' pages date from v0.1.x runs; regenerate via `make docs-update`
+after re-running those notebooks).
+
 The contract layer is Part III §1 compiled into executable form, so the working
 order interleaves the two parts: **anchor behavior first, then agree the rules,
 then encode them as tests, then refactor until the encoded rules hold.**
