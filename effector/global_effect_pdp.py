@@ -5,6 +5,7 @@ from typing import Callable, List, Optional, Union
 import numpy as np
 
 import effector.helpers as helpers
+import effector.utils as utils
 import effector.visualization as vis
 from effector import ingestion
 from effector.global_effect import GlobalEffectBase
@@ -50,6 +51,8 @@ class PDPBase(GlobalEffectBase):
         # the (d-)PDP stores no per-feature payload beyond the normalization
         # constant (which the base fit loop appends); ICE curves are computed
         # by the evaluation kernel
+        if self._is_cat(feature):
+            return {"levels": self._levels(feature), "is_cat": True}
         return {}
 
     def _compute_norm_const(
@@ -62,6 +65,13 @@ class PDPBase(GlobalEffectBase):
         use_vectorized = self.fit_args.get("feature_" + str(feature), {}).get(
             "use_vectorized", True
         )
+        if self._is_cat(feature):
+            levels, weights = self._level_weights(feature)
+            if method == "zero_integral":
+                y = self._predict(self.data, levels, feature, use_vectorized)
+                return np.average(y, axis=0, weights=weights)
+            y = self._predict(self.data, levels[:1], feature, use_vectorized)
+            return y[0]
         if method == "zero_integral":
             xx = np.linspace(
                 self.axis_limits[0, feature],
@@ -79,18 +89,31 @@ class PDPBase(GlobalEffectBase):
         h(x) — the variance across the *per-instance centered* ICE curves for
         the PDP (levels are only comparable after centering) and across the raw
         d-ICE curves for the DerPDP (slopes are directly comparable)."""
+        if self._is_cat(feature):
+            # discrete features are evaluated only at levels (R10)
+            utils.codes_from_levels(
+                x, self._levels(feature), feature, self.feature_names[feature]
+            )
         y_ice = self._predict(self.data, x, feature, use_vectorized=True)
         y_mean = np.mean(y_ice, axis=1)
         if not heterogeneity:
             return y_mean
 
         if self.method_name == "pdp":
-            xx = np.linspace(
-                self.axis_limits[0, feature], self.axis_limits[1, feature], 30
-            )
-            per_instance_norm = np.mean(
-                self._predict(self.data, xx, feature, use_vectorized=True), axis=0
-            )
+            if self._is_cat(feature):
+                levels, weights = self._level_weights(feature)
+                per_instance_norm = np.average(
+                    self._predict(self.data, levels, feature, use_vectorized=True),
+                    axis=0,
+                    weights=weights,
+                )
+            else:
+                xx = np.linspace(
+                    self.axis_limits[0, feature], self.axis_limits[1, feature], 30
+                )
+                per_instance_norm = np.mean(
+                    self._predict(self.data, xx, feature, use_vectorized=True), axis=0
+                )
             y_var = np.var(y_ice - per_instance_norm[np.newaxis, :], axis=1)
         else:
             y_var = np.var(y_ice, axis=1)
@@ -199,6 +222,7 @@ class PDPBase(GlobalEffectBase):
 
 class PDP(PDPBase):
     DEFAULT_CENTERING: Union[bool, str] = False
+    CAT_STRATEGY = "ice_at_levels"
 
     def __init__(
         self,
@@ -364,6 +388,7 @@ class PDP(PDPBase):
 
 
 class DerPDP(PDPBase):
+    SUPPORTED_FEATURE_TYPES = frozenset({ingestion.CONTINUOUS})
     DEFAULT_CENTERING: Union[bool, str] = False
     IS_DERIVATIVE: bool = True
 

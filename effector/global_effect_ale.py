@@ -28,6 +28,10 @@ class ALEBase(GlobalEffectBase):
         random_state: Optional[int] = 21,
         method_name: str = "ALE",
     ):
+        # per-feature raw local effects + bin limits (regional reuse and the
+        # discrete kernel store here; ALE also uses them on the continuous path)
+        self.data_effect_ale: dict = {}
+        self.bin_limits: dict = {}
         super(ALEBase, self).__init__(
             method_name,
             data,
@@ -46,6 +50,28 @@ class ALEBase(GlobalEffectBase):
 
     def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
         params = self.feature_effect["feature_" + str(feature)]
+        if params.get("is_cat"):
+            # discrete kernel (method_semantics.md): accumulate in code space —
+            # exact at levels, and h(v_j) is the variance of the step *into*
+            # level j (h(v_1) = the first transition's variance)
+            codes = utils.codes_from_levels(
+                x, params["levels"], feature, self.feature_names[feature]
+            )
+            y = utils.compute_accumulated_effect(
+                codes.astype(float),
+                limits=params["limits"],
+                bin_effect=params["bin_effect"],
+                dx=params["dx"],
+            )
+            if heterogeneity:
+                transition_pos = np.maximum(codes, 1) - 0.5
+                var = utils.apply_bin_value(
+                    x=transition_pos,
+                    bin_limits=params["limits"],
+                    bin_value=params["bin_variance"],
+                )
+                return y, var
+            return y
         y = utils.compute_accumulated_effect(
             x, limits=params["limits"], bin_effect=params["bin_effect"], dx=params["dx"]
         )
@@ -56,6 +82,40 @@ class ALEBase(GlobalEffectBase):
             return y, var
         else:
             return y
+
+    def _fit_feature_cat(self, feature: int, binning_method=None) -> typing.Dict:
+        """The discrete (RH)ALE kernel: two-sided adjacent-level differences in
+        code space (method_semantics.md). ALE keeps one bin per transition;
+        RHALE additionally merges adjacent transitions with Greedy/DP —
+        adaptive level grouping."""
+        levels = self._levels(feature)
+        if len(levels) < 2:
+            raise ValueError(
+                f"feature {feature} {self.feature_names[feature]!r} has a "
+                f"single level — no effect to compute"
+            )
+        positions, effects = utils.compute_local_effects_categorical(
+            self.data, self.model, levels, feature
+        )
+        self.data_effect_ale["feature_" + str(feature)] = effects
+
+        if binning_method is None:
+            limits = np.arange(len(levels), dtype=float)
+        else:
+            binning = ap.adapt_for_categorical(
+                ap.return_default(binning_method), len(levels)
+            )
+            limits = binning.find_limits(
+                positions, effects, np.array([0.0, len(levels) - 1.0])
+            )
+            utils.raise_if_no_binning(limits, feature, binning)
+        self.bin_limits["feature_" + str(feature)] = limits
+
+        params = utils.compute_ale_params(positions, effects, limits)
+        params["alg_params"] = "categorical"
+        params["levels"] = levels
+        params["is_cat"] = True
+        return params
 
     def plot(
         self,
@@ -162,6 +222,8 @@ class ALEBase(GlobalEffectBase):
 
 
 class ALE(ALEBase):
+    CAT_STRATEGY = "adjacent_level_diffs"
+
     def __init__(
         self,
         data: np.ndarray,
@@ -244,8 +306,6 @@ class ALE(ALEBase):
                 - use an `int` (default: `21`), for reproducible output; two identical constructions give identical results
                 - use `None`, for non-deterministic behavior
         """
-        self.bin_limits = {}
-        self.data_effect_ale = {}
         super(ALE, self).__init__(
             data,
             model,
@@ -259,6 +319,8 @@ class ALE(ALEBase):
     def _fit_feature(self, feature: int, binning_method="fixed") -> typing.Dict:
 
         data = self.data
+        if self._is_cat(feature):
+            return self._fit_feature_cat(feature)
         if not (binning_method == "fixed" or isinstance(binning_method, ap.Fixed)):
             raise ValueError(
                 f"Invalid binning_method: {binning_method!r}; ALE works only with "
@@ -324,6 +386,9 @@ class ALE(ALEBase):
 
 
 class RHALE(ALEBase):
+    SUPPORTED_FEATURE_TYPES = frozenset({ingestion.CONTINUOUS, ingestion.ORDINAL})
+    CAT_STRATEGY = "level_diffs_grouped"
+
     def __init__(
         self,
         data: np.ndarray,
@@ -442,6 +507,10 @@ class RHALE(ALEBase):
             str, ap.DynamicProgramming, ap.Greedy, ap.Fixed
         ] = "greedy",
     ) -> typing.Dict:
+        if self._is_cat(feature):
+            # ordinal kernel: adjacent-level differences are the discrete
+            # derivative; the jacobian (if any) is ignored for this feature
+            return self._fit_feature_cat(feature, binning_method)
         if self.data_effect is None:
             self.compile()
 

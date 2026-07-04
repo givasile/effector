@@ -203,3 +203,33 @@ class GeneralInteraction(Base):
         y[:, 1] = 2 * x[:, 0] * x[:, 1]
         y[:, 2] = np.exp(x[:, 2])
         return y
+
+
+class ConditionalCategorical(Base):
+    A = np.array([0.0, 1.0, 3.0])
+    B = np.array([1.0, -1.0, 0.0])
+
+    def __init__(self):
+        r"""The categorical-FOI ground-truth model (method_semantics.md tests).
+
+        $f(x) = a_{x_0} + b_{x_0} \, x_1 \, \mathbb{1}_{x_2 > 0}$, with
+        $x_0 \in \{0, 1, 2\}$, $a = [0, 1, 3]$, $b = [1, -1, 0]$.
+
+        Every per-level quantity (PDP, ALE transitions, heterogeneity) has a
+        closed form: the per-level PDP is $a_k + b_k \bar{g}$ and the
+        heterogeneity is $(b_k - \bar{b}_w)^2 \mathrm{Var}(g)$ with
+        $g_i = x_1^i \mathbb{1}_{x_2^i > 0}$.
+        """
+        super().__init__(name=self.__class__.__name__)
+
+    def predict(self, x: np.ndarray) -> np.ndarray:
+        codes = x[:, 0].astype(int)
+        gate = (x[:, 2] > 0).astype(float)
+        return self.A[codes] + self.B[codes] * x[:, 1] * gate
+
+    def jacobian(self, x: np.ndarray) -> np.ndarray:
+        codes = x[:, 0].astype(int)
+        gate = (x[:, 2] > 0).astype(float)
+        y = np.zeros_like(x)
+        y[:, 1] = self.B[codes] * gate
+        return y

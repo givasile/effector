@@ -392,6 +392,20 @@ class Fixed(Base):
 
 # the single alias table for binning-method strings (R6): validation and
 # resolution both read it, so they cannot disagree
+def adapt_for_categorical(method: Base, nof_levels: int) -> Base:
+    """A copy of `method` whose candidate bin edges land exactly on the
+    integer level codes 0..K-1, so Greedy/DP merging over the K-1 transitions
+    becomes *adaptive level grouping* (method_semantics.md, RHALE-ordinal)."""
+    import copy
+
+    method = copy.deepcopy(method)
+    nof_transitions = nof_levels - 1
+    for key in ("init_nof_bins", "max_nof_bins", "nof_bins"):
+        if key in method.method_args:
+            method.method_args[key] = nof_transitions
+    return method
+
+
 VALID_METHODS = {
     "fixed": Fixed,
     "greedy": Greedy,

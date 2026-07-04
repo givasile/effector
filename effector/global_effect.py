@@ -5,11 +5,28 @@ import numpy as np
 
 from effector import helpers, ingestion, utils
 
+HINT_DERPDP = (
+    " A derivative needs a continuous axis; use PDP instead — adjacent "
+    "differences of the per-level PDP bars carry the same information."
+)
+HINT_RHALE_NOMINAL = (
+    " No derivative exists for nominal features and grouping over an "
+    "arbitrary order is not meaningful; use ALE or PDP instead."
+)
+
 
 class GlobalEffectBase(ABC):
     # the class-level centering default (R3): each subclass declares it once;
     # fit/eval/plot signatures converge on it during the homogenization
     DEFAULT_CENTERING: Union[bool, str] = False
+
+    # capability contract per feature type (method_semantics.md): which of
+    # continuous/ordinal/nominal the method supports, and the strategy code it
+    # uses for discrete features (mirrored into the R5 registry)
+    SUPPORTED_FEATURE_TYPES: frozenset = frozenset(
+        {ingestion.CONTINUOUS, ingestion.ORDINAL, ingestion.NOMINAL}
+    )
+    CAT_STRATEGY: Optional[str] = None
 
     def __init__(
         self,
@@ -133,6 +150,37 @@ class GlobalEffectBase(ABC):
         method's own units, independent of any centering)."""
         raise NotImplementedError
 
+    def _is_cat(self, feature: int) -> bool:
+        """Does `feature` behave categorically (ordinal or nominal)?"""
+        return ingestion.is_categorical(self.feature_types[feature])
+
+    def _levels(self, feature: int) -> np.ndarray:
+        """The observed levels of a discrete feature, ascending."""
+        return np.unique(self.data[:, feature])
+
+    def _level_weights(self, feature: int) -> Tuple[np.ndarray, np.ndarray]:
+        """(levels, frequencies) of a discrete feature — the weights of every
+        frequency-weighted quantity in method_semantics.md."""
+        levels, counts = np.unique(self.data[:, feature], return_counts=True)
+        return levels, counts / counts.sum()
+
+    def _check_feature_type_supported(self, feature: int) -> None:
+        """The capability matrix as an error (method_semantics.md)."""
+        ftype = self.feature_types[feature]
+        if ftype in self.SUPPORTED_FEATURE_TYPES:
+            return
+        hints = {
+            ("d-pdp", ingestion.ORDINAL): HINT_DERPDP,
+            ("d-pdp", ingestion.NOMINAL): HINT_DERPDP,
+            ("rhale", ingestion.NOMINAL): HINT_RHALE_NOMINAL,
+        }
+        hint = hints.get((self.method_name, ftype), "")
+        raise ValueError(
+            f"{self.method_name} does not support {ftype} features "
+            f"(feature {feature} {self.feature_names[feature]!r} is {ftype})."
+            f"{hint}"
+        )
+
     def _fit_loop(
         self,
         features: Union[int, str, list],
@@ -145,6 +193,7 @@ class GlobalEffectBase(ABC):
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
         for s in features:
+            self._check_feature_type_supported(s)
             key = "feature_" + str(s)
             self.fit_args[key] = {
                 "centering": centering,
@@ -171,6 +220,14 @@ class GlobalEffectBase(ABC):
 
         def partial_eval(x):
             return self._eval_unnorm(feature, x, heterogeneity=False)
+
+        if self._is_cat(feature):
+            # discrete centering (method_semantics.md): zero_integral is the
+            # frequency-weighted level mean; zero_start zeroes the first level
+            levels, weights = self._level_weights(feature)
+            if method == "zero_integral":
+                return float(np.average(partial_eval(levels), weights=weights))
+            return partial_eval(levels[:1]).item()
 
         start = self.axis_limits[0, feature]
         stop = self.axis_limits[1, feature]
@@ -218,6 +275,10 @@ class GlobalEffectBase(ABC):
         (`helpers.NOF_INTERNAL_POINTS` points) on the feature's interval — the
         single quantity regional splitting (and the future interaction module)
         consumes."""
+        if self._is_cat(feature):
+            # frequency-weighted over levels (method_semantics.md)
+            levels, weights = self._level_weights(feature)
+            return float(np.average(self.eval_heter(feature, levels), weights=weights))
         xs = np.linspace(
             self.axis_limits[0, feature],
             self.axis_limits[1, feature],

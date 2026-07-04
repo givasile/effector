@@ -84,6 +84,8 @@ def _compute_shap_values(
 
 
 class ShapDP(GlobalEffectBase):
+    CAT_STRATEGY = "per_level_stats"
+
     DEFAULT_CENTERING: Union[bool, str] = "zero_integral"
 
     def __init__(
@@ -239,6 +241,26 @@ class ShapDP(GlobalEffectBase):
         yy = self.shap_values[:, feature]
         xx = data[:, feature]
 
+        if self._is_cat(feature):
+            # per-level mean/variance of the shap values with a step lookup —
+            # no spline, no order enters the math (method_semantics.md)
+            levels = self._levels(feature)
+            codes = utils.codes_from_levels(
+                xx, levels, feature, self.feature_names[feature]
+            )
+            limits = np.arange(len(levels) + 1, dtype=float) - 0.5
+            feature_effect_dict = utils.compute_ale_params(
+                codes.astype(float), yy, limits
+            )
+            return {
+                "bin_effect": feature_effect_dict["bin_effect"],
+                "bin_variance": feature_effect_dict["bin_variance"],
+                "levels": levels,
+                "is_cat": True,
+                "xx": xx,
+                "yy": yy,
+            }
+
         if isinstance(binning_method, str):
             binning_method = ap.return_default(binning_method)
 
@@ -280,6 +302,14 @@ class ShapDP(GlobalEffectBase):
 
     def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
         params = self.feature_effect["feature_" + str(feature)]
+        if params.get("is_cat"):
+            codes = utils.codes_from_levels(
+                x, params["levels"], feature, self.feature_names[feature]
+            )
+            y = params["bin_effect"][codes]
+            if heterogeneity:
+                return y, params["bin_variance"][codes]
+            return y
         y = params["spline_mean"](x)
         if heterogeneity:
             return y, params["spline_var"](x)
