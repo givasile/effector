@@ -66,9 +66,10 @@ Every `vis.*` function and every public `.plot` returns `(fig, ax)` when
 ## R8 — Constructor contract
 
 Canonical parameter order `data, model, model_jac=None, *, data_effect,
-nof_instances, axis_limits, feature_types, cat_limit, feature_names,
-target_name, random_state, ...` — everything after `model_jac` keyword-only,
-so positional shuffles can't bite.
+nof_instances, axis_limits, schema, random_state, ...` — everything after
+`model_jac` keyword-only, so positional shuffles can't bite. All input
+metadata (names, types, target name, scaling) lives in the single `schema`
+argument (R10); metadata never appears as separate constructor kwargs.
 
 Reproducibility is contractual: every constructor takes `random_state`
 (default `21`; `None` opts into fresh randomness), two identical
@@ -82,3 +83,59 @@ the executed notebooks stay a valid regression oracle.)
 
 `ValueError`/`TypeError` (not bare `assert`) for user input; `warnings.warn`
 or `logging` (not `print`) inside heterogeneity functions.
+
+## R10 — Input contract
+
+**Accepted `data` types.** A 2-D numeric numpy array, or a pandas DataFrame.
+Anything else → `TypeError`. pandas is never a hard dependency: detection
+checks `sys.modules` only, and the numpy path never imports pandas (proven by
+a subprocess test). DataFrames are converted to a float numpy core matrix at
+the door (`effector.ingestion.ingest`, called before `helpers.prep_data` in
+every constructor); everything downstream is numpy-only.
+
+**One metadata argument.** All input metadata travels in `schema=` — an
+`effector.Schema` (frozen dataclass) or a plain dict with the same keys:
+`feature_names`, `feature_types`, `cat_limit` (default 10), `target_name`,
+`scale_x_list`, `scale_y` — every field optional. Unknown dict keys →
+`ValueError` listing the valid ones. A schema is reusable across method
+constructions.
+
+**Define-or-infer.** Precedence per field: explicit schema field >
+DataFrame inference > numpy heuristic > synthesized default (`x_0…`, `"y"`).
+
+**Feature-type taxonomy** — three-way, `"continuous" | "ordinal" | "nominal"`,
+with door-normalized aliases `"cont"` → continuous, `"cat"` → nominal.
+Inference:
+
+| source | rule |
+|---|---|
+| DataFrame float column | continuous |
+| DataFrame int column | ordinal if `nunique < cat_limit`, else continuous |
+| DataFrame bool column | ordinal (codes 0/1) |
+| DataFrame `Categorical(ordered=True)` | ordinal, declared category order kept |
+| DataFrame unordered category / object / string | nominal (codes via `astype("category")`) |
+| DataFrame datetime / other | `ValueError` |
+| numpy column, integer-valued, `nunique < cat_limit` | ordinal |
+| numpy column, otherwise | continuous — **nominal is never inferred from numpy** |
+
+Types decided by the *cardinality heuristic* (the two int rules) and not
+declared in the schema trigger one `UserWarning` naming the columns and the
+one-line `schema={"feature_types": [...]}` fix; dtype-decided types are
+silent. NaN anywhere in a DataFrame → `ValueError` naming the column.
+
+**Model-call rule.** If `data` was a DataFrame, `model` (and `model_jac`) are
+always called with a reconstructed DataFrame: original column names/order,
+encoded columns decoded to their original values/dtypes, numeric columns
+float64, codes rounded and clipped to the nearest level. Escape hatch for
+array-expecting models: `lambda X: f(X.to_numpy())`. Precomputed
+`data_effect` / `shap_values` align with the *encoded* matrix and pass
+through untouched.
+
+**Scaling precedence.** `scale_x_list`/`scale_y` in the schema are
+construction-time defaults; a plot-time `scale_x`/`scale_y` dict overrides,
+`False` at plot time explicitly disables an inherited scale.
+
+**One validation point.** `effector.ingestion.validate_metadata` (R9 style)
+checks name/type list lengths against `dim`, canonical type values, scale
+dict shapes (`{"mean","std"}`, `std != 0`), `cat_limit` sanity, and rejects a
+`continuous` label on an encoded (string-source) column.

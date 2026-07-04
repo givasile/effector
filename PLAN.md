@@ -1052,6 +1052,27 @@ Part I / Part V and should come **before** further feature ideas.
    PDP/ALE) return as *new* code written once against the unified base — only after
    1–3 are done.
 
+### 6.4 Input layer: pandas ingestion + schema metadata (spec for item 4)
+
+Decision (2026-07-04): the input layer lands *before* any method behavior changes on
+non-continuous features. Normative spec = `docs/design.md` **R10** (input contract) +
+the amended **R8** (constructor order with the single `schema` argument); exactness
+contract for what each method must return per feature type = `docs/method_semantics.md`.
+
+Shape: `data` accepts numpy or pandas DataFrame (converted at the door, pandas never a
+hard dependency); one `schema=` argument (`effector.Schema` or dict) replaces the
+`feature_names`/`target_name`/`feature_types`/`cat_limit` kwargs everywhere (breaking,
+pre-1.0); three-way feature taxonomy `continuous/ordinal/nominal` (aliases cont/cat)
+with define-or-infer + a heuristic-inference `UserWarning`; scaling moves to
+construction-time defaults with plot-time override (closes the F5 "scale-at-construction"
+item); signature harmonization (unified `nof_instances`/plot defaults, one
+`heterogeneity` vocabulary, SHAP config on the constructor, keyword-only `fit`) rides
+the same PR.
+
+Stage B (methods acting on ordinal/nominal FOI) is specced in §6.4a below and in
+`docs/method_semantics.md`, and builds on the stored `feature_metadata` (types,
+level↔code mappings, ordered-category order).
+
 ### 6.4a Categorical-FOI spec (detail for item 4)
 
 Decision (2026-07-02): categorical features as feature-of-interest do **not** break the

@@ -917,3 +917,47 @@ recompute analytic shap values on the kept rows instead.
 check + format clean.
 
 ---
+
+## 23. 2026-07-04 — Input layer decided: pandas ingestion, one `schema` argument, three-way feature types (tag: theory)  [PLAN III §6.4 (new), §6.4a revised; docs/design.md R10; docs/method_semantics.md]
+
+Planning session for "categorical features end to end". Agreed the work is two
+sequential stages — the input layer first, method behavior on non-continuous
+features second — and pinned the decisions:
+
+- **Input types:** numpy 2-D + pandas DataFrame, converted to numpy at the door;
+  pandas stays optional (lazy detection via `sys.modules`, numpy path never
+  imports it). No narwhals/polars — convert-at-the-door numeric core.
+- **One metadata argument (breaking, pre-1.0):** `schema=` (`effector.Schema`
+  dataclass or plain dict) holds `feature_names, feature_types, cat_limit,
+  target_name, scale_x_list, scale_y`; the separate `feature_names=`/
+  `target_name=`/`feature_types=`/`cat_limit=` kwargs are removed everywhere.
+  Define-or-infer: explicit schema field > DataFrame dtype inference > numpy
+  heuristic; heuristic-decided types (int-with-few-uniques) emit one
+  `UserWarning` nudging an explicit declaration — inference is a fallback, not
+  trusted.
+- **Three-way taxonomy** `continuous / ordinal / nominal` (aliases cont→continuous,
+  cat→nominal). Chosen over sklearn's two-way because in effector the distinction
+  is algorithmically real: DerPDP → continuous only; RHALE → continuous + ordinal
+  (discrete derivative + adaptive level grouping), nominal rejected; PDP/ALE/ShapDP
+  → all three, ALE-nominal defaulting to ascending encoded order with a documented
+  order-dependence caveat and `order=[...]` / `order="similarity"` overrides.
+  Nominal is never inferred from numpy input.
+- **Model-call rule:** DataFrame in → model always called with a reconstructed
+  DataFrame (original names/dtypes, codes decoded); escape hatch
+  `lambda X: f(X.to_numpy())`.
+- **Scaling** moves to construction (schema) with plot-time override
+  (plot dict > schema > None; `False` disables) — closes the F5 item.
+- **Exactness contract:** `docs/method_semantics.md` states the
+  eval/eval_heter/heter_score/plot formulas per method × feature type; it is the
+  acceptance spec Stage B will be reviewed against.
+- **Signature harmonization rides the same break:** one `nof_instances` rule
+  (10k, SHAP classes 1k), unified plot defaults, one `heterogeneity` vocabulary,
+  ALE plots at bin edges, SHAP config on the constructor, keyword-only `fit`
+  with one canonical order. Deliberately untouched: per-method DEFAULT_CENTERING
+  divergence, regional `eval`'s bool heterogeneity return shape.
+
+Stage B (ordinal/nominal kernels, regional-on-cat, similarity ordering) gets its
+own planning round after the input layer merges; deferred there: rare-level
+pooling vs K-cap, PR split, `requires_refit` × `order=`.
+
+---

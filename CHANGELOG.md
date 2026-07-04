@@ -2,6 +2,10 @@
 
 # [Unreleased]
 
+### Added
+
+- input contract spec: `docs/design.md` R10 (accepted data types, `Schema` metadata argument, three-way feature taxonomy, define-or-infer, model-call rule, scaling precedence) and `docs/method_semantics.md` (the exact `eval`/`eval_heter`/`heter_score`/`plot` formulas per method and feature type — the acceptance spec for the upcoming ordinal/nominal support)
+
 # [0.3.0] - 2026-07-04
 
 ### Added
