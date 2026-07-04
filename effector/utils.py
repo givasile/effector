@@ -1,5 +1,6 @@
 import copy
 import typing
+import warnings
 
 import numpy as np
 
@@ -475,26 +476,22 @@ def compute_ale_params(
 def get_feature_types(
     data: np.ndarray, categorical_limit: int = 10
 ) -> typing.List[str]:
-    """Determine the type of each feature.
+    """Deprecated: use `effector.ingestion.infer_feature_types`.
 
-    Notes:
-        A feature is considered as categorical if it has less than `cat_limit` unique values.
-
-    Args:
-        data: The dataset, (N, D)
-        categorical_limit: Maximum unique values for a feature to be considered as categorical
-
-
-    Returns:
-        types: A list of strings, where each string is either `"cat"` or `"cont"`
-
+    The vocabulary changed with the R10 input contract: the returned types are
+    now `"continuous"` / `"ordinal"` (three-way taxonomy; `"nominal"` is never
+    inferred from numpy input), no longer `"cat"` / `"cont"`.
     """
+    warnings.warn(
+        "utils.get_feature_types is deprecated; use "
+        "effector.ingestion.infer_feature_types (returns "
+        "'continuous'/'ordinal'/'nominal')",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    from effector import ingestion
 
-    types = [
-        "cat" if len(np.unique(data[:, f])) < categorical_limit else "cont"
-        for f in range(data.shape[1])
-    ]
-    return types
+    return ingestion.infer_feature_types(data, categorical_limit)
 
 
 def compute_jacobian_numerically(

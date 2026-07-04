@@ -956,6 +956,8 @@ dev = [
     { name = "mkdocstrings-python" },
     { name = "nbconvert" },
     { name = "numba", version = "0.65.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "pandas", version = "3.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
@@ -978,6 +980,8 @@ docs = [
 test = [
     { name = "coverage" },
     { name = "numba", version = "0.65.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "pandas", version = "3.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "shap", version = "0.49.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -1019,6 +1023,7 @@ dev = [
     { name = "mkdocstrings-python" },
     { name = "nbconvert" },
     { name = "numba", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'", specifier = ">=0.60" },
+    { name = "pandas" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
@@ -1038,6 +1043,7 @@ docs = [
 test = [
     { name = "coverage" },
     { name = "numba", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'", specifier = ">=0.60" },
+    { name = "pandas" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "shap" },

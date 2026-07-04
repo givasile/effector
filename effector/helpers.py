@@ -219,7 +219,8 @@ def indices_within_limits(data: np.ndarray, axis_limits: np.ndarray) -> np.ndarr
         accept_indices = np.logical_and.reduce(
             [accept_indices, accept_left, accept_right]
         )
-    assert np.sum(accept_indices) > 0
+    if np.sum(accept_indices) == 0:
+        raise ValueError("axis_limits exclude every data point")
     return accept_indices
 
 

@@ -70,7 +70,7 @@ def test_indices_within_limits():
 def test_indices_within_limits_none_inside_raises():
     data = np.array([[5.0, 5.0]])
     limits = np.array([[0.0, 0.0], [1.0, 1.0]])
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError, match="exclude every data point"):
         helpers.indices_within_limits(data, limits)
 
 
