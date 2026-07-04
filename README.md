@@ -90,8 +90,10 @@ def predict(x):
 pdp = effector.PDP(
     X_test,  # Use the test set as background data
     predict,  # Prediction function
-    feature_names=bike_sharing.feature_names,  # (optional) Feature names
-    target_name=bike_sharing.target_name  # (optional) Target variable name
+    schema={  # (optional) metadata: names, types, target name, axis scaling
+        "feature_names": bike_sharing.feature_names,
+        "target_name": bike_sharing.target_name,
+    },
 )
 
 # Plot the effect of a feature
@@ -115,8 +117,10 @@ pdp.plot(
 r_pdp = effector.RegionalPDP(
     X_test,  # Test set data
     predict,  # Prediction function
-    feature_names=bike_sharing.feature_names,  # Feature names
-    target_name=bike_sharing.target_name  # Target variable name
+    schema={  # metadata: names, types, target name, axis scaling
+        "feature_names": bike_sharing.feature_names,
+        "target_name": bike_sharing.target_name,
+    },
 )
 
 # Summarize the subregions of the 3rd feature (temperature)
