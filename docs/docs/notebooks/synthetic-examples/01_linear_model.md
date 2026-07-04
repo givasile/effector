@@ -140,7 +140,7 @@ Since this is based on model derivatives, the expected effects are simply the gr
 
 
 ```python
-[effector.DerPDP(data=X, model=predict, model_jac=predict_grad).plot(feature=i, heterogeneity=True, dy_limits=[-10, 10]) for i in range(3)]
+[effector.DerPDP(data=X, model=predict, model_jac=predict_grad).plot(feature=i, heterogeneity=True, y_limits=[-10, 10]) for i in range(3)]
 ```
 
 
@@ -268,21 +268,36 @@ TODO add intro
 [effector.ShapDP(data=X, model=predict).plot(feature=i) for i in range(3)]
 ```
 
+    ExactExplainer explainer:   0%|          | 1/1000 [00:00<?, ?it/s]
+
+    ExactExplainer explainer:  21%|██        | 209/1000 [00:12<00:00, 2074.28it/s]
+
+    ExactExplainer explainer:  42%|████▏     | 417/1000 [00:12<00:00, 1834.96it/s]
+
+    ExactExplainer explainer:  67%|██████▋   | 672/1000 [00:12<00:00, 2136.18it/s]
+
+    ExactExplainer explainer:  94%|█████████▎| 935/1000 [00:12<00:00, 2322.59it/s]
+
+    ExactExplainer explainer: 1001it [00:12, 80.65it/s]                           
 
     
-![png](01_linear_model_files/01_linear_model_19_0.png)
+
+
+
+    
+![png](01_linear_model_files/01_linear_model_19_7.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_19_1.png)
+![png](01_linear_model_files/01_linear_model_19_8.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_19_2.png)
+![png](01_linear_model_files/01_linear_model_19_9.png)
     
 
 

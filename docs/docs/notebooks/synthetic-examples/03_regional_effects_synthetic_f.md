@@ -124,7 +124,7 @@ The PDP is simply the average over the underlying ICE curves (local effects). Th
 
 
 ```python
-pdp = effector.PDP(data=X_uncor_train, model=model, feature_names=['x1','x2','x3'], target_name="Y")
+pdp = effector.PDP(data=X_uncor_train, model=model, schema={"feature_names": ['x1','x2','x3'], "target_name": "Y"})
 [pdp.plot(feature=i, centering=True, show_avg_output=False, heterogeneity="ice", y_limits=[-5, 5]) for i in range(3)]
 ```
 
@@ -159,14 +159,14 @@ Regional PDP will search for explanations that minimize the interaction-related 
 
 
 ```python
-regional_pdp = effector.RegionalPDP(data=X_uncor_train, model=model, feature_names=['x1','x2','x3'], axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
+regional_pdp = effector.RegionalPDP(data=X_uncor_train, model=model, schema={"feature_names": ['x1','x2','x3']}, axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
 space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
 regional_pdp.fit(features="all", space_partitioner=space_partitioner)
 ```
 
       0%|          | 0/3 [00:00<?, ?it/s]
 
-    100%|██████████| 3/3 [00:00<00:00, 161.89it/s]
+    100%|██████████| 3/3 [00:00<00:00, 95.94it/s]
 
     
 
@@ -181,15 +181,15 @@ regional_pdp.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 3.21 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 504 | w: 0.50]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 496 | w: 0.50]
+    x1 🔹 [id: 0 | heter: 3.20 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 473 | w: 0.47]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 527 | w: 0.53]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.21
-        Level 1🔹heter: 0.00 | 🔻3.21 (100.00%)
+    Level 0🔹heter: 3.20
+        Level 1🔹heter: 0.00 | 🔻3.20 (100.00%)
     
     
 
@@ -248,20 +248,20 @@ regional_pdp.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 3.06 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.79 | inst: 501 | w: 0.50]
-            x1 ≤ -0.40 🔹 [id: 2 | heter: 0.28 | inst: 292 | w: 0.29]
-            x1 > -0.40 🔹 [id: 3 | heter: 0.12 | inst: 209 | w: 0.21]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.74 | inst: 499 | w: 0.50]
-            x1 ≤ 0.40 🔹 [id: 5 | heter: 0.12 | inst: 195 | w: 0.20]
-            x1 > 0.40 🔹 [id: 6 | heter: 0.23 | inst: 304 | w: 0.30]
+    x3 🔹 [id: 0 | heter: 3.03 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.75 | inst: 493 | w: 0.49]
+            x1 ≤ -0.60 🔹 [id: 2 | heter: 0.14 | inst: 203 | w: 0.20]
+            x1 > -0.60 🔹 [id: 3 | heter: 0.26 | inst: 290 | w: 0.29]
+        x1 > 0.00 🔹 [id: 4 | heter: 0.75 | inst: 507 | w: 0.51]
+            x1 ≤ 0.60 🔹 [id: 5 | heter: 0.26 | inst: 304 | w: 0.30]
+            x1 > 0.60 🔹 [id: 6 | heter: 0.12 | inst: 203 | w: 0.20]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.06
-        Level 1🔹heter: 0.76 | 🔻2.29 (74.98%)
-            Level 2🔹heter: 0.20 | 🔻0.57 (73.93%)
+    Level 0🔹heter: 3.03
+        Level 1🔹heter: 0.75 | 🔻2.29 (75.36%)
+            Level 2🔹heter: 0.21 | 🔻0.54 (72.34%)
     
     
 
@@ -313,7 +313,7 @@ Due to this face, we expect the explanations to be identical with the uncorrelat
 
 
 ```python
-pdp = effector.PDP(data=X_cor_train, model=model, feature_names=['x1','x2','x3'], target_name="Y")
+pdp = effector.PDP(data=X_cor_train, model=model, schema={"feature_names": ['x1','x2','x3'], "target_name": "Y"})
 [pdp.plot(feature=i, centering=True, show_avg_output=False, heterogeneity="ice", y_limits=[-5, 5]) for i in range(3)]
 ```
 
@@ -346,14 +346,14 @@ pdp = effector.PDP(data=X_cor_train, model=model, feature_names=['x1','x2','x3']
 
 
 ```python
-regional_pdp = effector.RegionalPDP(data=X_cor_train, model=model, feature_names=['x1','x2','x3'], axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
+regional_pdp = effector.RegionalPDP(data=X_cor_train, model=model, schema={"feature_names": ['x1','x2','x3']}, axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
 # space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
 regional_pdp.fit(features="all") # , space_partitioner=space_partitioner, centering=True)
 ```
 
       0%|          | 0/3 [00:00<?, ?it/s]
 
-    100%|██████████| 3/3 [00:00<00:00, 89.77it/s]
+    100%|██████████| 3/3 [00:00<00:00, 51.54it/s]
 
     
 
@@ -368,15 +368,15 @@ regional_pdp.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 3.19 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 469 | w: 0.47]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 531 | w: 0.53]
+    x1 🔹 [id: 0 | heter: 3.21 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 501 | w: 0.50]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 499 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.19
-        Level 1🔹heter: 0.00 | 🔻3.19 (100.00%)
+    Level 0🔹heter: 3.21
+        Level 1🔹heter: 0.00 | 🔻3.21 (100.00%)
     
     
 
@@ -429,20 +429,20 @@ regional_pdp.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 3.06 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.76 | inst: 469 | w: 0.47]
-            x1 ≤ -0.50 🔹 [id: 2 | heter: 0.17 | inst: 236 | w: 0.24]
-            x1 > -0.50 🔹 [id: 3 | heter: 0.20 | inst: 233 | w: 0.23]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.79 | inst: 531 | w: 0.53]
-            x1 ≤ 0.50 🔹 [id: 5 | heter: 0.19 | inst: 256 | w: 0.26]
-            x1 > 0.50 🔹 [id: 6 | heter: 0.19 | inst: 275 | w: 0.28]
+    x3 🔹 [id: 0 | heter: 2.93 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.75 | inst: 501 | w: 0.50]
+            x1 ≤ -0.50 🔹 [id: 2 | heter: 0.18 | inst: 240 | w: 0.24]
+            x1 > -0.50 🔹 [id: 3 | heter: 0.19 | inst: 261 | w: 0.26]
+        x1 > 0.00 🔹 [id: 4 | heter: 0.75 | inst: 499 | w: 0.50]
+            x1 ≤ 0.50 🔹 [id: 5 | heter: 0.19 | inst: 245 | w: 0.24]
+            x1 > 0.50 🔹 [id: 6 | heter: 0.18 | inst: 254 | w: 0.25]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.06
-        Level 1🔹heter: 0.78 | 🔻2.28 (74.59%)
-            Level 2🔹heter: 0.19 | 🔻0.59 (76.05%)
+    Level 0🔹heter: 2.93
+        Level 1🔹heter: 0.75 | 🔻2.18 (74.41%)
+            Level 2🔹heter: 0.19 | 🔻0.56 (74.94%)
     
     
 
@@ -493,7 +493,7 @@ $$\hat{\text{RHALE}}(x_s) = \sum_{k=1}^{k_{x_s}} \frac{1}{ \left | \mathcal{S}_k
 
 
 ```python
-rhale = effector.RHALE(data=X_uncor_train, model=model, model_jac=model_jac, feature_names=['x1','x2','x3'], target_name="Y")
+rhale = effector.RHALE(data=X_uncor_train, model=model, model_jac=model_jac, schema={"feature_names": ['x1','x2','x3'], "target_name": "Y"})
 
 binning_method = effector.axis_partitioning.Fixed(10, min_points_per_bin=0)
 rhale.fit(features="all", binning_method=binning_method, centering=True)
@@ -531,7 +531,7 @@ regional_rhale = effector.RegionalRHALE(
     data=X_uncor_train, 
     model=model, 
     model_jac= model_jac, 
-    feature_names=['x1', 'x2', 'x3'],
+    schema={"feature_names": ['x1', 'x2', 'x3']},
     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
 
 binning_method = effector.axis_partitioning.Fixed(11, min_points_per_bin=0)
@@ -546,7 +546,7 @@ regional_rhale.fit(
 
       0%|          | 0/3 [00:00<?, ?it/s]
 
-    100%|██████████| 3/3 [00:00<00:00, 156.82it/s]
+    100%|██████████| 3/3 [00:00<00:00, 98.07it/s]
 
     
 
@@ -561,15 +561,15 @@ regional_rhale.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 8.92 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 504 | w: 0.50]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 496 | w: 0.50]
+    x1 🔹 [id: 0 | heter: 8.80 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 473 | w: 0.47]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 527 | w: 0.53]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 8.92
-        Level 1🔹heter: 0.00 | 🔻8.92 (100.00%)
+    Level 0🔹heter: 8.80
+        Level 1🔹heter: 0.00 | 🔻8.80 (100.00%)
     
     
 
@@ -649,8 +649,7 @@ RHALE plots respect feature correlations, therefore we expect the explanations t
 
 ```python
 rhale = effector.RHALE(data=X_cor_train, model=model, model_jac=model_jac, 
-                       feature_names=['x1','x2','x3'], 
-                       target_name="Y", 
+                       schema={"feature_names": ['x1','x2','x3'], "target_name": "Y"}, 
                        axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T)
 binning_method = effector.axis_partitioning.Fixed(10, min_points_per_bin=0)
 rhale.fit(features="all", binning_method=binning_method, centering=True)
@@ -694,7 +693,7 @@ regional_rhale = effector.RegionalRHALE(
     data=X_cor_train, 
     model=model, 
     model_jac= model_jac, 
-    feature_names=['x1', 'x2', 'x3'],
+    schema={"feature_names": ['x1', 'x2', 'x3']},
     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
 
 binning_method = effector.axis_partitioning.Fixed(10, min_points_per_bin=0)
@@ -709,7 +708,7 @@ regional_rhale.fit(
 
       0%|          | 0/3 [00:00<?, ?it/s]
 
-    100%|██████████| 3/3 [00:00<00:00, 1152.81it/s]
+    100%|██████████| 3/3 [00:00<00:00, 923.86it/s]
 
     
 
@@ -786,7 +785,7 @@ The global RHALE plots follow the formula obtained after setting $x_1=x_3$ while
 
 
 ```python
-shap = effector.ShapDP(data=X_uncor_train, model=model, feature_names=['x1','x2','x3'], target_name="Y")
+shap = effector.ShapDP(data=X_uncor_train, model=model, schema={"feature_names": ['x1','x2','x3'], "target_name": "Y"})
 binning_method = effector.axis_partitioning.Fixed(nof_bins=5, min_points_per_bin=0)
 shap.fit("all", binning_method=binning_method)
 [shap.plot(feature=i, show_avg_output=False, y_limits=[-3, 3]) for i in range(3)]
@@ -825,7 +824,7 @@ shap.fit("all", binning_method=binning_method)
 regional_shap = effector.RegionalShapDP(
     data=X_uncor_train, 
     model=model, 
-    feature_names=['x1', 'x2', 'x3'],
+    schema={"feature_names": ['x1', 'x2', 'x3']},
     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
 
 space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, numerical_features_grid_size=10)
@@ -838,9 +837,9 @@ regional_shap.fit(
 
       0%|          | 0/3 [00:00<?, ?it/s]
 
-     33%|███▎      | 1/3 [00:00<00:00,  2.59it/s]
+     33%|███▎      | 1/3 [00:00<00:01,  1.69it/s]
 
-    100%|██████████| 3/3 [00:00<00:00,  7.34it/s]
+    100%|██████████| 3/3 [00:00<00:00,  4.79it/s]
 
     
 
@@ -855,15 +854,15 @@ regional_shap.summary(0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 0.83 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.04 | inst: 504 | w: 0.50]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.02 | inst: 496 | w: 0.50]
+    x1 🔹 [id: 0 | heter: 0.86 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.02 | inst: 473 | w: 0.47]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.04 | inst: 527 | w: 0.53]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.83
-        Level 1🔹heter: 0.03 | 🔻0.80 (96.39%)
+    Level 0🔹heter: 0.86
+        Level 1🔹heter: 0.03 | 🔻0.83 (96.29%)
     
     
 
@@ -916,12 +915,12 @@ regional_shap.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 0.78 | inst: 1000 | w: 1.00]
+    x3 🔹 [id: 0 | heter: 0.79 | inst: 1000 | w: 1.00]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.78
+    Level 0🔹heter: 0.79
     
     
 
@@ -943,7 +942,7 @@ Regional SHAP-DP:
 
 
 ```python
-shap = effector.ShapDP(data=X_cor_train, model=model, feature_names=['x1','x2','x3'], target_name="Y")
+shap = effector.ShapDP(data=X_cor_train, model=model, schema={"feature_names": ['x1','x2','x3'], "target_name": "Y"})
 
 [shap.plot(feature=i, y_limits=[-3, 3]) for i in range(3)]
 ```
@@ -980,7 +979,7 @@ shap = effector.ShapDP(data=X_cor_train, model=model, feature_names=['x1','x2','
 regional_shap = effector.RegionalShapDP(
     data=X_cor_train, 
     model=model, 
-    feature_names=['x1', 'x2', 'x3'],
+    schema={"feature_names": ['x1', 'x2', 'x3']},
     axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
 
 space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, numerical_features_grid_size=10)
@@ -992,9 +991,9 @@ regional_shap.fit(
 
       0%|          | 0/3 [00:00<?, ?it/s]
 
-     33%|███▎      | 1/3 [00:00<00:00,  2.58it/s]
+     33%|███▎      | 1/3 [00:00<00:01,  1.71it/s]
 
-    100%|██████████| 3/3 [00:00<00:00,  6.70it/s]
+    100%|██████████| 3/3 [00:00<00:00,  4.43it/s]
 
     
 

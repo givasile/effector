@@ -456,7 +456,7 @@ plt.show()
 
 
 ```python
-effector.DerPDP(data=x, model=f, model_jac=dfdx, nof_instances=50).plot(feature=0, centering=False, heterogeneity="ice", dy_limits=[-20, 20])
+effector.DerPDP(data=x, model=f, model_jac=dfdx, nof_instances=50).plot(feature=0, centering=False, heterogeneity="ice", y_limits=[-20, 20])
 ```
 
 

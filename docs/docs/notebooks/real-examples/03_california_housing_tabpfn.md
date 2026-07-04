@@ -641,7 +641,7 @@ dy_limits = [-3, 3]
 
 
 ```python
-ale = effector.ALE(data=X_test, model=model_forward, feature_names=feature_names, target_name=target_name, nof_instances="all")
+ale = effector.ALE(data=X_test, model=model_forward, schema={"feature_names": feature_names, "target_name": target_name}, nof_instances="all")
 ```
 
 
@@ -713,7 +713,7 @@ for i in range(8):
 
 
 ```python
-r_ale = effector.RegionalALE(data=X_train, model=model_forward, feature_names=feature_names, target_name=target_name)
+r_ale = effector.RegionalALE(data=X_train, model=model_forward, schema={"feature_names": feature_names, "target_name": target_name})
 ```
 
 ## Latitude (south to north)
