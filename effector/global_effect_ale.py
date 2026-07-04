@@ -83,7 +83,20 @@ class ALEBase(GlobalEffectBase):
         else:
             return y
 
-    def _fit_feature_cat(self, feature: int, binning_method=None) -> typing.Dict:
+    def _validate_order_arg(self, features, order):
+        if order is None or isinstance(order, str):
+            return
+        feats = helpers.prep_features(features, self.dim)
+        cats = [f for f in feats if self._is_cat(f)]
+        if len(feats) != 1 or len(cats) != 1:
+            raise ValueError(
+                "an explicit `order` list applies to exactly one categorical "
+                "feature — call fit per feature"
+            )
+
+    def _fit_feature_cat(
+        self, feature: int, binning_method=None, order=None
+    ) -> typing.Dict:
         """The discrete (RH)ALE kernel: two-sided adjacent-level differences in
         code space (method_semantics.md). ALE keeps one bin per transition;
         RHALE additionally merges adjacent transitions with Greedy/DP —
@@ -94,6 +107,8 @@ class ALEBase(GlobalEffectBase):
                 f"feature {feature} {self.feature_names[feature]!r} has a "
                 f"single level — no effect to compute"
             )
+        if order is not None:
+            levels = self._resolve_level_order(feature, levels, order)
         positions, effects, instance_idx = utils.compute_local_effects_categorical(
             self.data, self.model, levels, feature
         )
@@ -205,17 +220,23 @@ class ALEBase(GlobalEffectBase):
             else "Robust and Heterogeneity-Aware ALE (RHALE)"
         )
         if params.get("is_cat"):
-            # bars = accumulated per-level values; whiskers = the variance of
-            # the step into each level (method_semantics.md)
-            levels, labels = self._level_display(feature)
+            # bars = accumulated per-level values (in fit order); whiskers =
+            # the variance of the step into each level (method_semantics.md)
+            levels, labels = self._level_display(feature, params["levels"])
             y_levels = self.eval(feature, levels, centering=centering)
             variances = (
                 self._eval_unnorm(feature, levels, heterogeneity=True)[1]
                 if heterogeneity is not False
                 else None
             )
+            positions = np.asarray(levels, dtype=float)
+            if np.any(np.diff(positions) < 0):
+                # custom (declared/induced) order: draw by rank, label by level
+                if labels is None:
+                    labels = [f"{v:g}" for v in positions]
+                positions = np.arange(len(positions), dtype=float)
             return vis.plot_categorical_effect(
-                levels,
+                positions,
                 y_levels,
                 variances,
                 feature,
@@ -347,11 +368,13 @@ class ALE(ALEBase):
             method_name="ALE",
         )
 
-    def _fit_feature(self, feature: int, binning_method="fixed") -> typing.Dict:
+    def _fit_feature(
+        self, feature: int, binning_method="fixed", order=None
+    ) -> typing.Dict:
 
         data = self.data
         if self._is_cat(feature):
-            return self._fit_feature_cat(feature)
+            return self._fit_feature_cat(feature, order=order)
         if not (binning_method == "fixed" or isinstance(binning_method, ap.Fixed)):
             raise ValueError(
                 f"Invalid binning_method: {binning_method!r}; ALE works only with "
@@ -382,6 +405,7 @@ class ALE(ALEBase):
         centering: typing.Union[bool, str] = True,
         points_for_centering: int = 30,
         binning_method: typing.Union[str, ap.Fixed] = "fixed",
+        order: typing.Union[None, str, list] = None,
     ) -> None:
         """Fit the ALE plot.
 
@@ -404,15 +428,35 @@ class ALE(ALEBase):
                 - `zero_start` starts the plot from `y=0`.
 
             points_for_centering: the number of points to use for centering the plot. Default is 30.
+
+            order: level order for a *categorical* feature of interest
+
+                - `None` (default): ascending encoded order — exact for
+                  ordinal features; for nominal features it is arbitrary-but-
+                  deterministic, and the accumulated curve's *shape* depends
+                  on it (the meaningful quantities are the adjacent-level
+                  differences — see docs/method_semantics.md)
+                - `"similarity"`: induce the order from the other features
+                  (KS-distance seriation, Molnar/iml)
+                - a list of the levels: declare it explicitly (applies to
+                  exactly one categorical feature)
+
+                Changing `order` requires calling `fit` again; `eval`/`plot`
+                reuse the fitted order.
         """
         if not (binning_method == "fixed" or isinstance(binning_method, ap.Fixed)):
             raise ValueError(
                 f"Invalid binning_method: {binning_method!r}; ALE works only with "
                 "the fixed binning method ('fixed' or an ap.Fixed instance)"
             )
+        self._validate_order_arg(features, order)
 
         self._fit_loop(
-            features, centering, points_for_centering, binning_method=binning_method
+            features,
+            centering,
+            points_for_centering,
+            binning_method=binning_method,
+            order=order,
         )
 
 
@@ -537,11 +581,12 @@ class RHALE(ALEBase):
         binning_method: Union[
             str, ap.DynamicProgramming, ap.Greedy, ap.Fixed
         ] = "greedy",
+        order=None,
     ) -> typing.Dict:
         if self._is_cat(feature):
             # ordinal kernel: adjacent-level differences are the discrete
             # derivative; the jacobian (if any) is ignored for this feature
-            return self._fit_feature_cat(feature, binning_method)
+            return self._fit_feature_cat(feature, binning_method, order=order)
         if self.data_effect is None:
             self.compile()
 
@@ -572,6 +617,7 @@ class RHALE(ALEBase):
         binning_method: typing.Union[
             str, ap.DynamicProgramming, ap.Greedy, ap.Fixed
         ] = "greedy",
+        order: typing.Union[None, str, list] = None,
     ) -> None:
         """Fit the model.
 
@@ -596,10 +642,30 @@ class RHALE(ALEBase):
                 - `zero_start` starts the plot from `y=0`
 
             points_for_centering: the number of points to use for centering the plot. Default is 30.
+
+            order: level order for a *categorical* feature of interest
+
+                - `None` (default): ascending encoded order — exact for
+                  ordinal features; for nominal features it is arbitrary-but-
+                  deterministic, and the accumulated curve's *shape* depends
+                  on it (the meaningful quantities are the adjacent-level
+                  differences — see docs/method_semantics.md)
+                - `"similarity"`: induce the order from the other features
+                  (KS-distance seriation, Molnar/iml)
+                - a list of the levels: declare it explicitly (applies to
+                  exactly one categorical feature)
+
+                Changing `order` requires calling `fit` again; `eval`/`plot`
+                reuse the fitted order.
         """
         # validation is the resolver's job (R6): one table, one error message
         binning_method = ap.return_default(binning_method)
+        self._validate_order_arg(features, order)
 
         self._fit_loop(
-            features, centering, points_for_centering, binning_method=binning_method
+            features,
+            centering,
+            points_for_centering,
+            binning_method=binning_method,
+            order=order,
         )

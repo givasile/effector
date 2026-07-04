@@ -506,13 +506,11 @@ def codes_from_levels(
     method_semantics.md): no snapping, no interpolation.
     """
     xs = np.asarray(xs, dtype=float)
-    idx = np.clip(np.searchsorted(levels, xs), 0, len(levels) - 1)
-    lower = np.maximum(idx - 1, 0)
-    codes = np.where(
-        np.isclose(levels[idx], xs),
-        idx,
-        np.where(np.isclose(levels[lower], xs), lower, -1),
-    )
+    levels = np.asarray(levels, dtype=float)
+    # nearest-level matching (levels may be in a declared/induced order, not
+    # necessarily ascending); K is small, the (T, K) table is cheap
+    codes = np.argmin(np.abs(xs[:, np.newaxis] - levels[np.newaxis, :]), axis=1)
+    codes = np.where(np.isclose(levels[codes], xs), codes, -1)
     if (codes < 0).any():
         bad = xs[codes < 0]
         name = feature_name if feature_name is not None else f"feature {feature}"

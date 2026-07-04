@@ -164,11 +164,13 @@ class GlobalEffectBase(ABC):
         levels, counts = np.unique(self.data[:, feature], return_counts=True)
         return levels, counts / counts.sum()
 
-    def _level_display(self, feature: int):
+    def _level_display(self, feature: int, levels=None):
         """(positions, tick labels) for categorical plots: positions are the
         level values; labels translate encoded categories (DataFrame source)
-        back to their original names. `None` labels keep numeric ticks."""
-        levels = self._levels(feature)
+        back to their original names. `None` labels keep numeric ticks.
+        `levels` overrides the ascending default (fit-order for nominal ALE)."""
+        if levels is None:
+            levels = self._levels(feature)
         enc = self.feature_metadata.categories.get(feature)
         if enc is not None:
             labels = [str(enc.levels[int(c)]) for c in levels.astype(int)]
@@ -177,6 +179,31 @@ class GlobalEffectBase(ABC):
         else:
             labels = None
         return levels, labels
+
+    def _resolve_level_order(self, feature: int, levels: np.ndarray, order):
+        """Resolve the `order` argument of (RH)ALE.fit for one discrete
+        feature: `"similarity"` induces the order from the other features
+        (effector.ordering); a list declares it explicitly."""
+        if isinstance(order, str):
+            if order != "similarity":
+                raise ValueError(
+                    f"invalid order {order!r}; use None, 'similarity', or an "
+                    f"explicit list of the levels"
+                )
+            from effector import ordering
+
+            return levels[
+                ordering.similarity_order(
+                    self.data, feature, levels, self.feature_types
+                )
+            ]
+        arr = np.asarray(order, dtype=float)
+        if sorted(arr.tolist()) != sorted(levels.tolist()):
+            raise ValueError(
+                f"order must be a permutation of the observed levels "
+                f"{levels.tolist()}; got {np.asarray(order).tolist()}"
+            )
+        return arr
 
     def _check_feature_type_supported(self, feature: int) -> None:
         """The capability matrix as an error (method_semantics.md)."""
@@ -237,11 +264,15 @@ class GlobalEffectBase(ABC):
 
         if self._is_cat(feature):
             # discrete centering (method_semantics.md): zero_integral is the
-            # frequency-weighted level mean; zero_start zeroes the first level
+            # frequency-weighted level mean (order-invariant); zero_start
+            # zeroes the first level *in fit order* (a custom `order` makes
+            # its first entry the reference level)
             levels, weights = self._level_weights(feature)
             if method == "zero_integral":
                 return float(np.average(partial_eval(levels), weights=weights))
-            return partial_eval(levels[:1]).item()
+            fitted = self.feature_effect.get("feature_" + str(feature), {})
+            fit_levels = fitted.get("levels", levels)
+            return partial_eval(np.asarray(fit_levels[:1])).item()
 
         start = self.axis_limits[0, feature]
         stop = self.axis_limits[1, feature]

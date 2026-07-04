@@ -275,3 +275,80 @@ def test_registry_capability_matrix_agreement():
     }
     for name, expected in matrix.items():
         assert set(method_registry.METHODS[name].supported_feature_types) == expected
+
+
+# ---------------------------------------------------------------------------
+# order= — declared and induced level orders (ALE/RHALE)
+# ---------------------------------------------------------------------------
+
+
+def test_ale_explicit_order_permutes_accumulation(data, model):
+    ale = effector.ALE(data, model.predict, nof_instances="all", schema=SCHEMA)
+    order = [2.0, 0.0, 1.0]
+    ale.fit(0, centering="zero_start", order=order)
+    y = ale.eval(0, np.array(order), centering="zero_start")
+
+    # recompute the two-sided transition means in the declared order
+    g = gate_values(data)
+    expected = [0.0]
+    for lo, hi in [(2, 0), (0, 1)]:
+        mask = np.isin(data[:, 0], [lo, hi])
+        d = (A[hi] - A[lo]) + (B[hi] - B[lo]) * g[mask]
+        expected.append(expected[-1] + d.mean())
+    np.testing.assert_allclose(y, expected, atol=1e-10)
+
+
+def test_ale_order_list_with_multiple_features_raises(data, model):
+    ale = effector.ALE(data, model.predict, schema=SCHEMA)
+    with pytest.raises(ValueError, match="exactly one categorical"):
+        ale.fit("all", order=[2.0, 0.0, 1.0])
+
+
+def test_ale_order_not_a_permutation_raises(data, model):
+    ale = effector.ALE(data, model.predict, schema=SCHEMA)
+    with pytest.raises(ValueError, match="permutation"):
+        ale.fit(0, order=[0.0, 1.0, 5.0])
+
+
+def test_ale_similarity_order_runs_and_is_deterministic(data, model):
+    types = [NOMINAL, CONTINUOUS, CONTINUOUS]
+    a1 = effector.ALE(data, model.predict, schema={"feature_types": types})
+    a1.fit(0, order="similarity")
+    a2 = effector.ALE(data, model.predict, schema={"feature_types": types})
+    a2.fit(0, order="similarity")
+    np.testing.assert_array_equal(
+        a1.feature_effect["feature_0"]["levels"],
+        a2.feature_effect["feature_0"]["levels"],
+    )
+
+
+def test_similarity_order_recovers_planted_structure():
+    # level 1's conditional distribution of x1 sits between level 0 and 2:
+    # x1 | level k ~ U(k, k+1) after shuffling codes -> seriation must place
+    # level 1 in the middle
+    from effector import ordering
+
+    rng = np.random.default_rng(21)
+    n = 900
+    codes = rng.choice([0.0, 1.0, 2.0], n)
+    x1 = np.empty(n)
+    # overlapping supports so the KS distance is graded (with disjoint
+    # supports KS saturates at 1 and the middle is invisible)
+    shift = {0.0: 0.0, 1.0: 1.6, 2.0: 0.8}  # code 2 is the "middle" one
+    for c, sh in shift.items():
+        m = codes == c
+        x1[m] = rng.uniform(sh, sh + 2.0, m.sum())
+    data = np.stack([codes, x1], axis=1)
+    perm = ordering.similarity_order(
+        data, 0, np.array([0.0, 1.0, 2.0]), ["nominal", "continuous"]
+    )
+    assert perm[1] == 2  # the level whose distribution is in between
+
+
+def test_rhale_order_on_ordinal(data, model):
+    rhale = effector.RHALE(
+        data, model.predict, model.jacobian, nof_instances="all", schema=SCHEMA
+    )
+    rhale.fit(0, binning_method="fixed", centering="zero_start", order=[2.0, 0.0, 1.0])
+    y = rhale.eval(0, np.array([2.0, 0.0, 1.0]), centering="zero_start")
+    assert y[0] == 0.0  # first level in the declared order is the reference
