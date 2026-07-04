@@ -87,14 +87,17 @@ def make_fitted(kind, opts, data):
         # seed both backends via shap_explainer_kwargs (effector exposes no
         # first-class seed — HOMOGENIZATION candidate).
         np.random.seed(0)
-        reg = effector.RegionalShapDP(
-            data, model, nof_instances=100, backend=opts["backend"]
-        )
         seed_kw = {"shap": {"seed": 0}, "shapiq": {"random_state": 0}}[opts["backend"]]
+        reg = effector.RegionalShapDP(
+            data,
+            model,
+            nof_instances=100,
+            backend=opts["backend"],
+            shap_explainer_kwargs=seed_kw,
+        )
         reg.fit(
             0,
             space_partitioner=effector.space_partitioning.Best(max_depth=2),
-            shap_explainer_kwargs=seed_kw,
         )
         return reg
     reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
