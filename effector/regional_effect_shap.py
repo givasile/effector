@@ -154,6 +154,10 @@ class RegionalShapDP(RegionalEffectBase):
                 )
                 return BIG_M
 
+            if ingestion.is_categorical(self.feature_types[feature]):
+                xs, counts = np.unique(data[:, feature], return_counts=True)
+                z = shap_dp.eval_heter(feature, xs)
+                return float(np.average(z, weights=counts))
             xs = np.linspace(
                 self.axis_limits[0, feature],
                 self.axis_limits[1, feature],

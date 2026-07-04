@@ -402,6 +402,63 @@ class ShapDP(GlobalEffectBase):
         )
         scale_y = helpers.resolve_scale(scale_y, self.scale_y)
 
+        params_key = "feature_" + str(feature)
+        if self._is_cat(feature):
+            # fit if needed, then draw per-level bars (+ the shap cloud)
+            self.eval(feature, self._levels(feature)[:1], centering=centering)
+            params = self.feature_effect[params_key]
+            levels, labels = self._level_display(feature)
+            y_levels = self.eval(feature, levels, centering=centering)
+            avg_output = (
+                helpers.prep_avg_output(self.data, self.model, None, scale_y)
+                if show_avg_output
+                else None
+            )
+            title = "SHAP Dependence Plot (SHAP-DP)"
+            if heterogeneity == "shap_values":
+                yy = params["yy"]
+                if centering is not False:
+                    yy = yy - params["norm_const"]
+                return vis.plot_shap_categorical(
+                    levels,
+                    y_levels,
+                    params["xx"],
+                    yy,
+                    feature,
+                    title=title,
+                    level_labels=labels,
+                    scale_x=scale_x,
+                    scale_y=scale_y,
+                    avg_output=avg_output,
+                    feature_names=self.feature_names,
+                    target_name=self.target_name,
+                    nof_shap_values=nof_shap_values,
+                    y_limits=y_limits,
+                    show_plot=show_plot,
+                    random_state=self.random_state,
+                )
+            variances = (
+                self._eval_unnorm(feature, levels, heterogeneity=True)[1]
+                if heterogeneity is not False
+                else None
+            )
+            return vis.plot_categorical_effect(
+                levels,
+                y_levels,
+                variances,
+                feature,
+                heterogeneity,
+                title=title,
+                level_labels=labels,
+                scale_x=scale_x,
+                scale_y=scale_y,
+                avg_output=avg_output,
+                feature_names=self.feature_names,
+                target_name=self.target_name,
+                y_limits=y_limits,
+                show_plot=show_plot,
+            )
+
         x = np.linspace(
             self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
         )

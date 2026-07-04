@@ -174,8 +174,13 @@ class PDPBase(GlobalEffectBase):
         )
         scale_y = helpers.resolve_scale(scale_y, self.scale_y)
 
-        x = np.linspace(
-            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
+        is_cat = self._is_cat(feature)
+        x = (
+            self._levels(feature)
+            if is_cat
+            else np.linspace(
+                self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
+            )
         )
 
         # the ICE table is the method's own object: computed by the kernel and
@@ -199,6 +204,48 @@ class PDPBase(GlobalEffectBase):
             if self.method_name == "pdp"
             else "derivative Partial Dependence Plot (d-PDP)"
         )
+        if is_cat:
+            levels, labels = self._level_display(feature)
+            if heterogeneity == "ice":
+                return vis.plot_pdp_ice_categorical(
+                    levels,
+                    yy,
+                    feature,
+                    title=title,
+                    y_pdp_label="PDP",
+                    y_ice_label="ICE",
+                    level_labels=labels,
+                    scale_x=scale_x,
+                    scale_y=scale_y,
+                    avg_output=avg_output,
+                    feature_names=self.feature_names,
+                    target_name=self.target_name,
+                    nof_ice=nof_ice,
+                    y_limits=y_limits,
+                    show_plot=show_plot,
+                    random_state=self.random_state,
+                )
+            variances = (
+                self._eval_unnorm(feature, x, heterogeneity=True)[1]
+                if heterogeneity is not False
+                else None
+            )
+            return vis.plot_categorical_effect(
+                levels,
+                yy.mean(axis=1),
+                variances,
+                feature,
+                heterogeneity,
+                title=title,
+                level_labels=labels,
+                scale_x=scale_x,
+                scale_y=scale_y,
+                avg_output=avg_output,
+                feature_names=self.feature_names,
+                target_name=self.target_name,
+                y_limits=y_limits,
+                show_plot=show_plot,
+            )
         return vis.plot_pdp_ice(
             x,
             feature,

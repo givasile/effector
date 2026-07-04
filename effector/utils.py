@@ -539,9 +539,12 @@ def compute_local_effects_categorical(
     Returns:
         positions: (M,) transition-bin centers, t - 0.5 in code space
         effects: (M,) the raw adjacent-level differences
+        instance_idx: (M,) the row index each contribution comes from —
+            regional splitting masks contributions through it
     """
     col = data[:, feature]
-    positions, effects = [], []
+    rows = np.arange(data.shape[0])
+    positions, effects, instance_idx = [], [], []
     for t in range(1, len(levels)):
         mask = np.isclose(col, levels[t - 1]) | np.isclose(col, levels[t])
         if not mask.any():
@@ -553,11 +556,16 @@ def compute_local_effects_categorical(
         d = np.asarray(model(x_hi)) - np.asarray(model(x_lo))
         effects.append(d)
         positions.append(np.full(d.shape[0], t - 0.5))
+        instance_idx.append(rows[mask])
     if not effects:
         raise ValueError(
             f"feature {feature}: no instances found at any adjacent-level pair"
         )
-    return np.concatenate(positions), np.concatenate(effects)
+    return (
+        np.concatenate(positions),
+        np.concatenate(effects),
+        np.concatenate(instance_idx),
+    )
 
 
 def compute_jacobian_numerically(

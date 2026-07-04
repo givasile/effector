@@ -24,6 +24,7 @@ class RegionalPDPBase(RegionalEffectBase):
         random_state: typing.Optional[int] = 21,
     ):
         self.y_ice = {}
+        self.heter_grid: dict = {}
         super(RegionalPDPBase, self).__init__(
             method_name,
             data,
@@ -36,12 +37,26 @@ class RegionalPDPBase(RegionalEffectBase):
         )
 
     def _create_heterogeneity_function(self, feature: int, min_points: int):
+        is_cat = ingestion.is_categorical(self.feature_types[feature])
+
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return BIG_M
-            yy = self.y_ice["feature_" + str(feature)][active_indices.astype(bool), :]
+            mask = active_indices.astype(bool)
+            yy = self.y_ice["feature_" + str(feature)][mask, :]
             z = np.var(yy, axis=0)
-            return np.mean(z)
+            if is_cat:
+                # H = freq-weighted mean over levels, frequencies within the
+                # candidate region (method_semantics.md)
+                levels = self.heter_grid["feature_" + str(feature)]
+                col = self.data[mask, feature]
+                counts = np.array(
+                    [np.isclose(col, lev).sum() for lev in levels], dtype=float
+                )
+                if counts.sum() == 0:
+                    return BIG_M
+                return float(np.average(z, weights=counts))
+            return float(np.mean(z))
 
         return heter
 
@@ -133,11 +148,15 @@ class RegionalPDP(RegionalPDPBase):
             use_vectorized=self.kwargs_fitting["use_vectorized"],
         )
 
-        xx = np.linspace(
-            self.axis_limits[0, feature],
-            self.axis_limits[1, feature],
-            helpers.NOF_INTERNAL_POINTS,
-        )
+        if ingestion.is_categorical(self.feature_types[feature]):
+            xx = pdp._levels(feature)
+        else:
+            xx = np.linspace(
+                self.axis_limits[0, feature],
+                self.axis_limits[1, feature],
+                helpers.NOF_INTERNAL_POINTS,
+            )
+        self.heter_grid["feature_" + str(feature)] = xx
         y_ice = pdp._predict(
             pdp.data, xx, feature, self.kwargs_fitting["use_vectorized"]
         )
@@ -333,11 +352,15 @@ class RegionalDerPDP(RegionalPDPBase):
             use_vectorized=self.kwargs_fitting["use_vectorized"],
         )
 
-        xx = np.linspace(
-            self.axis_limits[0, feature],
-            self.axis_limits[1, feature],
-            helpers.NOF_INTERNAL_POINTS,
-        )
+        if ingestion.is_categorical(self.feature_types[feature]):
+            xx = pdp._levels(feature)
+        else:
+            xx = np.linspace(
+                self.axis_limits[0, feature],
+                self.axis_limits[1, feature],
+                helpers.NOF_INTERNAL_POINTS,
+            )
+        self.heter_grid["feature_" + str(feature)] = xx
         y_ice = pdp._predict(
             pdp.data, xx, feature, self.kwargs_fitting["use_vectorized"]
         )

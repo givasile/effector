@@ -149,6 +149,11 @@ class RegionalRHALE(RegionalEffectBase):
                 return BIG_M
 
             # heterogeneity is the mean of the heterogeneity curve
+            # (freq-weighted over the subset's levels for discrete features)
+            if ingestion.is_categorical(self.feature_types[feature]):
+                xs, counts = np.unique(data[:, feature], return_counts=True)
+                z = rhale.eval_heter(feature, xs)
+                return float(np.average(z, weights=counts))
             xs = np.linspace(
                 self.axis_limits[0, feature],
                 self.axis_limits[1, feature],
@@ -340,6 +345,39 @@ class RegionalALE(RegionalEffectBase):
 
     def _create_heterogeneity_function(self, feature: int, min_points: int):
         points_for_mean_heterogeneity = helpers.NOF_INTERNAL_POINTS
+        is_cat = ingestion.is_categorical(self.feature_types[feature])
+
+        def heter_cat(active_indices) -> float:
+            if np.sum(active_indices) < min_points:
+                return BIG_M
+            mask = active_indices.astype(bool)
+            contrib = self.global_data_effect["feature_" + str(feature)]
+            keep = mask[contrib["instance_idx"]]
+            if not keep.any():
+                return BIG_M
+            levels = contrib["levels"]
+            try:
+                params = utils.compute_ale_params(
+                    contrib["positions"][keep],
+                    contrib["effects"][keep],
+                    np.arange(len(levels), dtype=float),
+                )
+            except utils.AllBinsHaveAtMostOnePointError:
+                return BIG_M
+            # H = freq-weighted mean of h(v_k) within the candidate region;
+            # h(v_k) = variance of the step into level k
+            col = self.data[mask, feature]
+            counts = np.array(
+                [np.isclose(col, lev).sum() for lev in levels], dtype=float
+            )
+            if counts.sum() == 0:
+                return BIG_M
+            step_into = np.maximum(np.arange(len(levels)), 1) - 1
+            h_levels = params["bin_variance"][step_into]
+            return float(np.average(h_levels, weights=counts))
+
+        if is_cat:
+            return heter_cat
 
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:

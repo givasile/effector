@@ -164,6 +164,20 @@ class GlobalEffectBase(ABC):
         levels, counts = np.unique(self.data[:, feature], return_counts=True)
         return levels, counts / counts.sum()
 
+    def _level_display(self, feature: int):
+        """(positions, tick labels) for categorical plots: positions are the
+        level values; labels translate encoded categories (DataFrame source)
+        back to their original names. `None` labels keep numeric ticks."""
+        levels = self._levels(feature)
+        enc = self.feature_metadata.categories.get(feature)
+        if enc is not None:
+            labels = [str(enc.levels[int(c)]) for c in levels.astype(int)]
+        elif self.feature_types[feature] == ingestion.NOMINAL:
+            labels = [f"{v:g}" for v in levels]
+        else:
+            labels = None
+        return levels, labels
+
     def _check_feature_type_supported(self, feature: int) -> None:
         """The capability matrix as an error (method_semantics.md)."""
         ftype = self.feature_types[feature]

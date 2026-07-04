@@ -94,10 +94,15 @@ class ALEBase(GlobalEffectBase):
                 f"feature {feature} {self.feature_names[feature]!r} has a "
                 f"single level — no effect to compute"
             )
-        positions, effects = utils.compute_local_effects_categorical(
+        positions, effects, instance_idx = utils.compute_local_effects_categorical(
             self.data, self.model, levels, feature
         )
-        self.data_effect_ale["feature_" + str(feature)] = effects
+        self.data_effect_ale["feature_" + str(feature)] = {
+            "positions": positions,
+            "effects": effects,
+            "instance_idx": instance_idx,
+            "levels": levels,
+        }
 
         if binning_method is None:
             limits = np.arange(len(levels), dtype=float)
@@ -199,6 +204,32 @@ class ALEBase(GlobalEffectBase):
             if self.method_name == "ale"
             else "Robust and Heterogeneity-Aware ALE (RHALE)"
         )
+        if params.get("is_cat"):
+            # bars = accumulated per-level values; whiskers = the variance of
+            # the step into each level (method_semantics.md)
+            levels, labels = self._level_display(feature)
+            y_levels = self.eval(feature, levels, centering=centering)
+            variances = (
+                self._eval_unnorm(feature, levels, heterogeneity=True)[1]
+                if heterogeneity is not False
+                else None
+            )
+            return vis.plot_categorical_effect(
+                levels,
+                y_levels,
+                variances,
+                feature,
+                heterogeneity,
+                title=title,
+                level_labels=labels,
+                scale_x=scale_x,
+                scale_y=scale_y,
+                avg_output=avg_output,
+                feature_names=self.feature_names,
+                target_name=self.target_name,
+                y_limits=y_limits,
+                show_plot=show_plot,
+            )
         return vis.ale_plot(
             x,
             y,

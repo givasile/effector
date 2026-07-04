@@ -17,7 +17,7 @@ class Base:
         max_depth: int = 2,
         min_samples_leaf: int = 10,
         numerical_features_grid_size: int = 20,
-        search_partitions_when_categorical: bool = False,
+        search_partitions_when_categorical: bool = True,
     ):
         """Shared configuration of the space partitioners.
 
@@ -262,7 +262,7 @@ class Best(Base):
         max_depth: int = 2,
         min_samples_leaf: int = 10,
         numerical_features_grid_size: int = 20,
-        search_partitions_when_categorical: bool = False,
+        search_partitions_when_categorical: bool = True,
     ):
         super().__init__(
             "Best",
@@ -357,7 +357,7 @@ class BestLevelWise(Base):
         max_depth: int = 2,
         min_samples_leaf: int = 10,
         numerical_features_grid_size: int = 20,
-        search_partitions_when_categorical: bool = False,
+        search_partitions_when_categorical: bool = True,
     ):
         super().__init__(
             "best_level_wise",
