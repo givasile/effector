@@ -961,3 +961,45 @@ own planning round after the input layer merges; deferred there: rare-level
 pooling vs K-cap, PR split, `requires_refit` × `order=`.
 
 ---
+
+## 24. 2026-07-04 — Input layer + categorical FOI shipped end to end (tag: code)  [PLAN III §6.4 + §6.4a; branch `feat/input-layer-schema`]
+
+Implementation of LOGBOOK #23, both stages on one branch:
+
+- **Stage A — input layer:** `effector/ingestion.py` (R10: `Schema`, dtype
+  table, numpy heuristics + `UserWarning` nudge, DataFrame encoding, the
+  model-call rule with `_make_frame_builder`, one validation point);
+  `schema=` threaded through all 11 classes + facade (breaking — the old
+  metadata kwargs are gone); signature harmonization (one `nof_instances`
+  rule, unified plot defaults, one heterogeneity vocabulary, SHAP config on
+  the constructor, keyword-only `fit`); scale-at-construction with
+  plot-kwarg override (`False` disables). Tree display fixed for sparse
+  `scale_x_list`.
+- **Stage B — categorical FOI:** kernels per `docs/method_semantics.md`
+  (PDP ICE-at-levels + freq-weighted centering; ALE two-sided adjacent-level
+  transitions in code space, exact at levels; RHALE discrete derivative +
+  Greedy/DP adaptive level grouping via `axis_partitioning.
+  adapt_for_categorical`; ShapDP per-level step lookup; DerPDP and
+  RHALE-nominal raise with the capability matrix mirrored into the R5
+  registry). Frequency-weighted `heter_score`/centering. Categorical plot
+  layer (`plot_categorical_effect`, `plot_pdp_ice_categorical`,
+  `plot_shap_categorical` — bars, whiskers, seeded jitter, label ticks from
+  DataFrame encodings). Regional-on-cat: `search_partitions_when_categorical`
+  flipped to True, level-aware heterogeneity closures (freq-weighted within
+  the candidate region; ALE re-bins masked contributions through
+  `instance_idx`). Nominal `order=`: explicit list or `"similarity"`
+  (`effector/ordering.py`, scipy-only KS + classical-MDS seriation);
+  `zero_start` honors the fit order.
+- **Deviations from the plan, decided solo:** `Fixed.min_points_per_bin`
+  stays 0 (aligning to 2 broke default ALE on small N — UX regression);
+  the heuristic warning fires only for int→ordinal (int→continuous is the
+  expected reading); PDP/ShapDP display-only `order="effect"` skipped
+  (small win, more API); rare-level pooling deferred (no K-cap guard added
+  either — revisit when a real high-cardinality case appears).
+- **Tests:** +36 unit (ingestion), +28 contract (R10 parity/metadata/scale),
+  +22 functional categorical closed-form GT (`models.ConditionalCategorical`),
+  +10 regional-categorical GT. Notebooks migrated to the schema API and
+  re-executed; new `08_categorical_features.ipynb` is the categorical
+  walkthrough.
+
+---
