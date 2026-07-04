@@ -5,6 +5,7 @@ import numpy as np
 
 import effector.helpers as helpers
 import effector.visualization as vis
+from effector import ingestion
 from effector.global_effect import GlobalEffectBase
 
 try:
@@ -92,8 +93,7 @@ class ShapDP(GlobalEffectBase):
         *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 1_000,
-        feature_names: Optional[List[str]] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
         shap_values: Optional[np.ndarray] = None,
         backend: str = "shap",
@@ -160,15 +160,13 @@ class ShapDP(GlobalEffectBase):
                 - use a `float`, to specify it manually
                 - use `None`, to be inferred as `np.mean(model(data))`
 
-            feature_names: The names of the features
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
-                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
-
-            target_name: The name of the target variable
-
-                - use a `str`, to specify it name manually. For example: `"price"`
-                - use `None`, to keep the default name: `"y"`
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (`nof_instances` subsampling and the shap/shapiq explainer, unless overridden via `shap_explainer_kwargs`)
 
@@ -199,12 +197,9 @@ class ShapDP(GlobalEffectBase):
             "SHAP DP",
             data,
             model,
-            None,
-            None,
-            nof_instances,
-            axis_limits,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 

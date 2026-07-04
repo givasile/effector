@@ -6,6 +6,7 @@ import numpy as np
 
 import effector.helpers as helpers
 import effector.visualization as vis
+from effector import ingestion
 from effector.global_effect import GlobalEffectBase
 
 
@@ -22,8 +23,7 @@ class PDPBase(GlobalEffectBase):
         *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
         method_name: str = "PDP",
     ):
@@ -32,11 +32,9 @@ class PDPBase(GlobalEffectBase):
             data,
             model,
             model_jac,
-            None,
-            nof_instances,
-            axis_limits,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -204,8 +202,7 @@ class PDP(PDPBase):
         *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ):
         r"""
@@ -265,15 +262,13 @@ class PDP(PDPBase):
                 - use "all", for using all instances.
                 - use an `int`, for selecting `nof_instances` instances randomly.
 
-            feature_names: The names of the features
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - use a `list` of `str`, to specify the name manually. For example: `["age", "weight", ...]`
-                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
-
-            target_name: The name of the target variable
-
-                - use a `str`, to specify it name manually. For example: `"price"`
-                - use `None`, to keep the default name: `"y"`
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
 
@@ -287,8 +282,7 @@ class PDP(PDPBase):
             None,
             axis_limits=axis_limits,
             nof_instances=nof_instances,
-            feature_names=feature_names,
-            target_name=target_name,
+            schema=schema,
             random_state=random_state,
             method_name="PDP",
         )
@@ -376,8 +370,7 @@ class DerPDP(PDPBase):
         *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ):
         r"""
@@ -443,15 +436,13 @@ class DerPDP(PDPBase):
                 - use "all", for using all instances.
                 - use an `int`, for using `nof_instances` instances.
 
-            feature_names: The names of the features
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - use a `list` of `str`, to specify the name manually. For example: `["age", "weight", ...]`
-                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
-
-            target_name: The name of the target variable
-
-                - use a `str`, to specify it name manually. For example: `"price"`
-                - use `None`, to keep the default name: `"y"`
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
 
@@ -465,8 +456,7 @@ class DerPDP(PDPBase):
             model_jac,
             axis_limits=axis_limits,
             nof_instances=nof_instances,
-            feature_names=feature_names,
-            target_name=target_name,
+            schema=schema,
             random_state=random_state,
             method_name="d-PDP",
         )

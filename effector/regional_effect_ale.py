@@ -1,12 +1,12 @@
 import typing
 import warnings
-from typing import Callable, List, Optional, Union
+from typing import Callable, Optional, Union
 
 import numpy as np
 
 import effector.space_partitioning
 from effector import axis_partitioning as ap
-from effector import helpers, utils
+from effector import helpers, ingestion, utils
 from effector.global_effect_ale import ALE, RHALE
 from effector.regional_effect import RegionalEffectBase
 
@@ -23,10 +23,7 @@ class RegionalRHALE(RegionalEffectBase):
         data_effect: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 100_000,
         axis_limits: Optional[np.ndarray] = None,
-        feature_types: Optional[List] = None,
-        cat_limit: Optional[int] = 10,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ):
         """
@@ -77,24 +74,13 @@ class RegionalRHALE(RegionalEffectBase):
 
                 !!! tip "`100_000` (default), is a good choice. RHALE can handle large datasets :sunglasses: :sunglasses: "
 
-            feature_types: The feature types.
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
-                - `['cat', 'cont', ...]`, manually specify the types of the features
-
-            cat_limit: The minimum number of unique values for a feature to be considered categorical
-
-                - if `feature_types` is manually specified, this parameter is ignored
-
-            feature_names: The names of the features
-
-                - `None`, defaults to: `["x_0", "x_1", ...]`
-                - `["age", "weight", ...]` to manually specify the names of the features
-
-            target_name: The name of the target variable
-
-                - `None`, to keep the default name: `"y"`
-                - `"price"`, to manually specify the name of the target variable
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
 
@@ -107,13 +93,10 @@ class RegionalRHALE(RegionalEffectBase):
             data,
             model,
             model_jac,
-            data_effect,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names,
-            target_name,
+            data_effect=data_effect,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -146,6 +129,7 @@ class RegionalRHALE(RegionalEffectBase):
                 data_effect=instance_effects,
                 nof_instances="all",
                 axis_limits=self.axis_limits,
+                schema=self._node_schema(),
                 random_state=self.random_state,
             )
             try:
@@ -274,10 +258,7 @@ class RegionalALE(RegionalEffectBase):
         *,
         nof_instances: typing.Union[int, str] = 100_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: typing.Union[int, None] = 10,
-        feature_names: typing.Union[list, None] = None,
-        target_name: typing.Union[str, None] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: typing.Optional[int] = 21,
     ):
         """
@@ -313,24 +294,13 @@ class RegionalALE(RegionalEffectBase):
 
                 !!! tip "`100_000` (default) is a good choice; RegionalALE can handle large datasets. :sunglasses:"
 
-            feature_types: The feature types.
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
-                - `['cat', 'cont', ...]`, manually specify the types of the features
-
-            cat_limit: The minimum number of unique values for a feature to be considered categorical
-
-                - if `feature_types` is manually specified, this parameter is ignored
-
-            feature_names: The names of the features
-
-                - `None`, defaults to: `["x_0", "x_1", ...]`
-                - `["age", "weight", ...]` to manually specify the names of the features
-
-            target_name: The name of the target variable
-
-                - `None`, to keep the default name: `"y"`
-                - `"price"`, to manually specify the name of the target variable
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
 
@@ -344,14 +314,9 @@ class RegionalALE(RegionalEffectBase):
             "ale",
             data,
             model,
-            None,
-            None,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -363,6 +328,7 @@ class RegionalALE(RegionalEffectBase):
             self.model,
             nof_instances="all",
             axis_limits=self.axis_limits,
+            schema=self._node_schema(),
             random_state=self.random_state,
         )
         global_ale.fit(

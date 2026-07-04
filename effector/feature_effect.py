@@ -6,6 +6,7 @@ import numpy as np
 import effector.helpers as helpers
 import effector.method_registry as method_registry
 import effector.visualization as vis
+from effector import ingestion
 
 
 class FeatureEffect:
@@ -35,19 +36,21 @@ class FeatureEffect:
 
     def __init__(
         self,
-        data: np.ndarray,
+        data,
         model: Callable,
         model_jac: Optional[Callable] = None,
+        *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 1_000,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ):
         """
         Args:
-            data: the design matrix, shape `(N, D)`
-            model: the black-box model, `Callable` `(N, D) -> (N,)`
+            data: the design matrix — a `(N, D)` numpy array or a pandas
+                DataFrame (converted at the door, R10)
+            model: the black-box model, `Callable` `(N, D) -> (N,)`; called with
+                a reconstructed DataFrame when `data` is a DataFrame
             model_jac: the model Jacobian `(N, D) -> (N, D)`, optional. Needed by
                 `RHALE`; if omitted, `RHALE` falls back to numerical differentiation.
             axis_limits: `(2, D)` array of per-feature limits, or `None` to infer
@@ -57,17 +60,28 @@ class FeatureEffect:
                 - use an `int` to subsample
                 - use `"all"` to use every instance
 
-            feature_names: list of feature names, or `None` for `["x_0", ...]`
-            target_name: name of the target, or `None` for `"y"`
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
+
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
+
             random_state: seed for every internal random step (e.g. the shared
                 `nof_instances` subsampling), inherited by every lazily built
                 method object. Use an `int` (default: `21`) for reproducible
                 output, or `None` for non-deterministic behavior.
         """
-        self.model = model
-        self.model_jac = model_jac
-        self.dim = data.shape[1]
         self.random_state = random_state
+
+        # the one door for data + metadata (R10)
+        ing = ingestion.ingest(data, model, model_jac, schema=schema)
+        data = ing.data
+        self.model = ing.model
+        self.model_jac = ing.model_jac
+        self.feature_metadata = ing.meta
+        self.dim = data.shape[1]
 
         # shared preprocessing (helpers.prep_data): filter to axis limits (or
         # infer them), then subsample ONCE so every method sees the exact same
@@ -76,12 +90,13 @@ class FeatureEffect:
             data, axis_limits, nof_instances, random_state=random_state
         )
 
-        self.feature_names = (
-            helpers.get_feature_names(self.dim)
-            if feature_names is None
-            else feature_names
-        )
-        self.target_name = "y" if target_name is None else target_name
+        # flat mirrors of the resolved metadata
+        self.feature_names = list(ing.meta.feature_names)
+        self.feature_types = list(ing.meta.feature_types)
+        self.cat_limit = ing.meta.cat_limit
+        self.target_name = ing.meta.target_name
+        self.scale_x_list = ing.meta.scale_x_list
+        self.scale_y = ing.meta.scale_y
 
         # lazily instantiated method objects, keyed by canonical name
         self._methods: dict = {}
@@ -104,11 +119,20 @@ class FeatureEffect:
             return self._methods[key]
 
         spec = method_registry.resolve(key)
+        # explicit schema: sub-objects get the resolved metadata (types would
+        # otherwise be re-inferred from the already-encoded numpy matrix)
+        sub_schema = ingestion.Schema(
+            feature_names=self.feature_names,
+            feature_types=self.feature_types,
+            cat_limit=self.cat_limit,
+            target_name=self.target_name,
+            scale_x_list=self.scale_x_list,
+            scale_y=self.scale_y,
+        )
         kwargs = dict(
             axis_limits=self.axis_limits,
             nof_instances="all",  # data is already subsampled in __init__
-            feature_names=self.feature_names,
-            target_name=self.target_name,
+            schema=sub_schema,
             random_state=self.random_state,
         )
         if method_kwargs:

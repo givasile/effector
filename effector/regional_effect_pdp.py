@@ -2,7 +2,7 @@ import typing
 
 import numpy as np
 
-from effector import helpers
+from effector import helpers, ingestion
 from effector.global_effect_pdp import PDP, DerPDP
 from effector.regional_effect import RegionalEffectBase
 
@@ -16,12 +16,10 @@ class RegionalPDPBase(RegionalEffectBase):
         data: np.ndarray,
         model: callable,
         model_jac: typing.Union[None, callable] = None,
+        *,
         nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: typing.Union[int, None] = 10,
-        feature_names: typing.Union[list, None] = None,
-        target_name: typing.Union[str, None] = None,
+        schema: typing.Optional[typing.Union[ingestion.Schema, dict]] = None,
         random_state: typing.Optional[int] = 21,
     ):
         self.y_ice = {}
@@ -30,13 +28,9 @@ class RegionalPDPBase(RegionalEffectBase):
             data,
             model,
             model_jac,
-            None,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -59,10 +53,7 @@ class RegionalPDP(RegionalPDPBase):
         *,
         nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: typing.Union[int, None] = 10,
-        feature_names: typing.Union[list, None] = None,
-        target_name: typing.Union[str, None] = None,
+        schema: typing.Optional[typing.Union[ingestion.Schema, dict]] = None,
         random_state: typing.Optional[int] = 21,
     ):
         """
@@ -98,24 +89,13 @@ class RegionalPDP(RegionalPDPBase):
 
                 !!! tip "`10_000` (default), is a good balance between speed and accuracy"
 
-            feature_types: The feature types.
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
-                - `['cat', 'cont', ...]`, manually specify the types of the features
-
-            cat_limit: The minimum number of unique values for a feature to be considered categorical
-
-                - if `feature_types` is manually specified, this parameter is ignored
-
-            feature_names: The names of the features
-
-                - `None`, defaults to: `["x_0", "x_1", ...]`
-                - `["age", "weight", ...]` to manually specify the names of the features
-
-            target_name: The name of the target variable
-
-                - `None`, to keep the default name: `"y"`
-                - `"price"`, to manually specify the name of the target variable
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
 
@@ -128,12 +108,9 @@ class RegionalPDP(RegionalPDPBase):
             data,
             model,
             None,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -145,6 +122,7 @@ class RegionalPDP(RegionalPDPBase):
             self.model,
             axis_limits=self.axis_limits,
             nof_instances="all",
+            schema=self._node_schema(),
             random_state=self.random_state,
         )
         pdp.fit(
@@ -272,10 +250,7 @@ class RegionalDerPDP(RegionalPDPBase):
         *,
         nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: typing.Union[int, None] = 10,
-        feature_names: typing.Union[list, None] = None,
-        target_name: typing.Union[str, None] = None,
+        schema: typing.Optional[typing.Union[ingestion.Schema, dict]] = None,
         random_state: typing.Optional[int] = 21,
     ):
         """
@@ -316,24 +291,13 @@ class RegionalDerPDP(RegionalPDPBase):
 
                 !!! tip "`10_000` (default), is a good balance between speed and accuracy"
 
-            feature_types: The feature types.
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
-                - `['cat', 'cont', ...]`, manually specify the types of the features
-
-            cat_limit: The minimum number of unique values for a feature to be considered categorical
-
-                - if `feature_types` is manually specified, this parameter is ignored
-
-            feature_names: The names of the features
-
-                - `None`, defaults to: `["x_0", "x_1", ...]`
-                - `["age", "weight", ...]` to manually specify the names of the features
-
-            target_name: The name of the target variable
-
-                - `None`, to keep the default name: `"y"`
-                - `"price"`, to manually specify the name of the target variable
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
 
@@ -346,12 +310,9 @@ class RegionalDerPDP(RegionalPDPBase):
             data,
             model,
             model_jac,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -364,6 +325,7 @@ class RegionalDerPDP(RegionalPDPBase):
             self.model_jac,
             axis_limits=self.axis_limits,
             nof_instances="all",
+            schema=self._node_schema(),
             random_state=self.random_state,
         )
         pdp.fit(

@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 import effector.helpers as helpers
 import effector.space_partitioning
-import effector.utils as utils
+from effector import ingestion
 from effector.method_registry import resolve as resolve_method
 from effector.space_partitioning import Best, Tree
 
@@ -16,25 +16,30 @@ class RegionalEffectBase:
     def __init__(
         self,
         method_name: str,
-        data: np.ndarray,
+        data,
         model: Callable,
         model_jac: Optional[Callable] = None,
+        *,
         data_effect: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
-        feature_types: Optional[List] = None,
-        cat_limit: Optional[int] = 10,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ) -> None:
         """
         Constructor for the RegionalEffect class.
         """
         self.method_name = method_name.lower()
-        self.model = model
-        self.model_jac = model_jac
         self.random_state = random_state
+
+        # the one door for data + metadata (R10): DataFrame -> numpy core
+        # matrix + wrapped model; numpy passes through untouched. Type
+        # inference runs on the full data, before subsampling.
+        ing = ingestion.ingest(data, model, model_jac, schema=schema)
+        data = ing.data
+        self.model = ing.model
+        self.model_jac = ing.model_jac
+        self.feature_metadata: ingestion.FeatureMetadata = ing.meta
 
         self.dim = data.shape[1]
 
@@ -51,25 +56,13 @@ class RegionalEffectBase:
         self.data: np.ndarray = data
         self.data_effect: Optional[np.ndarray] = data_effect
 
-        # set feature types
-        self.cat_limit = cat_limit
-        feature_types = (
-            utils.get_feature_types(data, cat_limit)
-            if feature_types is None
-            else feature_types
-        )
-        self.feature_types: list = feature_types
-
-        # set feature names
-        feature_names: list[str] = (
-            helpers.get_feature_names(axis_limits.shape[1])
-            if feature_names is None
-            else feature_names
-        )
-        self.feature_names: list = feature_names
-
-        # set target name
-        self.target_name = "y" if target_name is None else target_name
+        # flat mirrors of the resolved metadata
+        self.feature_names: list = list(ing.meta.feature_names)
+        self.feature_types: list = list(ing.meta.feature_types)
+        self.cat_limit: int = ing.meta.cat_limit
+        self.target_name: str = ing.meta.target_name
+        self.scale_x_list: Optional[list] = ing.meta.scale_x_list
+        self.scale_y: Optional[dict] = ing.meta.scale_y
 
         # state variables
         self.is_fitted: np.ndarray = np.ones([self.dim]) < 0
@@ -172,6 +165,20 @@ class RegionalEffectBase:
         """Hook: method-specific constructor kwargs for a node's fe object."""
         return {}
 
+    def _node_schema(self, feature_names: Optional[list] = None) -> ingestion.Schema:
+        """The parent's resolved metadata as an explicit schema for internally
+        built effect objects — types must never be re-inferred from a subset."""
+        return ingestion.Schema(
+            feature_names=(
+                self.feature_names if feature_names is None else feature_names
+            ),
+            feature_types=self.feature_types,
+            cat_limit=self.cat_limit,
+            target_name=self.target_name,
+            scale_x_list=self.scale_x_list,
+            scale_y=self.scale_y,
+        )
+
     def _create_fe_object(self, feature, node_idx, scale_x_list):
         feature_tree = self.tree["feature_{}".format(feature)]
         if feature_tree is None:
@@ -193,8 +200,7 @@ class RegionalEffectBase:
         spec = resolve_method(self.method_name)
         kwargs = dict(
             nof_instances="all",
-            feature_names=feature_names,
-            target_name=self.target_name,
+            schema=self._node_schema(feature_names),
             random_state=self.random_state,
         )
         if spec.uses_data_effect:

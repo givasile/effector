@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 
-from effector import helpers, utils
+from effector import helpers, ingestion, utils
 
 
 class GlobalEffectBase(ABC):
@@ -14,23 +14,29 @@ class GlobalEffectBase(ABC):
     def __init__(
         self,
         method_name: str,
-        data: np.ndarray,
+        data,
         model: Callable,
         model_jac: Optional[Callable] = None,
+        *,
         data_effect: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ) -> None:
         """
         Constructor for the FeatureEffectBase class.
         """
         self.method_name = method_name.lower()
-        self.model = model
-        self.model_jac = model_jac
         self.random_state = random_state
+
+        # the one door for data + metadata (R10): DataFrame -> numpy core
+        # matrix + wrapped model; numpy passes through untouched
+        ing = ingestion.ingest(data, model, model_jac, schema=schema)
+        data = ing.data
+        self.model = ing.model
+        self.model_jac = ing.model_jac
+        self.feature_metadata: ingestion.FeatureMetadata = ing.meta
 
         self.dim = data.shape[1]
 
@@ -47,14 +53,13 @@ class GlobalEffectBase(ABC):
         self.data: np.ndarray = data
         self.data_effect: Optional[np.ndarray] = data_effect
 
-        # set feature names
-        feature_names: list[str] = (
-            helpers.get_feature_names(axis_limits.shape[1])
-            if feature_names is None
-            else feature_names
-        )
-        self.feature_names: list = feature_names
-        self.target_name = "y" if target_name is None else target_name
+        # flat mirrors of the resolved metadata
+        self.feature_names: list = list(ing.meta.feature_names)
+        self.feature_types: list = list(ing.meta.feature_types)
+        self.cat_limit: int = ing.meta.cat_limit
+        self.target_name: str = ing.meta.target_name
+        self.scale_x_list: Optional[list] = ing.meta.scale_x_list
+        self.scale_y: Optional[dict] = ing.meta.scale_y
 
         # state variable
         self.is_fitted: np.ndarray = np.ones([self.dim]) < 0

@@ -1,12 +1,12 @@
 import typing
 import warnings
-from typing import Callable, List, Optional, Union
+from typing import Callable, Optional, Union
 
 import numpy as np
 
 import effector
 from effector import axis_partitioning as ap
-from effector import helpers, utils
+from effector import helpers, ingestion, utils
 from effector.regional_effect import RegionalEffectBase
 
 
@@ -20,10 +20,7 @@ class RegionalShapDP(RegionalEffectBase):
         *,
         nof_instances: Union[int, str] = 1_000,
         axis_limits: Optional[np.ndarray] = None,
-        feature_types: Optional[List[str]] = None,
-        cat_limit: Optional[int] = 10,
-        feature_names: Optional[List[str]] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
         backend: str = "shap",
     ):
@@ -60,24 +57,13 @@ class RegionalShapDP(RegionalEffectBase):
 
                 !!! tip "`1_000` (default), is a good balance between speed and accuracy"
 
-            feature_types: The feature types.
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
-                - `['cat', 'cont', ...]`, manually specify the types of the features
-
-            cat_limit: The minimum number of unique values for a feature to be considered categorical
-
-                - if `feature_types` is manually specified, this parameter is ignored
-
-            feature_names: The names of the features
-
-                - `None`, defaults to: `["x_0", "x_1", ...]`
-                - `["age", "weight", ...]` to manually specify the names of the features
-
-            target_name: The name of the target variable
-
-                - `None`, to keep the default name: `"y"`
-                - `"price"`, to manually specify the name of the target variable
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (`nof_instances` subsampling and the shap/shapiq explainer, unless overridden via `shap_explainer_kwargs`)
 
@@ -95,14 +81,9 @@ class RegionalShapDP(RegionalEffectBase):
             "shap",
             data,
             model,
-            None,
-            None,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -119,6 +100,7 @@ class RegionalShapDP(RegionalEffectBase):
                 self.model,
                 axis_limits=self.axis_limits,
                 nof_instances="all",
+                schema=self._node_schema(),
                 random_state=self.random_state,
                 backend=self.backend,
             )
@@ -142,6 +124,7 @@ class RegionalShapDP(RegionalEffectBase):
                 self.model,
                 axis_limits=self.axis_limits,
                 nof_instances="all",
+                schema=self._node_schema(),
                 random_state=self.random_state,
                 shap_values=shap_values,
             )

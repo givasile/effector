@@ -113,6 +113,50 @@ def global_data():
 
 
 # ---------------------------------------------------------------------------
+# DataFrame mirrors (R10 contract layer) — pandas imported lazily so the
+# numpy-only test path keeps working without it
+# ---------------------------------------------------------------------------
+
+DF_COLUMNS = ["a", "b", "c"]
+
+
+def make_global_df(n=N_GLOBAL, seed=21):
+    """Numeric DataFrame mirror of make_global_data (same values, named cols)."""
+    import pandas as pd
+
+    return pd.DataFrame(make_global_data(n, seed), columns=DF_COLUMNS)
+
+
+def make_mixed_df(n=N_GLOBAL, seed=21):
+    """A DataFrame with one column per R10 dtype family + its native model."""
+    import pandas as pd
+
+    rng = np.random.default_rng(seed)
+    return pd.DataFrame(
+        {
+            "num": rng.uniform(-1, 1, n),
+            "count": rng.integers(0, 3, n),
+            "color": pd.Categorical(rng.choice(["r", "g", "b"], n)),
+            "size": pd.Categorical(
+                rng.choice(["S", "M", "L"], n),
+                categories=["S", "M", "L"],
+                ordered=True,
+            ),
+        }
+    )
+
+
+def mixed_df_model(df):
+    """Model defined ON the DataFrame — exercises the R10 model-call rule."""
+    return (
+        2.0 * df["num"].to_numpy()
+        + df["count"].to_numpy().astype(float)
+        + df["color"].cat.codes.to_numpy().astype(float)
+        + 0.5 * df["size"].cat.codes.to_numpy().astype(float)
+    )
+
+
+# ---------------------------------------------------------------------------
 # regional-effect registry (gated-linear model from the functional anchor)
 # ---------------------------------------------------------------------------
 
