@@ -42,6 +42,7 @@ class FeatureEffect:
         nof_instances: Union[int, str] = 1_000,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
+        random_state: Optional[int] = 21,
     ):
         """
         Args:
@@ -58,16 +59,21 @@ class FeatureEffect:
 
             feature_names: list of feature names, or `None` for `["x_0", ...]`
             target_name: name of the target, or `None` for `"y"`
+            random_state: seed for every internal random step (e.g. the shared
+                `nof_instances` subsampling), inherited by every lazily built
+                method object. Use an `int` (default: `21`) for reproducible
+                output, or `None` for non-deterministic behavior.
         """
         self.model = model
         self.model_jac = model_jac
         self.dim = data.shape[1]
+        self.random_state = random_state
 
         # shared preprocessing (helpers.prep_data): filter to axis limits (or
         # infer them), then subsample ONCE so every method sees the exact same
         # background data.
         self.data, _, self.axis_limits, _, _ = helpers.prep_data(
-            data, axis_limits, nof_instances
+            data, axis_limits, nof_instances, random_state=random_state
         )
 
         self.feature_names = (
@@ -103,6 +109,7 @@ class FeatureEffect:
             nof_instances="all",  # data is already subsampled in __init__
             feature_names=self.feature_names,
             target_name=self.target_name,
+            random_state=self.random_state,
         )
         if method_kwargs:
             kwargs.update(method_kwargs)

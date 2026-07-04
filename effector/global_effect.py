@@ -22,6 +22,7 @@ class GlobalEffectBase(ABC):
         axis_limits: Optional[np.ndarray] = None,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
+        random_state: Optional[int] = 21,
     ) -> None:
         """
         Constructor for the FeatureEffectBase class.
@@ -29,13 +30,16 @@ class GlobalEffectBase(ABC):
         self.method_name = method_name.lower()
         self.model = model
         self.model_jac = model_jac
+        self.random_state = random_state
 
         self.dim = data.shape[1]
 
         # shared preprocessing: filter to axis_limits (or infer them), then
         # subsample nof_instances (helpers.prep_data)
         data, data_effect, axis_limits, self.nof_instances, self.indices = (
-            helpers.prep_data(data, axis_limits, nof_instances, data_effect)
+            helpers.prep_data(
+                data, axis_limits, nof_instances, data_effect, random_state
+            )
         )
         self.axis_limits: np.ndarray = axis_limits
 

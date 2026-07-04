@@ -101,7 +101,9 @@ def axis_limits_from_data(data: np.ndarray) -> np.ndarray:
 
 
 def prep_nof_instances(
-    nof_instances: typing.Union[int, str], N: int
+    nof_instances: typing.Union[int, str],
+    N: int,
+    random_state: typing.Optional[int] = 21,
 ) -> typing.Tuple[int, np.ndarray]:
     """Prepares the argument nof_instances
 
@@ -109,6 +111,10 @@ def prep_nof_instances(
     ---
         nof_instances (int or str): The number of instances to use for the explanation
         N (int): The number of instances in the dataset
+        random_state (int or None): seed for the subsampling draw; `None` for
+            fresh randomness. Every sampling site creates its own
+            `np.random.default_rng(random_state)` — if a future site draws the
+            same shape from the same population, switch to spawned child seeds.
 
     Returns
     ---
@@ -129,7 +135,7 @@ def prep_nof_instances(
         )
 
     indices = (
-        np.random.choice(N, nof_instances, replace=False)
+        np.random.default_rng(random_state).choice(N, nof_instances, replace=False)
         if nof_instances < N
         else np.arange(N)
     )
@@ -141,12 +147,14 @@ def prep_data(
     axis_limits: typing.Optional[np.ndarray] = None,
     nof_instances: typing.Union[int, str] = 10_000,
     data_effect: typing.Optional[np.ndarray] = None,
+    random_state: typing.Optional[int] = 21,
 ) -> typing.Tuple[np.ndarray, typing.Optional[np.ndarray], np.ndarray, int, np.ndarray]:
     """Shared data preprocessing for every effect class (global, regional, facade):
 
     (i) if `axis_limits` is given, validate it and drop the points outside;
         otherwise infer the limits from the data;
-    (ii) subsample `nof_instances` from what remains.
+    (ii) subsample `nof_instances` from what remains, seeded by `random_state`
+        (`None` for fresh randomness).
 
     `data_effect` (the Jacobian on `data`), when given, is kept row-aligned with
     `data` through both steps.
@@ -176,7 +184,9 @@ def prep_data(
     else:
         axis_limits = axis_limits_from_data(data)
 
-    nof_instances, indices = prep_nof_instances(nof_instances, data.shape[0])
+    nof_instances, indices = prep_nof_instances(
+        nof_instances, data.shape[0], random_state
+    )
     data = data[indices, :]
     data_effect = data_effect[indices, :] if data_effect is not None else None
 

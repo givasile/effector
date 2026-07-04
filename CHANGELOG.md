@@ -1,5 +1,11 @@
 # Changelog
 
+# [Unreleased]
+
+### Added
+
+- `random_state` on every public effect-class constructor (`PDP`, `DerPDP`, `ALE`, `RHALE`, `ShapDP`, the 5 regional variants, and `FeatureEffect`); default `21`, so two identical constructions give identical `eval`/`fit`/`plot` output out of the box, `None` opts into fresh randomness. The seed also drives plot-time ICE/SHAP-scatter subsampling and is passed to the shap/shapiq explainer (`seed=`/`random_state=`) unless overridden via `shap_explainer_kwargs`. No effector code touches the global `np.random` state anymore.
+
 # [0.2.1] - 2026-07-01
 
 ### Changed
