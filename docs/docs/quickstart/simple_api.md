@@ -32,7 +32,28 @@ Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
 ### Dataset
 
 ???+ note "A dataset, typically the test set"
-     Must be a `np.ndarray` with shape `(N, D)`. 
+     A `np.ndarray` with shape `(N, D)` **or a pandas DataFrame** (R10).
+     A DataFrame brings its own metadata: column names become feature names and
+     dtypes decide the feature types (`float` → continuous, low-cardinality
+     `int` → ordinal, `category`/strings → nominal, ordered `category` →
+     ordinal). With a DataFrame, your model is always called with a
+     reconstructed DataFrame (original columns and dtypes) — if it expects a
+     raw array, wrap it: `lambda X: f(X.to_numpy())`.
+
+???+ note "Metadata travels in one `schema` argument"
+     Everything else (names, types, target name, axis un-scaling) goes into a
+     single optional `schema=` argument — an `effector.Schema` or a plain dict:
+
+     ```python
+     schema = {
+         "feature_names": ["hour", "weekday", "temp"],
+         "feature_types": ["ordinal", "nominal", "continuous"],
+         "target_name": "bike-rentals",
+     }
+     effector.PDP(X_test, model, schema=schema)
+     ```
+
+     Every field is optional; explicit fields always win over inference.
 
 === "synthetic example"
      
