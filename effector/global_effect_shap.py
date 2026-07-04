@@ -24,14 +24,22 @@ import effector.utils as utils
 
 
 def _compute_shap_values(
-    model, data, backend, budget, explainer_kwargs=None, explanation_kwargs=None
+    model,
+    data,
+    backend,
+    budget,
+    explainer_kwargs=None,
+    explanation_kwargs=None,
+    random_state=None,
 ):
     """Compute per-instance SHAP values `(N, D)` with the chosen backend.
 
     Defaults (user kwargs override them):
-      - `shap`:   `Explainer(model, masker=data)`, `explainer(data, max_evals=budget)`
+      - `shap`:   `Explainer(model, masker=data, seed=random_state)`,
+        `explainer(data, max_evals=budget)`
       - `shapiq`: `Explainer(model, data=data, index="SV", max_order=1,
-        approximator="permutation", imputer="marginal")`,
+        approximator="permutation", imputer="marginal",
+        random_state=random_state)`,
         `explainer.explain_X(data, budget=budget)`
     """
     explainer_kwargs = explainer_kwargs.copy() if explainer_kwargs else {}
@@ -42,7 +50,7 @@ def _compute_shap_values(
                 "The `shap` package is required for backend='shap'. "
                 "Install it with `pip install effector[shap]`."
             )
-        explainer_defaults = {"masker": data}
+        explainer_defaults = {"masker": data, "seed": random_state}
         explanation_defaults = {"max_evals": budget}
     elif backend == "shapiq":
         if shapiq is None:
@@ -56,6 +64,7 @@ def _compute_shap_values(
             "max_order": 1,
             "approximator": "permutation",
             "imputer": "marginal",
+            "random_state": random_state,
         }
         explanation_defaults = {"budget": budget}
     else:
@@ -85,6 +94,7 @@ class ShapDP(GlobalEffectBase):
         nof_instances: Union[int, str] = 1_000,
         feature_names: Optional[List[str]] = None,
         target_name: Optional[str] = None,
+        random_state: Optional[int] = 21,
         shap_values: Optional[np.ndarray] = None,
         backend: str = "shap",
     ):
@@ -160,6 +170,11 @@ class ShapDP(GlobalEffectBase):
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
 
+            random_state: seed for every internal random step (`nof_instances` subsampling and the shap/shapiq explainer, unless overridden via `shap_explainer_kwargs`)
+
+                - use an `int` (default: `21`), for reproducible output; two identical constructions give identical results
+                - use `None`, for non-deterministic behavior
+
             shap_values: The SHAP values of the model
 
                 - if shap values are already computed, they can be passed here
@@ -190,6 +205,7 @@ class ShapDP(GlobalEffectBase):
             axis_limits,
             feature_names,
             target_name,
+            random_state=random_state,
         )
 
     def _fit_feature(
@@ -210,6 +226,7 @@ class ShapDP(GlobalEffectBase):
                 budget,
                 shap_explainer_kwargs,
                 shap_explanation_kwargs,
+                self.random_state,
             )
 
         # extract x and y
@@ -304,6 +321,7 @@ class ShapDP(GlobalEffectBase):
                 - Decrease the budget for faster computation at the cost of approximation error.
 
             shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` or `shapiq.Explainer` class, depending on the backend.
+                The constructor's `random_state` is used as the backend seed (`seed=` for `shap`, `random_state=` for `shapiq`) unless you pass your own here.
 
                 ??? note "Code behind the scene"
 
@@ -392,7 +410,9 @@ class ShapDP(GlobalEffectBase):
         )
 
         # get some SHAP values
-        _, ind = helpers.prep_nof_instances(nof_shap_values, self.data.shape[0])
+        _, ind = helpers.prep_nof_instances(
+            nof_shap_values, self.data.shape[0], self.random_state
+        )
         yy = (
             self.feature_effect["feature_" + str(feature)]["yy"][ind]
             if heterogeneity == "shap_values"

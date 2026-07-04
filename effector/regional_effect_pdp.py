@@ -22,6 +22,7 @@ class RegionalPDPBase(RegionalEffectBase):
         cat_limit: typing.Union[int, None] = 10,
         feature_names: typing.Union[list, None] = None,
         target_name: typing.Union[str, None] = None,
+        random_state: typing.Optional[int] = 21,
     ):
         self.y_ice = {}
         super(RegionalPDPBase, self).__init__(
@@ -36,6 +37,7 @@ class RegionalPDPBase(RegionalEffectBase):
             cat_limit,
             feature_names,
             target_name,
+            random_state=random_state,
         )
 
     def _create_heterogeneity_function(self, feature: int, min_points: int):
@@ -61,6 +63,7 @@ class RegionalPDP(RegionalPDPBase):
         cat_limit: typing.Union[int, None] = 10,
         feature_names: typing.Union[list, None] = None,
         target_name: typing.Union[str, None] = None,
+        random_state: typing.Optional[int] = 21,
     ):
         """
         Initialize the Regional Effect method.
@@ -113,6 +116,11 @@ class RegionalPDP(RegionalPDPBase):
 
                 - `None`, to keep the default name: `"y"`
                 - `"price"`, to manually specify the name of the target variable
+
+            random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
+
+                - `int` (default: `21`), for reproducible output; two identical constructions give identical results
+                - `None`, for non-deterministic behavior
         """
 
         super(RegionalPDP, self).__init__(
@@ -126,13 +134,18 @@ class RegionalPDP(RegionalPDPBase):
             cat_limit,
             feature_names,
             target_name,
+            random_state=random_state,
         )
 
     def _precompute_global(self, feature: int):
         """Fit the global PDP once and keep the centered ICE table on the
         heterogeneity grid: candidate regions score row-subsets of it."""
         pdp = PDP(
-            self.data, self.model, axis_limits=self.axis_limits, nof_instances="all"
+            self.data,
+            self.model,
+            axis_limits=self.axis_limits,
+            nof_instances="all",
+            random_state=self.random_state,
         )
         pdp.fit(
             features=feature,
@@ -263,6 +276,7 @@ class RegionalDerPDP(RegionalPDPBase):
         cat_limit: typing.Union[int, None] = 10,
         feature_names: typing.Union[list, None] = None,
         target_name: typing.Union[str, None] = None,
+        random_state: typing.Optional[int] = 21,
     ):
         """
         Initialize the Regional Effect method.
@@ -320,6 +334,11 @@ class RegionalDerPDP(RegionalPDPBase):
 
                 - `None`, to keep the default name: `"y"`
                 - `"price"`, to manually specify the name of the target variable
+
+            random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
+
+                - `int` (default: `21`), for reproducible output; two identical constructions give identical results
+                - `None`, for non-deterministic behavior
         """
 
         super(RegionalDerPDP, self).__init__(
@@ -333,6 +352,7 @@ class RegionalDerPDP(RegionalPDPBase):
             cat_limit,
             feature_names,
             target_name,
+            random_state=random_state,
         )
 
     def _precompute_global(self, feature: int):
@@ -344,6 +364,7 @@ class RegionalDerPDP(RegionalPDPBase):
             self.model_jac,
             axis_limits=self.axis_limits,
             nof_instances="all",
+            random_state=self.random_state,
         )
         pdp.fit(
             features=feature,

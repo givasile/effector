@@ -24,6 +24,7 @@ class RegionalShapDP(RegionalEffectBase):
         cat_limit: Optional[int] = 10,
         feature_names: Optional[List[str]] = None,
         target_name: Optional[str] = None,
+        random_state: Optional[int] = 21,
         backend: str = "shap",
     ):
         """
@@ -78,6 +79,11 @@ class RegionalShapDP(RegionalEffectBase):
                 - `None`, to keep the default name: `"y"`
                 - `"price"`, to manually specify the name of the target variable
 
+            random_state: seed for every internal random step (`nof_instances` subsampling and the shap/shapiq explainer, unless overridden via `shap_explainer_kwargs`)
+
+                - `int` (default: `21`), for reproducible output; two identical constructions give identical results
+                - `None`, for non-deterministic behavior
+
             backend: Package to compute SHAP values
 
                 - use `"shap"` for the `shap` package (default)
@@ -97,6 +103,7 @@ class RegionalShapDP(RegionalEffectBase):
             cat_limit,
             feature_names,
             target_name,
+            random_state=random_state,
         )
 
     def _extra_fe_kwargs(self, active_indices: np.ndarray) -> dict:
@@ -112,6 +119,7 @@ class RegionalShapDP(RegionalEffectBase):
                 self.model,
                 axis_limits=self.axis_limits,
                 nof_instances="all",
+                random_state=self.random_state,
                 backend=self.backend,
             )
             global_shap_dp.fit(feature, centering=False, **self.kwargs_fitting)
@@ -134,6 +142,7 @@ class RegionalShapDP(RegionalEffectBase):
                 self.model,
                 axis_limits=self.axis_limits,
                 nof_instances="all",
+                random_state=self.random_state,
                 shap_values=shap_values,
             )
 
@@ -199,6 +208,7 @@ class RegionalShapDP(RegionalEffectBase):
             points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
 
             shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` or `shapiq.Explainer` class, depending on the backend.
+                The constructor's `random_state` is used as the backend seed (`seed=` for `shap`, `random_state=` for `shapiq`) unless you pass your own here.
 
                 ??? note "Code behind the scene"
 

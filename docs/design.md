@@ -67,8 +67,16 @@ Every `vis.*` function and every public `.plot` returns `(fig, ax)` when
 
 Canonical parameter order `data, model, model_jac=None, *, data_effect,
 nof_instances, axis_limits, feature_types, cat_limit, feature_names,
-target_name, ...` — everything after `model_jac` keyword-only, so positional
-shuffles can't bite.
+target_name, random_state, ...` — everything after `model_jac` keyword-only,
+so positional shuffles can't bite.
+
+Reproducibility is contractual: every constructor takes `random_state`
+(default `21`; `None` opts into fresh randomness), two identical
+constructions give identical `eval`/`fit`/`plot` output, and no effect-class
+code touches the global `np.random` state — every sampling site creates its
+own `np.random.default_rng(random_state)`. (The one exception is
+`datasets.IndependentUniform`, which keeps its legacy seeded global draw so
+the executed notebooks stay a valid regression oracle.)
 
 ## R9 — Errors & messages
 

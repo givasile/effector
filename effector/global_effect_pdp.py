@@ -24,6 +24,7 @@ class PDPBase(GlobalEffectBase):
         nof_instances: Union[int, str] = 10_000,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
+        random_state: Optional[int] = 21,
         method_name: str = "PDP",
     ):
         super(PDPBase, self).__init__(
@@ -36,6 +37,7 @@ class PDPBase(GlobalEffectBase):
             axis_limits,
             feature_names,
             target_name,
+            random_state=random_state,
         )
 
     def _predict(self, data, xx, feature, use_vectorized=True):
@@ -188,6 +190,7 @@ class PDPBase(GlobalEffectBase):
             nof_ice=nof_ice,
             y_limits=y_limits,
             show_plot=show_plot,
+            random_state=self.random_state,
         )
 
 
@@ -203,6 +206,7 @@ class PDP(PDPBase):
         nof_instances: Union[int, str] = 10_000,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
+        random_state: Optional[int] = 21,
     ):
         r"""
         Constructor of the PDP class.
@@ -270,6 +274,11 @@ class PDP(PDPBase):
 
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
+
+            random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
+
+                - use an `int` (default: `21`), for reproducible output; two identical constructions give identical results
+                - use `None`, for non-deterministic behavior
         """
 
         super(PDP, self).__init__(
@@ -280,6 +289,7 @@ class PDP(PDPBase):
             nof_instances=nof_instances,
             feature_names=feature_names,
             target_name=target_name,
+            random_state=random_state,
             method_name="PDP",
         )
 
@@ -368,6 +378,7 @@ class DerPDP(PDPBase):
         nof_instances: Union[int, str] = 10_000,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
+        random_state: Optional[int] = 21,
     ):
         r"""
         Constructor of the DerivativePDP class.
@@ -441,6 +452,11 @@ class DerPDP(PDPBase):
 
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
+
+            random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
+
+                - use an `int` (default: `21`), for reproducible output; two identical constructions give identical results
+                - use `None`, for non-deterministic behavior
         """
 
         super(DerPDP, self).__init__(
@@ -451,6 +467,7 @@ class DerPDP(PDPBase):
             nof_instances=nof_instances,
             feature_names=feature_names,
             target_name=target_name,
+            random_state=random_state,
             method_name="d-PDP",
         )
 

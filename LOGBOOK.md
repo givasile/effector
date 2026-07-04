@@ -879,3 +879,41 @@ chain + this pass are one stacked history off `main`; the single final PR
 opens from here for Vasilis's end-to-end verdict.
 
 ---
+## 22. 2026-07-04 — Reproducibility: `random_state` on every constructor (tag: code)  [PLAN III §6.1 close-out; branch `reproducibility-random-state`]
+
+**Decision (Vasilis):** default is a **fixed seed, `random_state=21`**
+(matching `datasets.py`) — explanations reproducible out of the box;
+`None` opts into fresh randomness.
+
+**What:**
+- `helpers.prep_nof_instances`/`prep_data` take `random_state` and draw via
+  `np.random.default_rng` — the unseeded global `np.random.choice` is gone;
+  no effect-class code touches global `np.random` state anymore
+  (datasets.IndependentUniform keeps its legacy seeded global draw — LOGBOOK #20).
+- Keyword-only `random_state=21` on all 10 public constructors + the
+  `FeatureEffect` facade, appended last on the two base `__init__`s (their
+  positional call shapes untouched), stored as `self.random_state` and
+  forwarded to every internally built object (regional `_precompute_global`,
+  node fe objects, facade `_get_method`).
+- Seed also reaches plot-time sampling (`vis.plot_pdp_ice` ICE selection,
+  `ShapDP.plot` `nof_shap_values`) and the shap backends: `seed=` (shap) /
+  `random_state=` (shapiq) default to the constructor seed, user
+  `shap_explainer_kwargs` still override.
+- New contract layer `tests/test_contract_determinism.py` (D1–D7, 28 tests):
+  same seed → identical data/eval/eval_heter/regional tree + node evals/ICE
+  plot lines; different seeds differ; `None` works; global `np.random` state
+  untouched. `regional_shapdp` D5 runs two *real* shap fits with no explicit
+  seed kwargs — the end-to-end proof the constructor seed reaches the backend.
+- Bookkeeping: R8 in `docs/design.md` now states reproducibility as contract;
+  CHANGELOG unreleased entry; PLAN §6.1 ticked (datasets half was already
+  done in Part III §2.10).
+
+**Noted, out of scope:** conftest's `make_global("shapdp", ...)` setdefaults
+`shap_values` computed on the *full* data — row-misaligned when the
+constructor subsamples (latent, pre-existing); the determinism tests
+recompute analytic shap values on the kept rows instead.
+
+**Verified:** gate 397 passed / 0 xfailed / ~15 s (369 + 28 new); ruff
+check + format clean.
+
+---

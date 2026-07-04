@@ -1016,12 +1016,14 @@ The composable core (regional = partitioner + any global `.eval`) is the package
 asset; these are the gaps that most threaten it, in priority order. They feed Phase 2 of
 Part I / Part V and should come **before** further feature ideas.
 
-1. **Reproducibility end-to-end** (small, high trust-impact). `nof_instances`
+1. **Reproducibility end-to-end** (small, high trust-impact). ~~`nof_instances`
    subsampling uses global `np.random` with no seed; dataset splits are unseeded — two
    runs give two different explanations. Add `random_state`/`seed` to every constructor
    and `datasets.*`, thread it through `prep_nof_instances`, and add a contract test:
    two identical constructions → identical `eval` output. For an XAI package this is a
-   core value, not a nice-to-have.
+   core value, not a nice-to-have.~~ **DONE 2026-07-04** (`datasets.*` seeds landed in
+   Part III step §2.10; `random_state=21` on every constructor + determinism contract
+   layer `tests/test_contract_determinism.py` + R8 note in `docs/design.md` — LOGBOOK #22).
 2. **Keep the contract enforced, not conventional.** The §1 rules go into
    `CONTRIBUTING.md` / `docs/design.md`, and the contract layer of Part II
    (§3.1) becomes the merge gate for any new method class: a method is "done" when it

@@ -169,6 +169,7 @@ def plot_pdp_ice(
     nof_ice: typing.Union[str, int] = "all",
     y_limits: typing.Union[None, tuple] = None,
     show_plot: bool = True,
+    random_state: typing.Union[None, int] = None,
 ):
     """Draw the mean of the ICE table `yy` (shape `(T, N)`) plus the requested
     heterogeneity: a std or standard-error band, or the ICE curves themselves."""
@@ -197,7 +198,9 @@ def plot_pdp_ice(
     elif heterogeneity == "ice":
         yy_show = yy
         if nof_ice != "all" and nof_ice < yy.shape[1]:
-            ind = np.random.choice(yy.shape[1], size=nof_ice, replace=False)
+            ind = np.random.default_rng(random_state).choice(
+                yy.shape[1], size=nof_ice, replace=False
+            )
             yy_show = yy[:, ind]
         ax.plot(x, yy_show[:, 0], color="red", alpha=0.1, label=y_ice_label)
         ax.plot(x, yy_show, color="red", alpha=0.1)

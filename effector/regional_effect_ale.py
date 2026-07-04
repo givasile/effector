@@ -27,6 +27,7 @@ class RegionalRHALE(RegionalEffectBase):
         cat_limit: Optional[int] = 10,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
+        random_state: Optional[int] = 21,
     ):
         """
         Initialize the Regional Effect method.
@@ -94,6 +95,11 @@ class RegionalRHALE(RegionalEffectBase):
 
                 - `None`, to keep the default name: `"y"`
                 - `"price"`, to manually specify the name of the target variable
+
+            random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
+
+                - `int` (default: `21`), for reproducible output; two identical constructions give identical results
+                - `None`, for non-deterministic behavior
         """
 
         super(RegionalRHALE, self).__init__(
@@ -108,6 +114,7 @@ class RegionalRHALE(RegionalEffectBase):
             cat_limit,
             feature_names,
             target_name,
+            random_state=random_state,
         )
 
     def compile(self):
@@ -139,6 +146,7 @@ class RegionalRHALE(RegionalEffectBase):
                 data_effect=instance_effects,
                 nof_instances="all",
                 axis_limits=self.axis_limits,
+                random_state=self.random_state,
             )
             try:
                 rhale.fit(
@@ -270,6 +278,7 @@ class RegionalALE(RegionalEffectBase):
         cat_limit: typing.Union[int, None] = 10,
         feature_names: typing.Union[list, None] = None,
         target_name: typing.Union[str, None] = None,
+        random_state: typing.Optional[int] = 21,
     ):
         """
         Initialize the Regional Effect method.
@@ -322,6 +331,11 @@ class RegionalALE(RegionalEffectBase):
 
                 - `None`, to keep the default name: `"y"`
                 - `"price"`, to manually specify the name of the target variable
+
+            random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
+
+                - `int` (default: `21`), for reproducible output; two identical constructions give identical results
+                - `None`, for non-deterministic behavior
         """
 
         self.global_bin_limits = {}
@@ -338,13 +352,18 @@ class RegionalALE(RegionalEffectBase):
             cat_limit,
             feature_names,
             target_name,
+            random_state=random_state,
         )
 
     def _precompute_global(self, feature: int):
         """Fit the global ALE once and keep its per-instance bin effects: the
         candidate regions re-bin those instead of refitting the model."""
         global_ale = ALE(
-            self.data, self.model, nof_instances="all", axis_limits=self.axis_limits
+            self.data,
+            self.model,
+            nof_instances="all",
+            axis_limits=self.axis_limits,
+            random_state=self.random_state,
         )
         global_ale.fit(
             features=feature,

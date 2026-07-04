@@ -25,6 +25,7 @@ class ALEBase(GlobalEffectBase):
         axis_limits: Optional[np.ndarray] = None,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
+        random_state: Optional[int] = 21,
         method_name: str = "ALE",
     ):
         super(ALEBase, self).__init__(
@@ -37,6 +38,7 @@ class ALEBase(GlobalEffectBase):
             axis_limits,
             feature_names,
             target_name,
+            random_state=random_state,
         )
 
     @abstractmethod
@@ -166,6 +168,7 @@ class ALE(ALEBase):
         axis_limits: Optional[np.ndarray] = None,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
+        random_state: Optional[int] = 21,
     ):
         r"""
         Constructor for the ALE plot.
@@ -235,6 +238,11 @@ class ALE(ALEBase):
 
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
+
+            random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
+
+                - use an `int` (default: `21`), for reproducible output; two identical constructions give identical results
+                - use `None`, for non-deterministic behavior
         """
         self.bin_limits = {}
         self.data_effect_ale = {}
@@ -245,6 +253,7 @@ class ALE(ALEBase):
             axis_limits=axis_limits,
             feature_names=feature_names,
             target_name=target_name,
+            random_state=random_state,
             method_name="ALE",
         )
 
@@ -326,6 +335,7 @@ class RHALE(ALEBase):
         axis_limits: typing.Optional[np.ndarray] = None,
         feature_names: typing.Optional[list] = None,
         target_name: typing.Optional[str] = None,
+        random_state: typing.Optional[int] = 21,
     ):
         r"""
         Constructor for RHALE.
@@ -403,6 +413,11 @@ class RHALE(ALEBase):
 
                 - use a `str`, to specify it name manually. For example: `"price"`
                 - use `None`, to keep the default name: `"y"`
+
+            random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
+
+                - use an `int` (default: `21`), for reproducible output; two identical constructions give identical results
+                - use `None`, for non-deterministic behavior
         """
         super(RHALE, self).__init__(
             data,
@@ -413,6 +428,7 @@ class RHALE(ALEBase):
             axis_limits=axis_limits,
             feature_names=feature_names,
             target_name=target_name,
+            random_state=random_state,
             method_name="RHALE",
         )
 

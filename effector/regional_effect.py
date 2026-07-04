@@ -26,6 +26,7 @@ class RegionalEffectBase:
         cat_limit: Optional[int] = 10,
         feature_names: Optional[List] = None,
         target_name: Optional[str] = None,
+        random_state: Optional[int] = 21,
     ) -> None:
         """
         Constructor for the RegionalEffect class.
@@ -33,13 +34,16 @@ class RegionalEffectBase:
         self.method_name = method_name.lower()
         self.model = model
         self.model_jac = model_jac
+        self.random_state = random_state
 
         self.dim = data.shape[1]
 
         # shared preprocessing: filter to axis_limits (or infer them), then
         # subsample nof_instances (helpers.prep_data)
         data, data_effect, axis_limits, self.nof_instances, self.indices = (
-            helpers.prep_data(data, axis_limits, nof_instances, data_effect)
+            helpers.prep_data(
+                data, axis_limits, nof_instances, data_effect, random_state
+            )
         )
         self.axis_limits: np.ndarray = axis_limits
 
@@ -191,6 +195,7 @@ class RegionalEffectBase:
             nof_instances="all",
             feature_names=feature_names,
             target_name=self.target_name,
+            random_state=self.random_state,
         )
         if spec.uses_data_effect:
             kwargs["data_effect"] = (
