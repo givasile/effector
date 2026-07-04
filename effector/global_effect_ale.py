@@ -60,9 +60,8 @@ class ALEBase(GlobalEffectBase):
     def plot(
         self,
         feature: int,
-        heterogeneity: bool = True,
+        heterogeneity: Union[bool, str] = True,
         centering: Union[bool, str] = True,
-        nof_points: int = 1000,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
         show_avg_output: bool = False,
@@ -82,7 +81,7 @@ class ALEBase(GlobalEffectBase):
             heterogeneity: whether to plot the heterogeneity
 
                   - `False`, plots only the mean effect
-                  - `True`, the std of the bin-effects will be plotted using a red vertical bar
+                  - `True` or `"std"`, the std of the bin-effects will be plotted using a red vertical bar
 
             centering: whether to center the plot:
 
@@ -90,7 +89,6 @@ class ALEBase(GlobalEffectBase):
                 - `True` or `zero_integral` centers around the `y` axis.
                 - `zero_start` starts the plot from `y=0`.
 
-            nof_points: the grid size for the mean-effect curve
             scale_x: None or Dict with keys ['std', 'mean']
 
                 - If set to None, no scaling will be applied.
@@ -122,7 +120,9 @@ class ALEBase(GlobalEffectBase):
         )
         params = self.feature_effect["feature_" + str(feature)]
 
-        x = np.linspace(params["limits"][0], params["limits"][-1], nof_points)
+        # the accumulated curve is piecewise linear between bin limits, so
+        # evaluating exactly at the limits draws it exactly (no resampling)
+        x = np.asarray(params["limits"], dtype=float)
         y = self.eval(feature, x, centering=centering)
 
         if show_avg_output:
@@ -281,9 +281,10 @@ class ALE(ALEBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
-        binning_method: typing.Union[str, ap.Fixed] = "fixed",
+        *,
         centering: typing.Union[bool, str] = True,
         points_for_centering: int = 30,
+        binning_method: typing.Union[str, ap.Fixed] = "fixed",
     ) -> None:
         """Fit the ALE plot.
 
@@ -305,7 +306,7 @@ class ALE(ALEBase):
                 - `True` or `zero_integral` centers around the `y` axis.
                 - `zero_start` starts the plot from `y=0`.
 
-            points_for_centering: the number of points to use for centering the plot. Default is 100.
+            points_for_centering: the number of points to use for centering the plot. Default is 30.
         """
         if not (binning_method == "fixed" or isinstance(binning_method, ap.Fixed)):
             raise ValueError(
@@ -461,11 +462,12 @@ class RHALE(ALEBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
+        *,
+        centering: typing.Union[bool, str] = True,
+        points_for_centering: int = 30,
         binning_method: typing.Union[
             str, ap.DynamicProgramming, ap.Greedy, ap.Fixed
         ] = "greedy",
-        centering: typing.Union[bool, str] = True,
-        points_for_centering: int = 30,
     ) -> None:
         """Fit the model.
 
@@ -489,7 +491,7 @@ class RHALE(ALEBase):
                 - `True` or `zero_integral` centers around the `y` axis
                 - `zero_start` starts the plot from `y=0`
 
-            points_for_centering: the number of points to use for centering the plot. Default is 100.
+            points_for_centering: the number of points to use for centering the plot. Default is 30.
         """
         # validation is the resolver's job (R6): one table, one error message
         binning_method = ap.return_default(binning_method)

@@ -53,7 +53,7 @@ def test_plots():
     assert all(
         [
             effector.DerPDP(data=X, model=predict, model_jac=predict_grad).plot(
-                feature=i, heterogeneity=True, dy_limits=[-10, 10], show_plot=False
+                feature=i, heterogeneity=True, y_limits=[-10, 10], show_plot=False
             )
             for i in range(3)
         ]
@@ -133,7 +133,7 @@ def test_plots():
             effector.DerPDP(data=X, model=predict, model_jac=predict_grad).plot(
                 feature=i,
                 heterogeneity=True,
-                dy_limits=[-10, 10],
+                y_limits=[-10, 10],
                 show_plot=False,
                 scale_x=scale_x_list[i],
                 scale_y=scale_y,

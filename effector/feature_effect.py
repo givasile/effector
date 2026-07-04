@@ -41,7 +41,7 @@ class FeatureEffect:
         model_jac: Optional[Callable] = None,
         *,
         axis_limits: Optional[np.ndarray] = None,
-        nof_instances: Union[int, str] = 1_000,
+        nof_instances: Union[int, str] = 10_000,
         schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ):

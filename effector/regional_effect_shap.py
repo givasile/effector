@@ -9,10 +9,10 @@ from effector import axis_partitioning as ap
 from effector import helpers, ingestion, utils
 from effector.regional_effect import RegionalEffectBase
 
+BIG_M = helpers.BIG_M
+
 
 class RegionalShapDP(RegionalEffectBase):
-    big_m = helpers.BIG_M
-
     def __init__(
         self,
         data: np.ndarray,
@@ -22,7 +22,11 @@ class RegionalShapDP(RegionalEffectBase):
         axis_limits: Optional[np.ndarray] = None,
         schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
+        shap_values: Optional[np.ndarray] = None,
         backend: str = "shap",
+        budget: int = 512,
+        shap_explainer_kwargs: Optional[dict] = None,
+        shap_explanation_kwargs: Optional[dict] = None,
     ):
         """
         Initialize the Regional Effect method.
@@ -75,8 +79,11 @@ class RegionalShapDP(RegionalEffectBase):
                 - use `"shap"` for the `shap` package (default)
                 - use `"shapiq"` for the `shapiq` package
         """
-        self.global_shap_values = None
+        self.global_shap_values = shap_values
         self.backend = backend
+        self.budget = budget
+        self.shap_explainer_kwargs = shap_explainer_kwargs
+        self.shap_explanation_kwargs = shap_explanation_kwargs
         super(RegionalShapDP, self).__init__(
             "shap",
             data,
@@ -103,19 +110,20 @@ class RegionalShapDP(RegionalEffectBase):
                 schema=self._node_schema(),
                 random_state=self.random_state,
                 backend=self.backend,
+                budget=self.budget,
+                shap_explainer_kwargs=self.shap_explainer_kwargs,
+                shap_explanation_kwargs=self.shap_explanation_kwargs,
             )
             global_shap_dp.fit(feature, centering=False, **self.kwargs_fitting)
             self.global_shap_values = global_shap_dp.shap_values
 
     def _create_heterogeneity_function(self, feature: int, min_points: int):
         binning_method = ap.return_default(self.kwargs_fitting["binning_method"])
-        points_for_mean_heterogeneity = self.kwargs_subregion_detection[
-            "points_for_mean_heterogeneity"
-        ]
+        points_for_mean_heterogeneity = helpers.NOF_INTERNAL_POINTS
 
         def heterogeneity_function(active_indices) -> float:
             if np.sum(active_indices) < min_points:
-                return self.big_m
+                return BIG_M
 
             data = self.data[active_indices.astype(bool), :]
             shap_values = self.global_shap_values[active_indices.astype(bool), :]
@@ -138,13 +146,13 @@ class RegionalShapDP(RegionalEffectBase):
                     f"RegionalShapDP: at a candidate split, some bins had at most "
                     f"one point; the split is rejected. Error: {e}"
                 )
-                return self.big_m
+                return BIG_M
             except Exception as e:
                 warnings.warn(
                     f"RegionalShapDP: an unexpected error occurred at a candidate "
                     f"split; the split is rejected. Error: {e}"
                 )
-                return self.big_m
+                return BIG_M
 
             xs = np.linspace(
                 self.axis_limits[0, feature],
@@ -159,15 +167,10 @@ class RegionalShapDP(RegionalEffectBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
-        candidate_conditioning_features: typing.Union["str", list] = "all",
-        space_partitioner: typing.Union[
-            "str", effector.space_partitioning.Best
-        ] = "best",
+        *,
+        candidate_conditioning_features: typing.Union[str, list] = "all",
+        space_partitioner: typing.Union[str, effector.space_partitioning.Best] = "best",
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
-        budget: int = 512,
-        points_for_mean_heterogeneity: int = 30,
-        shap_explainer_kwargs: Optional[dict] = None,
-        shap_explanation_kwargs: Optional[dict] = None,
     ):
         """
         Fit the regional SHAP.
@@ -187,8 +190,6 @@ class RegionalShapDP(RegionalEffectBase):
             budget: Budget to use for the approximation. Defaults to 512.
                 - Increasing the budget improves the approximation at the cost of slower computation.
                 - Decrease the budget for faster computation at the cost of approximation error.
-
-            points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
 
             shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` or `shapiq.Explainer` class, depending on the backend.
                 The constructor's `random_state` is used as the backend seed (`seed=` for `shap`, `random_state=` for `shapiq`) unless you pass your own here.
@@ -218,13 +219,9 @@ class RegionalShapDP(RegionalEffectBase):
             "features": features,
             "candidate_conditioning_features": candidate_conditioning_features,
             "space_partitioner": space_partitioner,
-            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
         self.kwargs_fitting = {
             "binning_method": binning_method,
-            "budget": budget,
-            "shap_explainer_kwargs": shap_explainer_kwargs,
-            "shap_explanation_kwargs": shap_explanation_kwargs,
         }
 
         self._fit_loop(features, candidate_conditioning_features, space_partitioner)
@@ -235,10 +232,10 @@ class RegionalShapDP(RegionalEffectBase):
         node_idx: int,
         heterogeneity: Union[bool, str] = "shap_values",
         centering: Union[None, bool, str] = None,
-        nof_points: int = 30,
+        nof_points: int = 100,
         scale_x_list: Optional[list] = None,
         scale_y: Optional[dict] = None,
-        nof_shap_values: Union[int, str] = "all",
+        nof_shap_values: Union[int, str] = 100,
         show_avg_output: bool = False,
         y_limits: Optional[list] = None,
         only_shap_values: bool = False,

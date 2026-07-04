@@ -216,13 +216,10 @@ def fit_regional(name, data):
     """
     if name == "regional_shapdp":
         np.random.seed(0)
-        reg = make_regional(name, data[:50])
-        reg.fit(
-            0,
-            space_partitioner=effector.space_partitioning.Best(max_depth=2),
-            budget=128,
-            shap_explainer_kwargs={"seed": 0},
+        reg = make_regional(
+            name, data[:50], budget=128, shap_explainer_kwargs={"seed": 0}
         )
+        reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
         return reg
     reg = make_regional(name, data)
     reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))

@@ -5,6 +5,7 @@ import numpy as np
 from effector import helpers, ingestion
 from effector.global_effect_pdp import PDP, DerPDP
 from effector.regional_effect import RegionalEffectBase
+from effector.space_partitioning import Best
 
 BIG_M = helpers.BIG_M
 
@@ -135,7 +136,7 @@ class RegionalPDP(RegionalPDPBase):
         xx = np.linspace(
             self.axis_limits[0, feature],
             self.axis_limits[1, feature],
-            self.kwargs_subregion_detection["points_for_mean_heterogeneity"],
+            helpers.NOF_INTERNAL_POINTS,
         )
         y_ice = pdp._predict(
             pdp.data, xx, feature, self.kwargs_fitting["use_vectorized"]
@@ -149,10 +150,10 @@ class RegionalPDP(RegionalPDPBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
-        candidate_conditioning_features: typing.Union["str", list] = "all",
-        space_partitioner: typing.Union[str, None] = "best",
+        *,
+        candidate_conditioning_features: typing.Union[str, list] = "all",
+        space_partitioner: typing.Union[str, Best] = "best",
         points_for_centering: int = 30,
-        points_for_mean_heterogeneity: int = 30,
         use_vectorized: bool = True,
     ):
         """
@@ -174,7 +175,6 @@ class RegionalPDP(RegionalPDPBase):
 
             space_partitioner: the method to use for partitioning the space
             points_for_centering: number of equidistant points along the feature axis used for centering ICE plots
-            points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
             use_vectorized: whether to use vectorized operations for the PDP and ICE curves
 
 
@@ -183,7 +183,6 @@ class RegionalPDP(RegionalPDPBase):
             "features": features,
             "candidate_conditioning_features": candidate_conditioning_features,
             "space_partitioner": space_partitioner,
-            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
         self.kwargs_fitting = {
             "points_for_centering": points_for_centering,
@@ -198,7 +197,7 @@ class RegionalPDP(RegionalPDPBase):
         node_idx: int,
         heterogeneity: typing.Union[bool, str] = "ice",
         centering: typing.Union[None, bool, str] = None,
-        nof_points: int = 30,
+        nof_points: int = 100,
         scale_x_list: typing.Union[None, list] = None,
         scale_y: typing.Union[None, dict] = None,
         nof_ice: typing.Union[int, str] = 100,
@@ -337,7 +336,7 @@ class RegionalDerPDP(RegionalPDPBase):
         xx = np.linspace(
             self.axis_limits[0, feature],
             self.axis_limits[1, feature],
-            self.kwargs_subregion_detection["points_for_mean_heterogeneity"],
+            helpers.NOF_INTERNAL_POINTS,
         )
         y_ice = pdp._predict(
             pdp.data, xx, feature, self.kwargs_fitting["use_vectorized"]
@@ -347,9 +346,9 @@ class RegionalDerPDP(RegionalPDPBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
-        candidate_conditioning_features: typing.Union["str", list] = "all",
-        space_partitioner: typing.Union[str, None] = "best",
-        points_for_mean_heterogeneity: int = 30,
+        *,
+        candidate_conditioning_features: typing.Union[str, list] = "all",
+        space_partitioner: typing.Union[str, Best] = "best",
         use_vectorized: bool = True,
     ):
         """
@@ -370,7 +369,6 @@ class RegionalDerPDP(RegionalPDPBase):
                 conditioned on each feature in the `candidate_conditioning_features` list
 
             space_partitioner: the method to use for partitioning the space
-            points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
             use_vectorized: whether to use vectorized operations for the PDP and ICE curves
 
 
@@ -379,7 +377,6 @@ class RegionalDerPDP(RegionalPDPBase):
             "features": features,
             "candidate_conditioning_features": candidate_conditioning_features,
             "space_partitioner": space_partitioner,
-            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
         self.kwargs_fitting = {"use_vectorized": use_vectorized}
 
@@ -391,12 +388,12 @@ class RegionalDerPDP(RegionalPDPBase):
         node_idx: int,
         heterogeneity: typing.Union[bool, str] = "ice",
         centering: typing.Union[None, bool, str] = None,
-        nof_points: int = 30,
+        nof_points: int = 100,
         scale_x_list: typing.Union[None, list] = None,
         scale_y: typing.Union[None, dict] = None,
         nof_ice: typing.Union[int, str] = 100,
         show_avg_output: bool = False,
-        dy_limits: typing.Union[None, list] = None,
+        y_limits: typing.Union[None, list] = None,
         use_vectorized: bool = True,
         show_plot: bool = True,
     ):
@@ -412,7 +409,7 @@ class RegionalDerPDP(RegionalPDPBase):
             scale_y: `{"mean": ..., "std": ...}` dict for de-normalizing the y-axis
             nof_ice: number of d-ICE curves to show
             show_avg_output: whether to show the average output of the model
-            dy_limits: manual limits of the dy/dx-axis
+            y_limits: manual limits of the y-axis (derivative units)
             use_vectorized: whether to use the vectorized ICE computation
             show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`
         """
@@ -427,7 +424,7 @@ class RegionalDerPDP(RegionalPDPBase):
                 scale_y=scale_y,
                 nof_ice=nof_ice,
                 show_avg_output=show_avg_output,
-                dy_limits=dy_limits,
+                y_limits=y_limits,
                 use_vectorized=use_vectorized,
                 show_plot=show_plot,
             ),

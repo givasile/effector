@@ -105,11 +105,10 @@ def fit_regional_subsampled(name, data):
     the constructor's default random_state must carry determinism end-to-end
     (for regional_shapdp, all the way into the shap backend)."""
     if name == "regional_shapdp":
-        reg = make_regional(name, data[:50], nof_instances=30)
+        reg = make_regional(name, data[:50], nof_instances=30, budget=128)
         reg.fit(
             0,
             space_partitioner=effector.space_partitioning.Best(max_depth=2),
-            budget=128,
         )
         return reg
     reg = make_regional(name, data, nof_instances=300)

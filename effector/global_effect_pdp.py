@@ -99,6 +99,7 @@ class PDPBase(GlobalEffectBase):
     def fit(
         self,
         features: Union[int, str, list] = "all",
+        *,
         centering: Union[bool, str] = False,
         points_for_centering: int = 30,
         use_vectorized: bool = True,
@@ -134,7 +135,7 @@ class PDPBase(GlobalEffectBase):
         feature: int,
         heterogeneity: Union[bool, str] = False,
         centering: Union[bool, str] = True,
-        nof_points: int = 30,
+        nof_points: int = 100,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
         nof_ice: Union[int, str] = 100,
@@ -292,10 +293,10 @@ class PDP(PDPBase):
         feature: int,
         heterogeneity: Union[bool, str] = "ice",
         centering: Union[bool, str] = True,
-        nof_points: int = 30,
+        nof_points: int = 100,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
-        nof_ice: Union[int, str] = "all",
+        nof_ice: Union[int, str] = 100,
         show_avg_output: bool = False,
         y_limits: Optional[List] = None,
         use_vectorized: bool = True,
@@ -466,12 +467,12 @@ class DerPDP(PDPBase):
         feature: int,
         heterogeneity: Union[bool, str] = "ice",
         centering: Union[bool, str] = False,
-        nof_points: int = 30,
+        nof_points: int = 100,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
         nof_ice: Union[int, str] = 100,
         show_avg_output: bool = False,
-        dy_limits: Optional[List] = None,
+        y_limits: Optional[List] = None,
         use_vectorized: bool = True,
         show_plot: bool = True,
     ):
@@ -507,7 +508,7 @@ class DerPDP(PDPBase):
             nof_ice: number of ICE plots to show on top of the SHAP curve
             show_avg_output: whether to show the average output of the model
 
-            dy_limits: None or tuple, the limits of the y-axis for the derivative PDP
+            y_limits: None or tuple, the limits of the y-axis (derivative units)
 
                 - If set to None, the limits of the y-axis are set automatically
                 - If set to a tuple, the limits are manually set
@@ -524,7 +525,7 @@ class DerPDP(PDPBase):
             scale_y,
             nof_ice,
             show_avg_output,
-            dy_limits,
+            y_limits,
             use_vectorized,
             show_plot,
         )
@@ -557,9 +558,9 @@ def ice_non_vectorized(
         >>> y = ice_non_vectorized(model, data, x, feature, heterogeneity=False, model_returns_jac=False)
         >>> (y[1:] - y[:-1]) / (x[1:] - x[:-1])
         array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
-        >>> # check the gradient of the PDP of a linear model with heterogeneity
-        >>> dpdp, _, _ = ice_non_vectorized(model, data, x, feature, heterogeneity=True, model_returns_jac=False, return_all=False, return_d_ice=True)
-        >>> dpdp
+        >>> # the derivative-ICE mean of a linear model
+        >>> d_ice = ice_non_vectorized(model, model_jac, data, x, feature, return_d_ice=True)
+        >>> d_ice.mean(axis=1)
         array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.])
 
 

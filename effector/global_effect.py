@@ -214,10 +214,15 @@ class GlobalEffectBase(ABC):
 
     def heter_score(self, feature: int) -> float:
         """The method-agnostic heterogeneity scalar of the `feature`-th
-        feature: the mean of `eval_heter` over a 30-point grid on the feature's
-        interval — the single quantity regional splitting (and the future
-        interaction module) consumes."""
-        xs = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], 30)
+        feature: the mean of `eval_heter` over a uniform grid
+        (`helpers.NOF_INTERNAL_POINTS` points) on the feature's interval — the
+        single quantity regional splitting (and the future interaction module)
+        consumes."""
+        xs = np.linspace(
+            self.axis_limits[0, feature],
+            self.axis_limits[1, feature],
+            helpers.NOF_INTERNAL_POINTS,
+        )
         return float(np.mean(self.eval_heter(feature, xs)))
 
     def requires_refit(self, feature, centering):

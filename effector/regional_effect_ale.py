@@ -21,7 +21,7 @@ class RegionalRHALE(RegionalEffectBase):
         model_jac: Optional[Callable] = None,
         *,
         data_effect: Optional[np.ndarray] = None,
-        nof_instances: Union[int, str] = 100_000,
+        nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
         schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
@@ -109,9 +109,7 @@ class RegionalRHALE(RegionalEffectBase):
 
     def _create_heterogeneity_function(self, feature: int, min_points: int):
         binning_method = ap.return_default(self.kwargs_fitting["binning_method"])
-        points_for_mean_heterogeneity = self.kwargs_subregion_detection[
-            "points_for_mean_heterogeneity"
-        ]
+        points_for_mean_heterogeneity = helpers.NOF_INTERNAL_POINTS
 
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
@@ -164,6 +162,7 @@ class RegionalRHALE(RegionalEffectBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
+        *,
         candidate_conditioning_features: typing.Union[str, list] = "all",
         space_partitioner: typing.Union[str, effector.space_partitioning.Best] = "best",
         binning_method: typing.Union[
@@ -172,7 +171,6 @@ class RegionalRHALE(RegionalEffectBase):
             ap.DynamicProgramming,
             ap.Greedy,
         ] = "greedy",
-        points_for_mean_heterogeneity: int = 30,
     ):
         """
         Find subregions by minimizing the RHALE-based heterogeneity.
@@ -194,8 +192,6 @@ class RegionalRHALE(RegionalEffectBase):
                   For custom parameters initialize a `axis_partitioning.DynamicProgramming` object
                 - Use `"fixed"` for using a Fixed binning solution with the default parameters.
                   For custom parameters initialize a `axis_partitioning.Fixed` object
-
-            points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
         """
         if self.data_effect is None:
             self.compile()
@@ -204,7 +200,6 @@ class RegionalRHALE(RegionalEffectBase):
             "features": features,
             "candidate_conditioning_features": candidate_conditioning_features,
             "space_partitioner": space_partitioner,
-            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
         self.kwargs_fitting = {"binning_method": binning_method}
 
@@ -256,7 +251,7 @@ class RegionalALE(RegionalEffectBase):
         data: np.ndarray,
         model: callable,
         *,
-        nof_instances: typing.Union[int, str] = 100_000,
+        nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
         schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: typing.Optional[int] = 21,
@@ -344,9 +339,7 @@ class RegionalALE(RegionalEffectBase):
         ]
 
     def _create_heterogeneity_function(self, feature: int, min_points: int):
-        points_for_mean_heterogeneity = self.kwargs_subregion_detection[
-            "points_for_mean_heterogeneity"
-        ]
+        points_for_mean_heterogeneity = helpers.NOF_INTERNAL_POINTS
 
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
@@ -373,10 +366,10 @@ class RegionalALE(RegionalEffectBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
+        *,
         candidate_conditioning_features: typing.Union["str", list] = "all",
         space_partitioner: typing.Union[str, effector.space_partitioning.Best] = "best",
         binning_method: typing.Union[str, ap.Fixed] = "fixed",
-        points_for_mean_heterogeneity: int = 30,
     ):
         """
         Find subregions by minimizing the ALE-based heterogeneity.
@@ -398,14 +391,11 @@ class RegionalALE(RegionalEffectBase):
                 - If you want to change the parameters of the method, you pass an instance of the
                 class `effector.axis_partitioning.Fixed` with the desired parameters.
                 For example: `Fixed(nof_bins=20, min_points_per_bin=0, cat_limit=10)`
-
-            points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
         """
         self.kwargs_subregion_detection = {
             "features": features,
             "candidate_conditioning_features": candidate_conditioning_features,
             "space_partitioner": space_partitioner,
-            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
         self.kwargs_fitting = {"binning_method": binning_method}
 

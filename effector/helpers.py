@@ -3,6 +3,10 @@ import typing
 
 import numpy as np
 
+# shared grid resolution for centering, heter_score and the regional
+# heterogeneity means — one knob, not three
+NOF_INTERNAL_POINTS = 30
+
 BIG_M = 1e8
 EPS = 1e-8
 
