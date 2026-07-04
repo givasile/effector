@@ -227,6 +227,10 @@ class FeatureEffect:
             show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`
         """
         centering = helpers.prep_centering(centering)
+        scale_x = helpers.resolve_scale(
+            scale_x, self.scale_x_list[feature] if self.scale_x_list else None
+        )
+        scale_y = helpers.resolve_scale(scale_y, self.scale_y)
         if centering is False:
             warnings.warn(
                 "Comparing methods without centering is not meaningful (each method "

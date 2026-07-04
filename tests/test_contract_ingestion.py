@@ -218,3 +218,62 @@ def test_r10_mixed_df_shapdp_with_analytic_values():
     )
     y = m.eval(0, np.linspace(-0.5, 0.5, 5), centering=False)
     assert y.shape == (5,)
+
+
+# ---------------------------------------------------------------------------
+# R10.6 — scaling precedence: plot kwarg > schema > None; False disables
+# ---------------------------------------------------------------------------
+
+SCALE_X = {"mean": 10.0, "std": 2.0}
+SCALE_SCHEMA = {"scale_x_list": [SCALE_X, None, None]}
+
+
+def _first_line_xdata(m, **plot_kwargs):
+    fig, ax = m.plot(0, show_plot=False, **plot_kwargs)
+    return (
+        ax.lines[0].get_xdata()
+        if not isinstance(ax, np.ndarray)
+        else ax[0].lines[0].get_xdata()
+    )
+
+
+def test_r10_scale_constructor_applied_at_plot():
+    data = make_global_data()
+    plain = make_global("pdp", data)
+    scaled = make_global("pdp", data, schema=SCALE_SCHEMA)
+    x_plain = _first_line_xdata(plain, heterogeneity=False)
+    x_scaled = _first_line_xdata(scaled, heterogeneity=False)
+    np.testing.assert_allclose(x_scaled, x_plain * SCALE_X["std"] + SCALE_X["mean"])
+
+
+def test_r10_plot_kwarg_overrides_constructor_scale():
+    data = make_global_data()
+    scaled = make_global("pdp", data, schema=SCALE_SCHEMA)
+    override = {"mean": 0.0, "std": 5.0}
+    plain = make_global("pdp", data)
+    x_plain = _first_line_xdata(plain, heterogeneity=False)
+    x_over = _first_line_xdata(scaled, heterogeneity=False, scale_x=override)
+    np.testing.assert_allclose(x_over, x_plain * 5.0)
+
+
+def test_r10_scale_false_disables():
+    data = make_global_data()
+    plain = make_global("pdp", data)
+    scaled = make_global("pdp", data, schema=SCALE_SCHEMA)
+    x_plain = _first_line_xdata(plain, heterogeneity=False)
+    x_off = _first_line_xdata(scaled, heterogeneity=False, scale_x=False)
+    np.testing.assert_allclose(x_off, x_plain)
+
+
+def test_r10_summary_uses_stored_scale(capsys):
+    reg = make_regional(
+        "regional_pdp",
+        make_regional_data(),
+        schema={"scale_x_list": [None, None, {"mean": 100.0, "std": 1.0}]},
+    )
+    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=1))
+    reg.summary(0)
+    out = capsys.readouterr().out
+    # the x_2 = 0 split prints in scaled units (= 100.00) without passing
+    # scale_x_list to summary
+    assert "100.00" in out

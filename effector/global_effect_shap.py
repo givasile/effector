@@ -367,6 +367,10 @@ class ShapDP(GlobalEffectBase):
         """
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
+        scale_x = helpers.resolve_scale(
+            scale_x, self.scale_x_list[feature] if self.scale_x_list else None
+        )
+        scale_y = helpers.resolve_scale(scale_y, self.scale_y)
 
         x = np.linspace(
             self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points

@@ -113,6 +113,10 @@ class ALEBase(GlobalEffectBase):
         """
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
+        scale_x = helpers.resolve_scale(
+            scale_x, self.scale_x_list[feature] if self.scale_x_list else None
+        )
+        scale_y = helpers.resolve_scale(scale_y, self.scale_y)
 
         # fit the feature if needed (the eval below reuses the stored state)
         self.eval(

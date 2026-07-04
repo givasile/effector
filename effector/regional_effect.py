@@ -291,6 +291,7 @@ class RegionalEffectBase:
         delegate to its plot — the return rule is the global one's (R7)."""
         self.refit(feature)
         plot_kwargs["centering"] = self._resolve_centering(plot_kwargs["centering"])
+        scale_x_list = helpers.resolve_scale(scale_x_list, self.scale_x_list)
 
         fe = self._fit_node_effect(
             feature, node_idx, plot_kwargs["centering"], scale_x_list
@@ -298,7 +299,11 @@ class RegionalEffectBase:
         scale_x = scale_x_list[feature] if scale_x_list is not None else None
         return fe.plot(feature=feature, scale_x=scale_x, **plot_kwargs)
 
-    def summary(self, features: List[int], scale_x_list: Optional[List] = None):
+    def summary(
+        self,
+        features: List[int],
+        scale_x_list: typing.Union[None, bool, List] = None,
+    ):
         """:point_right: Summarize the partition tree for the selected features.
 
         ???+ Example "Example output"
@@ -331,6 +336,7 @@ class RegionalEffectBase:
                 - `[{"mean": 0, "std": 1}, {"mean": 3, "std": 0.1}]`, to manually scale the features
 
         """
+        scale_x_list = helpers.resolve_scale(scale_x_list, self.scale_x_list)
         features = helpers.prep_features(features, self.dim)
 
         for feat in features:

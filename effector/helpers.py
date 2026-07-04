@@ -202,6 +202,15 @@ def get_feature_names(dim: int) -> list:
     return ["x_" + str(i) for i in range(dim)]
 
 
+def resolve_scale(override, default):
+    """Plot-time scale precedence (R10): a dict passed to plot() wins, `None`
+    inherits the schema's construction-time default, `False` explicitly
+    disables an inherited scale."""
+    if override is False:
+        return None
+    return default if override is None else override
+
+
 def prep_avg_output(data, model, avg_output, scale_y) -> float:
     avg_output = avg_output if avg_output is not None else np.mean(model(data))
     avg_output = (
