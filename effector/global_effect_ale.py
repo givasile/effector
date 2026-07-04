@@ -171,20 +171,38 @@ class ALE(ALEBase):
         Constructor for the ALE plot.
 
         Definition:
-            ALE is defined as:
+            ALE reveals the effect of $x_s$ by accumulating, bin by bin, the
+            average *local effect* of the feature. The axis of $x_s$ is split
+            into $K$ fixed bins by the limits $z_0 < z_1 < \dots < z_K$. For an
+            instance $x^i$ whose $x_s^i$ falls in bin $k$, the local effect is
+            the secant of the model across that bin:
             $$
-            \hat{f}^{ALE}(x_s) = TODO
+            \mathtt{effect}_i = \frac{f(x^i_{s=z_k}) - f(x^i_{s=z_{k-1}})}{z_k - z_{k-1}}
+            $$
+            where $x^i_{s=z}$ is $x^i$ with its $s$-th coordinate set to $z$.
+            The bin effect is the mean local effect over the instances $S_k$
+            that fall in bin $k$, and ALE at a point $x$ lying in bin $k_x$
+            accumulates the completed bins plus the partial contribution of the
+            current one:
+            $$
+            \mu_k = \frac{1}{|S_k|} \sum_{i \in S_k} \mathtt{effect}_i
+            \qquad
+            \hat{f}^{ALE}(x) = \sum_{k=1}^{k_x - 1} (z_k - z_{k-1})\, \mu_k
+                               + (x - z_{k_x - 1})\, \mu_{k_x}
+            $$
+            The curve is centered afterwards (by default `zero_integral`,
+            subtracting its mean over the axis).
+
+            The heterogeneity is the variance of the local effects within the
+            bin containing $x$; `eval_heter` returns it as a step function:
+            $$
+            H(x) = \sigma^2_{k_x},
+            \qquad
+            \sigma^2_k = \frac{1}{|S_k|} \sum_{i \in S_k} (\mathtt{effect}_i - \mu_k)^2
             $$
 
-            The heterogeneity is:
-            $$
-            TODO
-            $$
-
-            The std of the bin-effects is:
-            $$
-            TODO
-            $$
+            The std of the bin-effects is $\sqrt{\sigma^2_k}$, drawn as the
+            error bars on the bin plot.
 
         Notes:
             - The required parameters are `data` and `model`. The rest are optional.
@@ -313,20 +331,37 @@ class RHALE(ALEBase):
         Constructor for RHALE.
 
         Definition:
-            RHALE is defined as:
+            RHALE is ALE with the *pointwise derivative* as the local effect.
+            Because the effect is read at the instance instead of as a secant
+            across the bin, it no longer depends on the bin width, which makes
+            the accumulated curve and the per-bin heterogeneity robust to the
+            binning. The axis of $x_s$ is split into $K$ bins by the limits
+            $z_0 < z_1 < \dots < z_K$, and for an instance $x^i$ whose $x_s^i$
+            falls in bin $k$ the local effect is
             $$
-            \hat{f}^{RHALE}(x_s) = TODO
+            \mathtt{effect}_i = \frac{\partial f}{\partial x_s}(x^i)
+            $$
+            taken from the model Jacobian (exact if `model_jac` is provided,
+            otherwise numerical). The bin effect, the accumulation and the
+            heterogeneity are then identical to ALE:
+            $$
+            \mu_k = \frac{1}{|S_k|} \sum_{i \in S_k} \mathtt{effect}_i
+            \qquad
+            \hat{f}^{RHALE}(x) = \sum_{k=1}^{k_x - 1} (z_k - z_{k-1})\, \mu_k
+                                 + (x - z_{k_x - 1})\, \mu_{k_x}
+            $$
+            The curve is centered afterwards (by default `zero_integral`).
+
+            The heterogeneity is the variance of the local effects within the
+            bin containing $x$; `eval_heter` returns it as a step function:
+            $$
+            H(x) = \sigma^2_{k_x},
+            \qquad
+            \sigma^2_k = \frac{1}{|S_k|} \sum_{i \in S_k} (\mathtt{effect}_i - \mu_k)^2
             $$
 
-            The heterogeneity is:
-            $$
-            TODO
-            $$
-
-            The std of the bin-effects is:
-            $$
-            TODO
-            $$
+            The std of the bin-effects is $\sqrt{\sigma^2_k}$, drawn as the
+            error bars on the bin plot.
 
         Notes:
             The required parameters are `data` and `model`. The rest are optional.
