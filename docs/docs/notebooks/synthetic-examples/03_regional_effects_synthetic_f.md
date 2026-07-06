@@ -166,7 +166,7 @@ regional_pdp.fit(features="all", space_partitioner=space_partitioner)
 
       0%|          | 0/3 [00:00<?, ?it/s]
 
-    100%|██████████| 3/3 [00:00<00:00, 174.44it/s]
+    100%|██████████| 3/3 [00:00<00:00, 145.39it/s]
 
     
 
@@ -181,15 +181,15 @@ regional_pdp.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 3.21 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 509 | w: 0.51]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 491 | w: 0.49]
+    x1 🔹 [id: 0 | heter: 3.20 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 475 | w: 0.47]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 525 | w: 0.53]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.21
-        Level 1🔹heter: 0.00 | 🔻3.21 (100.00%)
+    Level 0🔹heter: 3.20
+        Level 1🔹heter: 0.00 | 🔻3.20 (100.00%)
     
     
 
@@ -248,20 +248,20 @@ regional_pdp.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 3.04 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.72 | inst: 472 | w: 0.47]
-            x1 ≤ -0.60 🔹 [id: 2 | heter: 0.11 | inst: 199 | w: 0.20]
-            x1 > -0.60 🔹 [id: 3 | heter: 0.24 | inst: 273 | w: 0.27]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.76 | inst: 528 | w: 0.53]
-            x1 ≤ 0.60 🔹 [id: 5 | heter: 0.27 | inst: 326 | w: 0.33]
-            x1 > 0.60 🔹 [id: 6 | heter: 0.11 | inst: 202 | w: 0.20]
+    x3 🔹 [id: 0 | heter: 3.12 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.74 | inst: 497 | w: 0.50]
+            x1 ≤ -0.60 🔹 [id: 2 | heter: 0.12 | inst: 222 | w: 0.22]
+            x1 > -0.60 🔹 [id: 3 | heter: 0.25 | inst: 275 | w: 0.28]
+        x1 > 0.00 🔹 [id: 4 | heter: 0.71 | inst: 503 | w: 0.50]
+            x1 ≤ 0.40 🔹 [id: 5 | heter: 0.12 | inst: 179 | w: 0.18]
+            x1 > 0.40 🔹 [id: 6 | heter: 0.27 | inst: 324 | w: 0.32]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.04
-        Level 1🔹heter: 0.74 | 🔻2.29 (75.51%)
-            Level 2🔹heter: 0.20 | 🔻0.54 (73.21%)
+    Level 0🔹heter: 3.12
+        Level 1🔹heter: 0.72 | 🔻2.40 (76.85%)
+            Level 2🔹heter: 0.21 | 🔻0.52 (71.51%)
     
     
 
@@ -353,7 +353,7 @@ regional_pdp.fit(features="all") # , space_partitioner=space_partitioner, center
 
       0%|          | 0/3 [00:00<?, ?it/s]
 
-    100%|██████████| 3/3 [00:00<00:00, 94.95it/s]
+    100%|██████████| 3/3 [00:00<00:00, 86.75it/s]
 
     
 
@@ -369,8 +369,8 @@ regional_pdp.summary(features=0)
     🌳 Full Tree Structure:
     ───────────────────────
     x1 🔹 [id: 0 | heter: 3.20 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 480 | w: 0.48]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 520 | w: 0.52]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 479 | w: 0.48]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 521 | w: 0.52]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
@@ -429,20 +429,20 @@ regional_pdp.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 3.05 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.78 | inst: 480 | w: 0.48]
-            x1 ≤ -0.50 🔹 [id: 2 | heter: 0.17 | inst: 232 | w: 0.23]
-            x1 > -0.50 🔹 [id: 3 | heter: 0.21 | inst: 248 | w: 0.25]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.76 | inst: 520 | w: 0.52]
-            x1 ≤ 0.50 🔹 [id: 5 | heter: 0.17 | inst: 253 | w: 0.25]
-            x1 > 0.50 🔹 [id: 6 | heter: 0.19 | inst: 267 | w: 0.27]
+    x3 🔹 [id: 0 | heter: 2.96 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.77 | inst: 479 | w: 0.48]
+            x1 ≤ -0.50 🔹 [id: 2 | heter: 0.18 | inst: 235 | w: 0.23]
+            x1 > -0.50 🔹 [id: 3 | heter: 0.20 | inst: 244 | w: 0.24]
+        x1 > 0.00 🔹 [id: 4 | heter: 0.79 | inst: 521 | w: 0.52]
+            x1 ≤ 0.50 🔹 [id: 5 | heter: 0.22 | inst: 260 | w: 0.26]
+            x1 > 0.50 🔹 [id: 6 | heter: 0.20 | inst: 261 | w: 0.26]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.05
-        Level 1🔹heter: 0.77 | 🔻2.28 (74.76%)
-            Level 2🔹heter: 0.18 | 🔻0.59 (76.18%)
+    Level 0🔹heter: 2.96
+        Level 1🔹heter: 0.78 | 🔻2.18 (73.65%)
+            Level 2🔹heter: 0.20 | 🔻0.58 (74.29%)
     
     
 
@@ -546,7 +546,7 @@ regional_rhale.fit(
 
       0%|          | 0/3 [00:00<?, ?it/s]
 
-    100%|██████████| 3/3 [00:00<00:00, 136.44it/s]
+    100%|██████████| 3/3 [00:00<00:00, 151.83it/s]
 
     
 
@@ -561,15 +561,15 @@ regional_rhale.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 8.96 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 509 | w: 0.51]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 491 | w: 0.49]
+    x1 🔹 [id: 0 | heter: 8.91 | inst: 1000 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 475 | w: 0.47]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 525 | w: 0.53]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 8.96
-        Level 1🔹heter: 0.00 | 🔻8.96 (100.00%)
+    Level 0🔹heter: 8.91
+        Level 1🔹heter: 0.00 | 🔻8.91 (100.00%)
     
     
 
@@ -708,7 +708,7 @@ regional_rhale.fit(
 
       0%|          | 0/3 [00:00<?, ?it/s]
 
-    100%|██████████| 3/3 [00:00<00:00, 1566.21it/s]
+    100%|██████████| 3/3 [00:00<00:00, 1108.82it/s]
 
     
 
@@ -837,9 +837,9 @@ regional_shap.fit(
 
       0%|          | 0/3 [00:00<?, ?it/s]
 
-     33%|███▎      | 1/3 [00:00<00:00,  2.50it/s]
+     33%|███▎      | 1/3 [00:00<00:00,  2.47it/s]
 
-    100%|██████████| 3/3 [00:00<00:00,  7.08it/s]
+    100%|██████████| 3/3 [00:00<00:00,  6.46it/s]
 
     
 
@@ -855,14 +855,14 @@ regional_shap.summary(0)
     🌳 Full Tree Structure:
     ───────────────────────
     x1 🔹 [id: 0 | heter: 0.85 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.03 | inst: 509 | w: 0.51]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.03 | inst: 491 | w: 0.49]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.03 | inst: 475 | w: 0.47]
+        x3 > 0.00 🔹 [id: 2 | heter: 0.03 | inst: 525 | w: 0.53]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
     Level 0🔹heter: 0.85
-        Level 1🔹heter: 0.03 | 🔻0.82 (96.53%)
+        Level 1🔹heter: 0.03 | 🔻0.82 (96.45%)
     
     
 
@@ -915,12 +915,15 @@ regional_shap.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 0.77 | inst: 1000 | w: 1.00]
+    x3 🔹 [id: 0 | heter: 0.78 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.26 | inst: 497 | w: 0.50]
+        x1 > 0.00 🔹 [id: 2 | heter: 0.36 | inst: 503 | w: 0.50]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.77
+    Level 0🔹heter: 0.78
+        Level 1🔹heter: 0.31 | 🔻0.47 (60.08%)
     
     
 
@@ -991,9 +994,9 @@ regional_shap.fit(
 
       0%|          | 0/3 [00:00<?, ?it/s]
 
-     33%|███▎      | 1/3 [00:00<00:00,  2.54it/s]
+     33%|███▎      | 1/3 [00:00<00:00,  2.42it/s]
 
-    100%|██████████| 3/3 [00:00<00:00,  6.64it/s]
+    100%|██████████| 3/3 [00:00<00:00,  6.28it/s]
 
     
 
