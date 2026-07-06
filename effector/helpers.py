@@ -163,12 +163,18 @@ def prep_data(
     `data_effect` (the Jacobian on `data`), when given, is kept row-aligned with
     `data` through both steps.
 
+    `indices` is always **original-relative**: it indexes the `data` array as
+    passed in, so `data_in[indices] == data_out` holds even when the axis-limits
+    filter dropped rows. That makes it a stable handle back to the user's rows
+    (e.g. to line methods up in comparison mode).
+
     Returns:
         (data, data_effect, axis_limits, nof_instances, indices)
     """
     if data.ndim != 2:
         raise ValueError(f"data must be a 2D array, got {data.ndim} dimensions")
 
+    original_positions = None
     if axis_limits is not None:
         if axis_limits.shape != (2, data.shape[1]):
             raise ValueError(
@@ -181,6 +187,9 @@ def prep_data(
             )
 
         accept_indices = indices_within_limits(data, axis_limits)
+        # original row positions kept by the filter, so the subsample indices
+        # below can be remapped back onto the pre-filter data
+        original_positions = np.flatnonzero(accept_indices)
         data = data[accept_indices, :]
         data_effect = (
             data_effect[accept_indices, :] if data_effect is not None else None
@@ -193,6 +202,11 @@ def prep_data(
     )
     data = data[indices, :]
     data_effect = data_effect[indices, :] if data_effect is not None else None
+
+    # keep `indices` original-relative: after a filter step, `indices` points
+    # into the filtered array, so compose it back through the kept positions
+    if original_positions is not None:
+        indices = original_positions[indices]
 
     return data, data_effect, axis_limits, nof_instances, indices
 

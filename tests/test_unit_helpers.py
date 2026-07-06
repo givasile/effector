@@ -109,6 +109,31 @@ def test_prep_data_filters_and_keeps_effect_aligned():
     np.testing.assert_allclose(effect, 10 * data)  # rows stayed aligned
 
 
+def test_prep_data_indices_are_original_relative():
+    # indices must index the ORIGINAL data, even when the axis-limits filter
+    # dropped rows before subsampling: raw[indices] == data must hold.
+    rng = np.random.default_rng(21)
+    raw = rng.uniform(-1, 1, size=(100, 2))
+    limits = np.array([[-0.5, -0.5], [0.5, 0.5]])  # drops the out-of-box rows
+
+    # subsample within the filtered region
+    data, _, _, _, indices = helpers.prep_data(
+        raw, axis_limits=limits, nof_instances=15
+    )
+    assert indices.shape == (15,)
+    np.testing.assert_array_equal(raw[indices], data)
+
+    # and with no subsample ("all") the whole filtered set still maps back
+    data_all, _, _, _, idx_all = helpers.prep_data(
+        raw, axis_limits=limits, nof_instances="all"
+    )
+    np.testing.assert_array_equal(raw[idx_all], data_all)
+
+    # no-filter path is unchanged: indices index the original data directly
+    data_nf, _, _, _, idx_nf = helpers.prep_data(raw, nof_instances=30)
+    np.testing.assert_array_equal(raw[idx_nf], data_nf)
+
+
 def test_prep_data_rejects_bad_input():
     rng = np.random.default_rng(21)
     raw = rng.uniform(-1, 1, size=(10, 2))
