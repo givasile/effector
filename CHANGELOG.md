@@ -2,6 +2,8 @@
 
 # [Unreleased]
 
+# [0.4.0] - 2026-07-06
+
 ### Breaking
 
 - one `schema=` argument replaces the metadata kwargs on every public constructor: `feature_names=`, `target_name=` (all classes) and `feature_types=`, `cat_limit=` (regional classes) are removed; pass `schema={"feature_names": ..., "feature_types": ..., "cat_limit": ..., "target_name": ..., "scale_x_list": ..., "scale_y": ...}` (or an `effector.Schema`) instead — every field optional, explicit fields win over inference
@@ -12,7 +14,7 @@
 
 ### Added
 
-- pandas DataFrame ingestion (R10): `data` can be a DataFrame — column names/dtypes become the metadata, non-numeric columns are encoded at the door, and the model is always called with a reconstructed DataFrame (original columns/dtypes); pandas stays an optional dependency (never imported on the numpy path)
+- **effector is numpy-only** (R10): `data` must be a 2-D numeric numpy array and `model`/`model_jac` are `numpy → numpy` callables, called exactly as given (never wrapped) — a DataFrame passed to a constructor is rejected with a pointer to `from_dataframe`. `effector.from_dataframe(df) -> (X, schema)` is the opt-in convenience that reads a DataFrame's names/dtypes/category labels into a numpy matrix + populated `Schema` (it never touches the model); pandas stays an optional dependency, never imported on the numpy path
 - three-way feature taxonomy `continuous`/`ordinal`/`nominal` (aliases `cont`/`cat`), stored on every class as `feature_types` + `feature_metadata`; heuristic type inferences (low-cardinality int) emit a `UserWarning` nudging an explicit declaration
 - **categorical features as feature of interest** (docs/method_semantics.md is the exactness contract): PDP/ICE evaluate only at the observed levels (bars + jittered ICE dots); ALE accumulates adjacent-level differences (exact for ordinal; nominal defaults to the encoded order with a documented caveat, or `order=[...]` / `order="similarity"` KS-seriation on `fit`); RHALE does discrete derivatives + Greedy/DP adaptive level grouping (ordinal only); ShapDP does per-level mean/variance with a step lookup; DerPDP and RHALE-on-nominal raise clear errors; centering and `heter_score` become frequency-weighted over levels
 - **regional effects on categorical features**: `search_partitions_when_categorical` now defaults to `True`, the heterogeneity of a categorical feature of interest is the frequency-weighted per-level variance, and every regional method finds subgroups for per-level effects (see `notebooks/synthetic-examples/08_categorical_features.ipynb`)
@@ -36,6 +38,7 @@
 - `tree` display no longer crashes on per-feature `None` entries in `scale_x_list`
 - `helpers.indices_within_limits` raises `ValueError` instead of a bare `assert` when `axis_limits` exclude every point
 - removed the phantom `avg_output` constructor docstring on `ShapDP` and the stale `ice_non_vectorized` docstring example
+- `helpers.prep_data`: the subsample `indices` (stored as `self.indices` on every effect object) are now original-relative — they index `data` as passed in even when the `axis_limits` filter dropped rows (`data_in[indices] == data_out`), giving a stable handle back to the user's rows
 
 # [0.3.0] - 2026-07-04
 
