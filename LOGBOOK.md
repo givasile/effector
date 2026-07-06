@@ -1003,3 +1003,50 @@ Implementation of LOGBOOK #23, both stages on one branch:
   walkthrough.
 
 ---
+
+## 25. 2026-07-06 — House theme: one palette, the red clouds go quiet (tag: code)  [PLAN IV / VISION A9 "do-first"; branch `feat/house-theme`]
+
+The plots were dressed by ~20 hardcoded literals scattered across 7 functions —
+`"b-"` here, `color="red"` there, no palette, no rcParams. A9 is the cheapest big
+win: one designed, colorblind-safe look, ported from the validated
+`scripts/vision_sketches/style.py` the mockups already run on.
+
+**The one decision — two layers, applied differently:**
+
+```
+              import effector            effector.set_theme("light")
+                    │                             │
+  palette COLORS ───┼─ always on ────────────────┼─► red clouds → quiet gray,
+                    │  (per-artist)               │   mean line = palette blue
+  chrome RCPARAMS ──┘  (rcParams untouched)       └─► background / font / grid / spines
+```
+
+Colors are the package's identity → they ship **by default**, baked into every
+draw call through semantic tokens (`MEAN`, `BAND`, `CLOUD`, `BAR_FACE`…), never
+touching global state. Chrome (fonts/grid/bg) is a global rcParams push, so it
+only fires when the user **opts in** with `set_theme()`. Why not wrap each plot in
+one `rc_context`? matplotlib re-reads grid/tick rcParams at *draw* time — after we
+have handed back `(fig, ax)` — so a context wrapper reverts at render.
+Global-on-opt-in is the only thing that survives (the seaborn model). Tokens
+resolve from the active theme, so `set_theme("dark")` flips colors and background
+as one.
+
+**What lands:**
+- `effector/theme.py` — the ported palette, a frozen `Theme`, three instances
+  (`light`/`dark`/`paper`), `set_theme(name)` + a `"default"` reset.
+- `visualization.py` — the ~20 literals become tokens; `"b-"`/`"rx"` fmt-strings
+  unpacked; ICE/shap clouds go gray with an explicit thin linewidth (the 2.0
+  rcParam would otherwise fatten them).
+- `set_theme` exported on `effector`; the `axis_partitioning.py` `"bo"` straggler
+  token-swapped (its pyplot-state design left as flagged debt).
+- `tests/test_theme.py` — default tokens apply, heterogeneity is **gray-not-red**,
+  no rcParams leak without opt-in, `set_theme` switches + resets.
+
+**The tail:** default colors change → every committed effect-plot doc figure
+shifts. Re-running notebooks + regenerating docs is the last, expensive step,
+gated behind a visual color review (the alpha values are the one taste knob).
+
+**Out of scope (later waves):** per-plot `title/figsize/ax` (B4), the A6
+categorical dot-interval redesign, A5 stable per-method colors.
+
+---

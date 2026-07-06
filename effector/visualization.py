@@ -15,6 +15,8 @@ import typing
 import matplotlib.pyplot as plt
 import numpy as np
 
+import effector.theme as theme
+
 
 def trans_affine(x, mu, std):
     return x * std + mu
@@ -52,7 +54,9 @@ def _feature_label(feature, feature_names):
 
 def _add_avg_output(ax, avg_output):
     if avg_output is not None:
-        ax.axhline(y=avg_output, color="black", linestyle="--", label="avg output")
+        ax.axhline(
+            y=avg_output, color=theme.active().AVG, linestyle="--", label="avg output"
+        )
 
 
 def _decorate_ax(ax, xlabel=None, ylabel=None, y_limits=None):
@@ -121,8 +125,9 @@ def ale_plot(
         fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
         axes = (ax1, ax2)
 
+    t = theme.active()
     ax1.set_title("Accumulated Local Effects (ALE)" if title is None else title)
-    ax1.plot(x, y, "b--", label="average effect")
+    ax1.plot(x, y, color=t.MEAN, linestyle="--", label="average effect")
     _add_avg_output(ax1, avg_output)
 
     x_name = _feature_label(feature, feature_names)
@@ -141,10 +146,10 @@ def ale_plot(
             x=bin_centers,
             height=bin_effect,
             width=dx,
-            color=(0.1, 0.1, 0.1, 0.1),
-            edgecolor="blue",
+            color=t.BAR_FACE_MUTED,
+            edgecolor=t.BAR_EDGE_ACCENT,
             yerr=yerr,
-            ecolor="red",
+            ecolor=t.ERROR,
             label="dy_dx",
         )
         _decorate_ax(ax2, xlabel=x_name, ylabel="dy/dx", y_limits=dy_limits)
@@ -178,12 +183,13 @@ def plot_pdp_ice(
     y_mean = np.mean(yy, axis=1)
 
     fig, ax = plt.subplots()
+    t = theme.active()
     ax.set_title(title)
 
     if heterogeneity == "std":
         std = np.std(yy, axis=1)
         ax.fill_between(
-            x, y_mean - std, y_mean + std, color="red", alpha=0.4, label="std"
+            x, y_mean - std, y_mean + std, color=t.BAND, alpha=t.BAND_ALPHA, label="std"
         )
     elif heterogeneity == "std_err":
         std_err = np.std(yy, axis=1) / np.sqrt(yy.shape[1])
@@ -191,8 +197,8 @@ def plot_pdp_ice(
             x,
             y_mean - std_err,
             y_mean + std_err,
-            color="red",
-            alpha=0.4,
+            color=t.BAND,
+            alpha=t.BAND_ALPHA,
             label="std_err",
         )
     elif heterogeneity == "ice":
@@ -202,10 +208,17 @@ def plot_pdp_ice(
                 yy.shape[1], size=nof_ice, replace=False
             )
             yy_show = yy[:, ind]
-        ax.plot(x, yy_show[:, 0], color="red", alpha=0.1, label=y_ice_label)
-        ax.plot(x, yy_show, color="red", alpha=0.1)
+        ax.plot(
+            x,
+            yy_show[:, 0],
+            color=t.CLOUD,
+            alpha=t.CLOUD_ALPHA,
+            linewidth=t.CLOUD_LW,
+            label=y_ice_label,
+        )
+        ax.plot(x, yy_show, color=t.CLOUD, alpha=t.CLOUD_ALPHA, linewidth=t.CLOUD_LW)
 
-    ax.plot(x, y_mean, "b-", label=y_pdp_label)
+    ax.plot(x, y_mean, color=t.MEAN, linestyle="-", label=y_pdp_label)
     _add_avg_output(ax, avg_output)
 
     y_name = "dy/dx" if is_derivative else ("y" if target_name is None else target_name)
@@ -241,11 +254,13 @@ def plot_effect_comparison(
     thin line) and the x-axis shows the level ticks/labels instead of a
     continuous grid."""
     fig, ax = plt.subplots()
+    t = theme.active()
     ax.set_title("Feature Effect Comparison" if title is None else title)
 
     positions = np.asarray(x, dtype=float)
     x_scaled = _scale_x(positions, scale_x)
-    for label, y in curves.items():
+    for i, (label, y) in enumerate(curves.items()):
+        color = t.CAT[i % len(t.CAT)]
         if discrete:
             ax.plot(
                 x_scaled,
@@ -253,10 +268,11 @@ def plot_effect_comparison(
                 marker="o",
                 markersize=5,
                 linewidth=1.2,
+                color=color,
                 label=label,
             )
         else:
-            ax.plot(x_scaled, _scale_y(y, scale_y), label=label)
+            ax.plot(x_scaled, _scale_y(y, scale_y), color=color, label=label)
     if discrete:
         _categorical_axis(ax, positions, level_labels, scale_x)
     _add_avg_output(ax, avg_output)
@@ -290,6 +306,7 @@ def plot_shap(
     """Draw the SHAP-DP spline `x`/`y` plus the requested heterogeneity: a std
     band (`y_std`) or the shap-value cloud `xx`/`yy`."""
     fig, ax = plt.subplots()
+    t = theme.active()
     ax.set_title("SHAP Dependence Plot")
 
     x = _scale_x(x, scale_x)
@@ -302,13 +319,30 @@ def plot_shap(
         y_std = trans_scale(y_std, scale_y["std"])
 
     if heterogeneity == "std":
-        ax.fill_between(x, y - y_std, y + y_std, color="red", alpha=0.4, label="std")
+        ax.fill_between(
+            x, y - y_std, y + y_std, color=t.BAND, alpha=t.BAND_ALPHA, label="std"
+        )
     elif heterogeneity == "shap_values":
-        ax.plot(xx[0], yy[0], "rx", alpha=0.5, label="SHAP values")
-        ax.plot(xx, yy, "rx", alpha=0.5)
+        ax.plot(
+            xx[0],
+            yy[0],
+            color=t.CLOUD,
+            marker="x",
+            linestyle="none",
+            alpha=t.SHAP_MARKER_ALPHA,
+            label="SHAP values",
+        )
+        ax.plot(
+            xx,
+            yy,
+            color=t.CLOUD,
+            marker="x",
+            linestyle="none",
+            alpha=t.SHAP_MARKER_ALPHA,
+        )
 
     if not only_shap_values:
-        ax.plot(x, y, "b-", label="SHAP-DP")
+        ax.plot(x, y, color=t.MEAN, linestyle="-", label="SHAP-DP")
     _add_avg_output(ax, avg_output)
 
     _decorate_ax(
@@ -365,6 +399,7 @@ def plot_categorical_effect(
     per-level bars are independent.
     """
     fig, ax = plt.subplots()
+    t = theme.active()
     ax.set_title(title)
 
     x = _scale_x(np.asarray(positions, dtype=float), scale_x)
@@ -380,11 +415,11 @@ def plot_categorical_effect(
         x,
         y,
         width=width,
-        color="dodgerblue",
-        edgecolor="black",
+        color=t.BAR_FACE,
+        edgecolor=t.BAR_EDGE,
         linewidth=0.6,
         yerr=yerr,
-        ecolor="red",
+        ecolor=t.ERROR,
         capsize=4,
         label="mean effect",
     )
@@ -393,7 +428,7 @@ def plot_categorical_effect(
         ax.plot(
             x,
             y,
-            color="navy",
+            color=t.CONNECT,
             linewidth=1.4,
             marker="o",
             markersize=4,
@@ -435,6 +470,7 @@ def plot_pdp_ice_categorical(
     ICE subsample are seeded (`random_state`) — determinism is contractual
     (R8)."""
     fig, ax = plt.subplots()
+    t = theme.active()
     ax.set_title(title)
 
     yy = np.asarray(yy, dtype=float)
@@ -454,9 +490,10 @@ def plot_pdp_ice_categorical(
     ax.plot(
         xx.ravel(),
         y_dots.ravel(),
-        ".",
-        color="red",
-        alpha=0.35,
+        marker=".",
+        linestyle="none",
+        color=t.CLOUD,
+        alpha=t.DOT_ALPHA,
         markersize=3,
         label=y_ice_label,
     )
@@ -465,8 +502,8 @@ def plot_pdp_ice_categorical(
         x,
         y_mean,
         width=width,
-        color="dodgerblue",
-        edgecolor="black",
+        color=t.BAR_FACE,
+        edgecolor=t.BAR_EDGE,
         linewidth=0.6,
         alpha=0.8,
         label=y_pdp_label,
@@ -502,6 +539,7 @@ def plot_shap_categorical(
 ):
     """Bars for the per-level shap mean + the jittered shap cloud."""
     fig, ax = plt.subplots()
+    t = theme.active()
     ax.set_title(title)
 
     x = _scale_x(np.asarray(positions, dtype=float), scale_x)
@@ -518,9 +556,10 @@ def plot_shap_categorical(
     ax.plot(
         _scale_x(np.asarray(xx, dtype=float)[keep], scale_x) + jitter,
         _scale_y(np.asarray(yy, dtype=float)[keep], scale_y),
-        ".",
-        color="red",
-        alpha=0.35,
+        marker=".",
+        linestyle="none",
+        color=t.CLOUD,
+        alpha=t.DOT_ALPHA,
         markersize=3,
         label="shap values",
     )
@@ -529,8 +568,8 @@ def plot_shap_categorical(
         x,
         y_mean,
         width=width,
-        color="dodgerblue",
-        edgecolor="black",
+        color=t.BAR_FACE,
+        edgecolor=t.BAR_EDGE,
         linewidth=0.6,
         alpha=0.8,
         label="mean shap per level",

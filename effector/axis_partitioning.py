@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import effector.helpers as helpers
+import effector.theme as theme
 import effector.utils as utils
 
 
@@ -130,7 +131,14 @@ class Base:
         plt.title("Bin splitting for feature %d" % feature)
         xs = self.data
         dy_dxs = self.data_effect
-        plt.plot(xs, dy_dxs, "bo", label="local effects")
+        plt.plot(
+            xs,
+            dy_dxs,
+            color=theme.active().MEAN,
+            marker="o",
+            linestyle="none",
+            label="local effects",
+        )
         y_min = np.min(dy_dxs)
         y_max = np.max(dy_dxs)
         plt.vlines(limits, ymin=y_min, ymax=y_max, linestyles="dashed", label="bins")
