@@ -186,9 +186,7 @@ class PDPBase(GlobalEffectBase):
         # the ICE table is the method's own object: computed by the kernel and
         # centered with the stored per-instance norms (payload state)
         if self.requires_refit(feature, centering):
-            self.fit(
-                features=feature, centering=centering, use_vectorized=use_vectorized
-            )
+            self._refit(feature, centering)
         yy = self._predict(self.data, x, feature, use_vectorized)
         if centering is not False:
             norm_consts = self.feature_effect["feature_" + str(feature)]["norm_const"]

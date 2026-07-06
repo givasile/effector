@@ -318,7 +318,7 @@ class GlobalEffectBase(ABC):
             the heterogeneity curve h(xs), `(T,)`, non-negative
         """
         if self.requires_refit(feature, centering=False):
-            self.fit(features=feature)
+            self._refit(feature)
         return self._eval_unnorm(feature, xs, heterogeneity=True)[1]
 
     def payload(self, feature: int) -> dict:
@@ -327,7 +327,7 @@ class GlobalEffectBase(ABC):
         and variances for (RH)ALE, splines and shap values for ShapDP, the
         normalization constants for PDP)."""
         if self.requires_refit(feature, centering=False):
-            self.fit(features=feature)
+            self._refit(feature)
         return dict(self.feature_effect["feature_" + str(feature)])
 
     def heter_score(self, feature: int) -> float:
@@ -374,6 +374,26 @@ class GlobalEffectBase(ABC):
 
         return False
 
+    def _refit(self, feature: int, centering=None) -> None:
+        """Auto-refit for `feature`, replaying the kwargs of the user's last
+        explicit `fit` and overriding **only** `centering`. This keeps a
+        method-specific fit config (`order`, `binning_method`, …) intact when a
+        later `eval`/`plot` forces a refit because centering changed; without
+        it the refit would silently fall back to the method defaults.
+
+        Falls back to a plain default fit when the feature was never fitted
+        (nothing recorded to replay)."""
+        prev = self.fit_args.get("feature_" + str(feature))
+        if prev is None:
+            if centering is None:
+                self.fit(features=feature)
+            else:
+                self.fit(features=feature, centering=centering)
+            return
+        replay = {k: v for k, v in prev.items() if k != "centering"}
+        eff_centering = prev["centering"] if centering is None else centering
+        self._fit_loop(feature, eff_centering, **replay)
+
     def eval(
         self,
         feature: int,
@@ -409,7 +429,7 @@ class GlobalEffectBase(ABC):
         centering = helpers.prep_centering(centering)
 
         if self.requires_refit(feature, centering):
-            self.fit(features=feature, centering=centering)
+            self._refit(feature, centering)
 
         if not self.axis_limits[0, feature] < self.axis_limits[1, feature]:
             raise ValueError(
