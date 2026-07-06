@@ -321,7 +321,7 @@ class ShapDP(GlobalEffectBase):
         features: Union[int, str, List] = "all",
         *,
         centering: Union[bool, str] = True,
-        points_for_centering: int = 30,
+        points_for_centering: int = helpers.NOF_INTERNAL_POINTS,
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
     ) -> None:
         r"""Fit the SHAP Dependence Plot to the data.

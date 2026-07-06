@@ -409,7 +409,7 @@ class ALE(ALEBase):
         features: typing.Union[int, str, list] = "all",
         *,
         centering: typing.Union[bool, str] = True,
-        points_for_centering: int = 30,
+        points_for_centering: int = helpers.NOF_INTERNAL_POINTS,
         binning_method: typing.Union[str, ap.Fixed] = "fixed",
         order: typing.Union[None, str, list] = None,
     ) -> None:
@@ -620,7 +620,7 @@ class RHALE(ALEBase):
         features: typing.Union[int, str, list] = "all",
         *,
         centering: typing.Union[bool, str] = True,
-        points_for_centering: int = 30,
+        points_for_centering: int = helpers.NOF_INTERNAL_POINTS,
         binning_method: typing.Union[
             str, ap.DynamicProgramming, ap.Greedy, ap.Fixed
         ] = "greedy",
