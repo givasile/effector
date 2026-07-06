@@ -354,8 +354,9 @@ class ALE(ALEBase):
                 with any of the keys `feature_names`, `feature_types`,
                 `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - omitted fields are inferred from the data (DataFrame dtypes,
-                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - omitted fields are auto-inferred from `data` (numpy
+                  heuristics) or synthesized (`["x_0", ...]`, `"y"`); to start
+                  from a DataFrame use `effector.from_dataframe`
                 - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
@@ -552,8 +553,9 @@ class RHALE(ALEBase):
                 with any of the keys `feature_names`, `feature_types`,
                 `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - omitted fields are inferred from the data (DataFrame dtypes,
-                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - omitted fields are auto-inferred from `data` (numpy
+                  heuristics) or synthesized (`["x_0", ...]`, `"y"`); to start
+                  from a DataFrame use `effector.from_dataframe`
                 - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)

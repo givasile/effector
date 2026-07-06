@@ -1,10 +1,17 @@
 """Input ingestion — the R10 contract (docs/design.md).
 
-One door for `data`: a 2-D numeric numpy array or a pandas DataFrame. DataFrames
-are converted to a float numpy core matrix here; everything downstream of the
-constructors is numpy-only. All metadata (names, types, target name, scaling)
-travels in a single `Schema`. pandas is never imported unless the caller already
-passed a DataFrame (detection checks `sys.modules` only).
+The border crossing. `data` must be a 2-D numeric numpy array and `model`
+(and `model_jac`) must be numpy-in / numpy-out callables — effector is
+numpy-only. `ingest` validates that, then auto-infers whatever metadata the
+caller did not declare in the `Schema` (names `x_0…`, the numpy type
+heuristic, target `"y"`).
+
+A pandas DataFrame is *not* accepted as `data`: it is hard-rejected with a
+pointer to `from_dataframe`, the opt-in convenience that reads a DataFrame's
+names/dtypes/levels into `(X, Schema)`. `from_dataframe` never touches the
+model — framework/DataFrame conversion is the user's wrapper's job. pandas is
+never imported unless the caller reaches for that helper (detection checks
+`sys.modules` only).
 """
 
 import sys
@@ -26,10 +33,11 @@ DEFAULT_CAT_LIMIT = 10
 class Schema:
     """The single metadata argument of every effector constructor (R10).
 
-    All fields are optional; whatever is not declared is inferred from the data
-    (DataFrame dtypes, or numpy heuristics) or synthesized (`x_0…`, `"y"`).
-    A `Schema` holds no data, so one instance can be reused across method
-    constructions. Constructors also accept a plain dict with the same keys.
+    All fields are optional; whatever is not declared is inferred from the numpy
+    data (type heuristic) or synthesized (`x_0…`, `"y"`). `effector.from_dataframe`
+    populates one from a DataFrame's names/dtypes/levels. A `Schema` holds no
+    data, so one instance can be reused across method constructions. Constructors
+    also accept a plain dict with the same keys.
 
     Fields:
         feature_names: one name per column.
@@ -74,9 +82,6 @@ class FeatureMetadata:
     feature_names: list
     feature_types: list  # canonical three-way strings
     cat_limit: int
-    categories: dict  # {col_idx: ColumnEncoding} for encoded DataFrame columns
-    from_dataframe: bool
-    column_dtypes: typing.Optional[dict]  # {col_name: original dtype} for DataFrames
     target_name: str
     scale_x_list: typing.Optional[list] = None
     scale_y: typing.Optional[dict] = None
@@ -85,8 +90,8 @@ class FeatureMetadata:
 
 @dataclass(frozen=True)
 class IngestResult:
-    data: np.ndarray  # the 2-D numeric core matrix
-    model: typing.Callable  # wrapped iff the input was a DataFrame
+    data: np.ndarray  # the 2-D numeric core matrix (the input array, unchanged)
+    model: typing.Callable  # the user's model, passed through untouched
     model_jac: typing.Optional[typing.Callable]
     meta: FeatureMetadata
 
@@ -203,7 +208,6 @@ def validate_metadata(
     scale_x_list: typing.Optional[list],
     scale_y: typing.Optional[dict],
     target_name: str,
-    categories: typing.Optional[dict] = None,
     category_names: typing.Optional[list] = None,
     level_counts: typing.Optional[dict] = None,
 ) -> None:
@@ -222,13 +226,6 @@ def validate_metadata(
                 f"invalid feature type {t!r} at position {j}; "
                 f"valid: {'/'.join(VALID_FEATURE_TYPES)}"
             )
-    if categories:
-        for j in categories:
-            if feature_types[j] == CONTINUOUS:
-                raise ValueError(
-                    f"feature {feature_names[j]!r} comes from a non-numeric column "
-                    f"and cannot be labeled 'continuous'"
-                )
     if scale_x_list is not None:
         if len(scale_x_list) != dim:
             raise ValueError(
@@ -323,45 +320,6 @@ def _encode_dataframe(df, cat_limit: int):
     return matrix, names, inferred_types, categories, column_dtypes, heuristic_idx
 
 
-def _make_frame_builder(columns: list, categories: dict) -> typing.Callable:
-    """Build the numpy-row → DataFrame reconstructor for the model-call rule (R10)."""
-    import pandas as pd
-
-    def build(X: np.ndarray):
-        X = np.asarray(X)
-        cols = {}
-        for j, name in enumerate(columns):
-            enc = categories.get(j)
-            if enc is None:
-                cols[name] = X[:, j].astype(np.float64)
-            else:
-                codes = np.clip(np.round(X[:, j]), 0, len(enc.levels) - 1).astype(int)
-                if enc.kind == "category":
-                    cols[name] = pd.Categorical.from_codes(
-                        codes, list(enc.levels), ordered=enc.ordered
-                    )
-                elif enc.kind == "bool":
-                    cols[name] = codes.astype(bool)
-                else:  # "object"
-                    cols[name] = np.asarray(enc.levels, dtype=object)[codes]
-        return pd.DataFrame(cols, columns=list(columns))
-
-    return build
-
-
-def _wrap_model(
-    fn: typing.Optional[typing.Callable], frame_builder
-) -> typing.Optional[typing.Callable]:
-    if fn is None:
-        return None
-
-    def wrapped(X):
-        return np.asarray(fn(frame_builder(X)))
-
-    wrapped.__wrapped__ = fn
-    return wrapped
-
-
 def _heuristic_warning(heuristic_info: list):
     detail = ", ".join(f"{name!r} -> {t}" for name, t in heuristic_info)
     warnings.warn(
@@ -382,65 +340,45 @@ def ingest(
     *,
     schema=None,
 ) -> IngestResult:
-    """The one door for `data` + metadata (R10); runs before `helpers.prep_data`.
+    """The border crossing for `data` + metadata (R10); runs before
+    `helpers.prep_data`.
 
-    numpy input passes through byte-identical (no dtype cast, model untouched).
-    DataFrame input is encoded to a float matrix and `model`/`model_jac` are
-    wrapped so they are always called with a reconstructed DataFrame.
+    `data` must be a 2-D numeric numpy array; `model`/`model_jac` pass through
+    untouched (effector is numpy-only, so they must already be numpy-in /
+    numpy-out). A pandas DataFrame is rejected with a pointer to
+    `from_dataframe`. Whatever the `Schema` does not declare is inferred here.
     """
     schema = _as_schema(schema)
     cat_limit = _prep_cat_limit(schema.cat_limit)
 
-    categories = {}
-    column_dtypes = None
-    heuristic_idx = []
-    from_dataframe = is_dataframe(data)
-
-    if from_dataframe:
-        (
-            matrix,
-            df_names,
-            inferred_types,
-            categories,
-            column_dtypes,
-            heuristic_idx,
-        ) = _encode_dataframe(data, cat_limit)
-    elif isinstance(data, np.ndarray):
-        if data.ndim != 2:
-            raise ValueError(f"data must be a 2D array, got {data.ndim} dimensions")
-        if data.dtype.kind not in "fiub":
-            raise TypeError(
-                f"data has non-numeric dtype {data.dtype}; "
-                f"pass a pandas DataFrame for string/categorical columns"
-            )
-        matrix = data
-        df_names = None
-        inferred_types = None
-    else:
+    if is_dataframe(data):
         raise TypeError(
-            f"data must be a 2D numpy array or a pandas DataFrame, "
-            f"got {type(data).__name__}"
+            "effector is numpy-only: `data` must be a 2-D numeric numpy array, "
+            "not a pandas DataFrame. Convert it first:\n"
+            "    X, schema = effector.from_dataframe(df)\n"
+            "and pass a numpy->numpy `model` (wrap a DataFrame/torch/tf model "
+            "yourself)."
         )
-
+    if not isinstance(data, np.ndarray):
+        raise TypeError(f"data must be a 2D numpy array, got {type(data).__name__}")
+    if data.ndim != 2:
+        raise ValueError(f"data must be a 2D array, got {data.ndim} dimensions")
+    if data.dtype.kind not in "fiub":
+        raise TypeError(
+            f"data has non-numeric dtype {data.dtype}; encode it to a numeric "
+            f"matrix first (see effector.from_dataframe for DataFrame columns)"
+        )
+    matrix = data
     dim = matrix.shape[1]
 
-    # define-or-infer: explicit schema field > DataFrame inference > numpy heuristic
+    # define-or-infer: explicit schema field > numpy heuristic > synthesized
     if schema.feature_names is not None:
         feature_names = [str(name) for name in schema.feature_names]
-    elif df_names is not None:
-        feature_names = df_names
     else:
         feature_names = ["x_" + str(i) for i in range(dim)]
 
     if schema.feature_types is not None:
         feature_types = normalize_feature_types(schema.feature_types, dim)
-    elif inferred_types is not None:
-        feature_types = inferred_types
-        # only the risky half of the int heuristic warns: int -> continuous is
-        # the expected reading, int -> ordinal may be a label-encoded nominal
-        risky = [j for j in heuristic_idx if feature_types[j] == ORDINAL]
-        if risky:
-            _heuristic_warning([(feature_names[j], feature_types[j]) for j in risky])
     else:
         feature_types = infer_feature_types(matrix, cat_limit)
         heuristic_info = [
@@ -466,15 +404,9 @@ def ingest(
         schema.scale_x_list,
         schema.scale_y,
         target_name,
-        categories,
         schema.category_names,
         level_counts,
     )
-
-    if from_dataframe:
-        frame_builder = _make_frame_builder(feature_names, categories)
-        model = _wrap_model(model, frame_builder)
-        model_jac = _wrap_model(model_jac, frame_builder)
 
     # resolve category_names (per-feature name list, one per ascending observed
     # level) to a {level_value: name} map, so it maps by value and survives to
@@ -492,12 +424,70 @@ def ingest(
         feature_names=feature_names,
         feature_types=feature_types,
         cat_limit=cat_limit,
-        categories=categories,
-        from_dataframe=from_dataframe,
-        column_dtypes=column_dtypes,
         target_name=target_name,
         scale_x_list=schema.scale_x_list,
         scale_y=schema.scale_y,
         category_names=category_names_map,
     )
     return IngestResult(data=matrix, model=model, model_jac=model_jac, meta=meta)
+
+
+def from_dataframe(df, *, cat_limit: int = DEFAULT_CAT_LIMIT):
+    """Extract a numpy matrix and a populated `Schema` from a pandas DataFrame.
+
+    A pure convenience for the common "I started from a DataFrame" case. It
+    reads column names, maps dtypes to feature types, and pulls categorical
+    level labels, returning `(X, schema)` so you can call any effector
+    constructor as `Method(X, model, schema=schema)`.
+
+    It does **not** touch your model: effector is numpy-only, so `model` must be
+    a numpy->numpy callable. If your model consumes a DataFrame (e.g. an sklearn
+    Pipeline), wrap it yourself into a numpy->numpy function.
+
+    The returned schema is a *proposal you should inspect* — in particular the
+    int-column type guess (ordinal vs continuous vs a label-encoded nominal) is
+    the one thing no extractor can know for sure. Override any field you don't
+    like before passing it on.
+
+    Args:
+        df: a pandas DataFrame with numeric / bool / categorical / string
+            columns (no missing values).
+        cat_limit: cardinality threshold for the int-column ordinal heuristic
+            (default 10), recorded on the returned schema.
+
+    Returns:
+        `(X, schema)` where `X` is a `(N, D)` float64 numpy array and `schema`
+        is an `effector.Schema` with `feature_names`, `feature_types`,
+        `cat_limit`, and `category_names` populated.
+    """
+    if not is_dataframe(df):
+        raise TypeError(
+            f"from_dataframe expects a pandas DataFrame, got {type(df).__name__}"
+        )
+    cat_limit = _prep_cat_limit(cat_limit)
+    matrix, names, inferred_types, categories, _dtypes, heuristic_idx = (
+        _encode_dataframe(df, cat_limit)
+    )
+
+    # human-readable level names, one per *observed* level in ascending code
+    # order — exactly the shape Schema.category_names expects, so an unused
+    # declared category never trips the length check downstream
+    category_names = [None] * len(names)
+    for j, enc in categories.items():
+        observed = np.unique(matrix[:, j])
+        category_names[j] = [str(enc.levels[int(c)]) for c in observed]
+    if not any(n is not None for n in category_names):
+        category_names = None
+
+    # same guidance the numpy door gives: only int -> ordinal is a risky guess
+    risky = [j for j in heuristic_idx if inferred_types[j] == ORDINAL]
+    if risky:
+        _heuristic_warning([(names[j], inferred_types[j]) for j in risky])
+
+    schema = Schema(
+        feature_names=names,
+        feature_types=inferred_types,
+        cat_limit=cat_limit,
+        category_names=category_names,
+    )
+    return matrix, schema

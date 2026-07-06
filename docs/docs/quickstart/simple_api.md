@@ -32,13 +32,13 @@ Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
 ### Dataset
 
 ???+ note "A dataset, typically the test set"
-     A `np.ndarray` with shape `(N, D)` **or a pandas DataFrame** (R10).
-     A DataFrame brings its own metadata: column names become feature names and
-     dtypes decide the feature types (`float` → continuous, low-cardinality
-     `int` → ordinal, `category`/strings → nominal, ordered `category` →
-     ordinal). With a DataFrame, your model is always called with a
-     reconstructed DataFrame (original columns and dtypes) — if it expects a
-     raw array, wrap it: `lambda X: f(X.to_numpy())`.
+     A `np.ndarray` with shape `(N, D)` — effector is numpy-only (R10).
+     Started from a pandas DataFrame? Convert it once with
+     `X, schema = effector.from_dataframe(df)`: it reads column names, dtypes
+     (`float` → continuous, low-cardinality `int` → ordinal, `category`/strings
+     → nominal, ordered `category` → ordinal), and category labels into a
+     `Schema` you can inspect and tweak. It converts the data only — it never
+     touches your model.
 
 ???+ note "Metadata travels in one `schema` argument"
      Everything else (names, types, target name, axis un-scaling) goes into a
@@ -75,15 +75,23 @@ Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
     X = bike_sharing_dataset.data.features 
     y = bike_sharing_dataset.data.targets 
 
-    # split data
+    # split data (still pandas DataFrames)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+    # effector is numpy-only: convert the DataFrame to (numpy, schema)
+    X_test_np, schema = effector.from_dataframe(X_test)
     ```
 ---
 ### ML model
 
 ???+ note "A trained black-box model"
 
-     Must be a `Callable` with signature `X: np.ndarray[N, D]) -> np.ndarray[N]`. 
+     Must be a numpy→numpy `Callable`, signature
+     `X: np.ndarray[N, D] -> np.ndarray[N]`. A model trained on a DataFrame, a
+     PyTorch/TensorFlow tensor, or an sklearn `Pipeline` is yours to wrap into
+     that shape — e.g. PyTorch:
+     `model = lambda X: net(torch.as_tensor(X, dtype=torch.float32)).detach().numpy().ravel()`.
+     See the [*effector is purely numpy based*](./pure_numpy.md) guide.
 
 
 === "synthetic example"
