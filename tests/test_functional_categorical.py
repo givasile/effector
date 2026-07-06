@@ -298,6 +298,26 @@ def test_ale_explicit_order_permutes_accumulation(data, model):
     np.testing.assert_allclose(y, expected, atol=1e-10)
 
 
+def test_ale_refit_on_centering_change_preserves_order(data, model):
+    # D3 regression: fitting uncentered with a custom order and then evaluating
+    # centered forces an auto-refit (norm_const is None). That refit must replay
+    # the fit's `order`, not fall back to the default ascending order.
+    order = [2.0, 0.0, 1.0]
+
+    ale = effector.ALE(data, model.predict, nof_instances="all", schema=SCHEMA)
+    ale.fit(0, centering=False, order=order)
+    y = ale.eval(0, np.array(order), centering="zero_integral")
+
+    # the custom order must survive the centering-triggered refit
+    np.testing.assert_array_equal(ale.feature_effect["feature_0"]["levels"], order)
+
+    # and the centered answer must equal fitting centered with that order upfront
+    ref = effector.ALE(data, model.predict, nof_instances="all", schema=SCHEMA)
+    ref.fit(0, centering="zero_integral", order=order)
+    y_ref = ref.eval(0, np.array(order), centering="zero_integral")
+    np.testing.assert_allclose(y, y_ref, atol=1e-10)
+
+
 def test_ale_order_list_with_multiple_features_raises(data, model):
     ale = effector.ALE(data, model.predict, schema=SCHEMA)
     with pytest.raises(ValueError, match="exactly one categorical"):

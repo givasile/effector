@@ -2,6 +2,10 @@
 
 # [Unreleased]
 
+### Fixed
+
+- global effects: a centering-triggered auto-refit (e.g. `fit(centering=False, order=[...])` then `eval`/`plot` with centering) no longer discards the method-specific `fit` kwargs — `order`/`binning_method` (and `use_vectorized`) are replayed from the original `fit`, overriding only `centering`, instead of silently falling back to the defaults
+
 # [0.4.0] - 2026-07-06
 
 ### Breaking
