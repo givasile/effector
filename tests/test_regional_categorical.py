@@ -166,7 +166,9 @@ def test_regional_capability_matrix_enforced_at_fit():
     # only later at plot — otherwise fit/summary run on an unsupported FOI and
     # only plot raises (RHALE on nominal was inconsistent this way).
     rng = np.random.default_rng(0)
-    X = np.column_stack([rng.integers(0, 3, 800).astype(float), rng.uniform(-1, 1, 800)])
+    X = np.column_stack(
+        [rng.integers(0, 3, 800).astype(float), rng.uniform(-1, 1, 800)]
+    )
     f = lambda z: z[:, 0] * (z[:, 1] > 0)
     jac = lambda z: np.zeros_like(z)
     schema = {"feature_types": ["nominal", "continuous"]}

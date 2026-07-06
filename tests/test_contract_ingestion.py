@@ -373,7 +373,9 @@ def test_ale_plot_non_zero_based_ordinal_global():
     # P1 regression: ALE/RHALE .plot() built its grid from positional codes
     # 0..K-1 and fed them to eval, which rejects non-observed values -> crash
     # whenever the level codes are not 0..K-1 (here 1..4).
-    a = effector.ALE(_ord_1based(), _ord_model, schema={"feature_types": ["ordinal", "continuous"]})
+    a = effector.ALE(
+        _ord_1based(), _ord_model, schema={"feature_types": ["ordinal", "continuous"]}
+    )
     a.fit(0)
     _, ax = a.plot(0, show_plot=False)  # must not raise
     ticks = [t.get_text() for t in np.atleast_1d(ax).ravel()[0].get_xticklabels()]
@@ -383,6 +385,8 @@ def test_ale_plot_non_zero_based_ordinal_global():
 def test_ale_plot_non_zero_based_ordinal_regional():
     # regional ALE builds a global ALE per node and calls its .plot(), so it
     # inherits the same P1 crash; the root node exercises the categorical path.
-    ra = effector.RegionalALE(_ord_1based(), _ord_model, schema={"feature_types": ["ordinal", "continuous"]})
+    ra = effector.RegionalALE(
+        _ord_1based(), _ord_model, schema={"feature_types": ["ordinal", "continuous"]}
+    )
     ra.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
     ra.plot(0, 0, show_plot=False)  # must not raise

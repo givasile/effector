@@ -91,6 +91,7 @@ def test_overlaid_curves_match_each_methods_eval():
 
 # --- categorical feature support ------------------------------------------
 
+
 def _cat_dataset(N=1500, seed=0):
     rng = np.random.default_rng(seed)
     g = rng.integers(0, 3, N).astype(float)
@@ -132,10 +133,15 @@ def test_facade_categorical_all_unsupported_raises():
 
 def test_facade_ordinal_keeps_rhale():
     rng = np.random.default_rng(0)
-    X = np.column_stack([rng.integers(0, 4, 1500).astype(float), rng.uniform(-1, 1, 1500)])
+    X = np.column_stack(
+        [rng.integers(0, 4, 1500).astype(float), rng.uniform(-1, 1, 1500)]
+    )
     jac = lambda z: np.column_stack([np.zeros(len(z)), 0.5 * np.ones(len(z))])
     fe = effector.FeatureEffect(
-        X, _cat_predict, model_jac=jac, schema={"feature_types": ["ordinal", "continuous"]}
+        X,
+        _cat_predict,
+        model_jac=jac,
+        schema={"feature_types": ["ordinal", "continuous"]},
     )
     fig, ax = fe.plot(0, methods=["PDP", "ALE", "RHALE"], show_plot=False)
     assert len(ax.get_lines()) == 3  # RHALE supported for ordinal
