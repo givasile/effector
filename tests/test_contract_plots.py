@@ -109,6 +109,32 @@ def test_stderr_band_is_standard_error(global_data):
     np.testing.assert_allclose(band, std / np.sqrt(n), rtol=0.05)
 
 
+def test_pdp_std_band_equals_eval_heter(global_data):
+    # R1 / D5: the plotted std band must be the method's heterogeneity, i.e.
+    # sqrt(eval_heter) at the drawn grid — not something recomputed in the plot
+    # layer. Reconstruct the band half-height from the fill polygon and compare.
+    m = make_global("pdp", global_data)
+    ret = m.plot(0, heterogeneity="std", centering="zero_integral", show_plot=False)
+    ax = _mean_axis(ret)
+    assert len(ax.collections) == 1
+    verts = ax.collections[0].get_paths()[0].vertices
+
+    line = _mean_line(ax, "PDP")
+    xs = line.get_xdata()
+    expected = np.sqrt(m.eval_heter(0, np.asarray(xs)))
+    band = np.array(
+        [
+            (
+                verts[np.isclose(verts[:, 0], x), 1].max()
+                - verts[np.isclose(verts[:, 0], x), 1].min()
+            )
+            / 2
+            for x in xs
+        ]
+    )
+    np.testing.assert_allclose(band, expected, atol=1e-8)
+
+
 # ---------------------------------------------------------------------------
 # y_limits / nof_ice / legend
 # ---------------------------------------------------------------------------

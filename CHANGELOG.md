@@ -6,6 +6,10 @@
 
 - global effects: a centering-triggered auto-refit (e.g. `fit(centering=False, order=[...])` then `eval`/`plot` with centering) no longer discards the method-specific `fit` kwargs — `order`/`binning_method` (and `use_vectorized`) are replayed from the original `fit`, overriding only `centering`, instead of silently falling back to the defaults
 
+### Changed
+
+- internal (no output change): tightened the compute/draw boundary (R1). `visualization.plot_pdp_ice` no longer computes the mean line or std/std-err band from the raw ICE table — the PDP method hands it the pre-computed curve + band (the band is now definitionally `sqrt(eval_heter)`, the single source of heterogeneity). PDP's per-instance `norm_const` reduction moved from a `np.ndim` branch in the base `eval` to an overridable `_mean_norm_const` hook. Centering-grid resolution now flows from the single `helpers.NOF_INTERNAL_POINTS` knob instead of a hard-coded `30`.
+
 # [0.4.0] - 2026-07-06
 
 ### Breaking

@@ -242,7 +242,7 @@ class GlobalEffectBase(ABC):
         self,
         features: Union[int, str, list],
         centering: Union[bool, str],
-        points_for_centering: int = 30,
+        points_for_centering: int = helpers.NOF_INTERNAL_POINTS,
         **fit_feature_kwargs,
     ) -> None:
         """The one fit skeleton every method shares (R1): normalize inputs,
@@ -268,7 +268,10 @@ class GlobalEffectBase(ABC):
             self.is_fitted[s] = True
 
     def _compute_norm_const(
-        self, feature: int, method: str = "zero_integral", nof_points: int = 30
+        self,
+        feature: int,
+        method: str = "zero_integral",
+        nof_points: int = helpers.NOF_INTERNAL_POINTS,
     ) -> float:
         """Compute the normalization constant from the evaluation kernel:
         `zero_integral` = the mean over the feature interval, `zero_start` =
@@ -374,6 +377,12 @@ class GlobalEffectBase(ABC):
 
         return False
 
+    def _mean_norm_const(self, norm_const):
+        """The scalar amount the centered mean effect subtracts. It is a scalar
+        for most methods (ALE/RHALE/ShapDP), so the stored value is returned as
+        is; PDP overrides this because its norm_const is a per-instance array."""
+        return norm_const
+
     def _refit(self, feature: int, centering=None) -> None:
         """Auto-refit for `feature`, replaying the kwargs of the user's last
         explicit `fit` and overriding **only** `centering`. This keeps a
@@ -440,7 +449,5 @@ class GlobalEffectBase(ABC):
         y = self._eval_unnorm(feature, xs)
         if centering is not False:
             norm_const = self.feature_effect["feature_" + str(feature)]["norm_const"]
-            # PDP stores a per-instance array (each ICE centers on its own);
-            # the shift of the mean effect is its average
-            y = y - (norm_const if np.ndim(norm_const) == 0 else np.mean(norm_const))
+            y = y - self._mean_norm_const(norm_const)
         return y
