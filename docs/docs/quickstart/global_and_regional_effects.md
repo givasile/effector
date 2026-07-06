@@ -83,7 +83,7 @@ Let's focus on feature `hour`. We will compute the global effect of the `hour` f
     ```python
     effector.ShapDP(X, model).plot(feature=3)
     ```
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_34_490.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_34_489.png)
 
 
 All methods agree on the general trend:
@@ -135,7 +135,7 @@ Let's take a look again:
     ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_28_0.png)
 
 === "SHAP-DP"
-    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_34_490.png)
+    ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_34_489.png)
 
 They all indicate a high heterogeneity; there are cases that deviate from the average pattern.
 Moreover, PDP-ICE analysis highlights two distinct patterns:
