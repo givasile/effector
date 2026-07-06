@@ -47,10 +47,10 @@ class FeatureEffect:
     ):
         """
         Args:
-            data: the design matrix — a `(N, D)` numpy array or a pandas
-                DataFrame (converted at the door, R10)
-            model: the black-box model, `Callable` `(N, D) -> (N,)`; called with
-                a reconstructed DataFrame when `data` is a DataFrame
+            data: the design matrix — a `(N, D)` numeric numpy array (R10;
+                start from a DataFrame via `effector.from_dataframe`)
+            model: the black-box model, a numpy->numpy `Callable`
+                `(N, D) -> (N,)`
             model_jac: the model Jacobian `(N, D) -> (N, D)`, optional. Needed by
                 `RHALE`; if omitted, `RHALE` falls back to numerical differentiation.
             axis_limits: `(2, D)` array of per-feature limits, or `None` to infer
@@ -64,8 +64,9 @@ class FeatureEffect:
                 with any of the keys `feature_names`, `feature_types`,
                 `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - omitted fields are inferred from the data (DataFrame dtypes,
-                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - omitted fields are auto-inferred from `data` (numpy
+                  heuristics) or synthesized (`["x_0", ...]`, `"y"`); to start
+                  from a DataFrame use `effector.from_dataframe`
                 - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. the shared

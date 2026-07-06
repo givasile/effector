@@ -140,7 +140,7 @@ def test_shapdp_cat_plot_smoke(data, model):
     assert len(ax.patches) == 3
 
 
-def test_nominal_plot_uses_level_labels(model):
+def test_nominal_plot_uses_level_labels():
     import pandas as pd
 
     n = 400
@@ -151,11 +151,13 @@ def test_nominal_plot_uses_level_labels(model):
             "num": rng.uniform(-1, 1, n),
         }
     )
+    # numpy-only: convert once; the schema carries the "b"/"g"/"r" labels
+    X, schema = effector.from_dataframe(df)
 
-    def df_model(d):
-        return d["color"].cat.codes.to_numpy().astype(float) + d["num"].to_numpy()
+    def np_model(A):  # color code + num, on the encoded matrix
+        return A[:, 0] + A[:, 1]
 
-    pdp = effector.PDP(df, df_model)
+    pdp = effector.PDP(X, np_model, schema=schema)
     fig, ax = pdp.plot(0, heterogeneity="std", show_plot=False)
     labels = [t.get_text() for t in ax.get_xticklabels()]
     assert labels == ["b", "g", "r"]  # pandas sorts categories alphabetically

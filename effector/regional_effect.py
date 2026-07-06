@@ -33,8 +33,8 @@ class RegionalEffectBase:
         self.method_name = method_name.lower()
         self.random_state = random_state
 
-        # the one door for data + metadata (R10): DataFrame -> numpy core
-        # matrix + wrapped model; numpy passes through untouched. Type
+        # the border crossing (R10): validate numpy `data`, resolve/auto-infer
+        # metadata; `model`/`model_jac` pass through as given (numpy-only). Type
         # inference runs on the full data, before subsampling.
         ing = ingestion.ingest(data, model, model_jac, schema=schema)
         data = ing.data

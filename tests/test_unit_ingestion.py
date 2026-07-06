@@ -1,22 +1,25 @@
 """Unit tests for effector/ingestion.py — the R10 input contract.
 
-Layer: unit (Tier-1, tiny N). The contract-level DF-vs-numpy parity tests live
-in tests/test_contract_ingestion.py.
+Layer: unit (Tier-1, tiny N). effector is numpy-only: constructors take a numpy
+`data` + a numpy->numpy `model`; a DataFrame is converted first with the
+`from_dataframe` convenience. The contract-level DF->numpy parity tests live in
+tests/test_contract_ingestion.py.
 """
 
 import subprocess
 import sys
+import warnings
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from effector import ingestion
 from effector.ingestion import (
     CONTINUOUS,
     NOMINAL,
     ORDINAL,
     Schema,
+    from_dataframe,
     infer_feature_types,
     ingest,
     normalize_feature_types,
@@ -49,11 +52,6 @@ def _mixed_df(n=30):
     )
 
 
-def _df_model(df):
-    codes = df["color"].cat.codes.to_numpy()
-    return df["num"].to_numpy() * 2.0 + codes
-
-
 # ---------------------------------------------------------------------------
 # numpy path: passthrough + rejections
 # ---------------------------------------------------------------------------
@@ -63,10 +61,8 @@ def test_ingest_numpy_passthrough_identity():
     data = _num_data()
     res = ingest(data, _model)
     assert res.data is data  # no copy, no dtype cast
-    assert res.model is _model  # no wrapping on the numpy path
+    assert res.model is _model  # model is never wrapped
     assert res.model_jac is None
-    assert res.meta.from_dataframe is False
-    assert res.meta.categories == {}
 
 
 def test_ingest_numpy_int_dtype_not_cast():
@@ -83,13 +79,19 @@ def test_ingest_rejects_1d():
 
 def test_ingest_rejects_object_ndarray():
     data = np.array([["a", "b"], ["c", "d"]], dtype=object)
-    with pytest.raises(TypeError, match="pandas DataFrame"):
+    with pytest.raises(TypeError, match="non-numeric dtype"):
         ingest(data, _model)
 
 
 def test_ingest_rejects_unknown_type():
-    with pytest.raises(TypeError, match="numpy array or a pandas DataFrame"):
+    with pytest.raises(TypeError, match="must be a 2D numpy array"):
         ingest([[1.0, 2.0]], _model)
+
+
+def test_ingest_rejects_dataframe():
+    df = pd.DataFrame({"a": np.linspace(0, 1, 30)})
+    with pytest.raises(TypeError, match="from_dataframe"):
+        ingest(df, _model)
 
 
 # ---------------------------------------------------------------------------
@@ -125,59 +127,93 @@ def test_infer_numpy_never_nominal():
 
 
 # ---------------------------------------------------------------------------
-# DataFrame inference table
+# from_dataframe: dtype inference table + numpy/schema extraction
 # ---------------------------------------------------------------------------
 
 
-def test_infer_df_dtype_table():
+def test_from_dataframe_dtype_table():
     with pytest.warns(UserWarning, match="cardinality heuristic"):
-        res = ingest(_mixed_df(), _df_model)
-    assert res.meta.feature_types == [
+        X, schema = from_dataframe(_mixed_df())
+    assert schema.feature_types == [
         CONTINUOUS,  # float
         ORDINAL,  # int, nunique < cat_limit (heuristic)
         NOMINAL,  # unordered category
         ORDINAL,  # ordered category
         NOMINAL,  # object strings
     ]
-    assert res.meta.feature_names == ["num", "count", "color", "size", "label"]
-    assert res.meta.from_dataframe is True
+    assert schema.feature_names == ["num", "count", "color", "size", "label"]
+    assert X.dtype == np.float64 and X.shape == (30, 5)
 
 
-def test_infer_df_int_large_is_continuous_and_silent():
-    import warnings
-
+def test_from_dataframe_int_large_is_continuous_and_silent():
     df = pd.DataFrame({"a": np.arange(30)})
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)  # int->continuous is safe
-        res = ingest(df, _model)
-    assert res.meta.feature_types == [CONTINUOUS]
+        _, schema = from_dataframe(df)
+    assert schema.feature_types == [CONTINUOUS]
 
 
-def test_infer_df_bool_is_ordinal():
+def test_from_dataframe_bool_is_ordinal():
     df = pd.DataFrame({"a": np.tile([True, False], 15)})
-    res = ingest(df, _model)
-    assert res.meta.feature_types == [ORDINAL]
-    assert res.meta.categories[0].kind == "bool"
+    _, schema = from_dataframe(df)
+    assert schema.feature_types == [ORDINAL]
+    assert schema.category_names[0] == ["False", "True"]
 
 
-def test_ordered_category_levels_keep_declared_order():
+def test_from_dataframe_ordered_category_keeps_declared_order():
     with pytest.warns(UserWarning):
-        res = ingest(_mixed_df(), _df_model)
-    assert res.meta.categories[3].levels == ("S", "M", "L")  # not alphabetical
-    assert res.meta.categories[3].ordered is True
-    assert res.meta.categories[2].ordered is False
+        _, schema = from_dataframe(_mixed_df())
+    # ordered 'size' -> ordinal, labels in declared (not alphabetical) order
+    assert schema.feature_types[3] == ORDINAL
+    assert schema.category_names[3] == ["S", "M", "L"]
+    # unordered 'color' -> nominal
+    assert schema.feature_types[2] == NOMINAL
 
 
-def test_df_datetime_raises():
+def test_from_dataframe_datetime_raises():
     df = pd.DataFrame({"t": pd.date_range("2026-01-01", periods=5)})
     with pytest.raises(ValueError, match="unsupported dtype"):
-        ingest(df, _model)
+        from_dataframe(df)
 
 
-def test_nan_in_dataframe_raises_naming_column():
+def test_from_dataframe_nan_raises_naming_column():
     df = pd.DataFrame({"a": [1.0, np.nan, 3.0]})
     with pytest.raises(ValueError, match="'a'.*missing"):
-        ingest(df, _model)
+        from_dataframe(df)
+
+
+def test_from_dataframe_uses_column_names():
+    df = pd.DataFrame({"a": np.linspace(0, 1, 30), "b": np.linspace(0, 1, 30)})
+    _, schema = from_dataframe(df)
+    assert schema.feature_names == ["a", "b"]
+
+
+def test_from_dataframe_rejects_non_dataframe():
+    with pytest.raises(TypeError, match="expects a pandas DataFrame"):
+        from_dataframe(_num_data())
+
+
+def test_from_dataframe_roundtrip_numpy_and_schema():
+    df = pd.DataFrame(
+        {
+            "num": np.linspace(-1, 1, 6),
+            "grade": pd.Categorical(
+                ["low", "mid", "high", "low", "mid", "high"],
+                categories=["low", "mid", "high"],
+                ordered=True,
+            ),
+            "color": pd.Categorical(["r", "g", "b", "r", "g", "b"]),
+        }
+    )
+    X, schema = from_dataframe(df)
+    assert X.dtype == np.float64 and X.shape == (6, 3)
+    assert schema.feature_types == [CONTINUOUS, ORDINAL, NOMINAL]
+    assert schema.category_names[1] == ["low", "mid", "high"]  # ordered kept
+    assert schema.category_names[2] == ["b", "g", "r"]  # unordered -> sorted
+    np.testing.assert_array_equal(X[:, 1], df["grade"].cat.codes.to_numpy())
+    # the (X, schema) pair drives a constructor; labels resolve by value
+    res = ingest(X, _model, schema=schema)
+    assert res.meta.category_names[1] == {0.0: "low", 1.0: "mid", 2.0: "high"}
 
 
 # ---------------------------------------------------------------------------
@@ -204,10 +240,9 @@ def test_explicit_types_override_inference():
     assert res.meta.feature_types == [CONTINUOUS, ORDINAL]
 
 
-def test_explicit_names_override_df_columns():
-    df = pd.DataFrame({"a": np.linspace(0, 1, 30)})
-    res = ingest(df, _model, schema={"feature_names": ["renamed"]})
-    assert res.meta.feature_names == ["renamed"]
+def test_explicit_names_override_inference():
+    res = ingest(_num_data(), _model, schema={"feature_names": ["a", "b", "renamed"]})
+    assert res.meta.feature_names == ["a", "b", "renamed"]
 
 
 def test_schema_dataclass_and_dict_equivalent():
@@ -258,12 +293,6 @@ def test_cat_limit_too_small_raises():
         ingest(_num_data(), _model, schema={"cat_limit": 1})
 
 
-def test_continuous_label_on_string_column_raises():
-    df = pd.DataFrame({"s": ["a", "b", "a"] * 10})
-    with pytest.raises(ValueError, match="non-numeric column"):
-        ingest(df, _model, schema={"feature_types": ["continuous"]})
-
-
 def test_target_name_default_and_override():
     assert ingest(_num_data(), _model).meta.target_name == "y"
     res = ingest(_num_data(), _model, schema={"target_name": "price"})
@@ -282,8 +311,6 @@ def test_heuristic_warning_fires_for_numpy_int_columns():
 
 
 def test_heuristic_warning_silent_for_dtype_decided():
-    import warnings
-
     df = pd.DataFrame(
         {
             "num": np.linspace(0, 1, 30),
@@ -292,111 +319,14 @@ def test_heuristic_warning_silent_for_dtype_decided():
     )
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
-        ingest(df, _df_model_simple)
-
-
-def _df_model_simple(df):
-    return df["num"].to_numpy()
+        from_dataframe(df)
 
 
 def test_heuristic_warning_silenced_by_explicit_types():
     data = np.stack([np.tile(np.arange(3.0), 10), np.linspace(0, 1, 30)], axis=1)
-    import warnings
-
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
         ingest(data, _model, schema={"feature_types": ["ordinal", "cont"]})
-
-
-# ---------------------------------------------------------------------------
-# model wrapping / frame reconstruction
-# ---------------------------------------------------------------------------
-
-
-def test_frame_builder_roundtrip_exact():
-    df = _mixed_df()
-    with pytest.warns(UserWarning):
-        res = ingest(df, _df_model)
-    rebuilt = ingestion._make_frame_builder(
-        res.meta.feature_names, res.meta.categories
-    )(res.data)
-    assert list(rebuilt.columns) == list(df.columns)
-    pd.testing.assert_series_equal(
-        rebuilt["color"].reset_index(drop=True),
-        df["color"].reset_index(drop=True),
-        check_names=False,
-        check_categorical=False,
-    )
-    assert rebuilt["size"].cat.ordered
-    assert (rebuilt["label"].to_numpy() == df["label"].to_numpy()).all()
-    np.testing.assert_allclose(rebuilt["num"].to_numpy(), df["num"].to_numpy())
-
-
-def test_wrapped_model_receives_dataframe_with_original_dtypes():
-    df = _mixed_df()
-    seen = {}
-
-    def recording_model(x):
-        seen["type"] = type(x).__name__
-        seen["color_dtype"] = str(x["color"].dtype)
-        seen["color_values"] = set(x["color"].unique().tolist())
-        return x["num"].to_numpy()
-
-    with pytest.warns(UserWarning):
-        res = ingest(df, recording_model)
-    out = res.model(res.data)
-    assert seen["type"] == "DataFrame"
-    assert seen["color_dtype"] == "category"
-    assert seen["color_values"] <= {"r", "g", "b"}
-    np.testing.assert_allclose(out, df["num"].to_numpy())
-
-
-def test_wrapped_model_rounds_fractional_codes():
-    df = pd.DataFrame(
-        {"color": pd.Categorical(["r", "g", "b"] * 10), "num": np.linspace(0, 1, 30)}
-    )
-    seen = {}
-
-    def recording_model(x):
-        seen["values"] = set(x["color"].unique().tolist())
-        return x["num"].to_numpy()
-
-    res = ingest(df, recording_model)
-    x = res.data.copy()
-    x[:, 0] = x[:, 0] + 0.4  # fractional codes, as a grid sweep would produce
-    x[0, 0] = 99.0  # out of range -> clipped to the last level
-    res.model(x)
-    assert seen["values"] <= {"r", "g", "b"}
-
-
-def test_model_jac_wrapped_same_way():
-    df = pd.DataFrame({"num": np.linspace(0, 1, 30)})
-    seen = {}
-
-    def jac(x):
-        seen["type"] = type(x).__name__
-        return np.ones((len(x), 1))
-
-    res = ingest(df, _model_num, jac)
-    res.model_jac(res.data)
-    assert seen["type"] == "DataFrame"
-
-
-def _model_num(df):
-    return df["num"].to_numpy()
-
-
-def test_all_numeric_dataframe_still_wrapped():
-    df = pd.DataFrame({"num": np.linspace(0, 1, 30)})
-    seen = {}
-
-    def recording_model(x):
-        seen["type"] = type(x).__name__
-        return x["num"].to_numpy()
-
-    res = ingest(df, recording_model)
-    res.model(res.data)
-    assert seen["type"] == "DataFrame"  # one predictable rule, no special case
 
 
 # ---------------------------------------------------------------------------

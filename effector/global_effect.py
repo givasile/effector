@@ -67,8 +67,8 @@ class GlobalEffectBase(ABC):
         self.method_name = method_name.lower()
         self.random_state = random_state
 
-        # the one door for data + metadata (R10): DataFrame -> numpy core
-        # matrix + wrapped model; numpy passes through untouched
+        # the border crossing (R10): validate numpy `data`, resolve/auto-infer
+        # metadata; `model`/`model_jac` pass through as given (numpy-only)
         ing = ingestion.ingest(data, model, model_jac, schema=schema)
         data = ing.data
         self.model = ing.model
@@ -186,20 +186,17 @@ class GlobalEffectBase(ABC):
 
     def _level_display(self, feature: int, levels=None):
         """(positions, tick labels) for categorical plots: positions are the
-        level values; labels translate encoded categories (DataFrame source)
-        back to their original names. `None` labels keep numeric ticks.
-        `levels` overrides the ascending default (fit-order for nominal ALE)."""
+        level values; labels translate the `schema.category_names` map back to
+        the original level names. `None` labels keep numeric ticks. `levels`
+        overrides the ascending default (fit-order for nominal ALE)."""
         if levels is None:
             levels = self._levels(feature)
         cat_names = self.feature_metadata.category_names
         name_of = cat_names.get(feature) if cat_names else None
-        enc = self.feature_metadata.categories.get(feature)
         if name_of is not None:
             # schema category_names, resolved to a {level_value: name} map at
             # ingest — maps by value, so level subsets (regional nodes) are fine
             labels = [name_of.get(float(v), f"{v:g}") for v in levels]
-        elif enc is not None:
-            labels = [str(enc.levels[int(c)]) for c in levels.astype(int)]
         elif self.feature_types[feature] == ingestion.NOMINAL:
             labels = [f"{v:g}" for v in levels]
         else:

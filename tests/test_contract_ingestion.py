@@ -1,13 +1,16 @@
 """Contract layer for R10 — the input contract (docs/design.md R10).
 
 The load-bearing promises:
-- numpy in == DataFrame in: identical numbers out (exact, atol=0);
+- effector is numpy-only: `from_dataframe(df)` reproduces the numpy matrix so a
+  DataFrame origin gives identical numbers out (exact, atol=0);
 - every class exposes the resolved `feature_metadata`;
 - legacy aliases ("cont"/"cat") are normalized at the door and keep the
   categorical split path working;
 - internally built objects (regional nodes, facade sub-methods) inherit the
   parent's resolved metadata instead of re-inferring from subsets.
 """
+
+import dataclasses
 
 import numpy as np
 import pytest
@@ -26,7 +29,6 @@ from tests.conftest import (
     make_mixed_df,
     make_regional,
     make_regional_data,
-    mixed_df_model,
 )
 
 # ---------------------------------------------------------------------------
@@ -37,13 +39,14 @@ from tests.conftest import (
 @pytest.mark.parametrize("name", GLOBAL_NAMES)
 def test_r10_df_numpy_parity_eval(name):
     data = make_global_data()
-    df = make_global_df()
     xs = np.linspace(-0.8, 0.8, 7)
 
     m_np = make_global(name, data)
+    # from_dataframe must reproduce the numpy matrix exactly -> identical output
+    X_df, schema = effector.from_dataframe(make_global_df())
     # shap values must be an aligned ndarray on both paths (they bypass ingest)
     kwargs = {"shap_values": analytic_shap_values(data)} if name == "shapdp" else {}
-    m_df = make_global(name, df, **kwargs)
+    m_df = make_global(name, X_df, schema=schema, **kwargs)
     y_np = eval_mean(m_np, 0, xs, centering=False)
     y_df = eval_mean(m_df, 0, xs, centering=False)
     np.testing.assert_array_equal(y_np, y_df)
@@ -62,13 +65,11 @@ def test_r10_df_numpy_parity_regional_tree(name):
     types = ["continuous", "continuous", "ordinal"]
     reg_np = make_regional(name, data, schema={"feature_types": types})
     cls = effector.RegionalPDP if name == "regional_pdp" else effector.RegionalALE
-    # the model receives a reconstructed DataFrame on the DF path (R10) —
-    # an array-expecting model uses the documented escape hatch
-    reg_df = cls(
-        df,
-        lambda x: gated_model(x.to_numpy()),
-        schema={"feature_types": types},
-    )
+    # numpy-only: convert the DataFrame first, force the shared types, and feed
+    # the plain numpy model (the encoded matrix equals `data`)
+    X_df, schema = effector.from_dataframe(df)
+    schema = dataclasses.replace(schema, feature_types=types)
+    reg_df = cls(X_df, gated_model, schema=schema)
     part = effector.space_partitioning.Best(max_depth=2)
     reg_np.fit(0, space_partitioner=part)
     reg_df.fit(0, space_partitioner=part)
@@ -175,47 +176,20 @@ def test_r10_facade_submethods_inherit_types():
 
 
 # ---------------------------------------------------------------------------
-# R10.5 — the model-call rule, end to end
+# R10.5 — from_dataframe fidelity: the encoded matrix drives the methods
 # ---------------------------------------------------------------------------
-
-
-def test_r10_mixed_df_end_to_end():
-    df = make_mixed_df()
-    calls = []
-
-    def recording_model(x):
-        calls.append(
-            (
-                type(x).__name__,
-                str(x["color"].dtype),
-                bool(x["size"].cat.ordered),
-            )
-        )
-        return mixed_df_model(x)
-
-    with pytest.warns(UserWarning, match="cardinality heuristic"):
-        pdp = effector.PDP(df, recording_model)
-    xs = np.linspace(-0.5, 0.5, 5)
-    y = pdp.eval(0, xs, centering=False)
-
-    assert y.shape == (5,)
-    assert len(calls) > 0
-    for type_name, color_dtype, size_ordered in calls:
-        assert type_name == "DataFrame"
-        assert color_dtype == "category"
-        assert size_ordered is True
 
 
 def test_r10_mixed_df_shapdp_with_analytic_values():
     df = make_mixed_df()
-    matrix = ingestion.ingest(df, mixed_df_model).data
+    with pytest.warns(UserWarning, match="cardinality heuristic"):
+        matrix, schema = effector.from_dataframe(df)
     shap_values = 0.1 * (matrix - matrix.mean(axis=0))  # any aligned array
-    m = effector.ShapDP(
-        df,
-        mixed_df_model,
-        shap_values=shap_values,
-        schema={"feature_types": ["continuous", "ordinal", "nominal", "ordinal"]},
-    )
+
+    def model(X):  # mixed_df_model, expressed on the encoded matrix (numpy->numpy)
+        return 2.0 * X[:, 0] + X[:, 1] + X[:, 2] + 0.5 * X[:, 3]
+
+    m = effector.ShapDP(matrix, model, shap_values=shap_values, schema=schema)
     y = m.eval(0, np.linspace(-0.5, 0.5, 5), centering=False)
     assert y.shape == (5,)
 
