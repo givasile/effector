@@ -159,3 +159,27 @@ def test_nominal_plot_uses_level_labels(model):
     fig, ax = pdp.plot(0, heterogeneity="std", show_plot=False)
     labels = [t.get_text() for t in ax.get_xticklabels()]
     assert labels == ["b", "g", "r"]  # pandas sorts categories alphabetically
+
+
+def test_regional_capability_matrix_enforced_at_fit():
+    # regression: the capability matrix must be enforced at regional fit, not
+    # only later at plot — otherwise fit/summary run on an unsupported FOI and
+    # only plot raises (RHALE on nominal was inconsistent this way).
+    rng = np.random.default_rng(0)
+    X = np.column_stack([rng.integers(0, 3, 800).astype(float), rng.uniform(-1, 1, 800)])
+    f = lambda z: z[:, 0] * (z[:, 1] > 0)
+    jac = lambda z: np.zeros_like(z)
+    schema = {"feature_types": ["nominal", "continuous"]}
+    part = effector.space_partitioning.Best(max_depth=2)
+
+    with pytest.raises(ValueError, match="rhale does not support nominal"):
+        effector.RegionalRHALE(X, f, model_jac=jac, schema=schema).fit(
+            0, space_partitioner=part
+        )
+    with pytest.raises(ValueError, match="d-pdp does not support nominal"):
+        effector.RegionalDerPDP(X, f, model_jac=jac, schema=schema).fit(
+            0, space_partitioner=part
+        )
+    # supported methods still fit on the same nominal FOI
+    effector.RegionalPDP(X, f, schema=schema).fit(0, space_partitioner=part)
+    effector.RegionalALE(X, f, schema=schema).fit(0, space_partitioner=part)

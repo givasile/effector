@@ -19,15 +19,20 @@
 - `scale_x_list`/`scale_y` accepted at construction (schema) as plot defaults; plot-time dicts override, `False` disables
 - `models.ConditionalCategorical` closed-form ground-truth model; `effector.ordering.similarity_order` (scipy-only Molnar/iml seriation)
 - input contract spec: `docs/design.md` R10 (accepted data types, `Schema` metadata argument, three-way feature taxonomy, define-or-infer, model-call rule, scaling precedence) and `docs/method_semantics.md` (the exact `eval`/`eval_heter`/`heter_score`/`plot` formulas per method and feature type)
+- `category_names` schema field: per-feature human-readable level labels shown on categorical plot axes instead of the numeric codes; resolved to a value-keyed map at ingest, so regional nodes that restrict a categorical feature to a subset of its levels still label correctly
+- `FeatureEffect` facade on a categorical feature of interest drops the methods its type doesn't support (e.g. `RHALE` on a nominal) with a `UserWarning`, overlays the rest at the observed levels, and raises only when nothing is left
 
 ### Changed
 
 - unified defaults: `nof_instances` is 10,000 everywhere except SHAP-based classes (1,000) — `RegionalALE`/`RegionalRHALE` were 100,000 and `FeatureEffect` 1,000; `nof_ice`/`nof_shap_values` default to 100; plot grids default to 100 points; one `heterogeneity` vocabulary on all plots (`False | "std" | method-native`, `True` ≡ `"std"`)
 - type inference now runs on the full data (before `nof_instances` subsampling); regional node objects and facade sub-methods inherit the parent's resolved metadata instead of re-inferring from subsets
 - `space_partitioning.compile`: `categorical_limit` renamed to `cat_limit`
+- `PDP`/`RegionalPDP` default centering is now `zero_integral` (was `False`), so `eval(centering=None)` and the global/regional plots center consistently with `ALE`/`ShapDP`
+- the method / feature-type capability matrix (e.g. `RHALE` and `DerPDP` on nominal) is enforced at regional `fit` time, not only later at `plot`, so `fit`/`summary`/`plot` stay consistent for an unsupported feature of interest
 
 ### Fixed
 
+- `ALE`/`RHALE` `.plot()` crashed on a categorical feature whose level codes are not `0..K-1` (e.g. ordinal hours `1..24`): the plot grid was built from positional codes `0..K-1` and rejected by `eval`; it now draws at the observed level values
 - `tree` display no longer crashes on per-feature `None` entries in `scale_x_list`
 - `helpers.indices_within_limits` raises `ValueError` instead of a bare `assert` when `axis_limits` exclude every point
 - removed the phantom `avg_output` constructor docstring on `ShapDP` and the stale `ice_non_vectorized` docstring example

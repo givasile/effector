@@ -205,9 +205,13 @@ class ALEBase(GlobalEffectBase):
         params = self.feature_effect["feature_" + str(feature)]
 
         # the accumulated curve is piecewise linear between bin limits, so
-        # evaluating exactly at the limits draws it exactly (no resampling)
-        x = np.asarray(params["limits"], dtype=float)
-        y = self.eval(feature, x, centering=centering)
+        # evaluating exactly at the limits draws it exactly (no resampling).
+        # categoricals are drawn by the is_cat branch below (at their observed
+        # level values); their limits are positional codes 0..K-1 that eval
+        # would reject, so only build this grid for continuous features.
+        if not params.get("is_cat"):
+            x = np.asarray(params["limits"], dtype=float)
+            y = self.eval(feature, x, centering=centering)
 
         if show_avg_output:
             avg_output = helpers.prep_avg_output(self.data, self.model, None, scale_y)
@@ -249,6 +253,7 @@ class ALEBase(GlobalEffectBase):
                 feature_names=self.feature_names,
                 target_name=self.target_name,
                 y_limits=y_limits,
+                connect_line=True,  # (RH)ALE bars accumulate: show the step path
                 show_plot=show_plot,
             )
         return vis.ale_plot(

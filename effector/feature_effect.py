@@ -112,6 +112,36 @@ class FeatureEffect:
             )
         return key
 
+    def _is_cat(self, feature: int) -> bool:
+        return ingestion.is_categorical(self.feature_types[feature])
+
+    def _levels(self, feature: int) -> np.ndarray:
+        return np.unique(self.data[:, feature])
+
+    def _supported_methods(self, feature: int, methods: List[str]) -> List[str]:
+        """Drop methods whose capability matrix excludes this feature type (e.g.
+        RHALE on a nominal feature), warning about what was skipped."""
+        ftype = self.feature_types[feature]
+        kept, dropped = [], []
+        for name in methods:
+            supported = method_registry.resolve(
+                self._canonical(name)
+            ).cls.SUPPORTED_FEATURE_TYPES
+            (kept if ftype in supported else dropped).append(name)
+        if dropped:
+            warnings.warn(
+                "Skipping {} for feature {!r} ({}): not supported for this "
+                "feature type.".format(dropped, self.feature_names[feature], ftype),
+                stacklevel=3,
+            )
+        if not kept:
+            raise ValueError(
+                "No requested method supports feature {!r} ({}).".format(
+                    self.feature_names[feature], ftype
+                )
+            )
+        return kept
+
     def _get_method(self, name: str, method_kwargs: Optional[dict] = None):
         """Build (and cache) the underlying effect object for `name`."""
         key = self._canonical(name)
@@ -180,6 +210,7 @@ class FeatureEffect:
         """
         if methods is None:
             methods = ["PDP", "ALE", "RHALE"]
+        methods = self._supported_methods(feature, methods)
         centering = helpers.prep_centering(centering)
 
         curves = {}
@@ -239,10 +270,15 @@ class FeatureEffect:
             )
             centering = "zero_integral"
 
-        # shared grid, shared across every method
-        xs = np.linspace(
-            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
-        )
+        # shared grid: observed levels for a categorical feature (evaluated only
+        # at levels, R10), else a continuous linspace
+        discrete = self._is_cat(feature)
+        if discrete:
+            xs = self._levels(feature)
+        else:
+            xs = np.linspace(
+                self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
+            )
         curves = self.eval(
             feature,
             xs,
@@ -257,6 +293,12 @@ class FeatureEffect:
             else None
         )
 
+        level_labels = None
+        if discrete:
+            name_map = (self.feature_metadata.category_names or {}).get(feature)
+            if name_map is not None:
+                level_labels = [name_map.get(float(v), f"{v:g}") for v in xs]
+
         return vis.plot_effect_comparison(
             xs,
             feature,
@@ -267,5 +309,7 @@ class FeatureEffect:
             feature_names=self.feature_names,
             target_name=self.target_name,
             y_limits=y_limits,
+            discrete=discrete,
+            level_labels=level_labels,
             show_plot=show_plot,
         )

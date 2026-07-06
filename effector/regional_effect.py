@@ -1,4 +1,5 @@
 import copy
+import dataclasses
 import typing
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -7,7 +8,7 @@ from tqdm import tqdm
 
 import effector.helpers as helpers
 import effector.space_partitioning
-from effector import ingestion
+from effector import global_effect, ingestion
 from effector.method_registry import resolve as resolve_method
 from effector.space_partitioning import Best, Tree
 
@@ -107,6 +108,18 @@ class RegionalEffectBase:
             raise ValueError("min_points_per_subregion must be >= 2")
 
         features = helpers.prep_features(features, self.dim)
+        supported = resolve_method(self.method_name).cls.SUPPORTED_FEATURE_TYPES
+        for feat in features:
+            # enforce the capability matrix up front (same contract as the global
+            # fit loop) so an unsupported FOI fails at fit — not only later at
+            # plot — keeping fit/summary/plot consistent (e.g. RHALE on nominal)
+            global_effect.check_feature_type_supported(
+                self.method_name,
+                supported,
+                self.feature_types[feat],
+                feat,
+                self.feature_names[feat],
+            )
         for feat in tqdm(features):
             self._precompute_global(feat)
             heter = self._create_heterogeneity_function(
@@ -210,8 +223,17 @@ class RegionalEffectBase:
         kwargs.update(self._extra_fe_kwargs(mask))
 
         if spec.needs_jac:
-            return spec.cls(data, self.model, self.model_jac, **kwargs)
-        return spec.cls(data, self.model, **kwargs)
+            fe = spec.cls(data, self.model, self.model_jac, **kwargs)
+        else:
+            fe = spec.cls(data, self.model, **kwargs)
+        # a node's data is a subset, so category_names (a value->name map) can't
+        # be re-derived from it; inherit the parent's resolved map by value
+        if self.feature_metadata.category_names is not None:
+            fe.feature_metadata = dataclasses.replace(
+                fe.feature_metadata,
+                category_names=self.feature_metadata.category_names,
+            )
+        return fe
 
     def _fit_node_effect(self, feature, node_idx, centering, scale_x_list=None):
         """Build the node's fe object and fit it with the *stored* fit kwargs

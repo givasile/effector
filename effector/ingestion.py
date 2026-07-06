@@ -43,6 +43,10 @@ class Schema:
             overrides.
         scale_y: `{"mean": .., "std": ..}` for the output axis; plot-time
             `scale_y` overrides.
+        category_names: per-feature list of human-readable level names for a
+            categorical (ordinal/nominal) feature — one name per observed level
+            in ascending order — shown on the plot axis instead of the numeric
+            codes. `None` entries (and non-categorical features) keep the codes.
     """
 
     feature_names: typing.Optional[list] = None
@@ -51,6 +55,7 @@ class Schema:
     target_name: typing.Optional[str] = None
     scale_x_list: typing.Optional[list] = None
     scale_y: typing.Optional[dict] = None
+    category_names: typing.Optional[list] = None
 
 
 @dataclass(frozen=True)
@@ -75,6 +80,7 @@ class FeatureMetadata:
     target_name: str
     scale_x_list: typing.Optional[list] = None
     scale_y: typing.Optional[dict] = None
+    category_names: typing.Optional[dict] = None  # {feature_idx: {level_value: name}}
 
 
 @dataclass(frozen=True)
@@ -198,6 +204,8 @@ def validate_metadata(
     scale_y: typing.Optional[dict],
     target_name: str,
     categories: typing.Optional[dict] = None,
+    category_names: typing.Optional[list] = None,
+    level_counts: typing.Optional[dict] = None,
 ) -> None:
     """The single validation point of the input contract (R10, R9 style)."""
     if len(feature_names) != dim:
@@ -228,6 +236,24 @@ def validate_metadata(
             )
         for j, scale in enumerate(scale_x_list):
             _validate_scale(scale, f"scale_x_list[{j}]")
+    if category_names is not None:
+        if len(category_names) != dim:
+            raise ValueError(
+                f"category_names has length {len(category_names)}, expected {dim}"
+            )
+        for j, names in enumerate(category_names):
+            if names is None:
+                continue
+            if not is_categorical(feature_types[j]):
+                raise ValueError(
+                    f"category_names[{j}] is set but feature {feature_names[j]!r} "
+                    f"is {feature_types[j]!r}, not categorical (ordinal/nominal)"
+                )
+            if level_counts is not None and len(names) != level_counts.get(j):
+                raise ValueError(
+                    f"category_names[{j}] has {len(names)} names but feature "
+                    f"{feature_names[j]!r} has {level_counts.get(j)} observed levels"
+                )
     _validate_scale(scale_y, "scale_y")
     if not isinstance(target_name, str):
         raise TypeError(f"target_name must be a string, got {target_name!r}")
@@ -425,6 +451,13 @@ def ingest(
 
     target_name = schema.target_name if schema.target_name is not None else "y"
 
+    # observed level counts for categorical features (validates category_names)
+    level_counts = {
+        j: int(np.unique(matrix[:, j]).size)
+        for j, t in enumerate(feature_types)
+        if is_categorical(t)
+    }
+
     validate_metadata(
         dim,
         feature_names,
@@ -434,12 +467,26 @@ def ingest(
         schema.scale_y,
         target_name,
         categories,
+        schema.category_names,
+        level_counts,
     )
 
     if from_dataframe:
         frame_builder = _make_frame_builder(feature_names, categories)
         model = _wrap_model(model, frame_builder)
         model_jac = _wrap_model(model_jac, frame_builder)
+
+    # resolve category_names (per-feature name list, one per ascending observed
+    # level) to a {level_value: name} map, so it maps by value and survives to
+    # regional nodes, where a split feature may show only a subset of its levels
+    category_names_map = None
+    if schema.category_names is not None:
+        category_names_map = {}
+        for j, names in enumerate(schema.category_names):
+            if names is None:
+                continue
+            levs = np.unique(matrix[:, j])
+            category_names_map[j] = {float(lv): str(n) for lv, n in zip(levs, names)}
 
     meta = FeatureMetadata(
         feature_names=feature_names,
@@ -451,5 +498,6 @@ def ingest(
         target_name=target_name,
         scale_x_list=schema.scale_x_list,
         scale_y=schema.scale_y,
+        category_names=category_names_map,
     )
     return IngestResult(data=matrix, model=model, model_jac=model_jac, meta=meta)

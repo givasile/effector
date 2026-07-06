@@ -229,16 +229,36 @@ def plot_effect_comparison(
     target_name: typing.Union[None, str] = None,
     y_limits: typing.Union[None, tuple] = None,
     title: typing.Union[None, str] = None,
+    discrete: bool = False,
+    level_labels: typing.Union[None, list] = None,
     show_plot: bool = True,
 ):
     """Overlay the mean effect of several methods for one feature on a single
-    axis. `curves` maps `{method_label: y}`, each `y` of shape `(T,)`."""
+    axis. `curves` maps `{method_label: y}`, each `y` of shape `(T,)`.
+
+    `discrete=True` (categorical feature): the effects are per-level values, so
+    each method is drawn as a marker series at the level positions (joined by a
+    thin line) and the x-axis shows the level ticks/labels instead of a
+    continuous grid."""
     fig, ax = plt.subplots()
     ax.set_title("Feature Effect Comparison" if title is None else title)
 
-    x = _scale_x(x, scale_x)
+    positions = np.asarray(x, dtype=float)
+    x_scaled = _scale_x(positions, scale_x)
     for label, y in curves.items():
-        ax.plot(x, _scale_y(y, scale_y), label=label)
+        if discrete:
+            ax.plot(
+                x_scaled,
+                _scale_y(y, scale_y),
+                marker="o",
+                markersize=5,
+                linewidth=1.2,
+                label=label,
+            )
+        else:
+            ax.plot(x_scaled, _scale_y(y, scale_y), label=label)
+    if discrete:
+        _categorical_axis(ax, positions, level_labels, scale_x)
     _add_avg_output(ax, avg_output)
 
     _decorate_ax(
@@ -328,6 +348,7 @@ def plot_categorical_effect(
     feature_names=None,
     target_name=None,
     y_limits=None,
+    connect_line=False,
     show_plot=True,
 ):
     """Bars at the level positions with heterogeneity whiskers = sqrt(h(v_k)).
@@ -336,6 +357,12 @@ def plot_categorical_effect(
     used by PDP (per-level means), (RH)ALE (accumulated per-level values) and
     ShapDP (per-level shap means). Pure drawing — heights/variances arrive
     evaluated and centered.
+
+    `connect_line=True` overlays a line through the bar tops — only meaningful
+    for (RH)ALE, where the bars are an accumulation and the slope between two
+    bars is the per-transition step the method measures (the values are a
+    cumulative sum of adjacent-level changes). Off for PDP/ShapDP, whose
+    per-level bars are independent.
     """
     fig, ax = plt.subplots()
     ax.set_title(title)
@@ -361,6 +388,18 @@ def plot_categorical_effect(
         capsize=4,
         label="mean effect",
     )
+    if connect_line:
+        # accumulation path: slope between bars = the per-transition step
+        ax.plot(
+            x,
+            y,
+            color="navy",
+            linewidth=1.4,
+            marker="o",
+            markersize=4,
+            zorder=3,
+            label="accumulated (steps)",
+        )
     _categorical_axis(ax, positions, level_labels, scale_x)
     _add_avg_output(ax, avg_output)
     _decorate_ax(

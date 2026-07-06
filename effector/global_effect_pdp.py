@@ -268,7 +268,10 @@ class PDPBase(GlobalEffectBase):
 
 
 class PDP(PDPBase):
-    DEFAULT_CENTERING: Union[bool, str] = False
+    # zero_integral by default (R3 single source): matches the global .plot
+    # signature default and ALE/ShapDP, so global and regional plots — and
+    # eval(centering=None) — all center consistently.
+    DEFAULT_CENTERING: Union[bool, str] = "zero_integral"
     CAT_STRATEGY = "ice_at_levels"
 
     def __init__(

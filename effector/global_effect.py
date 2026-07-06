@@ -15,6 +15,26 @@ HINT_RHALE_NOMINAL = (
 )
 
 
+def check_feature_type_supported(
+    method_name: str, supported: frozenset, ftype: str, feature: int, feature_name: str
+) -> None:
+    """The capability matrix as an error (method_semantics.md). Module-level so
+    the regional path can enforce the same contract as the global fit loop."""
+    if ftype in supported:
+        return
+    hints = {
+        ("d-pdp", ingestion.ORDINAL): HINT_DERPDP,
+        ("d-pdp", ingestion.NOMINAL): HINT_DERPDP,
+        ("rhale", ingestion.NOMINAL): HINT_RHALE_NOMINAL,
+    }
+    hint = hints.get((method_name, ftype), "")
+    raise ValueError(
+        f"{method_name} does not support {ftype} features "
+        f"(feature {feature} {feature_name!r} is {ftype})."
+        f"{hint}"
+    )
+
+
 class GlobalEffectBase(ABC):
     # the class-level centering default (R3): each subclass declares it once;
     # fit/eval/plot signatures converge on it during the homogenization
@@ -171,8 +191,14 @@ class GlobalEffectBase(ABC):
         `levels` overrides the ascending default (fit-order for nominal ALE)."""
         if levels is None:
             levels = self._levels(feature)
+        cat_names = self.feature_metadata.category_names
+        name_of = cat_names.get(feature) if cat_names else None
         enc = self.feature_metadata.categories.get(feature)
-        if enc is not None:
+        if name_of is not None:
+            # schema category_names, resolved to a {level_value: name} map at
+            # ingest — maps by value, so level subsets (regional nodes) are fine
+            labels = [name_of.get(float(v), f"{v:g}") for v in levels]
+        elif enc is not None:
             labels = [str(enc.levels[int(c)]) for c in levels.astype(int)]
         elif self.feature_types[feature] == ingestion.NOMINAL:
             labels = [f"{v:g}" for v in levels]
@@ -207,19 +233,12 @@ class GlobalEffectBase(ABC):
 
     def _check_feature_type_supported(self, feature: int) -> None:
         """The capability matrix as an error (method_semantics.md)."""
-        ftype = self.feature_types[feature]
-        if ftype in self.SUPPORTED_FEATURE_TYPES:
-            return
-        hints = {
-            ("d-pdp", ingestion.ORDINAL): HINT_DERPDP,
-            ("d-pdp", ingestion.NOMINAL): HINT_DERPDP,
-            ("rhale", ingestion.NOMINAL): HINT_RHALE_NOMINAL,
-        }
-        hint = hints.get((self.method_name, ftype), "")
-        raise ValueError(
-            f"{self.method_name} does not support {ftype} features "
-            f"(feature {feature} {self.feature_names[feature]!r} is {ftype})."
-            f"{hint}"
+        check_feature_type_supported(
+            self.method_name,
+            self.SUPPORTED_FEATURE_TYPES,
+            self.feature_types[feature],
+            feature,
+            self.feature_names[feature],
         )
 
     def _fit_loop(

@@ -96,7 +96,7 @@ every constructor); everything downstream is numpy-only.
 **One metadata argument.** All input metadata travels in `schema=` — an
 `effector.Schema` (frozen dataclass) or a plain dict with the same keys:
 `feature_names`, `feature_types`, `cat_limit` (default 10), `target_name`,
-`scale_x_list`, `scale_y` — every field optional. Unknown dict keys →
+`scale_x_list`, `scale_y`, `category_names` — every field optional. Unknown dict keys →
 `ValueError` listing the valid ones. A schema is reusable across method
 constructions.
 

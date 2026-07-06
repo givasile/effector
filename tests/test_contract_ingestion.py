@@ -277,3 +277,112 @@ def test_r10_summary_uses_stored_scale(capsys):
     # the x_2 = 0 split prints in scaled units (= 100.00) without passing
     # scale_x_list to summary
     assert "100.00" in out
+
+
+# ---------------------------------------------------------------------------
+# R10.7 — category_names: human-readable level labels on categorical plots
+# ---------------------------------------------------------------------------
+
+_CAT_NAMES = ["male", "female", "non-binary"]
+
+
+def _cat_model(x):
+    x = np.asarray(x)
+    return x[:, 0] + 0.5 * x[:, 1]
+
+
+def _cat_gated(x):
+    # gender effect only when x1 > 0 -> RegionalPDP(gender) splits on x1
+    x = np.asarray(x)
+    return x[:, 0] * (x[:, 1] > 0).astype(float)
+
+
+def _cat_data(n=600):
+    rng = np.random.default_rng(0)
+    g = rng.integers(0, 3, n).astype(float)
+    g[:3] = [0.0, 1.0, 2.0]
+    return np.column_stack([g, rng.uniform(-1, 1, n)])
+
+
+def _xtick_texts(ax):
+    axes = list(np.atleast_1d(ax).ravel()) if isinstance(ax, np.ndarray) else [ax]
+    for a in axes:
+        texts = [t.get_text() for t in a.get_xticklabels()]
+        if any(nm in texts for nm in _CAT_NAMES):
+            return texts
+    return [t.get_text() for t in axes[0].get_xticklabels()]
+
+
+@pytest.mark.parametrize("cls", [effector.PDP, effector.ALE, effector.ShapDP])
+def test_r10_category_names_on_axis(cls):
+    schema = {
+        "feature_types": ["nominal", "continuous"],
+        "category_names": [_CAT_NAMES, None],
+    }
+    m = cls(_cat_data(), _cat_model, schema=schema)
+    m.fit(0, centering="zero_integral")
+    _, ax = m.plot(0, centering="zero_integral", show_plot=False)
+    assert _xtick_texts(ax) == _CAT_NAMES
+
+
+def test_r10_category_names_default_codes_when_absent():
+    m = effector.PDP(
+        _cat_data(), _cat_model, schema={"feature_types": ["nominal", "continuous"]}
+    )
+    m.fit(0, centering="zero_integral")
+    _, ax = m.plot(0, centering="zero_integral", show_plot=False)
+    assert _xtick_texts(ax) == ["0", "1", "2"]
+
+
+def test_r10_category_names_regional_node():
+    schema = {
+        "feature_types": ["nominal", "continuous"],
+        "category_names": [_CAT_NAMES, None],
+    }
+    reg = effector.RegionalPDP(_cat_data(1500), _cat_gated, schema=schema)
+    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=1))
+    _, ax = reg.plot(0, 1, centering="zero_integral", show_plot=False)
+    assert _xtick_texts(ax) == _CAT_NAMES
+
+
+def test_r10_category_names_regional_split_on_categorical():
+    # regression: a node that restricts a categorical SPLIT feature to a subset
+    # of its levels must not crash on re-ingest. category_names is value-keyed,
+    # so `plot(continuous_feature, node)` works even though gender is now partial.
+    schema = {
+        "feature_types": ["nominal", "continuous"],
+        "category_names": [_CAT_NAMES, None],
+    }
+    reg = effector.RegionalPDP(_cat_data(1500), _cat_gated, schema=schema)
+    reg.fit(1, space_partitioner=effector.space_partitioning.Best(max_depth=2))
+    for node_idx in range(len(reg.tree["feature_1"].nodes)):
+        reg.plot(1, node_idx, show_plot=False)  # must not raise
+
+
+def _ord_1based(n=1500):
+    rng = np.random.default_rng(0)
+    x0 = rng.integers(1, 5, n).astype(float)  # ordinal codes 1..4 (non-0-based)
+    return np.column_stack([x0, rng.uniform(-1, 1, n)])
+
+
+def _ord_model(z):
+    return z[:, 0] * (z[:, 1] > 0) + 0.1 * z[:, 1]
+
+
+def test_ale_plot_non_zero_based_ordinal_global():
+    # P1 regression: ALE/RHALE .plot() built its grid from positional codes
+    # 0..K-1 and fed them to eval, which rejects non-observed values -> crash
+    # whenever the level codes are not 0..K-1 (here 1..4).
+    a = effector.ALE(_ord_1based(), _ord_model, schema={"feature_types": ["ordinal", "continuous"]})
+    a.fit(0)
+    _, ax = a.plot(0, show_plot=False)  # must not raise
+    ticks = [t.get_text() for t in np.atleast_1d(ax).ravel()[0].get_xticklabels()]
+    assert ticks[:4] == ["1", "2", "3", "4"]
+
+
+def test_ale_plot_non_zero_based_ordinal_regional():
+    # regional ALE builds a global ALE per node and calls its .plot(), so it
+    # inherits the same P1 crash; the root node exercises the categorical path.
+    ra = effector.RegionalALE(_ord_1based(), _ord_model, schema={"feature_types": ["ordinal", "continuous"]})
+    ra.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
+    ra.plot(0, 0, show_plot=False)  # must not raise

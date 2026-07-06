@@ -431,3 +431,66 @@ print("OK")
     )
     assert result.returncode == 0, result.stderr
     assert "OK" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# category_names — schema field for human-readable categorical level labels
+# ---------------------------------------------------------------------------
+
+
+def _cat_num_data(n=30):
+    """3-level categorical column 0 (codes 0/1/2) + a continuous column."""
+    rng = np.random.default_rng(21)
+    g = rng.integers(0, 3, n).astype(float)
+    g[:3] = [0.0, 1.0, 2.0]  # guarantee all three levels are present
+    return np.column_stack([g, rng.uniform(-1, 1, n)])
+
+
+def test_category_names_resolved_to_value_map():
+    # stored as a {feature_idx: {level_value: name}} map (value-keyed so regional
+    # nodes with a level subset map correctly), not the raw positional list
+    res = ingest(
+        _cat_num_data(),
+        _model,
+        schema={
+            "feature_types": ["nominal", "continuous"],
+            "category_names": [["a", "b", "c"], None],
+        },
+    )
+    assert res.meta.category_names == {0: {0.0: "a", 1.0: "b", 2.0: "c"}}
+
+
+def test_category_names_wrong_length_raises():
+    with pytest.raises(ValueError, match="observed levels"):
+        ingest(
+            _cat_num_data(),
+            _model,
+            schema={
+                "feature_types": ["nominal", "continuous"],
+                "category_names": [["a", "b"], None],
+            },
+        )
+
+
+def test_category_names_on_continuous_raises():
+    with pytest.raises(ValueError, match="not categorical"):
+        ingest(
+            _cat_num_data(),
+            _model,
+            schema={
+                "feature_types": ["nominal", "continuous"],
+                "category_names": [None, ["x", "y"]],
+            },
+        )
+
+
+def test_category_names_length_must_match_dim():
+    with pytest.raises(ValueError, match="expected 2"):
+        ingest(
+            _cat_num_data(),
+            _model,
+            schema={
+                "feature_types": ["nominal", "continuous"],
+                "category_names": [["a", "b", "c"]],
+            },
+        )
