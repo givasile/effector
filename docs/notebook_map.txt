@@ -17,6 +17,7 @@ page  notebooks/synthetic-examples/05_conditional_interaction_independent_unifor
 page  notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_regional.ipynb  synthetic-examples
 page  notebooks/synthetic-examples/06_general_interaction_independent_uniform_global.ipynb      synthetic-examples
 page  notebooks/synthetic-examples/07_conditional_interaction_4_regions_independent_uniform_global.ipynb  synthetic-examples
+page  notebooks/synthetic-examples/08_categorical_features.ipynb                 synthetic-examples
 page  notebooks/real-examples/01_bike_sharing_dataset.ipynb                      real-examples
 page  notebooks/real-examples/02_california_housing.ipynb                        real-examples
 page  notebooks/real-examples/03_california_housing_tabpfn.ipynb                 real-examples

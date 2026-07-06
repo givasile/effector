@@ -1,5 +1,6 @@
 import copy
 import typing
+import warnings
 
 import numpy as np
 
@@ -475,26 +476,94 @@ def compute_ale_params(
 def get_feature_types(
     data: np.ndarray, categorical_limit: int = 10
 ) -> typing.List[str]:
-    """Determine the type of each feature.
+    """Deprecated: use `effector.ingestion.infer_feature_types`.
 
-    Notes:
-        A feature is considered as categorical if it has less than `cat_limit` unique values.
+    The vocabulary changed with the R10 input contract: the returned types are
+    now `"continuous"` / `"ordinal"` (three-way taxonomy; `"nominal"` is never
+    inferred from numpy input), no longer `"cat"` / `"cont"`.
+    """
+    warnings.warn(
+        "utils.get_feature_types is deprecated; use "
+        "effector.ingestion.infer_feature_types (returns "
+        "'continuous'/'ordinal'/'nominal')",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    from effector import ingestion
 
-    Args:
-        data: The dataset, (N, D)
-        categorical_limit: Maximum unique values for a feature to be considered as categorical
+    return ingestion.infer_feature_types(data, categorical_limit)
 
+
+def codes_from_levels(
+    xs: np.ndarray,
+    levels: np.ndarray,
+    feature: int,
+    feature_name: typing.Optional[str] = None,
+) -> np.ndarray:
+    """Map level values to integer codes 0..K-1, raising on non-level values.
+
+    Discrete features are evaluated only at observed levels (R10 /
+    method_semantics.md): no snapping, no interpolation.
+    """
+    xs = np.asarray(xs, dtype=float)
+    levels = np.asarray(levels, dtype=float)
+    # nearest-level matching (levels may be in a declared/induced order, not
+    # necessarily ascending); K is small, the (T, K) table is cheap
+    codes = np.argmin(np.abs(xs[:, np.newaxis] - levels[np.newaxis, :]), axis=1)
+    codes = np.where(np.isclose(levels[codes], xs), codes, -1)
+    if (codes < 0).any():
+        bad = xs[codes < 0]
+        name = feature_name if feature_name is not None else f"feature {feature}"
+        raise ValueError(
+            f"{name} is categorical and can only be evaluated at its observed "
+            f"levels {np.asarray(levels).tolist()}; got invalid value(s) "
+            f"{bad.tolist()}"
+        )
+    return codes.astype(int)
+
+
+def compute_local_effects_categorical(
+    data: np.ndarray, model: typing.Callable, levels: np.ndarray, feature: int
+) -> typing.Tuple[np.ndarray, np.ndarray]:
+    r"""Local effects of a discrete feature: raw adjacent-level differences.
+
+    Two-sided (Apley/Molnar categorical ALE): for each transition
+    $t: v_{t-1} \to v_t$, every instance whose value is $v_{t-1}$ or $v_t$
+    contributes $f(x \mid x_s = v_t) - f(x \mid x_s = v_{t-1})$ — the model
+    is only ever queried at real levels. Effects are returned in *code space*
+    (unit gap per transition), so accumulated values are sums of mean raw
+    differences and variances stay in output² units.
 
     Returns:
-        types: A list of strings, where each string is either `"cat"` or `"cont"`
-
+        positions: (M,) transition-bin centers, t - 0.5 in code space
+        effects: (M,) the raw adjacent-level differences
+        instance_idx: (M,) the row index each contribution comes from —
+            regional splitting masks contributions through it
     """
-
-    types = [
-        "cat" if len(np.unique(data[:, f])) < categorical_limit else "cont"
-        for f in range(data.shape[1])
-    ]
-    return types
+    col = data[:, feature]
+    rows = np.arange(data.shape[0])
+    positions, effects, instance_idx = [], [], []
+    for t in range(1, len(levels)):
+        mask = np.isclose(col, levels[t - 1]) | np.isclose(col, levels[t])
+        if not mask.any():
+            continue
+        x_hi = data[mask].copy()
+        x_hi[:, feature] = levels[t]
+        x_lo = data[mask].copy()
+        x_lo[:, feature] = levels[t - 1]
+        d = np.asarray(model(x_hi)) - np.asarray(model(x_lo))
+        effects.append(d)
+        positions.append(np.full(d.shape[0], t - 0.5))
+        instance_idx.append(rows[mask])
+    if not effects:
+        raise ValueError(
+            f"feature {feature}: no instances found at any adjacent-level pair"
+        )
+    return (
+        np.concatenate(positions),
+        np.concatenate(effects),
+        np.concatenate(instance_idx),
+    )
 
 
 def compute_jacobian_numerically(

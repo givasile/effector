@@ -87,3 +87,61 @@ def test_overlaid_curves_match_each_methods_eval():
         method = fe._methods[fe._canonical(name)]
         y = method.eval(0, line.get_xdata(), centering="zero_integral")
         np.testing.assert_allclose(line.get_ydata(), y, atol=1e-8)
+
+
+# --- categorical feature support ------------------------------------------
+
+
+def _cat_dataset(N=1500, seed=0):
+    rng = np.random.default_rng(seed)
+    g = rng.integers(0, 3, N).astype(float)
+    g[:3] = [0.0, 1.0, 2.0]  # ensure all 3 levels present
+    return np.column_stack([g, rng.uniform(-1, 1, N)])
+
+
+def _cat_predict(x):
+    return x[:, 0] + 0.5 * x[:, 1]
+
+
+CAT_SCHEMA = {
+    "feature_types": ["nominal", "continuous"],
+    "category_names": [["a", "b", "c"], None],
+}
+
+
+def test_facade_categorical_skips_unsupported_and_labels():
+    fe = effector.FeatureEffect(_cat_dataset(), _cat_predict, schema=CAT_SCHEMA)
+    with pytest.warns(UserWarning, match="Skipping.*RHALE"):
+        fig, ax = fe.plot(0, methods=["PDP", "ALE", "RHALE"], show_plot=False)
+    assert len(ax.get_lines()) == 2  # RHALE dropped for nominal -> PDP + ALE
+    assert [t.get_text() for t in ax.get_xticklabels()] == ["a", "b", "c"]
+
+
+def test_facade_categorical_eval_at_levels():
+    fe = effector.FeatureEffect(_cat_dataset(), _cat_predict, schema=CAT_SCHEMA)
+    curves = fe.eval(0, np.array([0.0, 1.0, 2.0]), methods=["PDP", "ALE"])
+    assert len(curves) == 2
+    for y in curves.values():
+        assert y.shape == (3,)
+
+
+def test_facade_categorical_all_unsupported_raises():
+    fe = effector.FeatureEffect(_cat_dataset(), _cat_predict, schema=CAT_SCHEMA)
+    with pytest.raises(ValueError, match="No requested method supports"):
+        fe.plot(0, methods=["RHALE"], show_plot=False)
+
+
+def test_facade_ordinal_keeps_rhale():
+    rng = np.random.default_rng(0)
+    X = np.column_stack(
+        [rng.integers(0, 4, 1500).astype(float), rng.uniform(-1, 1, 1500)]
+    )
+    jac = lambda z: np.column_stack([np.zeros(len(z)), 0.5 * np.ones(len(z))])
+    fe = effector.FeatureEffect(
+        X,
+        _cat_predict,
+        model_jac=jac,
+        schema={"feature_types": ["ordinal", "continuous"]},
+    )
+    fig, ax = fe.plot(0, methods=["PDP", "ALE", "RHALE"], show_plot=False)
+    assert len(ax.get_lines()) == 3  # RHALE supported for ordinal

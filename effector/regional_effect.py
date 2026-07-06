@@ -1,4 +1,5 @@
 import copy
+import dataclasses
 import typing
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -7,7 +8,7 @@ from tqdm import tqdm
 
 import effector.helpers as helpers
 import effector.space_partitioning
-import effector.utils as utils
+from effector import global_effect, ingestion
 from effector.method_registry import resolve as resolve_method
 from effector.space_partitioning import Best, Tree
 
@@ -16,25 +17,30 @@ class RegionalEffectBase:
     def __init__(
         self,
         method_name: str,
-        data: np.ndarray,
+        data,
         model: Callable,
         model_jac: Optional[Callable] = None,
+        *,
         data_effect: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
-        feature_types: Optional[List] = None,
-        cat_limit: Optional[int] = 10,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ) -> None:
         """
         Constructor for the RegionalEffect class.
         """
         self.method_name = method_name.lower()
-        self.model = model
-        self.model_jac = model_jac
         self.random_state = random_state
+
+        # the one door for data + metadata (R10): DataFrame -> numpy core
+        # matrix + wrapped model; numpy passes through untouched. Type
+        # inference runs on the full data, before subsampling.
+        ing = ingestion.ingest(data, model, model_jac, schema=schema)
+        data = ing.data
+        self.model = ing.model
+        self.model_jac = ing.model_jac
+        self.feature_metadata: ingestion.FeatureMetadata = ing.meta
 
         self.dim = data.shape[1]
 
@@ -51,25 +57,13 @@ class RegionalEffectBase:
         self.data: np.ndarray = data
         self.data_effect: Optional[np.ndarray] = data_effect
 
-        # set feature types
-        self.cat_limit = cat_limit
-        feature_types = (
-            utils.get_feature_types(data, cat_limit)
-            if feature_types is None
-            else feature_types
-        )
-        self.feature_types: list = feature_types
-
-        # set feature names
-        feature_names: list[str] = (
-            helpers.get_feature_names(axis_limits.shape[1])
-            if feature_names is None
-            else feature_names
-        )
-        self.feature_names: list = feature_names
-
-        # set target name
-        self.target_name = "y" if target_name is None else target_name
+        # flat mirrors of the resolved metadata
+        self.feature_names: list = list(ing.meta.feature_names)
+        self.feature_types: list = list(ing.meta.feature_types)
+        self.cat_limit: int = ing.meta.cat_limit
+        self.target_name: str = ing.meta.target_name
+        self.scale_x_list: Optional[list] = ing.meta.scale_x_list
+        self.scale_y: Optional[dict] = ing.meta.scale_y
 
         # state variables
         self.is_fitted: np.ndarray = np.ones([self.dim]) < 0
@@ -114,6 +108,18 @@ class RegionalEffectBase:
             raise ValueError("min_points_per_subregion must be >= 2")
 
         features = helpers.prep_features(features, self.dim)
+        supported = resolve_method(self.method_name).cls.SUPPORTED_FEATURE_TYPES
+        for feat in features:
+            # enforce the capability matrix up front (same contract as the global
+            # fit loop) so an unsupported FOI fails at fit — not only later at
+            # plot — keeping fit/summary/plot consistent (e.g. RHALE on nominal)
+            global_effect.check_feature_type_supported(
+                self.method_name,
+                supported,
+                self.feature_types[feat],
+                feat,
+                self.feature_names[feat],
+            )
         for feat in tqdm(features):
             self._precompute_global(feat)
             heter = self._create_heterogeneity_function(
@@ -172,6 +178,20 @@ class RegionalEffectBase:
         """Hook: method-specific constructor kwargs for a node's fe object."""
         return {}
 
+    def _node_schema(self, feature_names: Optional[list] = None) -> ingestion.Schema:
+        """The parent's resolved metadata as an explicit schema for internally
+        built effect objects — types must never be re-inferred from a subset."""
+        return ingestion.Schema(
+            feature_names=(
+                self.feature_names if feature_names is None else feature_names
+            ),
+            feature_types=self.feature_types,
+            cat_limit=self.cat_limit,
+            target_name=self.target_name,
+            scale_x_list=self.scale_x_list,
+            scale_y=self.scale_y,
+        )
+
     def _create_fe_object(self, feature, node_idx, scale_x_list):
         feature_tree = self.tree["feature_{}".format(feature)]
         if feature_tree is None:
@@ -193,8 +213,7 @@ class RegionalEffectBase:
         spec = resolve_method(self.method_name)
         kwargs = dict(
             nof_instances="all",
-            feature_names=feature_names,
-            target_name=self.target_name,
+            schema=self._node_schema(feature_names),
             random_state=self.random_state,
         )
         if spec.uses_data_effect:
@@ -204,8 +223,17 @@ class RegionalEffectBase:
         kwargs.update(self._extra_fe_kwargs(mask))
 
         if spec.needs_jac:
-            return spec.cls(data, self.model, self.model_jac, **kwargs)
-        return spec.cls(data, self.model, **kwargs)
+            fe = spec.cls(data, self.model, self.model_jac, **kwargs)
+        else:
+            fe = spec.cls(data, self.model, **kwargs)
+        # a node's data is a subset, so category_names (a value->name map) can't
+        # be re-derived from it; inherit the parent's resolved map by value
+        if self.feature_metadata.category_names is not None:
+            fe.feature_metadata = dataclasses.replace(
+                fe.feature_metadata,
+                category_names=self.feature_metadata.category_names,
+            )
+        return fe
 
     def _fit_node_effect(self, feature, node_idx, centering, scale_x_list=None):
         """Build the node's fe object and fit it with the *stored* fit kwargs
@@ -285,6 +313,7 @@ class RegionalEffectBase:
         delegate to its plot — the return rule is the global one's (R7)."""
         self.refit(feature)
         plot_kwargs["centering"] = self._resolve_centering(plot_kwargs["centering"])
+        scale_x_list = helpers.resolve_scale(scale_x_list, self.scale_x_list)
 
         fe = self._fit_node_effect(
             feature, node_idx, plot_kwargs["centering"], scale_x_list
@@ -292,7 +321,11 @@ class RegionalEffectBase:
         scale_x = scale_x_list[feature] if scale_x_list is not None else None
         return fe.plot(feature=feature, scale_x=scale_x, **plot_kwargs)
 
-    def summary(self, features: List[int], scale_x_list: Optional[List] = None):
+    def summary(
+        self,
+        features: List[int],
+        scale_x_list: typing.Union[None, bool, List] = None,
+    ):
         """:point_right: Summarize the partition tree for the selected features.
 
         ???+ Example "Example output"
@@ -325,6 +358,7 @@ class RegionalEffectBase:
                 - `[{"mean": 0, "std": 1}, {"mean": 3, "std": 0.1}]`, to manually scale the features
 
         """
+        scale_x_list = helpers.resolve_scale(scale_x_list, self.scale_x_list)
         features = helpers.prep_features(features, self.dim)
 
         for feat in features:

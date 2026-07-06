@@ -28,8 +28,11 @@ class Tree:
         """Generate the condition string for a node."""
         pos = node.info["foc_split_position"]
         if scale_x_list:
+            # per-feature entries may be None (unscaled feature) — R10 schema
+            # scale lists are sparse by design
             feature_stats = scale_x_list[node.info["foc_index"]]
-            pos = feature_stats["std"] * pos + feature_stats["mean"]
+            if feature_stats is not None:
+                pos = feature_stats["std"] * pos + feature_stats["mean"]
         return f"{node.info['foc_name']} {self._comparison_str(node.info['comparison'])} {pos:.2f}"
 
     @staticmethod

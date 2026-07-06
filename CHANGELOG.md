@@ -2,6 +2,41 @@
 
 # [Unreleased]
 
+### Breaking
+
+- one `schema=` argument replaces the metadata kwargs on every public constructor: `feature_names=`, `target_name=` (all classes) and `feature_types=`, `cat_limit=` (regional classes) are removed; pass `schema={"feature_names": ..., "feature_types": ..., "cat_limit": ..., "target_name": ..., "scale_x_list": ..., "scale_y": ...}` (or an `effector.Schema`) instead — every field optional, explicit fields win over inference
+- SHAP configuration moved to the constructor: `budget`, `shap_explainer_kwargs`, `shap_explanation_kwargs` are no longer `fit` kwargs on `ShapDP`/`RegionalShapDP` (and `RegionalShapDP` gains `shap_values=` for parity); `fit` keeps only the analysis args
+- all `fit` signatures are keyword-only after `features`; `points_for_mean_heterogeneity` removed from regional `fit` (internal, shares one grid constant with `points_for_centering`)
+- `DerPDP.plot`/`RegionalDerPDP.plot`: `dy_limits` renamed to `y_limits` (its only axis); ALE/RHALE plots dropped `nof_points` (the curve is drawn exactly at the bin limits)
+- `utils.get_feature_types` deprecated (delegates to `effector.ingestion.infer_feature_types`) and its vocabulary changed to the three-way taxonomy
+
+### Added
+
+- pandas DataFrame ingestion (R10): `data` can be a DataFrame — column names/dtypes become the metadata, non-numeric columns are encoded at the door, and the model is always called with a reconstructed DataFrame (original columns/dtypes); pandas stays an optional dependency (never imported on the numpy path)
+- three-way feature taxonomy `continuous`/`ordinal`/`nominal` (aliases `cont`/`cat`), stored on every class as `feature_types` + `feature_metadata`; heuristic type inferences (low-cardinality int) emit a `UserWarning` nudging an explicit declaration
+- **categorical features as feature of interest** (docs/method_semantics.md is the exactness contract): PDP/ICE evaluate only at the observed levels (bars + jittered ICE dots); ALE accumulates adjacent-level differences (exact for ordinal; nominal defaults to the encoded order with a documented caveat, or `order=[...]` / `order="similarity"` KS-seriation on `fit`); RHALE does discrete derivatives + Greedy/DP adaptive level grouping (ordinal only); ShapDP does per-level mean/variance with a step lookup; DerPDP and RHALE-on-nominal raise clear errors; centering and `heter_score` become frequency-weighted over levels
+- **regional effects on categorical features**: `search_partitions_when_categorical` now defaults to `True`, the heterogeneity of a categorical feature of interest is the frequency-weighted per-level variance, and every regional method finds subgroups for per-level effects (see `notebooks/synthetic-examples/08_categorical_features.ipynb`)
+- `scale_x_list`/`scale_y` accepted at construction (schema) as plot defaults; plot-time dicts override, `False` disables
+- `models.ConditionalCategorical` closed-form ground-truth model; `effector.ordering.similarity_order` (scipy-only Molnar/iml seriation)
+- input contract spec: `docs/design.md` R10 (accepted data types, `Schema` metadata argument, three-way feature taxonomy, define-or-infer, model-call rule, scaling precedence) and `docs/method_semantics.md` (the exact `eval`/`eval_heter`/`heter_score`/`plot` formulas per method and feature type)
+- `category_names` schema field: per-feature human-readable level labels shown on categorical plot axes instead of the numeric codes; resolved to a value-keyed map at ingest, so regional nodes that restrict a categorical feature to a subset of its levels still label correctly
+- `FeatureEffect` facade on a categorical feature of interest drops the methods its type doesn't support (e.g. `RHALE` on a nominal) with a `UserWarning`, overlays the rest at the observed levels, and raises only when nothing is left
+
+### Changed
+
+- unified defaults: `nof_instances` is 10,000 everywhere except SHAP-based classes (1,000) — `RegionalALE`/`RegionalRHALE` were 100,000 and `FeatureEffect` 1,000; `nof_ice`/`nof_shap_values` default to 100; plot grids default to 100 points; one `heterogeneity` vocabulary on all plots (`False | "std" | method-native`, `True` ≡ `"std"`)
+- type inference now runs on the full data (before `nof_instances` subsampling); regional node objects and facade sub-methods inherit the parent's resolved metadata instead of re-inferring from subsets
+- `space_partitioning.compile`: `categorical_limit` renamed to `cat_limit`
+- `PDP`/`RegionalPDP` default centering is now `zero_integral` (was `False`), so `eval(centering=None)` and the global/regional plots center consistently with `ALE`/`ShapDP`
+- the method / feature-type capability matrix (e.g. `RHALE` and `DerPDP` on nominal) is enforced at regional `fit` time, not only later at `plot`, so `fit`/`summary`/`plot` stay consistent for an unsupported feature of interest
+
+### Fixed
+
+- `ALE`/`RHALE` `.plot()` crashed on a categorical feature whose level codes are not `0..K-1` (e.g. ordinal hours `1..24`): the plot grid was built from positional codes `0..K-1` and rejected by `eval`; it now draws at the observed level values
+- `tree` display no longer crashes on per-feature `None` entries in `scale_x_list`
+- `helpers.indices_within_limits` raises `ValueError` instead of a bare `assert` when `axis_limits` exclude every point
+- removed the phantom `avg_output` constructor docstring on `ShapDP` and the stale `ice_non_vectorized` docstring example
+
 # [0.3.0] - 2026-07-04
 
 ### Added

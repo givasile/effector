@@ -51,6 +51,7 @@ test = [
     "shapiq",
     "numba>=0.60; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "ucimlrepo",
+    "pandas",  # DataFrame-ingestion tests only; never a runtime dependency (R10)
 ]
 docs = [
     "mkdocs",

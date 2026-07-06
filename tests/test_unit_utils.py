@@ -213,17 +213,19 @@ def test_jacobian_numerically_quadratic():
 
 
 # ---------------------------------------------------------------------------
-# get_feature_types — the cat/cont boundary at cat_limit
+# get_feature_types — deprecated delegate to ingestion.infer_feature_types
 # ---------------------------------------------------------------------------
 
 
-def test_get_feature_types_boundary():
+def test_get_feature_types_deprecated_three_way():
     n_unique_a, n_unique_b = 9, 10
     col_a = np.tile(np.arange(n_unique_a), 10)[:90]
     col_b = np.tile(np.arange(n_unique_b), 9)[:90]
     data = np.stack([col_a, col_b], axis=1).astype(float)
-    types = utils.get_feature_types(data, categorical_limit=10)
-    assert types == ["cat", "cont"]  # strictly-less-than cat_limit is categorical
+    with pytest.warns(DeprecationWarning, match="infer_feature_types"):
+        types = utils.get_feature_types(data, categorical_limit=10)
+    # vocabulary is three-way now; strictly-less-than cat_limit is ordinal
+    assert types == ["ordinal", "continuous"]
 
 
 # ---------------------------------------------------------------------------

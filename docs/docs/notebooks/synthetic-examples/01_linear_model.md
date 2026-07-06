@@ -140,7 +140,7 @@ Since this is based on model derivatives, the expected effects are simply the gr
 
 
 ```python
-[effector.DerPDP(data=X, model=predict, model_jac=predict_grad).plot(feature=i, heterogeneity=True, dy_limits=[-10, 10]) for i in range(3)]
+[effector.DerPDP(data=X, model=predict, model_jac=predict_grad).plot(feature=i, heterogeneity=True, y_limits=[-10, 10]) for i in range(3)]
 ```
 
 

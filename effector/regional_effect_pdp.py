@@ -2,9 +2,10 @@ import typing
 
 import numpy as np
 
-from effector import helpers
+from effector import helpers, ingestion
 from effector.global_effect_pdp import PDP, DerPDP
 from effector.regional_effect import RegionalEffectBase
+from effector.space_partitioning import Best
 
 BIG_M = helpers.BIG_M
 
@@ -16,37 +17,46 @@ class RegionalPDPBase(RegionalEffectBase):
         data: np.ndarray,
         model: callable,
         model_jac: typing.Union[None, callable] = None,
+        *,
         nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: typing.Union[int, None] = 10,
-        feature_names: typing.Union[list, None] = None,
-        target_name: typing.Union[str, None] = None,
+        schema: typing.Optional[typing.Union[ingestion.Schema, dict]] = None,
         random_state: typing.Optional[int] = 21,
     ):
         self.y_ice = {}
+        self.heter_grid: dict = {}
         super(RegionalPDPBase, self).__init__(
             method_name,
             data,
             model,
             model_jac,
-            None,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
     def _create_heterogeneity_function(self, feature: int, min_points: int):
+        is_cat = ingestion.is_categorical(self.feature_types[feature])
+
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return BIG_M
-            yy = self.y_ice["feature_" + str(feature)][active_indices.astype(bool), :]
+            mask = active_indices.astype(bool)
+            yy = self.y_ice["feature_" + str(feature)][mask, :]
             z = np.var(yy, axis=0)
-            return np.mean(z)
+            if is_cat:
+                # H = freq-weighted mean over levels, frequencies within the
+                # candidate region (method_semantics.md)
+                levels = self.heter_grid["feature_" + str(feature)]
+                col = self.data[mask, feature]
+                counts = np.array(
+                    [np.isclose(col, lev).sum() for lev in levels], dtype=float
+                )
+                if counts.sum() == 0:
+                    return BIG_M
+                return float(np.average(z, weights=counts))
+            return float(np.mean(z))
 
         return heter
 
@@ -59,10 +69,7 @@ class RegionalPDP(RegionalPDPBase):
         *,
         nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: typing.Union[int, None] = 10,
-        feature_names: typing.Union[list, None] = None,
-        target_name: typing.Union[str, None] = None,
+        schema: typing.Optional[typing.Union[ingestion.Schema, dict]] = None,
         random_state: typing.Optional[int] = 21,
     ):
         """
@@ -98,24 +105,13 @@ class RegionalPDP(RegionalPDPBase):
 
                 !!! tip "`10_000` (default), is a good balance between speed and accuracy"
 
-            feature_types: The feature types.
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
-                - `['cat', 'cont', ...]`, manually specify the types of the features
-
-            cat_limit: The minimum number of unique values for a feature to be considered categorical
-
-                - if `feature_types` is manually specified, this parameter is ignored
-
-            feature_names: The names of the features
-
-                - `None`, defaults to: `["x_0", "x_1", ...]`
-                - `["age", "weight", ...]` to manually specify the names of the features
-
-            target_name: The name of the target variable
-
-                - `None`, to keep the default name: `"y"`
-                - `"price"`, to manually specify the name of the target variable
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
 
@@ -128,12 +124,9 @@ class RegionalPDP(RegionalPDPBase):
             data,
             model,
             None,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -145,6 +138,7 @@ class RegionalPDP(RegionalPDPBase):
             self.model,
             axis_limits=self.axis_limits,
             nof_instances="all",
+            schema=self._node_schema(),
             random_state=self.random_state,
         )
         pdp.fit(
@@ -154,11 +148,15 @@ class RegionalPDP(RegionalPDPBase):
             use_vectorized=self.kwargs_fitting["use_vectorized"],
         )
 
-        xx = np.linspace(
-            self.axis_limits[0, feature],
-            self.axis_limits[1, feature],
-            self.kwargs_subregion_detection["points_for_mean_heterogeneity"],
-        )
+        if ingestion.is_categorical(self.feature_types[feature]):
+            xx = pdp._levels(feature)
+        else:
+            xx = np.linspace(
+                self.axis_limits[0, feature],
+                self.axis_limits[1, feature],
+                helpers.NOF_INTERNAL_POINTS,
+            )
+        self.heter_grid["feature_" + str(feature)] = xx
         y_ice = pdp._predict(
             pdp.data, xx, feature, self.kwargs_fitting["use_vectorized"]
         )
@@ -171,10 +169,10 @@ class RegionalPDP(RegionalPDPBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
-        candidate_conditioning_features: typing.Union["str", list] = "all",
-        space_partitioner: typing.Union[str, None] = "best",
+        *,
+        candidate_conditioning_features: typing.Union[str, list] = "all",
+        space_partitioner: typing.Union[str, Best] = "best",
         points_for_centering: int = 30,
-        points_for_mean_heterogeneity: int = 30,
         use_vectorized: bool = True,
     ):
         """
@@ -196,7 +194,6 @@ class RegionalPDP(RegionalPDPBase):
 
             space_partitioner: the method to use for partitioning the space
             points_for_centering: number of equidistant points along the feature axis used for centering ICE plots
-            points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
             use_vectorized: whether to use vectorized operations for the PDP and ICE curves
 
 
@@ -205,7 +202,6 @@ class RegionalPDP(RegionalPDPBase):
             "features": features,
             "candidate_conditioning_features": candidate_conditioning_features,
             "space_partitioner": space_partitioner,
-            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
         self.kwargs_fitting = {
             "points_for_centering": points_for_centering,
@@ -220,7 +216,7 @@ class RegionalPDP(RegionalPDPBase):
         node_idx: int,
         heterogeneity: typing.Union[bool, str] = "ice",
         centering: typing.Union[None, bool, str] = None,
-        nof_points: int = 30,
+        nof_points: int = 100,
         scale_x_list: typing.Union[None, list] = None,
         scale_y: typing.Union[None, dict] = None,
         nof_ice: typing.Union[int, str] = 100,
@@ -272,10 +268,7 @@ class RegionalDerPDP(RegionalPDPBase):
         *,
         nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: typing.Union[int, None] = 10,
-        feature_names: typing.Union[list, None] = None,
-        target_name: typing.Union[str, None] = None,
+        schema: typing.Optional[typing.Union[ingestion.Schema, dict]] = None,
         random_state: typing.Optional[int] = 21,
     ):
         """
@@ -316,24 +309,13 @@ class RegionalDerPDP(RegionalPDPBase):
 
                 !!! tip "`10_000` (default), is a good balance between speed and accuracy"
 
-            feature_types: The feature types.
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
-                - `['cat', 'cont', ...]`, manually specify the types of the features
-
-            cat_limit: The minimum number of unique values for a feature to be considered categorical
-
-                - if `feature_types` is manually specified, this parameter is ignored
-
-            feature_names: The names of the features
-
-                - `None`, defaults to: `["x_0", "x_1", ...]`
-                - `["age", "weight", ...]` to manually specify the names of the features
-
-            target_name: The name of the target variable
-
-                - `None`, to keep the default name: `"y"`
-                - `"price"`, to manually specify the name of the target variable
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
 
@@ -346,12 +328,9 @@ class RegionalDerPDP(RegionalPDPBase):
             data,
             model,
             model_jac,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -364,6 +343,7 @@ class RegionalDerPDP(RegionalPDPBase):
             self.model_jac,
             axis_limits=self.axis_limits,
             nof_instances="all",
+            schema=self._node_schema(),
             random_state=self.random_state,
         )
         pdp.fit(
@@ -372,11 +352,15 @@ class RegionalDerPDP(RegionalPDPBase):
             use_vectorized=self.kwargs_fitting["use_vectorized"],
         )
 
-        xx = np.linspace(
-            self.axis_limits[0, feature],
-            self.axis_limits[1, feature],
-            self.kwargs_subregion_detection["points_for_mean_heterogeneity"],
-        )
+        if ingestion.is_categorical(self.feature_types[feature]):
+            xx = pdp._levels(feature)
+        else:
+            xx = np.linspace(
+                self.axis_limits[0, feature],
+                self.axis_limits[1, feature],
+                helpers.NOF_INTERNAL_POINTS,
+            )
+        self.heter_grid["feature_" + str(feature)] = xx
         y_ice = pdp._predict(
             pdp.data, xx, feature, self.kwargs_fitting["use_vectorized"]
         )
@@ -385,9 +369,9 @@ class RegionalDerPDP(RegionalPDPBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
-        candidate_conditioning_features: typing.Union["str", list] = "all",
-        space_partitioner: typing.Union[str, None] = "best",
-        points_for_mean_heterogeneity: int = 30,
+        *,
+        candidate_conditioning_features: typing.Union[str, list] = "all",
+        space_partitioner: typing.Union[str, Best] = "best",
         use_vectorized: bool = True,
     ):
         """
@@ -408,7 +392,6 @@ class RegionalDerPDP(RegionalPDPBase):
                 conditioned on each feature in the `candidate_conditioning_features` list
 
             space_partitioner: the method to use for partitioning the space
-            points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
             use_vectorized: whether to use vectorized operations for the PDP and ICE curves
 
 
@@ -417,7 +400,6 @@ class RegionalDerPDP(RegionalPDPBase):
             "features": features,
             "candidate_conditioning_features": candidate_conditioning_features,
             "space_partitioner": space_partitioner,
-            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
         self.kwargs_fitting = {"use_vectorized": use_vectorized}
 
@@ -429,12 +411,12 @@ class RegionalDerPDP(RegionalPDPBase):
         node_idx: int,
         heterogeneity: typing.Union[bool, str] = "ice",
         centering: typing.Union[None, bool, str] = None,
-        nof_points: int = 30,
+        nof_points: int = 100,
         scale_x_list: typing.Union[None, list] = None,
         scale_y: typing.Union[None, dict] = None,
         nof_ice: typing.Union[int, str] = 100,
         show_avg_output: bool = False,
-        dy_limits: typing.Union[None, list] = None,
+        y_limits: typing.Union[None, list] = None,
         use_vectorized: bool = True,
         show_plot: bool = True,
     ):
@@ -450,7 +432,7 @@ class RegionalDerPDP(RegionalPDPBase):
             scale_y: `{"mean": ..., "std": ...}` dict for de-normalizing the y-axis
             nof_ice: number of d-ICE curves to show
             show_avg_output: whether to show the average output of the model
-            dy_limits: manual limits of the dy/dx-axis
+            y_limits: manual limits of the y-axis (derivative units)
             use_vectorized: whether to use the vectorized ICE computation
             show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`
         """
@@ -465,7 +447,7 @@ class RegionalDerPDP(RegionalPDPBase):
                 scale_y=scale_y,
                 nof_ice=nof_ice,
                 show_avg_output=show_avg_output,
-                dy_limits=dy_limits,
+                y_limits=y_limits,
                 use_vectorized=use_vectorized,
                 show_plot=show_plot,
             ),

@@ -1,9 +1,38 @@
 from abc import ABC, abstractmethod
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 
-from effector import helpers, utils
+from effector import helpers, ingestion, utils
+
+HINT_DERPDP = (
+    " A derivative needs a continuous axis; use PDP instead — adjacent "
+    "differences of the per-level PDP bars carry the same information."
+)
+HINT_RHALE_NOMINAL = (
+    " No derivative exists for nominal features and grouping over an "
+    "arbitrary order is not meaningful; use ALE or PDP instead."
+)
+
+
+def check_feature_type_supported(
+    method_name: str, supported: frozenset, ftype: str, feature: int, feature_name: str
+) -> None:
+    """The capability matrix as an error (method_semantics.md). Module-level so
+    the regional path can enforce the same contract as the global fit loop."""
+    if ftype in supported:
+        return
+    hints = {
+        ("d-pdp", ingestion.ORDINAL): HINT_DERPDP,
+        ("d-pdp", ingestion.NOMINAL): HINT_DERPDP,
+        ("rhale", ingestion.NOMINAL): HINT_RHALE_NOMINAL,
+    }
+    hint = hints.get((method_name, ftype), "")
+    raise ValueError(
+        f"{method_name} does not support {ftype} features "
+        f"(feature {feature} {feature_name!r} is {ftype})."
+        f"{hint}"
+    )
 
 
 class GlobalEffectBase(ABC):
@@ -11,26 +40,40 @@ class GlobalEffectBase(ABC):
     # fit/eval/plot signatures converge on it during the homogenization
     DEFAULT_CENTERING: Union[bool, str] = False
 
+    # capability contract per feature type (method_semantics.md): which of
+    # continuous/ordinal/nominal the method supports, and the strategy code it
+    # uses for discrete features (mirrored into the R5 registry)
+    SUPPORTED_FEATURE_TYPES: frozenset = frozenset(
+        {ingestion.CONTINUOUS, ingestion.ORDINAL, ingestion.NOMINAL}
+    )
+    CAT_STRATEGY: Optional[str] = None
+
     def __init__(
         self,
         method_name: str,
-        data: np.ndarray,
+        data,
         model: Callable,
         model_jac: Optional[Callable] = None,
+        *,
         data_effect: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ) -> None:
         """
         Constructor for the FeatureEffectBase class.
         """
         self.method_name = method_name.lower()
-        self.model = model
-        self.model_jac = model_jac
         self.random_state = random_state
+
+        # the one door for data + metadata (R10): DataFrame -> numpy core
+        # matrix + wrapped model; numpy passes through untouched
+        ing = ingestion.ingest(data, model, model_jac, schema=schema)
+        data = ing.data
+        self.model = ing.model
+        self.model_jac = ing.model_jac
+        self.feature_metadata: ingestion.FeatureMetadata = ing.meta
 
         self.dim = data.shape[1]
 
@@ -47,14 +90,13 @@ class GlobalEffectBase(ABC):
         self.data: np.ndarray = data
         self.data_effect: Optional[np.ndarray] = data_effect
 
-        # set feature names
-        feature_names: list[str] = (
-            helpers.get_feature_names(axis_limits.shape[1])
-            if feature_names is None
-            else feature_names
-        )
-        self.feature_names: list = feature_names
-        self.target_name = "y" if target_name is None else target_name
+        # flat mirrors of the resolved metadata
+        self.feature_names: list = list(ing.meta.feature_names)
+        self.feature_types: list = list(ing.meta.feature_types)
+        self.cat_limit: int = ing.meta.cat_limit
+        self.target_name: str = ing.meta.target_name
+        self.scale_x_list: Optional[list] = ing.meta.scale_x_list
+        self.scale_y: Optional[dict] = ing.meta.scale_y
 
         # state variable
         self.is_fitted: np.ndarray = np.ones([self.dim]) < 0
@@ -128,6 +170,77 @@ class GlobalEffectBase(ABC):
         method's own units, independent of any centering)."""
         raise NotImplementedError
 
+    def _is_cat(self, feature: int) -> bool:
+        """Does `feature` behave categorically (ordinal or nominal)?"""
+        return ingestion.is_categorical(self.feature_types[feature])
+
+    def _levels(self, feature: int) -> np.ndarray:
+        """The observed levels of a discrete feature, ascending."""
+        return np.unique(self.data[:, feature])
+
+    def _level_weights(self, feature: int) -> Tuple[np.ndarray, np.ndarray]:
+        """(levels, frequencies) of a discrete feature — the weights of every
+        frequency-weighted quantity in method_semantics.md."""
+        levels, counts = np.unique(self.data[:, feature], return_counts=True)
+        return levels, counts / counts.sum()
+
+    def _level_display(self, feature: int, levels=None):
+        """(positions, tick labels) for categorical plots: positions are the
+        level values; labels translate encoded categories (DataFrame source)
+        back to their original names. `None` labels keep numeric ticks.
+        `levels` overrides the ascending default (fit-order for nominal ALE)."""
+        if levels is None:
+            levels = self._levels(feature)
+        cat_names = self.feature_metadata.category_names
+        name_of = cat_names.get(feature) if cat_names else None
+        enc = self.feature_metadata.categories.get(feature)
+        if name_of is not None:
+            # schema category_names, resolved to a {level_value: name} map at
+            # ingest — maps by value, so level subsets (regional nodes) are fine
+            labels = [name_of.get(float(v), f"{v:g}") for v in levels]
+        elif enc is not None:
+            labels = [str(enc.levels[int(c)]) for c in levels.astype(int)]
+        elif self.feature_types[feature] == ingestion.NOMINAL:
+            labels = [f"{v:g}" for v in levels]
+        else:
+            labels = None
+        return levels, labels
+
+    def _resolve_level_order(self, feature: int, levels: np.ndarray, order):
+        """Resolve the `order` argument of (RH)ALE.fit for one discrete
+        feature: `"similarity"` induces the order from the other features
+        (effector.ordering); a list declares it explicitly."""
+        if isinstance(order, str):
+            if order != "similarity":
+                raise ValueError(
+                    f"invalid order {order!r}; use None, 'similarity', or an "
+                    f"explicit list of the levels"
+                )
+            from effector import ordering
+
+            return levels[
+                ordering.similarity_order(
+                    self.data, feature, levels, self.feature_types
+                )
+            ]
+        arr = np.asarray(order, dtype=float)
+        if sorted(arr.tolist()) != sorted(levels.tolist()):
+            raise ValueError(
+                f"order must be a permutation of the observed levels "
+                f"{levels.tolist()}; got {np.asarray(order).tolist()}"
+            )
+        return arr
+
+    def _check_feature_type_supported(self, feature: int) -> None:
+        """The capability matrix as an error (method_semantics.md)."""
+        check_feature_type_supported(
+            self.method_name,
+            self.SUPPORTED_FEATURE_TYPES,
+            self.feature_types[feature],
+            feature,
+            self.feature_names[feature],
+        )
+
     def _fit_loop(
         self,
         features: Union[int, str, list],
@@ -140,6 +253,7 @@ class GlobalEffectBase(ABC):
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
         for s in features:
+            self._check_feature_type_supported(s)
             key = "feature_" + str(s)
             self.fit_args[key] = {
                 "centering": centering,
@@ -166,6 +280,18 @@ class GlobalEffectBase(ABC):
 
         def partial_eval(x):
             return self._eval_unnorm(feature, x, heterogeneity=False)
+
+        if self._is_cat(feature):
+            # discrete centering (method_semantics.md): zero_integral is the
+            # frequency-weighted level mean (order-invariant); zero_start
+            # zeroes the first level *in fit order* (a custom `order` makes
+            # its first entry the reference level)
+            levels, weights = self._level_weights(feature)
+            if method == "zero_integral":
+                return float(np.average(partial_eval(levels), weights=weights))
+            fitted = self.feature_effect.get("feature_" + str(feature), {})
+            fit_levels = fitted.get("levels", levels)
+            return partial_eval(np.asarray(fit_levels[:1])).item()
 
         start = self.axis_limits[0, feature]
         stop = self.axis_limits[1, feature]
@@ -209,10 +335,19 @@ class GlobalEffectBase(ABC):
 
     def heter_score(self, feature: int) -> float:
         """The method-agnostic heterogeneity scalar of the `feature`-th
-        feature: the mean of `eval_heter` over a 30-point grid on the feature's
-        interval — the single quantity regional splitting (and the future
-        interaction module) consumes."""
-        xs = np.linspace(self.axis_limits[0, feature], self.axis_limits[1, feature], 30)
+        feature: the mean of `eval_heter` over a uniform grid
+        (`helpers.NOF_INTERNAL_POINTS` points) on the feature's interval — the
+        single quantity regional splitting (and the future interaction module)
+        consumes."""
+        if self._is_cat(feature):
+            # frequency-weighted over levels (method_semantics.md)
+            levels, weights = self._level_weights(feature)
+            return float(np.average(self.eval_heter(feature, levels), weights=weights))
+        xs = np.linspace(
+            self.axis_limits[0, feature],
+            self.axis_limits[1, feature],
+            helpers.NOF_INTERNAL_POINTS,
+        )
         return float(np.mean(self.eval_heter(feature, xs)))
 
     def requires_refit(self, feature, centering):

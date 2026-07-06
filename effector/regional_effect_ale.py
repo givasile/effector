@@ -1,12 +1,12 @@
 import typing
 import warnings
-from typing import Callable, List, Optional, Union
+from typing import Callable, Optional, Union
 
 import numpy as np
 
 import effector.space_partitioning
 from effector import axis_partitioning as ap
-from effector import helpers, utils
+from effector import helpers, ingestion, utils
 from effector.global_effect_ale import ALE, RHALE
 from effector.regional_effect import RegionalEffectBase
 
@@ -21,12 +21,9 @@ class RegionalRHALE(RegionalEffectBase):
         model_jac: Optional[Callable] = None,
         *,
         data_effect: Optional[np.ndarray] = None,
-        nof_instances: Union[int, str] = 100_000,
+        nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
-        feature_types: Optional[List] = None,
-        cat_limit: Optional[int] = 10,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ):
         """
@@ -77,24 +74,13 @@ class RegionalRHALE(RegionalEffectBase):
 
                 !!! tip "`100_000` (default), is a good choice. RHALE can handle large datasets :sunglasses: :sunglasses: "
 
-            feature_types: The feature types.
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
-                - `['cat', 'cont', ...]`, manually specify the types of the features
-
-            cat_limit: The minimum number of unique values for a feature to be considered categorical
-
-                - if `feature_types` is manually specified, this parameter is ignored
-
-            feature_names: The names of the features
-
-                - `None`, defaults to: `["x_0", "x_1", ...]`
-                - `["age", "weight", ...]` to manually specify the names of the features
-
-            target_name: The name of the target variable
-
-                - `None`, to keep the default name: `"y"`
-                - `"price"`, to manually specify the name of the target variable
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
 
@@ -107,13 +93,10 @@ class RegionalRHALE(RegionalEffectBase):
             data,
             model,
             model_jac,
-            data_effect,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names,
-            target_name,
+            data_effect=data_effect,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -126,9 +109,7 @@ class RegionalRHALE(RegionalEffectBase):
 
     def _create_heterogeneity_function(self, feature: int, min_points: int):
         binning_method = ap.return_default(self.kwargs_fitting["binning_method"])
-        points_for_mean_heterogeneity = self.kwargs_subregion_detection[
-            "points_for_mean_heterogeneity"
-        ]
+        points_for_mean_heterogeneity = helpers.NOF_INTERNAL_POINTS
 
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
@@ -146,6 +127,7 @@ class RegionalRHALE(RegionalEffectBase):
                 data_effect=instance_effects,
                 nof_instances="all",
                 axis_limits=self.axis_limits,
+                schema=self._node_schema(),
                 random_state=self.random_state,
             )
             try:
@@ -167,6 +149,11 @@ class RegionalRHALE(RegionalEffectBase):
                 return BIG_M
 
             # heterogeneity is the mean of the heterogeneity curve
+            # (freq-weighted over the subset's levels for discrete features)
+            if ingestion.is_categorical(self.feature_types[feature]):
+                xs, counts = np.unique(data[:, feature], return_counts=True)
+                z = rhale.eval_heter(feature, xs)
+                return float(np.average(z, weights=counts))
             xs = np.linspace(
                 self.axis_limits[0, feature],
                 self.axis_limits[1, feature],
@@ -180,6 +167,7 @@ class RegionalRHALE(RegionalEffectBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
+        *,
         candidate_conditioning_features: typing.Union[str, list] = "all",
         space_partitioner: typing.Union[str, effector.space_partitioning.Best] = "best",
         binning_method: typing.Union[
@@ -188,7 +176,6 @@ class RegionalRHALE(RegionalEffectBase):
             ap.DynamicProgramming,
             ap.Greedy,
         ] = "greedy",
-        points_for_mean_heterogeneity: int = 30,
     ):
         """
         Find subregions by minimizing the RHALE-based heterogeneity.
@@ -210,8 +197,6 @@ class RegionalRHALE(RegionalEffectBase):
                   For custom parameters initialize a `axis_partitioning.DynamicProgramming` object
                 - Use `"fixed"` for using a Fixed binning solution with the default parameters.
                   For custom parameters initialize a `axis_partitioning.Fixed` object
-
-            points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
         """
         if self.data_effect is None:
             self.compile()
@@ -220,7 +205,6 @@ class RegionalRHALE(RegionalEffectBase):
             "features": features,
             "candidate_conditioning_features": candidate_conditioning_features,
             "space_partitioner": space_partitioner,
-            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
         self.kwargs_fitting = {"binning_method": binning_method}
 
@@ -272,12 +256,9 @@ class RegionalALE(RegionalEffectBase):
         data: np.ndarray,
         model: callable,
         *,
-        nof_instances: typing.Union[int, str] = 100_000,
+        nof_instances: typing.Union[int, str] = 10_000,
         axis_limits: typing.Union[None, np.ndarray] = None,
-        feature_types: typing.Union[list, None] = None,
-        cat_limit: typing.Union[int, None] = 10,
-        feature_names: typing.Union[list, None] = None,
-        target_name: typing.Union[str, None] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: typing.Optional[int] = 21,
     ):
         """
@@ -313,24 +294,13 @@ class RegionalALE(RegionalEffectBase):
 
                 !!! tip "`100_000` (default) is a good choice; RegionalALE can handle large datasets. :sunglasses:"
 
-            feature_types: The feature types.
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - `None`, infers them from data; if the number of unique values is less than `cat_limit`, it is considered categorical.
-                - `['cat', 'cont', ...]`, manually specify the types of the features
-
-            cat_limit: The minimum number of unique values for a feature to be considered categorical
-
-                - if `feature_types` is manually specified, this parameter is ignored
-
-            feature_names: The names of the features
-
-                - `None`, defaults to: `["x_0", "x_1", ...]`
-                - `["age", "weight", ...]` to manually specify the names of the features
-
-            target_name: The name of the target variable
-
-                - `None`, to keep the default name: `"y"`
-                - `"price"`, to manually specify the name of the target variable
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
 
@@ -344,14 +314,9 @@ class RegionalALE(RegionalEffectBase):
             "ale",
             data,
             model,
-            None,
-            None,
-            nof_instances,
-            axis_limits,
-            feature_types,
-            cat_limit,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -363,6 +328,7 @@ class RegionalALE(RegionalEffectBase):
             self.model,
             nof_instances="all",
             axis_limits=self.axis_limits,
+            schema=self._node_schema(),
             random_state=self.random_state,
         )
         global_ale.fit(
@@ -378,9 +344,40 @@ class RegionalALE(RegionalEffectBase):
         ]
 
     def _create_heterogeneity_function(self, feature: int, min_points: int):
-        points_for_mean_heterogeneity = self.kwargs_subregion_detection[
-            "points_for_mean_heterogeneity"
-        ]
+        points_for_mean_heterogeneity = helpers.NOF_INTERNAL_POINTS
+        is_cat = ingestion.is_categorical(self.feature_types[feature])
+
+        def heter_cat(active_indices) -> float:
+            if np.sum(active_indices) < min_points:
+                return BIG_M
+            mask = active_indices.astype(bool)
+            contrib = self.global_data_effect["feature_" + str(feature)]
+            keep = mask[contrib["instance_idx"]]
+            if not keep.any():
+                return BIG_M
+            levels = contrib["levels"]
+            try:
+                params = utils.compute_ale_params(
+                    contrib["positions"][keep],
+                    contrib["effects"][keep],
+                    np.arange(len(levels), dtype=float),
+                )
+            except utils.AllBinsHaveAtMostOnePointError:
+                return BIG_M
+            # H = freq-weighted mean of h(v_k) within the candidate region;
+            # h(v_k) = variance of the step into level k
+            col = self.data[mask, feature]
+            counts = np.array(
+                [np.isclose(col, lev).sum() for lev in levels], dtype=float
+            )
+            if counts.sum() == 0:
+                return BIG_M
+            step_into = np.maximum(np.arange(len(levels)), 1) - 1
+            h_levels = params["bin_variance"][step_into]
+            return float(np.average(h_levels, weights=counts))
+
+        if is_cat:
+            return heter_cat
 
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
@@ -407,10 +404,10 @@ class RegionalALE(RegionalEffectBase):
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
+        *,
         candidate_conditioning_features: typing.Union["str", list] = "all",
         space_partitioner: typing.Union[str, effector.space_partitioning.Best] = "best",
         binning_method: typing.Union[str, ap.Fixed] = "fixed",
-        points_for_mean_heterogeneity: int = 30,
     ):
         """
         Find subregions by minimizing the ALE-based heterogeneity.
@@ -432,14 +429,11 @@ class RegionalALE(RegionalEffectBase):
                 - If you want to change the parameters of the method, you pass an instance of the
                 class `effector.axis_partitioning.Fixed` with the desired parameters.
                 For example: `Fixed(nof_bins=20, min_points_per_bin=0, cat_limit=10)`
-
-            points_for_mean_heterogeneity: number of equidistant points along the feature axis used for computing the mean heterogeneity
         """
         self.kwargs_subregion_detection = {
             "features": features,
             "candidate_conditioning_features": candidate_conditioning_features,
             "space_partitioner": space_partitioner,
-            "points_for_mean_heterogeneity": points_for_mean_heterogeneity,
         }
         self.kwargs_fitting = {"binning_method": binning_method}
 

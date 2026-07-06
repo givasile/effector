@@ -3,6 +3,10 @@ import typing
 
 import numpy as np
 
+# shared grid resolution for centering, heter_score and the regional
+# heterogeneity means — one knob, not three
+NOF_INTERNAL_POINTS = 30
+
 BIG_M = 1e8
 EPS = 1e-8
 
@@ -198,6 +202,15 @@ def get_feature_names(dim: int) -> list:
     return ["x_" + str(i) for i in range(dim)]
 
 
+def resolve_scale(override, default):
+    """Plot-time scale precedence (R10): a dict passed to plot() wins, `None`
+    inherits the schema's construction-time default, `False` explicitly
+    disables an inherited scale."""
+    if override is False:
+        return None
+    return default if override is None else override
+
+
 def prep_avg_output(data, model, avg_output, scale_y) -> float:
     avg_output = avg_output if avg_output is not None else np.mean(model(data))
     avg_output = (
@@ -219,7 +232,8 @@ def indices_within_limits(data: np.ndarray, axis_limits: np.ndarray) -> np.ndarr
         accept_indices = np.logical_and.reduce(
             [accept_indices, accept_left, accept_right]
         )
-    assert np.sum(accept_indices) > 0
+    if np.sum(accept_indices) == 0:
+        raise ValueError("axis_limits exclude every data point")
     return accept_indices
 
 

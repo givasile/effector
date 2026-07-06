@@ -229,16 +229,36 @@ def plot_effect_comparison(
     target_name: typing.Union[None, str] = None,
     y_limits: typing.Union[None, tuple] = None,
     title: typing.Union[None, str] = None,
+    discrete: bool = False,
+    level_labels: typing.Union[None, list] = None,
     show_plot: bool = True,
 ):
     """Overlay the mean effect of several methods for one feature on a single
-    axis. `curves` maps `{method_label: y}`, each `y` of shape `(T,)`."""
+    axis. `curves` maps `{method_label: y}`, each `y` of shape `(T,)`.
+
+    `discrete=True` (categorical feature): the effects are per-level values, so
+    each method is drawn as a marker series at the level positions (joined by a
+    thin line) and the x-axis shows the level ticks/labels instead of a
+    continuous grid."""
     fig, ax = plt.subplots()
     ax.set_title("Feature Effect Comparison" if title is None else title)
 
-    x = _scale_x(x, scale_x)
+    positions = np.asarray(x, dtype=float)
+    x_scaled = _scale_x(positions, scale_x)
     for label, y in curves.items():
-        ax.plot(x, _scale_y(y, scale_y), label=label)
+        if discrete:
+            ax.plot(
+                x_scaled,
+                _scale_y(y, scale_y),
+                marker="o",
+                markersize=5,
+                linewidth=1.2,
+                label=label,
+            )
+        else:
+            ax.plot(x_scaled, _scale_y(y, scale_y), label=label)
+    if discrete:
+        _categorical_axis(ax, positions, level_labels, scale_x)
     _add_avg_output(ax, avg_output)
 
     _decorate_ax(
@@ -295,6 +315,232 @@ def plot_shap(
         ax,
         xlabel=_feature_label(feature, feature_names),
         ylabel="y" if target_name is None else target_name,
+        y_limits=y_limits,
+    )
+    return _finalize(fig, ax, show_plot)
+
+
+def _categorical_axis(ax, positions, level_labels, scale_x):
+    """Ticks at the level positions; explicit labels replace numeric ticks
+    when the levels carry names (nominal / encoded categories)."""
+    ticks = _scale_x(np.asarray(positions, dtype=float), scale_x)
+    ax.set_xticks(ticks)
+    if level_labels is not None:
+        ax.set_xticklabels(level_labels)
+
+
+def _bar_width(positions):
+    positions = np.asarray(positions, dtype=float)
+    return 0.6 * np.min(np.diff(positions)) if len(positions) > 1 else 0.6
+
+
+def plot_categorical_effect(
+    positions,
+    heights,
+    variances,
+    feature,
+    heterogeneity,
+    title,
+    level_labels=None,
+    scale_x=None,
+    scale_y=None,
+    avg_output=None,
+    feature_names=None,
+    target_name=None,
+    y_limits=None,
+    connect_line=False,
+    show_plot=True,
+):
+    """Bars at the level positions with heterogeneity whiskers = sqrt(h(v_k)).
+
+    The categorical analogue of the mean-effect curve (method_semantics.md):
+    used by PDP (per-level means), (RH)ALE (accumulated per-level values) and
+    ShapDP (per-level shap means). Pure drawing — heights/variances arrive
+    evaluated and centered.
+
+    `connect_line=True` overlays a line through the bar tops — only meaningful
+    for (RH)ALE, where the bars are an accumulation and the slope between two
+    bars is the per-transition step the method measures (the values are a
+    cumulative sum of adjacent-level changes). Off for PDP/ShapDP, whose
+    per-level bars are independent.
+    """
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+
+    x = _scale_x(np.asarray(positions, dtype=float), scale_x)
+    y = _scale_y(np.asarray(heights, dtype=float), scale_y)
+    width = _bar_width(x)
+
+    yerr = None
+    if heterogeneity is not False and variances is not None:
+        std = np.sqrt(np.asarray(variances, dtype=float))
+        yerr = std * scale_y["std"] if scale_y is not None else std
+
+    ax.bar(
+        x,
+        y,
+        width=width,
+        color="dodgerblue",
+        edgecolor="black",
+        linewidth=0.6,
+        yerr=yerr,
+        ecolor="red",
+        capsize=4,
+        label="mean effect",
+    )
+    if connect_line:
+        # accumulation path: slope between bars = the per-transition step
+        ax.plot(
+            x,
+            y,
+            color="navy",
+            linewidth=1.4,
+            marker="o",
+            markersize=4,
+            zorder=3,
+            label="accumulated (steps)",
+        )
+    _categorical_axis(ax, positions, level_labels, scale_x)
+    _add_avg_output(ax, avg_output)
+    _decorate_ax(
+        ax,
+        xlabel=_feature_label(feature, feature_names),
+        ylabel=target_name,
+        y_limits=y_limits,
+    )
+    return _finalize(fig, ax, show_plot)
+
+
+def plot_pdp_ice_categorical(
+    positions,
+    yy,
+    feature,
+    title,
+    y_pdp_label="PDP",
+    y_ice_label="ICE",
+    level_labels=None,
+    scale_x=None,
+    scale_y=None,
+    avg_output=None,
+    feature_names=None,
+    target_name=None,
+    nof_ice=100,
+    y_limits=None,
+    show_plot=True,
+    random_state=21,
+):
+    """Bars for the per-level mean + jittered per-instance ICE dots.
+
+    `yy` is the (K, N) ICE table evaluated at the K levels. Jitter and the
+    ICE subsample are seeded (`random_state`) — determinism is contractual
+    (R8)."""
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+
+    yy = np.asarray(yy, dtype=float)
+    x = _scale_x(np.asarray(positions, dtype=float), scale_x)
+    y_mean = _scale_y(yy.mean(axis=1), scale_y)
+    width = _bar_width(x)
+
+    rng = np.random.default_rng(random_state)
+    n = yy.shape[1]
+    if nof_ice != "all" and int(nof_ice) < n:
+        cols = rng.choice(n, int(nof_ice), replace=False)
+    else:
+        cols = np.arange(n)
+    jitter = rng.uniform(-0.25 * width, 0.25 * width, size=(len(x), len(cols)))
+    xx = x[:, np.newaxis] + jitter
+    y_dots = _scale_y(yy[:, cols], scale_y)
+    ax.plot(
+        xx.ravel(),
+        y_dots.ravel(),
+        ".",
+        color="red",
+        alpha=0.35,
+        markersize=3,
+        label=y_ice_label,
+    )
+
+    ax.bar(
+        x,
+        y_mean,
+        width=width,
+        color="dodgerblue",
+        edgecolor="black",
+        linewidth=0.6,
+        alpha=0.8,
+        label=y_pdp_label,
+    )
+    _categorical_axis(ax, positions, level_labels, scale_x)
+    _add_avg_output(ax, avg_output)
+    _decorate_ax(
+        ax,
+        xlabel=_feature_label(feature, feature_names),
+        ylabel=target_name,
+        y_limits=y_limits,
+    )
+    return _finalize(fig, ax, show_plot)
+
+
+def plot_shap_categorical(
+    positions,
+    heights,
+    xx,
+    yy,
+    feature,
+    title,
+    level_labels=None,
+    scale_x=None,
+    scale_y=None,
+    avg_output=None,
+    feature_names=None,
+    target_name=None,
+    nof_shap_values=100,
+    y_limits=None,
+    show_plot=True,
+    random_state=21,
+):
+    """Bars for the per-level shap mean + the jittered shap cloud."""
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+
+    x = _scale_x(np.asarray(positions, dtype=float), scale_x)
+    y_mean = _scale_y(np.asarray(heights, dtype=float), scale_y)
+    width = _bar_width(x)
+
+    rng = np.random.default_rng(random_state)
+    n = len(yy)
+    if nof_shap_values != "all" and int(nof_shap_values) < n:
+        keep = rng.choice(n, int(nof_shap_values), replace=False)
+    else:
+        keep = np.arange(n)
+    jitter = rng.uniform(-0.25 * width, 0.25 * width, size=len(keep))
+    ax.plot(
+        _scale_x(np.asarray(xx, dtype=float)[keep], scale_x) + jitter,
+        _scale_y(np.asarray(yy, dtype=float)[keep], scale_y),
+        ".",
+        color="red",
+        alpha=0.35,
+        markersize=3,
+        label="shap values",
+    )
+
+    ax.bar(
+        x,
+        y_mean,
+        width=width,
+        color="dodgerblue",
+        edgecolor="black",
+        linewidth=0.6,
+        alpha=0.8,
+        label="mean shap per level",
+    )
+    _categorical_axis(ax, positions, level_labels, scale_x)
+    _add_avg_output(ax, avg_output)
+    _decorate_ax(
+        ax,
+        xlabel=_feature_label(feature, feature_names),
+        ylabel=target_name,
         y_limits=y_limits,
     )
     return _finalize(fig, ax, show_plot)

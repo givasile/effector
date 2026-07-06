@@ -2,7 +2,7 @@ import typing
 
 import numpy as np
 
-from effector import helpers, utils
+from effector import helpers, ingestion
 from effector.tree import Tree
 
 BIG_M = helpers.BIG_M
@@ -17,7 +17,7 @@ class Base:
         max_depth: int = 2,
         min_samples_leaf: int = 10,
         numerical_features_grid_size: int = 20,
-        search_partitions_when_categorical: bool = False,
+        search_partitions_when_categorical: bool = True,
     ):
         """Shared configuration of the space partitioners.
 
@@ -82,11 +82,11 @@ class Base:
         self.axis_limits = (
             None  # axis limits (min and max for each feature), shape (2, D)
         )
-        self.feature_types = None  # feature types (cat or cont)
+        self.feature_types = None  # feature types (continuous/ordinal/nominal)
         self.cat_limit = None  # categorical limit
         self.feature_names = None  # feature names
         self.target_name = None  # target name
-        self.foc_types = None  # feature of conditioning types, (in ['cat', 'cont'])
+        self.foc_types = None  # feature-of-conditioning types (three-way taxonomy)
         self.candidate_conditioning_features = None  # candidate conditioning features
 
         self.splits_tree: typing.Union[Tree, None] = None  # the output of the algorithm
@@ -98,7 +98,7 @@ class Base:
         heter_func: callable,
         axis_limits: np.ndarray,
         feature_types: typing.Union[list, None] = None,
-        categorical_limit: int = 10,
+        cat_limit: int = 10,
         candidate_conditioning_features: typing.Union[str, list] = "all",
         feature_names: typing.Union[None, list] = None,
         target_name: typing.Union[None, str] = None,
@@ -110,7 +110,7 @@ class Base:
         self.dim = self.data.shape[1]
         self.heter_func = heter_func
         self.axis_limits = axis_limits
-        self.cat_limit = categorical_limit
+        self.cat_limit = cat_limit
         self.feature_names = feature_names
         self.target_name = target_name
 
@@ -119,7 +119,7 @@ class Base:
         )
 
         self.feature_types = (
-            utils.get_feature_types(data, categorical_limit)
+            ingestion.infer_feature_types(data, cat_limit)
             if feature_types is None
             else feature_types
         )
@@ -132,7 +132,7 @@ class Base:
         raise NotImplementedError
 
     def _split_dataset(self, active_indices, feature, position, feat_type):
-        if feat_type == "cat":
+        if ingestion.is_categorical(feat_type):
             ind_1 = self.data[:, feature] == position
             ind_2 = self.data[:, feature] != position
         else:
@@ -161,8 +161,7 @@ class Base:
 
     @staticmethod
     def _get_comparison_symbol(foc_type, i):
-        assert foc_type in ["cat", "cont"]
-        if foc_type == "cat":
+        if ingestion.is_categorical(foc_type):
             return "==" if i == 0 else "!="
         else:
             return "<=" if i == 0 else ">"
@@ -190,7 +189,7 @@ class Base:
         candidate_split_positions = [
             (
                 self._find_positions_cat(data, foc_i)
-                if foc_types[i] == "cat"
+                if ingestion.is_categorical(foc_types[i])
                 else self._find_positions_cont(foc_i, nof_splits)
             )
             for i, foc_i in enumerate(ccf)
@@ -263,7 +262,7 @@ class Best(Base):
         max_depth: int = 2,
         min_samples_leaf: int = 10,
         numerical_features_grid_size: int = 20,
-        search_partitions_when_categorical: bool = False,
+        search_partitions_when_categorical: bool = True,
     ):
         super().__init__(
             "Best",
@@ -358,7 +357,7 @@ class BestLevelWise(Base):
         max_depth: int = 2,
         min_samples_leaf: int = 10,
         numerical_features_grid_size: int = 20,
-        search_partitions_when_categorical: bool = False,
+        search_partitions_when_categorical: bool = True,
     ):
         super().__init__(
             "best_level_wise",
@@ -391,7 +390,7 @@ class BestLevelWise(Base):
         Iterate over all features of conditioning and choose the best split for each level in a greedy fashion.
         """
         if (
-            self.feature_types[self.feature] == "cat"
+            ingestion.is_categorical(self.feature_types[self.feature])
             and not self.split_categorical_features
         ):
             self.splits = []

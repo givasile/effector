@@ -5,6 +5,7 @@ import numpy as np
 
 import effector.helpers as helpers
 import effector.visualization as vis
+from effector import ingestion
 from effector.global_effect import GlobalEffectBase
 
 try:
@@ -83,6 +84,8 @@ def _compute_shap_values(
 
 
 class ShapDP(GlobalEffectBase):
+    CAT_STRATEGY = "per_level_stats"
+
     DEFAULT_CENTERING: Union[bool, str] = "zero_integral"
 
     def __init__(
@@ -92,11 +95,13 @@ class ShapDP(GlobalEffectBase):
         *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 1_000,
-        feature_names: Optional[List[str]] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
         shap_values: Optional[np.ndarray] = None,
         backend: str = "shap",
+        budget: int = 512,
+        shap_explainer_kwargs: Optional[dict] = None,
+        shap_explanation_kwargs: Optional[dict] = None,
     ):
         r"""
         Constructor of the ShapDP class.
@@ -155,20 +160,13 @@ class ShapDP(GlobalEffectBase):
                 - use `"all"`, for using all instances.
                 - use an `int`, for using `nof_instances` instances.
 
-            avg_output: The average output of the model.
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - use a `float`, to specify it manually
-                - use `None`, to be inferred as `np.mean(model(data))`
-
-            feature_names: The names of the features
-
-                - use a `list` of `str`, to specify the name manually. For example: `                  ["age", "weight", ...]`
-                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
-
-            target_name: The name of the target variable
-
-                - use a `str`, to specify it name manually. For example: `"price"`
-                - use `None`, to keep the default name: `"y"`
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (`nof_instances` subsampling and the shap/shapiq explainer, unless overridden via `shap_explainer_kwargs`)
 
@@ -185,6 +183,19 @@ class ShapDP(GlobalEffectBase):
                 - use `"shap"` for the `shap` package (default)
                 - use `"shapiq"` for the `shapiq` package
 
+            budget: budget for the SHAP approximation (default 512)
+
+                - increasing the budget improves the approximation at the cost of slower computation
+
+            shap_explainer_kwargs: keyword arguments for the `shap.Explainer` /
+                `shapiq.Explainer` (depending on `backend`). The constructor's
+                `random_state` is used as the backend seed (`seed=` for `shap`,
+                `random_state=` for `shapiq`) unless you pass your own here.
+                See `effector.global_effect_shap._compute_shap_values` — the
+                single place the explainer is constructed and invoked.
+            shap_explanation_kwargs: keyword arguments for computing the SHAP
+                values with the chosen backend (same code path as above).
+
         Notes:
             SHAP values are expensive to compute.
             To speed up the computation consider using a subset of the dataset.
@@ -195,16 +206,16 @@ class ShapDP(GlobalEffectBase):
         if backend not in ["shap", "shapiq"]:
             raise ValueError(f"Invalid backend: {backend!r}; use 'shap' or 'shapiq'")
         self.backend = backend
+        self.budget = budget
+        self.shap_explainer_kwargs = shap_explainer_kwargs
+        self.shap_explanation_kwargs = shap_explanation_kwargs
         super(ShapDP, self).__init__(
             "SHAP DP",
             data,
             model,
-            None,
-            None,
-            nof_instances,
-            axis_limits,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -212,9 +223,6 @@ class ShapDP(GlobalEffectBase):
         self,
         feature: int,
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
-        budget: int = 512,
-        shap_explainer_kwargs: Optional[dict] = None,
-        shap_explanation_kwargs: Optional[dict] = None,
     ) -> typing.Dict:
         data = self.data
 
@@ -223,15 +231,35 @@ class ShapDP(GlobalEffectBase):
                 self.model,
                 data,
                 self.backend,
-                budget,
-                shap_explainer_kwargs,
-                shap_explanation_kwargs,
+                self.budget,
+                self.shap_explainer_kwargs,
+                self.shap_explanation_kwargs,
                 self.random_state,
             )
 
         # extract x and y
         yy = self.shap_values[:, feature]
         xx = data[:, feature]
+
+        if self._is_cat(feature):
+            # per-level mean/variance of the shap values with a step lookup —
+            # no spline, no order enters the math (method_semantics.md)
+            levels = self._levels(feature)
+            codes = utils.codes_from_levels(
+                xx, levels, feature, self.feature_names[feature]
+            )
+            limits = np.arange(len(levels) + 1, dtype=float) - 0.5
+            feature_effect_dict = utils.compute_ale_params(
+                codes.astype(float), yy, limits
+            )
+            return {
+                "bin_effect": feature_effect_dict["bin_effect"],
+                "bin_variance": feature_effect_dict["bin_variance"],
+                "levels": levels,
+                "is_cat": True,
+                "xx": xx,
+                "yy": yy,
+            }
 
         if isinstance(binning_method, str):
             binning_method = ap.return_default(binning_method)
@@ -274,6 +302,14 @@ class ShapDP(GlobalEffectBase):
 
     def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
         params = self.feature_effect["feature_" + str(feature)]
+        if params.get("is_cat"):
+            codes = utils.codes_from_levels(
+                x, params["levels"], feature, self.feature_names[feature]
+            )
+            y = params["bin_effect"][codes]
+            if heterogeneity:
+                return y, params["bin_variance"][codes]
+            return y
         y = params["spline_mean"](x)
         if heterogeneity:
             return y, params["spline_var"](x)
@@ -282,12 +318,10 @@ class ShapDP(GlobalEffectBase):
     def fit(
         self,
         features: Union[int, str, List] = "all",
+        *,
         centering: Union[bool, str] = True,
-        points_for_centering: Union[int, str] = 30,
+        points_for_centering: int = 30,
         binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
-        budget: int = 512,
-        shap_explainer_kwargs: Optional[dict] = None,
-        shap_explanation_kwargs: Optional[dict] = None,
     ) -> None:
         r"""Fit the SHAP Dependence Plot to the data.
 
@@ -308,40 +342,10 @@ class ShapDP(GlobalEffectBase):
 
             points_for_centering: number of linspaced points along the feature axis used for centering.
 
-                - If set to `all`, all the dataset points will be used.
-
-
             binning_method: the binning method to be used for fitting a piecewise linear function to the SHAP values.
 
                 - If set to "greedy", the greedy binning method will be used.
                 - If set to "fixed", the fixed binning method will be used.
-
-            budget: Budget to use for the approximation. Defaults to 512.
-                - Increasing the budget improves the approximation at the cost of slower computation.
-                - Decrease the budget for faster computation at the cost of approximation error.
-
-            shap_explainer_kwargs: the keyword arguments to be passed to the `shap.Explainer` or `shapiq.Explainer` class, depending on the backend.
-                The constructor's `random_state` is used as the backend seed (`seed=` for `shap`, `random_state=` for `shapiq`) unless you pass your own here.
-
-                ??? note "Code behind the scene"
-
-                    See `effector.global_effect_shap._compute_shap_values` — the single place the explainer is constructed and invoked.
-
-                ??? warning "Be careful with custom arguments"
-
-                    For customizing `shap_explainer_kwargs` and `shap_explanation_kwargs` args,
-                    check the official documentation of [`shap`](https://shap.readthedocs.io/en/latest/) and [`shapiq`](https://shapiq.readthedocs.io/en/latest/) packages.
-
-            shap_explanation_kwargs: the keyword arguments to be passed to the `shap` or `shapiq` Explainer to compute the SHAP values.
-
-                ??? note "Code behind the scene"
-
-                    See `effector.global_effect_shap._compute_shap_values` — the single place the explainer is constructed and invoked.
-
-                ??? warning "Be careful with custom arguments"
-
-                    For customizing `shap_explainer_kwargs` and `shap_explanation_kwargs` args,
-                    check the official documentation of [`shap`](https://shap.readthedocs.io/en/latest/) and [`shapiq`](https://shapiq.readthedocs.io/en/latest/) packages.
 
         """
         self._fit_loop(
@@ -349,9 +353,6 @@ class ShapDP(GlobalEffectBase):
             centering,
             points_for_centering,
             binning_method=binning_method,
-            budget=budget,
-            shap_explainer_kwargs=shap_explainer_kwargs,
-            shap_explanation_kwargs=shap_explanation_kwargs,
         )
 
     def plot(
@@ -359,10 +360,10 @@ class ShapDP(GlobalEffectBase):
         feature: int,
         heterogeneity: Union[bool, str] = "shap_values",
         centering: Union[bool, str] = True,
-        nof_points: int = 30,
+        nof_points: int = 100,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
-        nof_shap_values: Union[int, str] = "all",
+        nof_shap_values: Union[int, str] = 100,
         show_avg_output: bool = False,
         y_limits: Optional[List] = None,
         only_shap_values: bool = False,
@@ -396,6 +397,67 @@ class ShapDP(GlobalEffectBase):
         """
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
+        scale_x = helpers.resolve_scale(
+            scale_x, self.scale_x_list[feature] if self.scale_x_list else None
+        )
+        scale_y = helpers.resolve_scale(scale_y, self.scale_y)
+
+        params_key = "feature_" + str(feature)
+        if self._is_cat(feature):
+            # fit if needed, then draw per-level bars (+ the shap cloud)
+            self.eval(feature, self._levels(feature)[:1], centering=centering)
+            params = self.feature_effect[params_key]
+            levels, labels = self._level_display(feature)
+            y_levels = self.eval(feature, levels, centering=centering)
+            avg_output = (
+                helpers.prep_avg_output(self.data, self.model, None, scale_y)
+                if show_avg_output
+                else None
+            )
+            title = "SHAP Dependence Plot (SHAP-DP)"
+            if heterogeneity == "shap_values":
+                yy = params["yy"]
+                if centering is not False:
+                    yy = yy - params["norm_const"]
+                return vis.plot_shap_categorical(
+                    levels,
+                    y_levels,
+                    params["xx"],
+                    yy,
+                    feature,
+                    title=title,
+                    level_labels=labels,
+                    scale_x=scale_x,
+                    scale_y=scale_y,
+                    avg_output=avg_output,
+                    feature_names=self.feature_names,
+                    target_name=self.target_name,
+                    nof_shap_values=nof_shap_values,
+                    y_limits=y_limits,
+                    show_plot=show_plot,
+                    random_state=self.random_state,
+                )
+            variances = (
+                self._eval_unnorm(feature, levels, heterogeneity=True)[1]
+                if heterogeneity is not False
+                else None
+            )
+            return vis.plot_categorical_effect(
+                levels,
+                y_levels,
+                variances,
+                feature,
+                heterogeneity,
+                title=title,
+                level_labels=labels,
+                scale_x=scale_x,
+                scale_y=scale_y,
+                avg_output=avg_output,
+                feature_names=self.feature_names,
+                target_name=self.target_name,
+                y_limits=y_limits,
+                show_plot=show_plot,
+            )
 
         x = np.linspace(
             self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points

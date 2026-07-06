@@ -110,7 +110,9 @@ def test_jac_and_nojac_paths_agree(kind, feature, data):
 
 def test_shap_tiny_in_the_gate(data):
     """One fast SHAP case so `make test` is never SHAP-blind (PLAN II 3.3)."""
-    method = effector.ShapDP(data[:50], model, nof_instances=50, backend="shap")
-    method.fit(features=0, budget=128)
+    method = effector.ShapDP(
+        data[:50], model, nof_instances=50, backend="shap", budget=128
+    )
+    method.fit(features=0)
     y = method.eval(feature=0, xs=XS, centering="zero_start")
     np.testing.assert_allclose(y, GT["effect"][0], atol=1.5e-1)

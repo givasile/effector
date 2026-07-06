@@ -5,7 +5,9 @@ from typing import Callable, List, Optional, Union
 import numpy as np
 
 import effector.helpers as helpers
+import effector.utils as utils
 import effector.visualization as vis
+from effector import ingestion
 from effector.global_effect import GlobalEffectBase
 
 
@@ -22,8 +24,7 @@ class PDPBase(GlobalEffectBase):
         *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
         method_name: str = "PDP",
     ):
@@ -32,11 +33,9 @@ class PDPBase(GlobalEffectBase):
             data,
             model,
             model_jac,
-            None,
-            nof_instances,
-            axis_limits,
-            feature_names,
-            target_name,
+            nof_instances=nof_instances,
+            axis_limits=axis_limits,
+            schema=schema,
             random_state=random_state,
         )
 
@@ -52,6 +51,8 @@ class PDPBase(GlobalEffectBase):
         # the (d-)PDP stores no per-feature payload beyond the normalization
         # constant (which the base fit loop appends); ICE curves are computed
         # by the evaluation kernel
+        if self._is_cat(feature):
+            return {"levels": self._levels(feature), "is_cat": True}
         return {}
 
     def _compute_norm_const(
@@ -64,6 +65,13 @@ class PDPBase(GlobalEffectBase):
         use_vectorized = self.fit_args.get("feature_" + str(feature), {}).get(
             "use_vectorized", True
         )
+        if self._is_cat(feature):
+            levels, weights = self._level_weights(feature)
+            if method == "zero_integral":
+                y = self._predict(self.data, levels, feature, use_vectorized)
+                return np.average(y, axis=0, weights=weights)
+            y = self._predict(self.data, levels[:1], feature, use_vectorized)
+            return y[0]
         if method == "zero_integral":
             xx = np.linspace(
                 self.axis_limits[0, feature],
@@ -81,18 +89,31 @@ class PDPBase(GlobalEffectBase):
         h(x) — the variance across the *per-instance centered* ICE curves for
         the PDP (levels are only comparable after centering) and across the raw
         d-ICE curves for the DerPDP (slopes are directly comparable)."""
+        if self._is_cat(feature):
+            # discrete features are evaluated only at levels (R10)
+            utils.codes_from_levels(
+                x, self._levels(feature), feature, self.feature_names[feature]
+            )
         y_ice = self._predict(self.data, x, feature, use_vectorized=True)
         y_mean = np.mean(y_ice, axis=1)
         if not heterogeneity:
             return y_mean
 
         if self.method_name == "pdp":
-            xx = np.linspace(
-                self.axis_limits[0, feature], self.axis_limits[1, feature], 30
-            )
-            per_instance_norm = np.mean(
-                self._predict(self.data, xx, feature, use_vectorized=True), axis=0
-            )
+            if self._is_cat(feature):
+                levels, weights = self._level_weights(feature)
+                per_instance_norm = np.average(
+                    self._predict(self.data, levels, feature, use_vectorized=True),
+                    axis=0,
+                    weights=weights,
+                )
+            else:
+                xx = np.linspace(
+                    self.axis_limits[0, feature], self.axis_limits[1, feature], 30
+                )
+                per_instance_norm = np.mean(
+                    self._predict(self.data, xx, feature, use_vectorized=True), axis=0
+                )
             y_var = np.var(y_ice - per_instance_norm[np.newaxis, :], axis=1)
         else:
             y_var = np.var(y_ice, axis=1)
@@ -101,6 +122,7 @@ class PDPBase(GlobalEffectBase):
     def fit(
         self,
         features: Union[int, str, list] = "all",
+        *,
         centering: Union[bool, str] = False,
         points_for_centering: int = 30,
         use_vectorized: bool = True,
@@ -136,7 +158,7 @@ class PDPBase(GlobalEffectBase):
         feature: int,
         heterogeneity: Union[bool, str] = False,
         centering: Union[bool, str] = True,
-        nof_points: int = 30,
+        nof_points: int = 100,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
         nof_ice: Union[int, str] = 100,
@@ -147,9 +169,18 @@ class PDPBase(GlobalEffectBase):
     ):
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
+        scale_x = helpers.resolve_scale(
+            scale_x, self.scale_x_list[feature] if self.scale_x_list else None
+        )
+        scale_y = helpers.resolve_scale(scale_y, self.scale_y)
 
-        x = np.linspace(
-            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
+        is_cat = self._is_cat(feature)
+        x = (
+            self._levels(feature)
+            if is_cat
+            else np.linspace(
+                self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
+            )
         )
 
         # the ICE table is the method's own object: computed by the kernel and
@@ -173,6 +204,48 @@ class PDPBase(GlobalEffectBase):
             if self.method_name == "pdp"
             else "derivative Partial Dependence Plot (d-PDP)"
         )
+        if is_cat:
+            levels, labels = self._level_display(feature)
+            if heterogeneity == "ice":
+                return vis.plot_pdp_ice_categorical(
+                    levels,
+                    yy,
+                    feature,
+                    title=title,
+                    y_pdp_label="PDP",
+                    y_ice_label="ICE",
+                    level_labels=labels,
+                    scale_x=scale_x,
+                    scale_y=scale_y,
+                    avg_output=avg_output,
+                    feature_names=self.feature_names,
+                    target_name=self.target_name,
+                    nof_ice=nof_ice,
+                    y_limits=y_limits,
+                    show_plot=show_plot,
+                    random_state=self.random_state,
+                )
+            variances = (
+                self._eval_unnorm(feature, x, heterogeneity=True)[1]
+                if heterogeneity is not False
+                else None
+            )
+            return vis.plot_categorical_effect(
+                levels,
+                yy.mean(axis=1),
+                variances,
+                feature,
+                heterogeneity,
+                title=title,
+                level_labels=labels,
+                scale_x=scale_x,
+                scale_y=scale_y,
+                avg_output=avg_output,
+                feature_names=self.feature_names,
+                target_name=self.target_name,
+                y_limits=y_limits,
+                show_plot=show_plot,
+            )
         return vis.plot_pdp_ice(
             x,
             feature,
@@ -195,7 +268,11 @@ class PDPBase(GlobalEffectBase):
 
 
 class PDP(PDPBase):
-    DEFAULT_CENTERING: Union[bool, str] = False
+    # zero_integral by default (R3 single source): matches the global .plot
+    # signature default and ALE/ShapDP, so global and regional plots — and
+    # eval(centering=None) — all center consistently.
+    DEFAULT_CENTERING: Union[bool, str] = "zero_integral"
+    CAT_STRATEGY = "ice_at_levels"
 
     def __init__(
         self,
@@ -204,8 +281,7 @@ class PDP(PDPBase):
         *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ):
         r"""
@@ -265,15 +341,13 @@ class PDP(PDPBase):
                 - use "all", for using all instances.
                 - use an `int`, for selecting `nof_instances` instances randomly.
 
-            feature_names: The names of the features
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - use a `list` of `str`, to specify the name manually. For example: `["age", "weight", ...]`
-                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
-
-            target_name: The name of the target variable
-
-                - use a `str`, to specify it name manually. For example: `"price"`
-                - use `None`, to keep the default name: `"y"`
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
 
@@ -287,8 +361,7 @@ class PDP(PDPBase):
             None,
             axis_limits=axis_limits,
             nof_instances=nof_instances,
-            feature_names=feature_names,
-            target_name=target_name,
+            schema=schema,
             random_state=random_state,
             method_name="PDP",
         )
@@ -298,10 +371,10 @@ class PDP(PDPBase):
         feature: int,
         heterogeneity: Union[bool, str] = "ice",
         centering: Union[bool, str] = True,
-        nof_points: int = 30,
+        nof_points: int = 100,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
-        nof_ice: Union[int, str] = "all",
+        nof_ice: Union[int, str] = 100,
         show_avg_output: bool = False,
         y_limits: Optional[List] = None,
         use_vectorized: bool = True,
@@ -365,6 +438,7 @@ class PDP(PDPBase):
 
 
 class DerPDP(PDPBase):
+    SUPPORTED_FEATURE_TYPES = frozenset({ingestion.CONTINUOUS})
     DEFAULT_CENTERING: Union[bool, str] = False
     IS_DERIVATIVE: bool = True
 
@@ -376,8 +450,7 @@ class DerPDP(PDPBase):
         *,
         axis_limits: Optional[np.ndarray] = None,
         nof_instances: Union[int, str] = 10_000,
-        feature_names: Optional[List] = None,
-        target_name: Optional[str] = None,
+        schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ):
         r"""
@@ -443,15 +516,13 @@ class DerPDP(PDPBase):
                 - use "all", for using all instances.
                 - use an `int`, for using `nof_instances` instances.
 
-            feature_names: The names of the features
+            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
+                with any of the keys `feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
 
-                - use a `list` of `str`, to specify the name manually. For example: `["age", "weight", ...]`
-                - use `None`, to keep the default names: `["x_0", "x_1", ...]`
-
-            target_name: The name of the target variable
-
-                - use a `str`, to specify it name manually. For example: `"price"`
-                - use `None`, to keep the default name: `"y"`
+                - omitted fields are inferred from the data (DataFrame dtypes,
+                  numpy heuristics) or synthesized (`["x_0", ...]`, `"y"`)
+                - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
 
@@ -465,8 +536,7 @@ class DerPDP(PDPBase):
             model_jac,
             axis_limits=axis_limits,
             nof_instances=nof_instances,
-            feature_names=feature_names,
-            target_name=target_name,
+            schema=schema,
             random_state=random_state,
             method_name="d-PDP",
         )
@@ -476,12 +546,12 @@ class DerPDP(PDPBase):
         feature: int,
         heterogeneity: Union[bool, str] = "ice",
         centering: Union[bool, str] = False,
-        nof_points: int = 30,
+        nof_points: int = 100,
         scale_x: Optional[dict] = None,
         scale_y: Optional[dict] = None,
         nof_ice: Union[int, str] = 100,
         show_avg_output: bool = False,
-        dy_limits: Optional[List] = None,
+        y_limits: Optional[List] = None,
         use_vectorized: bool = True,
         show_plot: bool = True,
     ):
@@ -517,7 +587,7 @@ class DerPDP(PDPBase):
             nof_ice: number of ICE plots to show on top of the SHAP curve
             show_avg_output: whether to show the average output of the model
 
-            dy_limits: None or tuple, the limits of the y-axis for the derivative PDP
+            y_limits: None or tuple, the limits of the y-axis (derivative units)
 
                 - If set to None, the limits of the y-axis are set automatically
                 - If set to a tuple, the limits are manually set
@@ -534,7 +604,7 @@ class DerPDP(PDPBase):
             scale_y,
             nof_ice,
             show_avg_output,
-            dy_limits,
+            y_limits,
             use_vectorized,
             show_plot,
         )
@@ -567,9 +637,9 @@ def ice_non_vectorized(
         >>> y = ice_non_vectorized(model, data, x, feature, heterogeneity=False, model_returns_jac=False)
         >>> (y[1:] - y[:-1]) / (x[1:] - x[:-1])
         array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
-        >>> # check the gradient of the PDP of a linear model with heterogeneity
-        >>> dpdp, _, _ = ice_non_vectorized(model, data, x, feature, heterogeneity=True, model_returns_jac=False, return_all=False, return_d_ice=True)
-        >>> dpdp
+        >>> # the derivative-ICE mean of a linear model
+        >>> d_ice = ice_non_vectorized(model, model_jac, data, x, feature, return_d_ice=True)
+        >>> d_ice.mean(axis=1)
         array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.])
 
 
