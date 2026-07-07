@@ -2,8 +2,7 @@
 
 Every piece of per-method knowledge that used to live in scattered if/elif
 chains — which class implements a method, whether it consumes the model
-jacobian, whether it carries a precomputed `data_effect`, and how it is
-displayed — is written here once.
+jacobian, and how it is displayed — is written here once.
 """
 
 from collections import namedtuple
@@ -17,7 +16,6 @@ MethodSpec = namedtuple(
     [
         "cls",
         "needs_jac",
-        "uses_data_effect",
         "display_name",
         "supported_feature_types",
         "cat_strategy",
@@ -25,13 +23,12 @@ MethodSpec = namedtuple(
 )
 
 
-def _spec(cls, needs_jac, uses_data_effect, display_name):
+def _spec(cls, needs_jac, display_name):
     # capability fields are read from the class attributes (single source of
     # truth — a contract test pins the agreement)
     return MethodSpec(
         cls,
         needs_jac,
-        uses_data_effect,
         display_name,
         cls.SUPPORTED_FEATURE_TYPES,
         cls.CAT_STRATEGY,
@@ -39,11 +36,11 @@ def _spec(cls, needs_jac, uses_data_effect, display_name):
 
 
 METHODS = {
-    "pdp": _spec(PDP, False, False, "PDP"),
-    "derpdp": _spec(DerPDP, True, False, "d-PDP"),
-    "ale": _spec(ALE, False, False, "ALE"),
-    "rhale": _spec(RHALE, True, True, "RHALE"),
-    "shapdp": _spec(ShapDP, False, False, "SHAP-DP"),
+    "pdp": _spec(PDP, False, "PDP"),
+    "derpdp": _spec(DerPDP, True, "d-PDP"),
+    "ale": _spec(ALE, False, "ALE"),
+    "rhale": _spec(RHALE, True, "RHALE"),
+    "shapdp": _spec(ShapDP, False, "SHAP-DP"),
 }
 
 ALIASES = {

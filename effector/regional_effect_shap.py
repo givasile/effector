@@ -94,14 +94,10 @@ class RegionalShapDP(RegionalEffectBase):
             random_state=random_state,
         )
 
-    def _extra_fe_kwargs(self, active_indices: np.ndarray) -> dict:
-        """A node's ShapDP reuses the region's slice of the *global* shap
-        values (attributions are not recomputed within the region)."""
-        return {"shap_values": self.global_shap_values[active_indices, :]}
-
     def _global_fe_kwargs(self) -> dict:
-        # the global ShapDP is constructed with the backend/budget config and
-        # any user-provided attributions (reused, not recomputed)
+        # the ONE global ShapDP is constructed with the backend/budget config
+        # and any user-provided attributions; it computes (and caches) the φ
+        # table once, and every regional question is a masked re-summary of it
         return dict(
             backend=self.backend,
             budget=self.budget,
@@ -109,10 +105,6 @@ class RegionalShapDP(RegionalEffectBase):
             shap_explainer_kwargs=self.shap_explainer_kwargs,
             shap_explanation_kwargs=self.shap_explanation_kwargs,
         )
-
-    def _after_precompute(self, feature: int, fe) -> None:
-        # stash the computed attributions for node injection (_extra_fe_kwargs)
-        self.global_shap_values = fe.shap_values
 
     def fit(
         self,
@@ -123,6 +115,7 @@ class RegionalShapDP(RegionalEffectBase):
         binning_method: Union[
             str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
         ] = "dp",
+        binning_scope: str = "global",
     ):
         """
         Fit the regional SHAP.
@@ -138,6 +131,14 @@ class RegionalShapDP(RegionalEffectBase):
                 - If set to "greedy", the greedy space partitioner will be used.
 
             binning_method: the binning method to use
+
+            binning_scope: the x-range the binner covers when a subregion is
+                re-binned (the split search and the node eval/plot alike)
+
+                - `"global"` (default): the frozen global `axis_limits` — one
+                  frame for every subregion, directly comparable
+                - `"effective"`: each subregion's own `[min, max]` — bins
+                  packed into the subregion, finer resolution
 
             budget: Budget to use for the approximation. Defaults to 512.
                 - Increasing the budget improves the approximation at the cost of slower computation.
@@ -174,6 +175,7 @@ class RegionalShapDP(RegionalEffectBase):
         }
         self.kwargs_fitting = {
             "binning_method": binning_method,
+            "binning_scope": binning_scope,
         }
 
         self._fit_loop(features, candidate_conditioning_features, space_partitioner)

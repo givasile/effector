@@ -159,10 +159,10 @@ def test_r10_schema_object_equals_dict():
 def test_r10_regional_node_inherits_types():
     reg = make_regional("regional_pdp", make_regional_data())
     reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
-    node_fe = reg._create_fe_object(0, 1, None)
-    # node subsets must NOT re-infer: parent's types verbatim
-    assert node_fe.feature_types == reg.feature_types
-    assert node_fe.cat_limit == reg.cat_limit
+    # the ONE internally built global effect (all node eval/plot delegate to
+    # its masked summaries) must NOT re-infer: parent's types verbatim
+    assert reg._global_fe.feature_types == reg.feature_types
+    assert reg._global_fe.cat_limit == reg.cat_limit
 
 
 def test_r10_facade_submethods_inherit_types():

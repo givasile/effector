@@ -210,3 +210,77 @@ def test_rc6_split_search_is_model_free(name):
     # a one-time precompute is a small constant; per-candidate work would be
     # >= the number of candidates (>= grid)
     assert n_large < 40, f"{name}: {n_large} model calls looks like per-candidate work"
+
+
+# ---------------------------------------------------------------------------
+# RC7 — one truth (regional ≡ masked global): the heterogeneity number that
+# CHOSE each split is byte-identical to the one the node's surfaces report —
+# the tree summary, heter_score(mask) and the plotted band share one source.
+# ---------------------------------------------------------------------------
+
+
+def test_rc7_tree_heterogeneity_equals_masked_heter_score(fitted_regional):
+    name, reg = fitted_regional
+    fe = reg._global_fe
+    tree = reg.tree["feature_0"]
+    for node in tree.nodes:
+        mask = node.info["active_indices"].astype(bool)
+        np.testing.assert_allclose(
+            node.info["heterogeneity"],
+            fe.heter_score(0, mask=mask),
+            atol=1e-10,
+            err_msg=f"{name}, node {node.idx}",
+        )
+
+
+# ---------------------------------------------------------------------------
+# RC8 — the constitution on the node surfaces: after fit, eval/eval_heter/plot
+# on any node are masked re-summaries of the cached local effects — ZERO model
+# calls. (The one exception, PDP eval at off-grid xs, is pinned in the masked
+# contract layer, test_contract_masked.py::test_m2.)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", REGIONAL_NAMES)
+def test_rc8_node_surfaces_are_model_free(name):
+    from effector import helpers
+
+    data = make_regional_data()
+    model = CountingModel(gated_model)
+    jac = CountingModel(gated_model_jac)
+    if name == "regional_pdp":
+        reg = effector.RegionalPDP(data, model)
+    elif name == "regional_derpdp":
+        reg = effector.RegionalDerPDP(data, model, model_jac=jac)
+    elif name == "regional_ale":
+        reg = effector.RegionalALE(data, model)
+    elif name == "regional_rhale":
+        reg = effector.RegionalRHALE(data, model, model_jac=jac)
+    elif name == "regional_shapdp":
+        # structured (gate-aware) attributions so the fitted tree is real; the
+        # small noise keeps DP binning off the single-bin/zero-variance corner
+        # where ShapDP's spline goes nan (pre-existing kernel wart)
+        rng = np.random.default_rng(0)
+        shap_values = rng.normal(0, 0.05, data.shape)
+        ind = np.logical_and(data[:, 1] > 0, data[:, 2] == 0)
+        shap_values[ind, 0] += 5 * data[ind, 0]
+        reg = effector.RegionalShapDP(data, model, shap_values=shap_values)
+    else:
+        raise ValueError(name)
+    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
+
+    n0 = model.n_calls + jac.n_calls
+    # xs on the (d-)PDP cache grid so no method takes its exact-retouch path
+    grid = np.linspace(
+        reg.axis_limits[0, 0], reg.axis_limits[1, 0], helpers.NOF_INTERNAL_POINTS
+    )
+    tree = reg.tree["feature_0"]
+    for node_idx in range(len(tree.nodes)):
+        reg.eval(0, node_idx, grid, centering=True)
+        reg.eval_heter(0, node_idx, grid)
+        reg.plot(feature=0, node_idx=node_idx, show_plot=False)
+    plt.close("all")
+    assert model.n_calls + jac.n_calls == n0, (
+        f"{name}: node eval/plot re-queried the model "
+        f"({model.n_calls + jac.n_calls - n0} extra calls)"
+    )
