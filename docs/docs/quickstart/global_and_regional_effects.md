@@ -316,4 +316,35 @@ To print the partition tree, we will use `.summary()` method of the regional eff
     📊 **PDP and SHAP-DP go further**  
     They reveal another key factor: **temperature**. The impact of `hour` on bike rentals differs on non-working days depending on whether it’s hot or cold.  
 
+---
+
+## Under the hood: a regional effect is a masked global effect
+
+???+ Note "Regional plots are global-frame views"
+
+    A regional node is **not** a new effect fitted from scratch on a data subset.
+    `effector` fits the global effect **once** (one pass over the model) and every
+    node plot is that same object's summary restricted to the node's instances:
+    the axis limits, the PDP grid, and the ALE bin edges stay on the global frame,
+    while means, heterogeneity bands, and centering are re-computed from the
+    node's instances only — with **zero extra model calls**. The heterogeneity
+    printed in the partition tree and the band drawn in the node plot come from
+    the same computation.
+
+You can use the same mechanism ad hoc, with any condition you like, without
+fitting a regional object at all — every global method's `eval` and `plot`
+accept a boolean `mask` over the instances:
+
+```python
+pdp = effector.PDP(X, model)
+pdp.fit(feature=3)
+
+# the effect of `hour`, only over working days
+pdp.plot(feature=3, mask=X[:, 6] > 0.5, feature_label="hr | workingday")
+```
+
+`RegionalPDP.plot(feature, node_idx)` does exactly this, with the node's mask
+and label. See *The design contract* (R11) and *Method semantics* for what is
+re-computed versus frozen per method.
+
     ✔️ This makes sense—temperature matters for sightseeing, but not for commuting.

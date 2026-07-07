@@ -295,18 +295,31 @@ class ShapDP(GlobalEffectBase):
 
         # Compute bin edges and bin centers, then piecewise-linear interpolation
         bin_centers = (limits[:-1] + limits[1:]) / 2
-        mean_spline = interp1d(
-            bin_centers,
-            feature_effect_dict["bin_effect"],
-            kind="linear",
-            fill_value="extrapolate",
-        )
-        var_spline = interp1d(
-            bin_centers,
-            feature_effect_dict["bin_variance"],
-            kind="linear",
-            fill_value="extrapolate",
-        )
+        if len(bin_centers) == 1:
+            # a single bin (e.g. an unstructured φ that the adaptive binning
+            # rightly refuses to split): interp1d on one knot divides by a
+            # zero span and returns nan everywhere — use the constant instead
+            mean_val = float(feature_effect_dict["bin_effect"][0])
+            var_val = float(feature_effect_dict["bin_variance"][0])
+
+            def mean_spline(x, _v=mean_val):
+                return np.full(np.shape(x), _v)
+
+            def var_spline(x, _v=var_val):
+                return np.full(np.shape(x), _v)
+        else:
+            mean_spline = interp1d(
+                bin_centers,
+                feature_effect_dict["bin_effect"],
+                kind="linear",
+                fill_value="extrapolate",
+            )
+            var_spline = interp1d(
+                bin_centers,
+                feature_effect_dict["bin_variance"],
+                kind="linear",
+                fill_value="extrapolate",
+            )
         return {
             "spline_mean": mean_spline,
             "spline_var": var_spline,

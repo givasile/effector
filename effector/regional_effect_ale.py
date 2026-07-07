@@ -124,6 +124,7 @@ class RegionalRHALE(RegionalEffectBase):
             ap.Agglomerative,
             ap.Quantile,
         ] = "dp",
+        binning_scope: str = "global",
     ):
         """
         Find subregions by minimizing the RHALE-based heterogeneity.
@@ -145,6 +146,14 @@ class RegionalRHALE(RegionalEffectBase):
                   For custom parameters initialize a `axis_partitioning.DynamicProgramming` object
                 - Use `"fixed"` for using a Fixed binning solution with the default parameters.
                   For custom parameters initialize a `axis_partitioning.Fixed` object
+
+            binning_scope: the x-range the binner covers when a subregion is
+                re-binned (the split search and the node eval/plot alike)
+
+                - `"global"` (default): the frozen global `axis_limits` — one
+                  frame for every subregion, directly comparable
+                - `"effective"`: each subregion's own `[min, max]` — bins
+                  packed into the subregion, finer resolution
         """
         if self.data_effect is None:
             self.compile()
@@ -154,7 +163,10 @@ class RegionalRHALE(RegionalEffectBase):
             "candidate_conditioning_features": candidate_conditioning_features,
             "space_partitioner": space_partitioner,
         }
-        self.kwargs_fitting = {"binning_method": binning_method}
+        self.kwargs_fitting = {
+            "binning_method": binning_method,
+            "binning_scope": binning_scope,
+        }
 
         self._fit_loop(features, candidate_conditioning_features, space_partitioner)
 

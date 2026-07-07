@@ -28,6 +28,42 @@ their natural numeric order. Nominal levels are indexed by an order $\pi$: decla
   per-level jittered dots. Nominal → same bars at positions $1..K$ with level labels as
   ticks; bar order follows $\pi$; PDP/ShapDP may reorder for display (`order="effect"`).
 
+## Masked evaluation (regional ≡ masked global)
+
+`eval`/`eval_heter`/`heter_score`/`plot` all accept `mask=` — a boolean array
+over the $N$ instances — and return the method's own summary restricted to the
+selected instances. This is exactly what a regional node is (design contract
+R11): `RegionalX.plot(feature, node_idx)` = `globalX.plot(feature,
+mask=node_mask)`. Masked calls are model-free — they re-summarize the stored
+per-instance local effects (one exception below). Per method, what re-runs and
+what stays frozen:
+
+- **PDP / DerPDP** — the grid is frozen (global frame). Masked mean and
+  variance are re-averaged over the masked *columns* of the cached ICE (d-ICE)
+  table; centering constants are recomputed per masked instance. The one
+  allowed model touch: `eval(mask=)` at points off the cached grid recomputes
+  ICE on `data[mask]` exactly; heterogeneity and plot always interpolate from
+  the cached grid.
+- **ALE** — bin edges are frozen (the edge-bound secants cannot be recomputed
+  without touching the model). Masked per-bin means/variances are re-averaged
+  from the stored per-instance effects; bins left empty by the mask are
+  interpolated (`fill_nans`) and edge bins extend flat.
+- **RHALE / ShapDP** — the stored local effects are per-instance (jacobian
+  values / SHAP values), so a masked call re-runs binning on the masked data.
+  The `binning_scope` fit kwarg selects the range handed to the binner:
+  `"global"` (default) = the global `axis_limits` interval, `"effective"` =
+  the masked column's `[min, max]`. It is recorded at fit and replayed on
+  every masked call, so the split search's `heter_score(mask)` and every
+  masked eval/plot share the same scope.
+- **Categorical features** keep the parent's level frame: means/variances are
+  re-aggregated per level within the mask, level weights $w_k$ become the
+  within-mask frequencies, and levels absent from the region are interpolated
+  (ALE transitions) or dropped from the bars.
+
+Masked plots window the x-axis to the effective interval, so node plots look
+"zoomed" by default. A degenerate mask (empty, or collapsing the feature to a
+point) raises `ValueError`.
+
 ## PDP
 
 ICE curve: $\hat f^{(i)}(x) = f(x,\, x^{(i)}_c)$.

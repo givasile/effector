@@ -80,9 +80,10 @@ class RegionalEffectBase:
         self.partitioners: typing.Dict[str, Best] = {}
         self.tree: typing.Dict[str, Tree] = {}
 
-        # the ONE global effect object per feature: fit once on the full data,
-        # its cached local effects re-scored (masked) for every candidate split
-        self._global_fe: typing.Dict = {}
+        # the ONE global effect object (regional ≡ masked global): constructed
+        # once, fitted per feature; the split search AND the node eval/plot are
+        # its own masked summaries — pure numpy over its cached local effects
+        self._global_fe = None
 
     def fit(self, *args, **kwargs):
         raise NotImplementedError
@@ -93,45 +94,56 @@ class RegionalEffectBase:
         jacobian to avoid recomputing it)."""
         return {}
 
-    def _after_precompute(self, feature: int, fe) -> None:
-        """Hook: run after the global effect is fitted (e.g. stash the computed
-        SHAP values for node injection)."""
-
     def _precompute_global(self, feature: int) -> None:
-        """Fit the ONE global effect for `feature` on the full data and cache it
-        (its local effects are computed here, once). The heterogeneity function
-        then re-scores masked subsets of those cached effects — no model calls,
-        no per-candidate object rebuilds (the single-model-touch constitution)."""
-        spec = resolve_method(self.method_name)
-        kwargs = dict(
-            axis_limits=self.axis_limits,
-            nof_instances="all",
-            schema=self._node_schema(),
-            random_state=self.random_state,
-        )
-        kwargs.update(self._global_fe_kwargs())
-        if spec.needs_jac:
-            fe = spec.cls(self.data, self.model, self.model_jac, **kwargs)
-        else:
-            fe = spec.cls(self.data, self.model, **kwargs)
-        fe.fit(features=feature, centering=False, **self.kwargs_fitting)
-        self._global_fe["feature_" + str(feature)] = fe
-        self._after_precompute(feature, fe)
+        """Fit the ONE global effect for `feature` on the full data (its local
+        effects are computed here, once; the shared object also reuses
+        feature-independent raw material — jacobian, shap values — across
+        features). Every regional question afterwards is a masked re-summary of
+        those cached effects — no model calls, no per-candidate or per-node
+        object rebuilds (the single-model-touch constitution)."""
+        if self._global_fe is None:
+            spec = resolve_method(self.method_name)
+            kwargs = dict(
+                axis_limits=self.axis_limits,
+                nof_instances="all",
+                schema=self._node_schema(),
+                random_state=self.random_state,
+            )
+            kwargs.update(self._global_fe_kwargs())
+            if spec.needs_jac:
+                self._global_fe = spec.cls(
+                    self.data, self.model, self.model_jac, **kwargs
+                )
+            else:
+                self._global_fe = spec.cls(self.data, self.model, **kwargs)
+            # category_names (a value->name map) is resolved by the parent's
+            # ingest; inherit it by value — the schema-side list format is
+            # positional over *observed* levels, so it can't survive an
+            # unlucky subsample
+            if self.feature_metadata.category_names is not None:
+                self._global_fe.feature_metadata = dataclasses.replace(
+                    self._global_fe.feature_metadata,
+                    category_names=self.feature_metadata.category_names,
+                )
+        self._global_fe.fit(features=feature, centering=False, **self.kwargs_fitting)
 
     def _create_heterogeneity_function(self, feature: int, min_points: int) -> Callable:
         """The heterogeneity the partitioner minimizes: delegate to the global
         effect's own `heter_score(feature, mask)` over the candidate subregion —
         pure numpy over the cached local effects. A degenerate subregion (empty
         or singleton bins) is rejected with BIG_M."""
-        fe = self._global_fe["feature_" + str(feature)]
+        fe = self._global_fe
 
         def heter(active_indices) -> float:
             if np.sum(active_indices) < min_points:
                 return BIG_M
             try:
-                return fe.heter_score(feature, mask=active_indices.astype(bool))
+                score = fe.heter_score(feature, mask=active_indices.astype(bool))
             except (utils.AllBinsHaveAtMostOnePointError, ValueError):
                 return BIG_M
+            # a nan score would poison the accept test (nan < thres is False,
+            # so a nonsense split with an empty child would be *accepted*)
+            return score if np.isfinite(score) else BIG_M
 
         return heter
 
@@ -218,17 +230,11 @@ class RegionalEffectBase:
             centering = resolve_method(self.method_name).cls.DEFAULT_CENTERING
         return helpers.prep_centering(centering)
 
-    def _extra_fe_kwargs(self, active_indices: np.ndarray) -> dict:
-        """Hook: method-specific constructor kwargs for a node's fe object."""
-        return {}
-
-    def _node_schema(self, feature_names: Optional[list] = None) -> ingestion.Schema:
-        """The parent's resolved metadata as an explicit schema for internally
-        built effect objects — types must never be re-inferred from a subset."""
+    def _node_schema(self) -> ingestion.Schema:
+        """The parent's resolved metadata as an explicit schema for the
+        internally built global effect — types must never be re-inferred."""
         return ingestion.Schema(
-            feature_names=(
-                self.feature_names if feature_names is None else feature_names
-            ),
+            feature_names=self.feature_names,
             feature_types=self.feature_types,
             cat_limit=self.cat_limit,
             target_name=self.target_name,
@@ -236,7 +242,9 @@ class RegionalEffectBase:
             scale_y=self.scale_y,
         )
 
-    def _create_fe_object(self, feature, node_idx, scale_x_list):
+    def _node_mask(self, feature: int, node_idx: int):
+        """The `(node, boolean mask)` of a fitted tree node — the ONLY thing
+        that distinguishes the node's effect from the global one."""
         feature_tree = self.tree["feature_{}".format(feature)]
         if feature_tree is None:
             raise ValueError("Feature {} has no splits".format(feature))
@@ -246,47 +254,8 @@ class RegionalEffectBase:
                     node_idx, feature, len(feature_tree.nodes)
                 )
             )
-
         node = feature_tree.get_node_by_idx(node_idx)
-        name = feature_tree.set_display_name(node.name, scale_x_list)
-        mask = node.info["active_indices"].astype(bool)
-        data = self.data[mask, :]
-        feature_names = copy.deepcopy(self.feature_names)
-        feature_names[feature] = name
-
-        spec = resolve_method(self.method_name)
-        kwargs = dict(
-            nof_instances="all",
-            schema=self._node_schema(feature_names),
-            random_state=self.random_state,
-        )
-        if spec.uses_data_effect:
-            kwargs["data_effect"] = (
-                self.data_effect[mask, :] if self.data_effect is not None else None
-            )
-        kwargs.update(self._extra_fe_kwargs(mask))
-
-        if spec.needs_jac:
-            fe = spec.cls(data, self.model, self.model_jac, **kwargs)
-        else:
-            fe = spec.cls(data, self.model, **kwargs)
-        # a node's data is a subset, so category_names (a value->name map) can't
-        # be re-derived from it; inherit the parent's resolved map by value
-        if self.feature_metadata.category_names is not None:
-            fe.feature_metadata = dataclasses.replace(
-                fe.feature_metadata,
-                category_names=self.feature_metadata.category_names,
-            )
-        return fe
-
-    def _fit_node_effect(self, feature, node_idx, centering, scale_x_list=None):
-        """Build the node's fe object and fit it with the *stored* fit kwargs
-        (B1: eval/plot must refit with what the user chose at fit time)."""
-        fe = self._create_fe_object(feature, node_idx, scale_x_list)
-        fit_kwargs = copy.deepcopy(self.kwargs_fitting)
-        fit_kwargs["centering"] = centering
-        fe.fit(features=feature, **fit_kwargs)
-        return fe
+        return node, node.info["active_indices"].astype(bool)
 
     def eval(
         self,
@@ -328,10 +297,11 @@ class RegionalEffectBase:
         self.refit(feature)
         centering = self._resolve_centering(centering)
 
-        fe = self._fit_node_effect(feature, node_idx, centering)
-        y = fe.eval(feature, xs, centering=centering)
+        _, mask = self._node_mask(feature, node_idx)
+        fe = self._global_fe
+        y = fe.eval(feature, xs, centering=centering, mask=mask)
         if heterogeneity:
-            return y, fe.eval_heter(feature, xs)
+            return y, fe.eval_heter(feature, xs, mask=mask)
         return y
 
     def eval_heter(self, feature: int, node_idx: int, xs: np.ndarray) -> np.ndarray:
@@ -349,21 +319,28 @@ class RegionalEffectBase:
             the heterogeneity curve `h` at the given `xs`, `(T,)`
         """
         self.refit(feature)
-        fe = self._fit_node_effect(feature, node_idx, centering=False)
-        return fe.eval_heter(feature, xs)
+        _, mask = self._node_mask(feature, node_idx)
+        return self._global_fe.eval_heter(feature, xs, mask=mask)
 
     def _plot(self, feature, node_idx, scale_x_list, plot_kwargs):
-        """Fit the node's fe object with the stored fit kwargs (B1) and
-        delegate to its plot — the return rule is the global one's (R7)."""
+        """Delegate to the ONE global effect's masked plot — the node's effect
+        drawn from the cached local effects on the global frame, x-windowed to
+        the node's own interval; the return rule is the global one's (R7)."""
         self.refit(feature)
         plot_kwargs["centering"] = self._resolve_centering(plot_kwargs["centering"])
         scale_x_list = helpers.resolve_scale(scale_x_list, self.scale_x_list)
 
-        fe = self._fit_node_effect(
-            feature, node_idx, plot_kwargs["centering"], scale_x_list
-        )
+        node, mask = self._node_mask(feature, node_idx)
+        feature_tree = self.tree["feature_{}".format(feature)]
+        label = feature_tree.set_display_name(node.name, scale_x_list)
         scale_x = scale_x_list[feature] if scale_x_list is not None else None
-        return fe.plot(feature=feature, scale_x=scale_x, **plot_kwargs)
+        return self._global_fe.plot(
+            feature=feature,
+            scale_x=scale_x,
+            mask=mask,
+            feature_label=label,
+            **plot_kwargs,
+        )
 
     def summary(
         self,
