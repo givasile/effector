@@ -48,8 +48,8 @@ to detect refit.
 ## R5 — One method registry
 
 `effector.method_registry` holds the single
-`{canonical_name: (cls, needs_jac, uses_data_effect, display_name)}` table
-plus aliases. `FeatureEffect`, `RegionalEffectBase._create_fe_object`, and
+`{canonical_name: (cls, needs_jac, display_name, ...capabilities)}` table
+plus aliases. `FeatureEffect`, `RegionalEffectBase`, and
 plot titles all read it; per-method if/elif chains are a bug.
 
 ## R6 — String-argument registries
@@ -150,3 +150,38 @@ construction-time defaults; a plot-time `scale_x`/`scale_y` dict overrides,
 checks name/type list lengths against `dim`, canonical type values, scale
 dict shapes (`{"mean","std"}`, `std != 0`), `cat_limit` sanity, and
 `category_names` lengths against the observed levels.
+
+## R11 — Regional ≡ masked global
+
+A regional effect is **not** a re-instantiated global object on a data
+subset; it is the one global object's own summary restricted by a boolean
+mask. Every global `eval`/`eval_heter`/`heter_score`/`plot` accepts
+`mask=` (boolean, shape `(N,)`); `RegionalX.eval/eval_heter/plot(feature,
+node_idx)` delegates to the one fitted global object with the node's mask
+(plus `feature_label=` for the region title). One source of truth: the
+heterogeneity printed in the partition tree **is**
+`global.heter_score(feature, mask)`, and every plotted node band derives
+from `eval_heter(feature, xs, mask)`.
+
+**The invariant.** `axis_limits` is the immutable global frame, fixed at
+construction. A mask never mutates stored state — no axis_limits, no bins,
+no payloads. Anything region-shaped is transient, derived per call via
+`_effective_limits(feature, mask)` = `[min, max]` of the masked column
+(categorical analog: `_level_weights`). Its only consumers: masked
+centering constants, the masked plot x-window, and degeneracy guards
+(empty mask / collapsed interval → `ValueError`).
+
+**Model-free.** Masked surfaces extend the single-model-touch constitution
+to eval/plot: everything is re-summarized from the stored per-instance
+local effects, zero model calls (contract-tested). The one allowed
+exception: PDP `eval(mask=)` at points off the cached grid recomputes ICE
+on `data[mask]` exactly — symmetric with global PDP eval.
+
+**Frame semantics.** Structure frozen on the global frame stays frozen:
+ALE keeps its bin edges, PDP its grid. Bins/levels left empty by the mask
+are interpolated (`fill_nans`) and edge bins extend flat — a region never
+re-touches the model to re-support the frame. RHALE/ShapDP store
+per-instance local effects, so masked calls re-run binning; the
+`binning_scope` fit kwarg (`"global"` default | `"effective"`) selects the
+range handed to `find_limits`, is recorded in `fit_args`, and is replayed
+on every masked call — split search and display always share it.

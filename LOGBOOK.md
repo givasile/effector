@@ -1050,3 +1050,51 @@ gated behind a visual color review (the alpha values are the one taste knob).
 categorical dot-interval redesign, A5 stable per-method colors.
 
 ---
+
+## 26. 2026-07-07 — Regional ≡ masked global: the node objects go away (tag: theory+code)  [docs/design.md R11; PRs #47 + regional-masked-delegation; branches `feat/masked-global-eval-plot`, `feat/regional-masked-delegation`]
+
+**The decision (with Vasilis, option (b)):** a regional effect is *not* a
+re-instantiated global object on a data subset (option a); it is **the one
+global object's own summary restricted by a mask**. Deciding argument: for ALE
+(edge-bound secants) and PDP (grid-bound ICE) a node object is either
+model-touching or inject-and-freeze — i.e. (b) with extra machinery; the
+literature estimators (REPID/GADGET) are grouped local effects, i.e. (b).
+Option (a) survives only as a future store/load feature (the `local_effects=`
+constructor kwarg is the deserialization seam) — parked, nothing wired.
+
+**The invariant (now design.md R11):** `axis_limits` is the immutable global
+frame; a mask never mutates stored state; anything region-shaped is transient,
+derived per call via `_effective_limits(feature, mask)`. Its only consumers:
+masked centering constants, the masked plot x-window, degeneracy guards.
+
+**What lands:**
+- `mask=` + `feature_label=` on `eval`/`eval_heter`/`heter_score`/`plot` of all
+  five methods, model-free (constitution extended to eval/plot; one documented
+  exception: PDP `eval(mask=)` off the cached grid recomputes ICE exactly).
+- Regional `eval/eval_heter/_plot` delegate to ONE shared global object;
+  `_create_fe_object`/`_fit_node_effect`/`_extra_fe_kwargs`/`_after_precompute`
+  and `MethodSpec.uses_data_effect` deleted. New contracts: RC7 one-truth
+  (tree heterogeneity == `heter_score(feature, mask)`), RC8 node surfaces
+  model-free.
+- **`binning_scope` knob (Vasilis: "why not both"):** fit kwarg on RHALE/ShapDP
+  only — the range handed to `find_limits` on masked re-binning, `"global"`
+  (default) | `"effective"`; recorded in fit_args and replayed, so split search
+  and display always share it. Default flip to `"effective"` deferred
+  (prototype shows both recover the truth; "effective" packs finer bins into
+  the region).
+- Two real bugs found by the rewire: (1) nan heterogeneity poisoned the
+  partitioner accept test (`nan < thres` is False → bogus splits, even an empty
+  stored node) → BIG_M finite-guard in `_create_heterogeneity_function`;
+  (2) ShapDP single-bin payload → interp1d on one knot → nan spline → constant
+  fallback in `_summarize`.
+
+**Prototype evidence (`scripts/proto_masked_regional.py`, old=main vs new):**
+trees identical everywhere (split search untouched); bike-sharing ALE node
+plots visually identical; PDP node values identical, drawn on the global grid
+(smooth) instead of the node refit's staircase; the old ShapDP empty-node crash
+renders fine on new. Figures in `scripts/proto_masked_figs/`.
+
+**Docs:** design.md R11 (+ R5 de-staled), method_semantics.md "Masked
+evaluation" section (per-method frozen-vs-recomputed table), regional
+quickstart "under the hood" note with the ad-hoc `plot(mask=X[:, 6] > 0.5)`
+example.
