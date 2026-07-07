@@ -28,10 +28,6 @@ class ALEBase(GlobalEffectBase):
         random_state: Optional[int] = 21,
         method_name: str = "ALE",
     ):
-        # per-feature raw local effects + bin limits (regional reuse and the
-        # discrete kernel store here; ALE also uses them on the continuous path)
-        self.data_effect_ale: dict = {}
-        self.bin_limits: dict = {}
         super(ALEBase, self).__init__(
             method_name,
             data,
@@ -122,8 +118,6 @@ class ALEBase(GlobalEffectBase):
             "levels": levels,
         }
         self.local_effects["feature_" + str(feature)] = prim
-        # back-compat mirror (regional ALE reads this until the collapse)
-        self.data_effect_ale["feature_" + str(feature)] = prim
         return prim
 
     def _summarize_cat(
@@ -152,8 +146,6 @@ class ALEBase(GlobalEffectBase):
                 positions, effects, np.array([0.0, len(levels) - 1.0])
             )
             utils.raise_if_no_binning(limits, feature, binning)
-        if mask is None:
-            self.bin_limits["feature_" + str(feature)] = limits
 
         params = utils.compute_ale_params(positions, effects, limits)
         params["alg_params"] = "categorical"
@@ -429,9 +421,6 @@ class ALE(ALEBase):
             "effects": secants,
             "limits": limits,
         }
-        # back-compat mirrors (regional ALE reads these until the collapse)
-        self.data_effect_ale["feature_" + str(feature)] = secants
-        self.bin_limits["feature_" + str(feature)] = limits
 
     def _summarize(
         self, feature: int, mask=None, binning_method="fixed", order=None
