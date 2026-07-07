@@ -425,7 +425,7 @@ class ALE(ALEBase):
                 less than `15` unique values.
                 - If you want to change the parameters of the method, you pass an instance of the
                 class `effector.axis_partitioning.Fixed` with the desired parameters.
-                For example: `Fixed(nof_bins=20, min_points_per_bin=0, cat_limit=10)`
+                For example: `Fixed(nof_bins=20, min_points_per_bin=0)`
 
             centering: whether to compute the normalization constant for centering the plot:
 

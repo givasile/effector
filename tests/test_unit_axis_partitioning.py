@@ -113,7 +113,7 @@ class TestBinEstimation:
         # test Greedy
         min_points = 2
         est = effector.axis_partitioning.Greedy(
-            init_nof_bins=100, discount=0.3, min_points_per_bin=min_points, cat_limit=1
+            init_nof_bins=100, discount=0.3, min_points_per_bin=min_points
         )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
 
@@ -124,7 +124,7 @@ class TestBinEstimation:
         # test DP
         min_points = 2
         est = effector.axis_partitioning.DynamicProgramming(
-            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+            max_nof_bins=10, min_points_per_bin=min_points
         )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
 
@@ -139,14 +139,14 @@ class TestBinEstimation:
 
         min_points = 3
         est = effector.axis_partitioning.Greedy(
-            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1
+            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points
         )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert np.allclose(gt_limits, limits_greedy)
 
         min_points = 3
         est = effector.axis_partitioning.DynamicProgramming(
-            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+            max_nof_bins=10, min_points_per_bin=min_points
         )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert np.allclose(gt_limits, limits_dp)
@@ -157,14 +157,14 @@ class TestBinEstimation:
 
         min_points = 4
         est = effector.axis_partitioning.Greedy(
-            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1
+            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points
         )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert np.allclose(gt_limits, limits_greedy)
 
         min_points = 4
         est = effector.axis_partitioning.DynamicProgramming(
-            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+            max_nof_bins=10, min_points_per_bin=min_points
         )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert np.allclose(gt_limits, limits_dp)
@@ -174,14 +174,14 @@ class TestBinEstimation:
 
         min_points = 5
         est = effector.axis_partitioning.Greedy(
-            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1
+            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points
         )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert limits_greedy is False
 
         min_points = 5
         est = effector.axis_partitioning.DynamicProgramming(
-            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+            max_nof_bins=10, min_points_per_bin=min_points
         )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert limits_dp is False
@@ -193,7 +193,7 @@ class TestBinEstimation:
         # test Greedy
         min_points = 10
         est = effector.axis_partitioning.Greedy(
-            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1
+            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points
         )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert (
@@ -245,7 +245,7 @@ class TestBinEstimation:
         # test DP
         min_points = 10
         est = effector.axis_partitioning.DynamicProgramming(
-            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+            max_nof_bins=10, min_points_per_bin=min_points
         )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert (
@@ -355,20 +355,18 @@ class TestConstantEffectMerging:
 
 def _greedy():
     return effector.axis_partitioning.Greedy(
-        init_nof_bins=20, min_points_per_bin=2, discount=0.3, cat_limit=1
+        init_nof_bins=20, min_points_per_bin=2, discount=0.3
     )
 
 
 def _dp():
     return effector.axis_partitioning.DynamicProgramming(
-        max_nof_bins=20, min_points_per_bin=2, discount=0.3, cat_limit=1
+        max_nof_bins=20, min_points_per_bin=2, discount=0.3
     )
 
 
 def _fixed():
-    return effector.axis_partitioning.Fixed(
-        nof_bins=4, min_points_per_bin=2, cat_limit=1
-    )
+    return effector.axis_partitioning.Fixed(nof_bins=4, min_points_per_bin=2)
 
 
 def _case_4pt():
@@ -459,17 +457,19 @@ class TestAxisPartitioningEdgeCases:
         assert _dp().find_limits(x, g, np.array([0.3, 0.3])) is False
 
     def test_adapt_for_categorical_rewrites_bin_count_greedy(self):
+        # Greedy's candidate-bin knob is a method param (init_nof_bins)
         method = effector.axis_partitioning.Greedy(init_nof_bins=20)
         adapted = effector.axis_partitioning.adapt_for_categorical(method, nof_levels=5)
-        assert adapted.method_args["init_nof_bins"] == 4  # nof_levels - 1
+        assert adapted.params["init_nof_bins"] == 4  # nof_levels - 1
         # deepcopy independence: the original is untouched
-        assert method.method_args["init_nof_bins"] == 20
+        assert method.params["init_nof_bins"] == 20
 
     def test_adapt_for_categorical_rewrites_bin_count_dp(self):
+        # DP's candidate-bin knob is a constraint (max_nof_bins)
         method = effector.axis_partitioning.DynamicProgramming(max_nof_bins=20)
         adapted = effector.axis_partitioning.adapt_for_categorical(method, nof_levels=5)
-        assert adapted.method_args["max_nof_bins"] == 4
-        assert method.method_args["max_nof_bins"] == 20
+        assert adapted.constraints.max_nof_bins == 4
+        assert method.constraints.max_nof_bins == 20
 
     def test_axis_limits_none_branch(self):
         # axis_limits=None => xs_min/xs_max derive from data.min()/max().
