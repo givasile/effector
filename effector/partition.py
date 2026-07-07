@@ -240,6 +240,36 @@ class Partition:
         )
 
     # -- serialization boundary ------------------------------------------------
+    @classmethod
+    def from_dict(cls, d):
+        """Rebuild a `Partition` from `to_dict()` output. The result is
+        UNBOUND (no effect): `show`/`label`/`leaves`/`mask` work; `eval`/`plot`
+        raise until an effect binds it."""
+        regions = [
+            Region(
+                idx=r["idx"],
+                name=r["name"],
+                mask=np.asarray(r["mask"], dtype=bool),
+                heterogeneity=float(r["heterogeneity"]),
+                nof_instances=int(r["nof_instances"]),
+                weight=float(r["weight"]),
+                level=int(r["level"]),
+                parent_idx=r["parent_idx"],
+                foc_index=r["foc_index"],
+                foc_name=r["foc_name"],
+                foc_type=r["foc_type"],
+                foc_split_position=r["foc_split_position"],
+                comparison=r["comparison"],
+            )
+            for r in d["regions"]
+        ]
+        return cls(
+            regions,
+            feature=d["feature"],
+            feature_name=d["feature_name"],
+            finder_name=d["finder"],
+        )
+
     def to_dict(self):
         return {
             "feature": self.feature,
