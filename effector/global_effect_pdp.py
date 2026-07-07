@@ -55,6 +55,56 @@ class PDPBase(GlobalEffectBase):
             return {"levels": self._levels(feature), "is_cat": True}
         return {}
 
+    def _compute_local_effects(self, feature: int) -> None:
+        """Step 2 (model-touching): the (d-)ICE table on the heterogeneity grid
+        — one row per grid point, one column per instance `(T, N)`. This is the
+        (d-)PDP's per-instance local effect; the split search re-scores column
+        subsets of it without re-querying the model."""
+        use_vectorized = self.fit_args.get("feature_" + str(feature), {}).get(
+            "use_vectorized", True
+        )
+        if self._is_cat(feature):
+            grid = self._levels(feature)
+        else:
+            grid = np.linspace(
+                self.axis_limits[0, feature],
+                self.axis_limits[1, feature],
+                helpers.NOF_INTERNAL_POINTS,
+            )
+        ice = self._predict(self.data, grid, feature, use_vectorized)  # (T, N)
+        self.local_effects["feature_" + str(feature)] = {"grid": grid, "ice": ice}
+
+    def _summarize(
+        self, feature: int, mask=None, use_vectorized: bool = True
+    ) -> dict:
+        """Step 3 (pure numpy): from the cached (d-)ICE table restricted to the
+        subregion `mask` (None = all), the mean curve and the heterogeneity curve
+        on the grid — cross-instance variance of the per-instance-centered ICE
+        curves (PDP) or of the raw d-ICE curves (DerPDP)."""
+        self._ensure_local_effects(feature)
+        prim = self.local_effects["feature_" + str(feature)]
+        grid, ice = prim["grid"], prim["ice"]  # ice (T, N)
+        if mask is not None:
+            ice = ice[:, mask]
+
+        is_cat = self._is_cat(feature)
+        if self.method_name == "pdp":
+            # each ICE curve is centered on its own (frequency-weighted for a
+            # discrete axis) mean — a per-instance shift, so mask-invariant
+            if is_cat:
+                _, weights = self._level_weights(feature)
+                per_instance_norm = np.average(ice, axis=0, weights=weights)
+            else:
+                per_instance_norm = np.mean(ice, axis=0)
+            heter = np.var(ice - per_instance_norm[np.newaxis, :], axis=1)
+        else:
+            heter = np.var(ice, axis=1)
+        out = {"grid": grid, "heter": heter, "mean": np.mean(ice, axis=1)}
+        if is_cat:
+            out["is_cat"] = True
+            out["levels"] = grid
+        return out
+
     def _compute_norm_const(
         self,
         feature: int,
@@ -92,11 +142,27 @@ class PDPBase(GlobalEffectBase):
         # mean-effect shift is their average
         return np.mean(norm_const)
 
-    def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
+    def _eval_unnorm(
+        self, feature: int, x: np.ndarray, heterogeneity: bool = False, params=None
+    ):
         """Kernel: uncentered mean (d-)ICE at `x`; with `heterogeneity`, also
         h(x) — the variance across the *per-instance centered* ICE curves for
         the PDP (levels are only comparable after centering) and across the raw
-        d-ICE curves for the DerPDP (slopes are directly comparable)."""
+        d-ICE curves for the DerPDP (slopes are directly comparable).
+
+        When `params` (from `_summarize`) is given, read the mean/heterogeneity
+        off the cached grid — the model-free masked path used by the regional
+        split search — instead of re-querying the model at `x`."""
+        if params is not None:
+            if params.get("is_cat"):
+                codes = utils.codes_from_levels(
+                    x, params["levels"], feature, self.feature_names[feature]
+                )
+                y = params["mean"][codes]
+                return (y, params["heter"][codes]) if heterogeneity else y
+            y = np.interp(x, params["grid"], params["mean"])
+            return (y, np.interp(x, params["grid"], params["heter"])) if heterogeneity else y
+
         if self._is_cat(feature):
             # discrete features are evaluated only at levels (R10)
             utils.codes_from_levels(
