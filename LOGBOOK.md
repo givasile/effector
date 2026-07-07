@@ -1126,3 +1126,26 @@ partition would be.
 the new tree byte-identical to the old `Regional*` tree (pdp, rhale) before the
 cutover; the four-regions two-level ground truth and the categorical capability
 matrix pass unchanged through the new API.
+
+---
+
+## 28. 2026-07-08 — Importance: the μ-twin of heter_score (R13) (tag: theory+code)  [docs/design.md R13; branch `feat/find-regions`]
+
+**What:** `importance(feature, mask=None) -> float >= 0` (+ `importances() -> (D,)`)
+on every global class. It is the μ-twin of `heter_score`: heter_score measures the
+per-instance *spread* of the effect, importance measures how much the *mean*
+effect varies — evaluated identically (continuous: std over heter_score's uniform
+grid; discrete: frequency-weighted std over levels). ShapDP overrides with the
+canonical `mean(|phi|)`; DerPDP with mean `|derivative|` (its mean effect is
+already a derivative, so the dispersion would be ~0 for a linear model).
+
+**Why (constraints that shaped it):** effector never sees `y`, so
+permutation/loss importance is out by construction — importance is a property of
+the fitted effect. It must be model-free and centering-invariant. Two design
+pivots fell out of that: (1) the std of the mean effect is invariant to the
+additive centering constant → no `centering` kwarg, and `centering=False` in the
+kernel avoids any refit; (2) PDP/DerPDP recompute their ICE table on the *unmasked*
+eval path, so importance routes through the *masked* path with an all-ones mask
+(≡ None by M1) to read the cached ICE — model-free for every method after the one
+lazy touch. Closed form on the linear anchor pins it: importance ratio = |coef|
+ratio for all five methods.
