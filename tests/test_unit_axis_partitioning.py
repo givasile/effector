@@ -585,3 +585,110 @@ class TestNoBinningReason:
         limits = est.find_limits(np.ones(50) * 0.3, np.ones(50), np.array([0.3, 0.3]))
         with pytest.raises(ValueError, match="all points share a single value"):
             utils.raise_if_no_binning(limits, feature=0, binning_method=est)
+
+
+def _inclusive_reference_dp_limits(est, x, y, x_lims):
+    """Recompute DP limits with the ORIGINAL inclusive-boundary cost (np.var +
+    filter_points_in_bin), reusing the class's DP fill + backtracking. Used to
+    cross-check the O(N+K^2) prefix-sum (half-open) cost matrix of Stage 2."""
+    import effector.utils as utils
+
+    est._preprocess_find(x, y, x_lims)
+    K = est.constraints.max_nof_bins
+    discount = est.params["discount"]
+    N = x.shape[0]
+    thres = max(est.constraints.min_points_per_bin, 2)
+    x_min, x_max = est.x_min, est.x_max
+    dx = (x_max - x_min) / K
+    nof = K + 1
+
+    cost = np.full((nof, nof), est.big_M)
+    for i in range(nof):
+        for j in range(i, nof):
+            if i == j:
+                cost[i, j] = 0.0
+                continue
+            start, stop = x_min + i * dx, x_min + j * dx
+            _, yb = utils.filter_points_in_bin(x, y, np.array([start, stop]))
+            if yb.size >= thres:
+                cost[i, j] = np.var(yb) * (stop - start) * (1 - discount * yb.size / N)
+
+    matrix = np.ones((nof, K)) * est.big_M
+    argmatrix = np.ones((nof, K)) * np.nan
+    matrix[:, 0] = cost[0, :]
+    for b in range(1, K):
+        prev = matrix[:, b - 1][:, None] + cost
+        matrix[:, b] = prev.min(axis=0)
+        argmatrix[:, b] = prev.argmin(axis=0)
+    est.method_outputs = {"argmatrix": argmatrix}
+    limits, _ = est._argmatrix_to_limits(K)
+    return limits
+
+
+class TestDPPrefixSumEquivalence:
+    """Stage 2 (prefix-sum, half-open) must match the inclusive-boundary
+    reference on all realistic data; it may differ only when points land exactly
+    on interior grid edges (unreachable for continuous data)."""
+
+    def _DP(self, K, mp):
+        return effector.axis_partitioning.DynamicProgramming(
+            max_nof_bins=K, min_points_per_bin=mp
+        )
+
+    def test_matches_inclusive_reference_on_random_data(self):
+        rng = np.random.default_rng(0)
+        compared = 0
+        for _ in range(120):
+            N = int(rng.integers(60, 1500))
+            x = np.sort(rng.uniform(0, 1, N))
+            kind = rng.integers(0, 3)
+            if kind == 0:
+                y = np.sin(rng.uniform(2, 12) * x) + rng.normal(0, 0.2, N)
+            elif kind == 1:
+                y = np.where(x < rng.uniform(0.3, 0.7), 5.0, -5.0)
+            else:
+                y = rng.normal(0, 1, N)
+            K = int(rng.integers(3, 18))
+            mp = int(rng.integers(2, 6))
+            ax = np.array([0.0, 1.0])
+
+            stage2 = self._DP(K, mp).find_limits(x, y, ax)
+            # only cross-check when a full search ran (not collapsed / False)
+            if stage2 is False or stage2.size <= 2:
+                continue
+            ref = _inclusive_reference_dp_limits(self._DP(K, mp), x, y, ax)
+            np.testing.assert_array_equal(stage2, ref)
+            compared += 1
+        assert compared > 40  # the sweep actually exercised full searches
+
+    def test_exact_grid_edge_half_open_behavior(self):
+        # The one place Stage 2 legitimately differs: many points sitting EXACTLY
+        # on interior grid edges (K=4 -> 0.25/0.5/0.75) with contrasting y.
+        # Inclusive boundaries double-count them (-> collapse to [0, 1]); the
+        # half-open cells count them once (-> full split). Unreachable for
+        # continuous data; impossible on the categorical t-0.5 grid. Pinned so
+        # the behavior is explicit, not accidental.
+        x = np.concatenate(
+            [
+                np.full(20, 0.25),
+                np.full(20, 0.5),
+                np.full(20, 0.75),
+                np.linspace(0.01, 0.24, 30),
+                np.linspace(0.76, 0.99, 30),
+            ]
+        )
+        y = np.concatenate(
+            [
+                np.full(20, 100.0),
+                np.full(20, -100.0),
+                np.full(20, 100.0),
+                np.zeros(30),
+                np.zeros(30),
+            ]
+        )
+        ax = np.array([0.0, 1.0])
+        stage2 = self._DP(4, 2).find_limits(x, y, ax)
+        ref = _inclusive_reference_dp_limits(self._DP(4, 2), x, y, ax)
+        np.testing.assert_array_equal(stage2, np.array([0.0, 0.25, 0.5, 0.75, 1.0]))
+        np.testing.assert_array_equal(ref, np.array([0.0, 1.0]))
+        assert not np.array_equal(stage2, ref)

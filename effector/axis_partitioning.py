@@ -353,29 +353,6 @@ class DynamicProgramming(Base):
         # generic "only one bin possible" case.
         return self._only_one_bin_possible() or self.constraints.max_nof_bins == 1
 
-    def _index_to_position(self, index_start, index_stop, K):
-        dx = (self.x_max - self.x_min) / K
-        start = self.x_min + index_start * dx
-        stop = self.x_min + index_stop * dx
-        return start, stop
-
-    def _cost_of_move(self, index_before, index_next, K, discount):
-        """Compute the cost of move.
-
-        Computes the cost for moving from the index of the previous bin (index_before)
-        to the index of the next bin (index_next).
-        """
-
-        big_M = self.big_M
-        if index_before > index_next:
-            cost = big_M
-        elif index_before == index_next:
-            cost = 0
-        else:
-            start, stop = self._index_to_position(index_before, index_next, K)
-            cost = self._bin_cost(start, stop, discount)
-        return cost
-
     def _argmatrix_to_limits(self, K):
         assert "argmatrix" in self.method_outputs, (
             "argmatrix not found in method_outputs"
@@ -405,6 +382,53 @@ class DynamicProgramming(Base):
         )
         return limits, dx_list
 
+    def _bin_cost_matrix(self, max_nof_bins, discount):
+        """`cost[i, j]` = cost of a single bin spanning limit-index i..j, for all
+        i, j at once, in O(N + K^2).
+
+        Points are assigned to the K uniform grid cells and per-cell count / Σy /
+        Σy^2 are prefix-summed, so any bin's mean and variance are O(1). This
+        replaces the O(K^2 · N) matrix build (one O(N) `filter_points_in_bin` +
+        `np.var` per bin) with a single O(N) pass.
+
+        Boundary note: the grid cells are HALF-OPEN `[edge_m, edge_{m+1})`, unlike
+        `filter_points_in_bin` which is inclusive on both ends. The two agree on
+        every input except one where a point lands *exactly* on an interior grid
+        edge — measure-zero for continuous data, and impossible on the
+        integer-code categorical grid (positions are half-integers). Variance is
+        `E[y^2] - E[y]^2`, clamped at 0 to absorb floating-point noise (`np.var`
+        is non-negative by construction).
+        """
+        big_M = self.big_M
+        nof_limits = max_nof_bins + 1
+        nof_points = self.x.shape[0]
+        thres = max(self.constraints.min_points_per_bin, 2)
+        dx = (self.x_max - self.x_min) / max_nof_bins
+
+        cell = np.clip(((self.x - self.x_min) / dx).astype(int), 0, max_nof_bins - 1)
+        count = np.bincount(cell, minlength=max_nof_bins).astype(float)
+        sum_y = np.bincount(cell, self.y, minlength=max_nof_bins)
+        sum_y2 = np.bincount(cell, self.y * self.y, minlength=max_nof_bins)
+        cum_count = np.concatenate([[0.0], np.cumsum(count)])
+        cum_sum_y = np.concatenate([[0.0], np.cumsum(sum_y)])
+        cum_sum_y2 = np.concatenate([[0.0], np.cumsum(sum_y2)])
+
+        # n[i, j] / s[i, j] / q[i, j] over the points in cells [i, j)
+        n = cum_count[None, :] - cum_count[:, None]
+        s = cum_sum_y[None, :] - cum_sum_y[:, None]
+        q = cum_sum_y2[None, :] - cum_sum_y2[:, None]
+        idx = np.arange(nof_limits)
+        width = (idx[None, :] - idx[:, None]) * dx
+        with np.errstate(divide="ignore", invalid="ignore"):
+            mean = s / n
+            var = np.maximum(q / n - mean * mean, 0.0)
+        cost = var * width * (1.0 - discount * n / nof_points)
+        # under-filled bins (n < thres, which also covers i >= j) cost big_M...
+        cost = np.where(n < thres, big_M, cost)
+        # ...except a zero-width bin (i == j), which costs 0
+        np.fill_diagonal(cost, 0.0)
+        return cost
+
     def _search(self) -> np.ndarray:
         max_nof_bins = self.constraints.max_nof_bins
         discount = self.params["discount"]
@@ -413,15 +437,7 @@ class DynamicProgramming(Base):
         nof_limits = max_nof_bins + 1
         nof_bins = max_nof_bins
 
-        # cost[i, j] = cost of a single bin spanning limit-index i..j. It does
-        # NOT depend on which bin (bin_index) it is, so build it ONCE here rather
-        # than recomputing `_cost_of_move` inside the bin_index loop as before —
-        # that dropped a full O(K) factor of redundant O(N) bin-cost scans
-        # (O(K^3 N) -> O(K^2 N)). Values are identical to `_cost_of_move(i, j)`.
-        cost = np.empty((nof_limits, nof_limits))
-        for i in range(nof_limits):
-            for j in range(nof_limits):
-                cost[i, j] = self._cost_of_move(i, j, max_nof_bins, discount)
+        cost = self._bin_cost_matrix(max_nof_bins, discount)
 
         # init matrices
         matrix = np.ones((nof_limits, nof_bins)) * big_M
@@ -431,9 +447,8 @@ class DynamicProgramming(Base):
         matrix[:, 0] = cost[0, :]
 
         # for all other bins: matrix[next, b] = min_before matrix[before, b-1] +
-        # cost[before, next]. `argmin(axis=0)` scans ascending `before`, the same
-        # tie-break the previous `np.argmin(tmp)` used; the addition order is
-        # preserved, so the result is byte-identical to the triple loop.
+        # cost[before, next]. `argmin(axis=0)` scans ascending `before` (the
+        # tie-break the original `np.argmin(tmp)` used).
         for bin_index in range(1, max_nof_bins):
             prev = matrix[:, bin_index - 1][:, None] + cost
             matrix[:, bin_index] = prev.min(axis=0)
