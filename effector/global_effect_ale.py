@@ -48,8 +48,13 @@ class ALEBase(GlobalEffectBase):
     def fit(self, features: typing.Union[int, str, list] = "all", **kwargs) -> None:
         raise NotImplementedError
 
-    def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
-        params = self.feature_effect["feature_" + str(feature)]
+    def _eval_unnorm(
+        self, feature: int, x: np.ndarray, heterogeneity: bool = False, params=None
+    ):
+        # `params` (from `_summarize`) lets the masked heterogeneity path evaluate
+        # a transient subregion payload without disturbing the stored fitted one
+        if params is None:
+            params = self.feature_effect["feature_" + str(feature)]
         if params.get("is_cat"):
             # discrete kernel (method_semantics.md): accumulate in code space —
             # exact at levels, and h(v_j) is the variance of the step *into*
@@ -575,12 +580,54 @@ class RHALE(ALEBase):
             method_name="RHALE",
         )
 
-    def compile(self):
-        """Prepare everything for fitting, i.e., compute the gradients on data points."""
+    def _fill_jacobian(self):
+        """Compute the model Jacobian on the data (step 2 raw material): exact
+        via `model_jac`, else numerically. Runs at most once."""
         if self.data_effect is None and self.model_jac is not None:
             self.data_effect = self.model_jac(self.data)
         elif self.data_effect is None and self.model_jac is None:
             self.data_effect = utils.compute_jacobian_numerically(self.model, self.data)
+
+    def _compute_local_effects(self, feature: int) -> None:
+        """Step 2: RHALE's local effect is the pointwise derivative — a column
+        of the model Jacobian, independent of the binning (so re-binning a
+        subregion needs no model calls)."""
+        if self._is_cat(feature):
+            # ordinal kernel handled by the (combined) `_fit_feature_cat`; not
+            # reached on the continuous split-search path
+            raise NotImplementedError
+        self._fill_jacobian()
+        self.local_effects["feature_" + str(feature)] = self.data_effect[:, feature]
+
+    def _summarize(
+        self,
+        feature: int,
+        mask=None,
+        binning_method: Union[
+            str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
+        ] = "dp",
+        order=None,
+    ) -> typing.Dict:
+        """Step 3 (pure numpy): bin the cached per-instance jacobian over the
+        subregion `mask` (None = all) and derive the bin effects/variances."""
+        self._ensure_local_effects(feature)
+        eff = self.local_effects["feature_" + str(feature)]
+        col = self.data[:, feature]
+        if mask is not None:
+            eff = eff[mask]
+            col = col[mask]
+
+        binning = (
+            ap.return_default(binning_method)
+            if isinstance(binning_method, str)
+            else binning_method
+        )
+        limits = binning.find_limits(col, eff, self.axis_limits[:, feature])
+        utils.raise_if_no_binning(limits, feature, binning)
+
+        dale_params = utils.compute_ale_params(col, eff, limits)
+        dale_params["alg_params"] = binning
+        return dale_params
 
     def _fit_feature(
         self,
@@ -594,26 +641,7 @@ class RHALE(ALEBase):
             # ordinal kernel: adjacent-level differences are the discrete
             # derivative; the jacobian (if any) is ignored for this feature
             return self._fit_feature_cat(feature, binning_method, order=order)
-        if self.data_effect is None:
-            self.compile()
-
-        data = self.data
-        data_effect = self.data_effect
-
-        if isinstance(binning_method, str):
-            binning_method = ap.return_default(binning_method)
-        limits = binning_method.find_limits(
-            data[:, feature], self.data_effect[:, feature], self.axis_limits[:, feature]
-        )
-        utils.raise_if_no_binning(limits, feature, binning_method)
-
-        # compute the bin effect
-        dale_params = utils.compute_ale_params(
-            data[:, feature], data_effect[:, feature], limits
-        )
-
-        dale_params["alg_params"] = binning_method
-        return dale_params
+        return self._summarize(feature, None, binning_method=binning_method, order=order)
 
     def fit(
         self,
