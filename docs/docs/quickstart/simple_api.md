@@ -3,7 +3,7 @@
 - Author: [givasile](https://givasile.github.io/)
 - Description: The simple entry point to `effector`: what inputs it needs
   (data, model, optionally the jacobian) and how to get a global or regional
-  effect plot in a single line with `.plot()` and `.summary()`.
+  effect plot in a single line with `.plot()` and `.find_regions()`.
 
 `effector` requires:
 
@@ -21,12 +21,11 @@ Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
      - [`ALE`](./../../api_docs/api_global/#effector.global_effect_ale.ALE)
      - [`DerPDP`](./../../api_docs/api_global/#effector.global_effect_derpdp.DerPDP)
 
-2. :man_raising_hand: `effector` provides five regional effect methods:
-     - [`RegionalPDP`](./../../api_docs/api_regional/#effector.regional_effect_pdp.RegionalPDP)
-     - [`RegionalRHALE`](./../../api_docs/api_regional/#effector.regional_effect_rhale.RegionalRHALE)
-     - [`RegionalShapDP`](./../../api_docs/api_regional/#effector.regional_effect_shapdp.RegionalShapDP)
-     - [`RegionalALE`](./../../api_docs/api_regional/#effector.regional_effect_ale.RegionalALE)
-     - [`DerPDP`](./../../api_docs/api_regional/#effector.regional_effect_derpdp.DerPDP)
+2. :man_raising_hand: every global effect method also computes regional
+   effects — call `.find_regions(feature)` on any of the five objects (`PDP`,
+   `RHALE`, `ShapDP`, `ALE`, `DerPDP`) to get a
+   [`Partition`](./../../api_docs/api_partition/#effector.partition.Partition)
+   of subregions.
 
 ---
 ### Dataset
@@ -333,21 +332,22 @@ global_effect.eval(0, xs=np.linspace(-1, 1, 100))
 ???+ success "Regional Effect: How each feature affects the model's output **regionally**, averaged over instances **inside a subregion.**"
      
     Sometimes, global effects are very heterogeneous (local effects deviate from the global effect).
-    They all share three main functions:
+    Call `.find_regions(feature)` on any global effect object; it returns a
+    `Partition`, whose functions are:
 
-        - `.summary()`: provides a summary of the regional effect
-        - `.plot()`: visualizes the global effect
-        - `.eval()`: evaluates the global effect at a grid of points
-        - `.fit()`: allows for customizing the global method
+        - `.show()`: prints the partition tree
+        - `.plot()`: visualizes a subregion's effect
+        - `.eval()`: evaluates a subregion's effect at a grid of points
+        - `.eval_heter()`: evaluates a subregion's heterogeneity
 
 
-### `.summary()`
+### `.find_regions()` and `.show()`
 
-`summary()` is the first step in understanding the regional effect.  
+`find_regions()` is the first step in understanding the regional effect.  
 Behind the scenes, it searches for a partitioning of the feature space into meaningful subregions (1)
-and outputs what if any has been found.
-Users should check the summary before plotting or evaluating the regional effect.
-To plot or evaluate a specific regional effect, they can use the node index `node_idx` from the partition tree.
+and returns a `Partition` describing what, if anything, has been found.
+Users should check `partition.show()` before plotting or evaluating a subregion.
+To plot or evaluate a specific regional effect, they can use the region index `node_idx` from the partition tree.
 { .annotate }
 
 1. meaningful in this context means that the regional effects in the respective subregions have lower heterogeneity than the global effect.
@@ -355,8 +355,9 @@ To plot or evaluate a specific regional effect, they can use the node index `nod
 === "PDP"
     
     ```python
-    r_pdp = effector.RegionalPDP(data=X, model=predict)
-    r_pdp.summary(0)
+    pdp = effector.PDP(data=X, model=predict)
+    partition = pdp.find_regions(0)
+    partition.show()
     ```
 
     ```python
@@ -373,8 +374,9 @@ To plot or evaluate a specific regional effect, they can use the node index `nod
 === "RHALE"
 
     ```python
-    r_rhale = effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian)
-    r_rhale.summary(0)
+    rhale = effector.RHALE(data=X, model=predict, model_jac=jacobian)
+    partition = rhale.find_regions(0)
+    partition.show()
     ```
 
     ```python
@@ -391,8 +393,9 @@ To plot or evaluate a specific regional effect, they can use the node index `nod
 === "ShapDP"
 
      ```python
-     r_shap_dp = effector.RegionalShapDP(data=X, model=predict)
-     r_shap_dp.summary(0)
+     shap_dp = effector.ShapDP(data=X, model=predict, nof_instances=500)
+     partition = shap_dp.find_regions(0)
+     partition.show()
      ```
 
      ```python
@@ -409,8 +412,9 @@ To plot or evaluate a specific regional effect, they can use the node index `nod
 === "ALE"
 
     ```python
-    r_ale = effector.RegionalALE(data=X, model=predict)
-    r_ale.summary(0)
+    ale = effector.ALE(data=X, model=predict)
+    partition = ale.find_regions(0)
+    partition.show()
     ```
 
     ```python
@@ -427,8 +431,9 @@ To plot or evaluate a specific regional effect, they can use the node index `nod
 <!-- === "DerPDP"
 
      ```python
-     r_der_pdp = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
-     r_der_pdp.summary(0)
+     d_pdp = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
+     partition = d_pdp.find_regions(0)
+     partition.show()
      ```
 
     ```python
@@ -444,14 +449,14 @@ To plot or evaluate a specific regional effect, they can use the node index `nod
 
 ### `.plot()`
 
-`.plot()` visualizes the regional effect. Apart from the feature index, it requires the `node_idx` from the partition tree.
-Apart from the added `node_idx` argument, the API is the same as the global effect.
+`partition.plot()` visualizes a subregion's effect. It takes the region index `node_idx` from the partition tree.
+Apart from taking `node_idx` instead of the feature index, the API is the same as the global effect.
 
 === "PDP"
 
      ```python
-     regional_effect = effector.RegionalPDP(data=X, model=predict)
-     [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
+     partition = effector.PDP(data=X, model=predict).find_regions(0)
+     [partition.plot(node_idx) for node_idx in [1, 2]]
      ```
 
      | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
@@ -461,8 +466,8 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
 === "RHALE"
 
      ```python
-     regional_effect = effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian)
-     [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
+     partition = effector.RHALE(data=X, model=predict, model_jac=jacobian).find_regions(0)
+     [partition.plot(node_idx) for node_idx in [1, 2]]
      ```
 
      | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
@@ -472,8 +477,8 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
 === "ShapDP"
 
      ```python
-     regional_effect = effector.RegionalShapDP(data=X, model=predict)
-     [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
+     partition = effector.ShapDP(data=X, model=predict, nof_instances=500).find_regions(0)
+     [partition.plot(node_idx) for node_idx in [1, 2]]
      ```
 
      | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
@@ -483,8 +488,8 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
 === "ALE"
 
      ```python
-     regional_effect = effector.RegionalALE(data=X, model=predict)
-     [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
+     partition = effector.ALE(data=X, model=predict).find_regions(0)
+     [partition.plot(node_idx) for node_idx in [1, 2]]
      ```
 
      | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
@@ -495,8 +500,8 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
 === "derPDP"
 
      ```python
-     regional_effect = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
-     [regional_effect.plot(0, node_idx) for node_idx in [1, 2]]
+     partition = effector.DerPDP(data=X, model=predict, model_jac=jacobian).find_regions(0)
+     [partition.plot(node_idx) for node_idx in [1, 2]]
      ```
 
      | `node_idx=1`: $x_0$ when $x_1 \leq 0$ | `node_idx=2`: $x_0$ when $x_1 > 0$ |
@@ -507,63 +512,64 @@ Apart from the added `node_idx` argument, the API is the same as the global effe
 
 ### `.eval()`
 
-`.eval()` evaluates the regional effect at a grid of points.
+`partition.eval()` evaluates a subregion's effect at a grid of points, and
+`partition.eval_heter()` its heterogeneity. Both take the region index `node_idx`.
 
 === "PDP"
 
     ```python
-    regional_effect = effector.RegionalPDP(data=X, model=predict)
-    y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
-    y_mu, y_heter = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    partition = effector.PDP(data=X, model=predict).find_regions(0)
+    y = partition.eval(1, xs=np.linspace(-1, 1, 100))         # region with node_idx=1
+    y_heter = partition.eval_heter(1, xs=np.linspace(-1, 1, 100))
     ```
 
 === "RHALE"
 
     ```python
-    regional_effect = effector.RegionalRHALE(data=X, model=predict, model_jac=jacobian)
-    y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
-    y_mu, y_heter = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    partition = effector.RHALE(data=X, model=predict, model_jac=jacobian).find_regions(0)
+    y = partition.eval(1, xs=np.linspace(-1, 1, 100))         # region with node_idx=1
+    y_heter = partition.eval_heter(1, xs=np.linspace(-1, 1, 100))
     ```
 
 === "ShapDP"
 
     ```python
-    regional_effect = effector.RegionalShapDP(data=X, model=predict)
-    y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
-    y_mu, y_heter = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    partition = effector.ShapDP(data=X, model=predict, nof_instances=500).find_regions(0)
+    y = partition.eval(1, xs=np.linspace(-1, 1, 100))         # region with node_idx=1
+    y_heter = partition.eval_heter(1, xs=np.linspace(-1, 1, 100))
     ```
 
 === "ALE"
 
     ```python
-    regional_effect = effector.RegionalALE(data=X, model=predict)
-    y = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
-    y_mu, y_heter = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    partition = effector.ALE(data=X, model=predict).find_regions(0)
+    y = partition.eval(1, xs=np.linspace(-1, 1, 100))         # region with node_idx=1
+    y_heter = partition.eval_heter(1, xs=np.linspace(-1, 1, 100))
     ```
 
 === "derPDP"
 
     ```python
-    regional_effect = effector.DerPDP(data=X, model=predict, model_jac=jacobian)
-    y = regional_effect.eval(0, feature=1, xs=np.linspace(-1, 1, 100))
-    y_mu, y_heter = regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100), heterogeneity=True)
+    partition = effector.DerPDP(data=X, model=predict, model_jac=jacobian).find_regions(0)
+    y = partition.eval(1, xs=np.linspace(-1, 1, 100))         # region with node_idx=1
+    y_heter = partition.eval_heter(1, xs=np.linspace(-1, 1, 100))
     ```
 
-### `.fit()`
+### Customizing the search
 
-If you want to customize the regional effect, use `.fit()` before `.summary()`, `.plot()` or `.eval()`.
+If you want to customize the regional effect, pass a `finder` to `.find_regions()`.
 Check this [tutorial](./../flexible_api) for more details. 
-In general, the most important argument is `space_partitioning`, which controls the method that partitions the feature space. 
+The `finder` controls the method that partitions the feature space. 
 
 ```python
-regional_effect = effector.<method_name>(data=X, model=predict)
+effect = effector.<method_name>(data=X, model=predict)
 
-# customize the regional effect
-space_partitioning = effector.space_partitioning.Greedy(max_depth=2)
-regional_effect.fit(features=[...], space_partitioning=space_partitioning, **kwargs)
+# customize the region search
+finder = effector.space_partitioning.Greedy(max_depth=2)
+partition = effect.find_regions(feature=0, finder=finder)
 
-regional_effect.summary(0)
-regional_effect.plot(0, node_idx=1)
-regional_effect.eval(0, node_idx=1, xs=np.linspace(-1, 1, 100))
+partition.show()
+partition.plot(1)                                   # region with node_idx=1
+partition.eval(1, xs=np.linspace(-1, 1, 100))
 ```
 

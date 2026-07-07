@@ -5,7 +5,7 @@ nav:
   - Quickstart: quickstart.md
   - API Docs: api_docs.md
   - Design:
-      - The design contract (R1-R11): design.md
+      - The design contract (R1-R12): design.md
       - Method semantics by feature type: method_semantics.md
   - Guides: guides.md
   - Examples: examples.md

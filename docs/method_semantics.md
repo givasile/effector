@@ -21,8 +21,8 @@ their natural numeric order. Nominal levels are indexed by an order $\pi$: decla
   discrete. `zero_start` subtracts $c=\hat\mu(a)$ for continuous, $c=\hat\mu(v_1)$ for
   discrete (reference level = 0, as in dummy coding).
 - **heter_score**: $H = \frac{1}{30}\sum_{j=1}^{30} h(x_j)$ (uniform grid) for continuous;
-  $H = \sum_k w_k\, h(v_k)$ (frequency-weighted) for discrete. H is what regional
-  splitting consumes.
+  $H = \sum_k w_k\, h(v_k)$ (frequency-weighted) for discrete. H is what
+  `find_regions` consumes.
 - **Plots**: continuous → curve with ±$\sqrt{h}$ band (or ICE curves). Ordinal → bars at
   the true numeric positions $v_k$ with whiskers $\sqrt{h(v_k)}$; `heterogeneity="ice"` →
   per-level jittered dots. Nominal → same bars at positions $1..K$ with level labels as
@@ -32,11 +32,11 @@ their natural numeric order. Nominal levels are indexed by an order $\pi$: decla
 
 `eval`/`eval_heter`/`heter_score`/`plot` all accept `mask=` — a boolean array
 over the $N$ instances — and return the method's own summary restricted to the
-selected instances. This is exactly what a regional node is (design contract
-R11): `RegionalX.plot(feature, node_idx)` = `globalX.plot(feature,
-mask=node_mask)`. Masked calls are model-free — they re-summarize the stored
-per-instance local effects (one exception below). Per method, what re-runs and
-what stays frozen:
+selected instances. This is exactly what a region is (design contract R11):
+`find_regions(feature)` returns a `Partition`, and `partition.plot(idx)` =
+`effect.plot(feature, mask=region_mask)` (R12). Masked calls are model-free —
+they re-summarize the stored per-instance local effects (one exception below).
+Per method, what re-runs and what stays frozen:
 
 - **PDP / DerPDP** — the grid is frozen (global frame). Masked mean and
   variance are re-averaged over the masked *columns* of the cached ICE (d-ICE)

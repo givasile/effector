@@ -38,7 +38,7 @@ pip install effector
 
 This installs a lightweight core (`numpy`, `scipy`, `matplotlib`, `tqdm`) that covers PDP, ALE, RHALE and their regional variants.
 
-`ShapDP` and `RegionalShapDP` need the heavier `shap`/`shapiq` backends (which pull in `numba`, `scikit-learn`, `pandas`, ...). Install them only if you use those methods:
+`ShapDP` (and its `find_regions`) needs the heavier `shap`/`shapiq` backends (which pull in `numba`, `scikit-learn`, `pandas`, ...). Install them only if you use those methods:
 
 ```bash
 pip install effector[shap]
@@ -113,8 +113,8 @@ pdp.plot(
 ### Explain it with regional effect plots
 
 ```python
-# Initialize the Regional Partial Dependence Plot (RegionalPDP)
-r_pdp = effector.RegionalPDP(
+# Fit a global PDP
+pdp = effector.PDP(
     X_test,  # Test set data
     predict,  # Prediction function
     schema={  # metadata: names, types, target name, axis scaling
@@ -122,15 +122,17 @@ r_pdp = effector.RegionalPDP(
         "target_name": bike_sharing.target_name,
     },
 )
+pdp.fit(features=3)
 
-# Summarize the subregions of the 3rd feature (temperature)
-r_pdp.summary(
-    features=3,  # Select the 3rd feature for the summary
-    scale_x_list=[  # scale each feature with mean and std
-        {"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]}
-        for i in range(X_test.shape[1])
-    ]
-)
+# per-feature mean/std used to display axes in the original units
+scale_x_list = [
+    {"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]}
+    for i in range(X_test.shape[1])
+]
+
+# Search for subregions of the 3rd feature (temperature) and print the tree
+partition = pdp.find_regions(feature=3)
+partition.show(scale_x_list=scale_x_list)
 ```
 
 ```
@@ -165,17 +167,13 @@ Let's see how the effect changes on these subregions!
 
 ```python
 # Plot regional effects after the first-level split (workingday vs non-workingday)
-for node in r_pdp.tree["feature_3"].nodes:  # Node ids depend on the fitted tree
-    if node.info["level"] != 1:  # Keep only the nodes of the first-level split
+for region in partition:  # region ids depend on the fitted tree
+    if region.level != 1:  # Keep only the regions of the first-level split
         continue
-    r_pdp.plot(
-        feature=3,  # Feature 3 (temperature)
-        node_idx=node.idx,  # Node index (workingday / non-workingday)
+    partition.plot(
+        region.idx,  # Region index (workingday / non-workingday)
         nof_ice=200,  # Number of ICE curves
-        scale_x_list=[  # Scale features by mean and std
-            {"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]}
-            for i in range(X_test.shape[1])
-        ],
+        scale_x_list=scale_x_list,  # Scale features by mean and std
         scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},  # Scale the target
         y_limits=[-200, 1000]  # Set y-axis limits
     )
@@ -193,17 +191,13 @@ for node in r_pdp.tree["feature_3"].nodes:  # Node ids depend on the fitted tree
 
 ```python
 # Plot regional effects after second-level splits (temperature on non-workingdays, year on workingdays)
-for node in r_pdp.tree["feature_3"].nodes:
-    if node.info["level"] != 2:  # Keep only the nodes of the second-level splits
+for region in partition:
+    if region.level != 2:  # Keep only the regions of the second-level splits
         continue
-    r_pdp.plot(
-        feature=3,  # Feature 3 (temperature)
-        node_idx=node.idx,  # Node index of the second-level splits
+    partition.plot(
+        region.idx,  # Region index of the second-level splits
         nof_ice=200,  # Number of ICE curves
-        scale_x_list=[  # Scale features by mean and std
-            {"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]}
-            for i in range(X_test.shape[1])
-        ],
+        scale_x_list=scale_x_list,  # Scale features by mean and std
         scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},  # Scale target
         y_limits=[-200, 1000]  # Set y-axis limits
     )
@@ -227,13 +221,15 @@ for node in r_pdp.tree["feature_3"].nodes:
 
 `effector` implements global and regional effect methods:
 
-| Method  | Global Effect  | Regional Effect | Reference | ML model          | Speed                                        |
-|---------|----------------|-----------------|-----------|-------------------|----------------------------------------------|
-| PDP     | `PDP`          | `RegionalPDP`   | [PDP](https://projecteuclid.org/euclid.aos/1013203451) | any               | Fast for a small dataset                     |
-| d-PDP   | `DerPDP`       | `RegionalDerPDP`| [d-PDP](https://arxiv.org/abs/1309.6392) | differentiable    | Fast for a small dataset      |
-| ALE     | `ALE`          | `RegionalALE`   | [ALE](https://academic.oup.com/jrsssb/article/82/4/1059/7056085) | any | Fast                                         |
-| RHALE   | `RHALE`        | `RegionalRHALE` | [RHALE](https://ebooks.iospress.nl/doi/10.3233/FAIA230354) | differentiable    | Very fast                                    |
-| SHAP-DP | `ShapDP`       | `RegionalShapDP`| [SHAP](https://papers.nips.cc/paper/7062-a-unified-approach-to-interpreting-model-predictions) | any | Fast for a small dataset and a light ML model |
+Every global effect class exposes `.find_regions(feature)` for the regional analysis:
+
+| Method  | Global Effect  | Regional Effect      | Reference | ML model          | Speed                                        |
+|---------|----------------|----------------------|-----------|-------------------|----------------------------------------------|
+| PDP     | `PDP`          | `PDP().find_regions` | [PDP](https://projecteuclid.org/euclid.aos/1013203451) | any               | Fast for a small dataset                     |
+| d-PDP   | `DerPDP`       | `DerPDP().find_regions`| [d-PDP](https://arxiv.org/abs/1309.6392) | differentiable    | Fast for a small dataset      |
+| ALE     | `ALE`          | `ALE().find_regions` | [ALE](https://academic.oup.com/jrsssb/article/82/4/1059/7056085) | any | Fast                                         |
+| RHALE   | `RHALE`        | `RHALE().find_regions`| [RHALE](https://ebooks.iospress.nl/doi/10.3233/FAIA230354) | differentiable    | Very fast                                    |
+| SHAP-DP | `ShapDP`       | `ShapDP().find_regions`| [SHAP](https://papers.nips.cc/paper/7062-a-unified-approach-to-interpreting-model-predictions) | any | Fast for a small dataset and a light ML model |
 
 ---
 

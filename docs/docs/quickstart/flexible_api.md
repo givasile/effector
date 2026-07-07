@@ -75,13 +75,14 @@ Then, we will customize the `.fit()` routine to use a number of 5 equal-width bi
 
 ### RHALE
 
-`init()`
+`find_regions()`
 
 === "Default settings"
 
     ```python
-    r_rhale = effector.RegionalRHALE(X_test, predict, jacobian, axis_limits=axis_limits, nof_instances="all")
-    r_rhale.summary(0)
+    rhale = effector.RHALE(X_test, predict, jacobian, axis_limits=axis_limits, nof_instances="all")
+    partition = rhale.find_regions(0)
+    partition.show()
     ```
 
 === "Customized `.fit()`"
@@ -89,10 +90,11 @@ Then, we will customize the `.fit()` routine to use a number of 5 equal-width bi
     ```python
     rhale = effector.RHALE(X_test, predict, jacobian, axis_limits=axis_limits, nof_instances="all")
     rhale.fit(features=0, binning_method=effector.axis_partitioning.Fixed(nof_bins=5))
-    rhale.plot(feature=0, y_limits=y_limits, dy_limits=dy_limits)
+    partition = rhale.find_regions(0, finder=effector.space_partitioning.Best(max_depth=1))
+    partition.show()
     ```
 
-`.summary()` output
+`.show()` output
 
 === "Default settings"
     ```python
@@ -132,8 +134,8 @@ Then, we will customize the `.fit()` routine to use a number of 5 equal-width bi
 === "Customized `.fit()`"
 
     ```python
-    rhale.plot(feature=0, node_idx=1, y_limits=y_limits, dy_limits=dy_limits)
-    rhale.plot(feature=0, node_idx=2, y_limits=y_limits, dy_limits=dy_limits)
+    partition.plot(1, y_limits=y_limits, dy_limits=dy_limits)   # region with node_idx=1
+    partition.plot(2, y_limits=y_limits, dy_limits=dy_limits)   # region with node_idx=2
     ```
 
      | `node_idx=1`: $x_0$ when $x_2 \leq 0$ | `node_idx=2`: $x_0$ when $x_2 > 0$ |

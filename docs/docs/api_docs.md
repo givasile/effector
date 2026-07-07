@@ -7,12 +7,10 @@ API DOCS:
     - [`effector.ALE`](./api_docs/api_global.md/#effector.global_effect_ale.RHALE)
     - [`effector.DerPDP`](./api_docs/api_global.md/#effector.global_effect_pdp.DerPDP)
 
-- [Regional Effect Docs](./api_docs/api_regional.md)
-    - [`effector.RegionalPDP`](./api_docs/api_regional.md/#effector.regional_effect_pdp.RegionalPDP)
-    - [`effector.RegionalRHALE`](./api_docs/api_regional.md/#effector.regional_effect_ale.RegionalRHALE)
-    - [`effector.RegionalShapDP`](./api_docs/api_regional.md/#effector.regional_effect_shap.RegionalShapDP)
-    - [`effector.RegionalALE`](./api_docs/api_regional.md/#effector.regional_effect_ale.RegionalALE)
-    - [`effector.RegionalDerPDP`](./api_docs/api_regional.md/#effector.regional_effect_pdp.RegionalDerPDP)
+- [Regional effects — find_regions & Partition](./api_docs/api_partition.md)
+    - [`effector.GlobalEffectBase.find_regions`](./api_docs/api_partition.md/#effector.global_effect.GlobalEffectBase.find_regions)
+    - [`effector.Partition`](./api_docs/api_partition.md/#effector.partition.Partition)
+    - [`effector.Region`](./api_docs/api_partition.md/#effector.partition.Region)
 
 
 - [`effector.axis_partitioning`](./api_docs/api_axis_partitioning.md)

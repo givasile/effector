@@ -2,6 +2,20 @@
 
 # [Unreleased]
 
+### Breaking
+
+- **`Regional*` classes removed** (`RegionalPDP`, `RegionalDerPDP`, `RegionalALE`, `RegionalRHALE`, `RegionalShapDP`) with no backward-compatibility shim. Regional questions are now asked on the **global** effect object via `find_regions(feature) -> Partition` (design contract R12: partitions are values, not stored state). Migration: `RegionalPDP(X, f).fit(0); r.summary(0); r.plot(0, i)` → `pdp = PDP(X, f); pdp.fit(0); part = pdp.find_regions(0); part.show(); part.plot(i)`. The old `space_partitioner=` fit kwarg becomes the `finder=` kwarg of `find_regions`; `r.eval(0, i, xs, heterogeneity=True)` (tuple) splits into `part.eval(i, xs)` + `part.eval_heter(i, xs)`.
+
+### Added
+
+- `GlobalEffectBase.find_regions(feature, *, finder="best", candidate_conditioning_features="all") -> Partition` on every global class — a model-free heterogeneity split search (every candidate scored by `heter_score(feature, mask)`, re-summarized from the cached local effects). Returns a `Partition` value object (`effector.Partition` / `effector.Region`) with `show`/`eval`/`eval_heter`/`plot`/`to_dict`; nothing is stored on the effect.
+- A **finder protocol** on `space_partitioning` (`Base.find_regions`): a finder consumes only `(score_fn: mask->float, data, metadata, its own config)` and returns a `Partition`, so new finders plug in with no changes elsewhere. The min-points / degeneracy (`BIG_M`) guard lives in the finder, never in the effect.
+- An invisible bounded-LRU **masked-summary memo** on the effect, keyed by `(feature, fit_epoch, mask)`, so repeated masked calls (the split search re-proposing candidate masks, a plot after a search) skip re-summarization. It is semantically transparent — a refit bumps the epoch and invalidates it; it never changes an answer, only its latency.
+
+### Notes
+
+- `Partition.plot(idx)` inherits each global class's own `plot` defaults (e.g. PDP still defaults `heterogeneity="ice"`), so there is no visual change versus the old per-method regional plot wrappers.
+
 ### Fixed
 
 - global effects: a centering-triggered auto-refit (e.g. `fit(centering=False, order=[...])` then `eval`/`plot` with centering) no longer discards the method-specific `fit` kwargs — `order`/`binning_method` (and `use_vectorized`) are replayed from the original `fit`, overriding only `centering`, instead of silently falling back to the defaults

@@ -27,9 +27,10 @@ aggregation ladder with one consumer per level:
   internally, std only at the plot layer. **No centering kwarg** — h is
   invariant to centering, and the signature enforces it. Every plotted
   band/error-bar equals `eval_heter` (R1 extended to heterogeneity).
-  Regional twin: `eval_heter(feature, node_idx, xs)`.
+  Masked/regional form: `eval_heter(feature, xs, mask)` (the mask of a
+  `Partition` region — R11/R12).
 - **`heter_score(feature)` → float ≥ 0** — the one method-agnostic scalar,
-  consumed by regional splitting and the interaction submodule.
+  consumed by `find_regions` and the interaction submodule.
 
 ## R3 — Centering vocabulary
 
@@ -49,8 +50,8 @@ to detect refit.
 
 `effector.method_registry` holds the single
 `{canonical_name: (cls, needs_jac, display_name, ...capabilities)}` table
-plus aliases. `FeatureEffect`, `RegionalEffectBase`, and
-plot titles all read it; per-method if/elif chains are a bug.
+plus aliases. `FeatureEffect` and plot titles all read it;
+per-method if/elif chains are a bug.
 
 ## R6 — String-argument registries
 
@@ -61,7 +62,8 @@ function, and validation always goes through the resolver (binning:
 ## R7 — Plot contract
 
 Every `vis.*` function and every public `.plot` returns `(fig, ax)` when
-`show_plot=False` and `None` otherwise — uniformly, global and regional.
+`show_plot=False` and `None` otherwise — uniformly, for global effects and
+`Partition.plot`.
 
 ## R8 — Constructor contract
 
@@ -156,12 +158,13 @@ dict shapes (`{"mean","std"}`, `std != 0`), `cat_limit` sanity, and
 A regional effect is **not** a re-instantiated global object on a data
 subset; it is the one global object's own summary restricted by a boolean
 mask. Every global `eval`/`eval_heter`/`heter_score`/`plot` accepts
-`mask=` (boolean, shape `(N,)`); `RegionalX.eval/eval_heter/plot(feature,
-node_idx)` delegates to the one fitted global object with the node's mask
-(plus `feature_label=` for the region title). One source of truth: the
-heterogeneity printed in the partition tree **is**
-`global.heter_score(feature, mask)`, and every plotted node band derives
-from `eval_heter(feature, xs, mask)`.
+`mask=` (boolean, shape `(N,)`). Regional questions are asked with
+`find_regions(feature) -> Partition` (R12): the returned `Partition`'s
+`eval`/`eval_heter`/`plot(idx)` call back into the one fitted global object
+with that region's mask (plus `feature_label=` for the region title). One
+source of truth: the heterogeneity shown by `Partition.show()` **is**
+`heter_score(feature, mask)`, and every plotted region band derives from
+`eval_heter(feature, xs, mask)`.
 
 **The invariant.** `axis_limits` is the immutable global frame, fixed at
 construction. A mask never mutates stored state — no axis_limits, no bins,
@@ -185,3 +188,29 @@ per-instance local effects, so masked calls re-run binning; the
 `binning_scope` fit kwarg (`"global"` default | `"effective"`) selects the
 range handed to `find_limits`, is recorded in `fit_args`, and is replayed
 on every masked call — split search and display always share it.
+
+## R12 — Regions are values, not state
+
+`find_regions(feature) -> Partition` is a **query**, not a mutation: it stores
+nothing on the effect object, which holds only the canonical global state (a
+fit). *Store what is canonical (a fit), return what is exploratory (a
+partition).* A `Partition` depends on the search config, so there is no single
+canonical one to store; two `find_regions` calls return equal-but-distinct
+values, and the effect gains no public attribute. The `Partition` is a value
+object — an ordered list of `Region`s (each a boolean mask + heterogeneity +
+split metadata) with `show`/`eval`/`eval_heter`/`plot`/`to_dict`; it binds a
+reference to its producing effect only for the `eval`/`plot` sugar, and
+`to_dict` is the serialization boundary (the effect is never serialized).
+
+**Finder seam.** A region finder consumes only `(score_fn: mask -> float, data,
+metadata, its own config)` and returns a `Partition`. `heter_score(feature,
+mask)` is the score; the finder owns the min-points / degeneracy guard (the
+`BIG_M` vocabulary lives in the finder, never in the effect). New finders (ICE
+clustering, subgroup discovery, a user `groupby`) plug in with zero changes
+elsewhere, so `Partition` must not structurally assume a tree — hierarchy is
+optional display metadata (`parent_idx`).
+
+**Invisible memos are not state.** Performance caches (the masked-summary memo)
+are allowed inside the effect because they are semantically transparent — keyed
+by fit epoch, so a refit invalidates them, and they never change an answer, only
+its latency. A cache is not API surface; a stored partition would be.

@@ -180,12 +180,12 @@ Moreover, PDP-ICE analysis highlights two distinct patterns:
     If not, the regional effect analysis will not manage to do something better than the global effect analysis.
 
 So let's apply regional effect analysis to the $\mathtt{hour}$ feature.
-To print the partition tree, we will use `.summary()` method of the regional effect analysis classes.
+To print the partition tree, we call `.find_regions()` on the global effect object and `show()` the returned `Partition`.
 
 === "PDP"
     ```python
-    r_pdp = effector.RegionalPDP(X, model)
-    r_pdp.summary(feature=3)
+    partition = effector.PDP(X, model).find_regions(feature=3)
+    partition.show()
     ```
 
     ```
@@ -203,8 +203,8 @@ To print the partition tree, we will use `.summary()` method of the regional eff
 
 === "RHALE"
     ```python
-    r_rhale = effector.RegionalRHALE(X, model, model_jac)
-    r_rhale.summary(feature=3)
+    partition = effector.RHALE(X, model, model_jac).find_regions(feature=3)
+    partition.show()
     ```
 
     ```
@@ -220,8 +220,8 @@ To print the partition tree, we will use `.summary()` method of the regional eff
 
 === "SHAP-DP"
     ```python
-    r_shap = effector.RegionalShapDP(X, model)
-    r_shap.summary(feature=3)
+    partition = effector.ShapDP(X, model, nof_instances=500).find_regions(feature=3)
+    partition.show()
     ```
 
     ```
@@ -343,7 +343,7 @@ pdp.fit(feature=3)
 pdp.plot(feature=3, mask=X[:, 6] > 0.5, feature_label="hr | workingday")
 ```
 
-`RegionalPDP.plot(feature, node_idx)` does exactly this, with the node's mask
+`partition.plot(node_idx)` does exactly this, with the node's mask
 and label. See *The design contract* (R11) and *Method semantics* for what is
 re-computed versus frozen per method.
 

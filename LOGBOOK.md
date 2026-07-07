@@ -1098,3 +1098,31 @@ renders fine on new. Figures in `scripts/proto_masked_figs/`.
 evaluation" section (per-method frozen-vs-recomputed table), regional
 quickstart "under the hood" note with the ad-hoc `plot(mask=X[:, 6] > 0.5)`
 example.
+
+---
+
+## 27. 2026-07-08 — Regional* deleted; find_regions → Partition (values-not-state, R12) (tag: theory+code)  [docs/design.md R12; branch `feat/find-regions`]
+
+**What:** collapsed the 5 `Regional*` classes (pure scaffolding after R11) into
+one query on the global effect: `find_regions(feature) -> Partition`. The
+`Partition` is a value object (ordered `Region`s = mask + heterogeneity + split
+metadata, with `show`/`eval`/`eval_heter`/`plot`/`to_dict`); nothing region-shaped
+is stored on the effect. Backward compatibility waived — no shim.
+
+**Why (R12 — regions are values, not state):** *store what is canonical (a fit),
+return what is exploratory (a partition).* A partition depends on the search
+config, so there is no single canonical one to store; storing it created the
+staleness/identity machinery R11 still carried. Two consequences pinned as
+contract: (1) a **finder seam** — a finder consumes only `(score_fn, data,
+metadata, own config)` and returns a `Partition`, so new finders (ICE clustering,
+subgroup discovery, groupby) plug in with zero changes elsewhere, and the
+`BIG_M` guard lives in the finder not the effect; (2) an **invisible memo** — a
+bounded-LRU keyed by `(feature, fit_epoch, mask)` accelerates repeated masked
+summaries (split search, plot-after-search) and is semantically transparent (a
+refit bumps the epoch and invalidates it). A cache is not API surface; a stored
+partition would be.
+
+**Verification:** RC1–RC9 ported to `find_regions`; a temporary parity net proved
+the new tree byte-identical to the old `Regional*` tree (pdp, rhale) before the
+cutover; the four-regions two-level ground truth and the categorical capability
+matrix pass unchanged through the new API.
