@@ -26,7 +26,6 @@ def _root(n=6):
 
 def _two_level_partition():
     n = 8
-    m_root = np.ones(n, dtype=bool)
     m_left = np.array([1, 1, 1, 1, 0, 0, 0, 0], dtype=bool)
     m_right = ~m_left
     root = _root(n)

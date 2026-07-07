@@ -13,7 +13,6 @@ import pytest
 import effector
 from effector.report import Report
 from tests.conftest import (
-    COEF,
     CountingModel,
     gated_model,
     linear_model,

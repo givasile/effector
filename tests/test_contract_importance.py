@@ -21,8 +21,8 @@ import effector
 from effector import helpers
 from tests.conftest import (
     COEF,
-    CountingModel,
     GLOBAL_NAMES,
+    CountingModel,
     analytic_shap_values,
     linear_model,
     linear_model_jac,

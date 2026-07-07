@@ -15,8 +15,8 @@ import effector
 import effector.axis_partitioning as ap
 from effector.partition import Partition
 from tests.conftest import (
-    CountingModel,
     GLOBAL_NAMES,
+    CountingModel,
     gated_model,
     gated_model_jac,
     make_regional_data,
