@@ -63,7 +63,7 @@ class Base:
 
         Parameters
         ----------
-        name: the method's canonical name (e.g. "fixed", "greedy")
+        name: the method's canonical name (e.g. "fixed", "agglomerative")
         constraints: the feasibility rules (min points per bin, max #bins)
         params: the method's own parameters (objective/search knobs)
         """
@@ -107,7 +107,7 @@ class Base:
             x: 1D float array `(N,)` — the points to bin.
             y: 1D float array `(N,)` — a per-point value whose within-bin
                 variance drives bin cost, or `None` for optimizers that do not
-                use it (e.g. `Fixed`).
+                use it (e.g. `Fixed`, `Quantile`).
             x_lims: `[min, max]` length-2 sequence, or `None` to derive them from
                 `x.min()/max()`.
 
@@ -167,6 +167,52 @@ class Base:
         else:
             discount_for_more_points = 1 - discount * (y.size / nof_points)
             cost = np.var(y) * (stop - start) * discount_for_more_points
+        return cost
+
+    def _bin_cost_matrix(self, nof_cells, discount):
+        """`cost[i, j]` = cost of a single bin spanning grid-edge i..j, for all
+        i, j at once, over a uniform grid of `nof_cells` cells, in O(N + K^2).
+
+        Points are assigned to the K uniform grid cells and per-cell count / Σy /
+        Σy^2 are prefix-summed, so any bin's mean and variance are O(1). Shared by
+        `DynamicProgramming` (optimal search) and `Agglomerative` (greedy merge).
+
+        Boundary note: the grid cells are HALF-OPEN `[edge_m, edge_{m+1})`, unlike
+        `filter_points_in_bin` which is inclusive on both ends. The two agree on
+        every input except one where a point lands *exactly* on an interior grid
+        edge — measure-zero for continuous data, and impossible on the
+        integer-code categorical grid (positions are half-integers). Variance is
+        `E[y^2] - E[y]^2`, clamped at 0 to absorb floating-point noise (`np.var`
+        is non-negative by construction).
+        """
+        big_M = self.big_M
+        nof_limits = nof_cells + 1
+        nof_points = self.x.shape[0]
+        thres = max(self.constraints.min_points_per_bin, 2)
+        dx = (self.x_max - self.x_min) / nof_cells
+
+        cell = np.clip(((self.x - self.x_min) / dx).astype(int), 0, nof_cells - 1)
+        count = np.bincount(cell, minlength=nof_cells).astype(float)
+        sum_y = np.bincount(cell, self.y, minlength=nof_cells)
+        sum_y2 = np.bincount(cell, self.y * self.y, minlength=nof_cells)
+        cum_count = np.concatenate([[0.0], np.cumsum(count)])
+        cum_sum_y = np.concatenate([[0.0], np.cumsum(sum_y)])
+        cum_sum_y2 = np.concatenate([[0.0], np.cumsum(sum_y2)])
+
+        # n[i, j] / s[i, j] / q[i, j] over the points in cells [i, j)
+        n = cum_count[None, :] - cum_count[:, None]
+        s = cum_sum_y[None, :] - cum_sum_y[:, None]
+        q = cum_sum_y2[None, :] - cum_sum_y2[:, None]
+        idx = np.arange(nof_limits)
+        width = (idx[None, :] - idx[:, None]) * dx
+        with np.errstate(divide="ignore", invalid="ignore"):
+            mean = s / n
+            var = np.maximum(q / n - mean * mean, 0.0)
+        cost = var * width * (1.0 - discount * n / nof_points)
+        # under-filled bins (n < thres, which also covers i >= j) cost big_M...
+        cost = np.where(n < thres, big_M, cost)
+        # ...except a zero-width bin (i == j), which costs 0
+        np.fill_diagonal(cost, 0.0)
         return cost
 
     def _bin_valid(self, start, stop):
@@ -247,9 +293,15 @@ class Base:
         plt.show(block=block)
 
 
-class Greedy(Base):
-    """
-    Greedy binning algorithm
+class Agglomerative(Base):
+    """Bottom-up agglomerative binning.
+
+    Start from a fine uniform grid of `init_nof_bins` cells and repeatedly remove
+    the interior boundary whose removal reduces the total cost the most, stopping
+    when no removal helps (under-filled bins carry `big_M`, so they are merged
+    away first). A genuine greedy — order-independent and driven by the same
+    variance×width objective `DynamicProgramming` optimizes, but only locally
+    optimal. O(N + K^2). (Replaces the old left-to-right `Greedy` sweep.)
     """
 
     def __init__(
@@ -261,71 +313,39 @@ class Greedy(Base):
         assert min_points_per_bin >= 2, "min_points_per_bin should be at least 2"
         constraints = Constraints(min_points_per_bin=min_points_per_bin)
         params = {"init_nof_bins": init_nof_bins, "discount": discount}
-        super(Greedy, self).__init__("greedy", constraints, params)
+        super(Agglomerative, self).__init__("agglomerative", constraints, params)
 
     def _set_candidate_bin_count(self, k: int) -> None:
         self.params["init_nof_bins"] = k
 
     def _search(self) -> np.ndarray:
-        x_min = self.x_min
-        x_max = self.x_max
-        init_nof_bins = self.params["init_nof_bins"]
+        K = self.params["init_nof_bins"]
         discount = self.params["discount"]
+        cost = self._bin_cost_matrix(K, discount)  # (K+1, K+1), cost[i, j] for i<j
 
-        # limits with high resolution
-        limits, _ = np.linspace(
-            x_min, x_max, num=init_nof_bins + 1, endpoint=True, retstep=True
-        )
+        # `kept` = the grid-edge indices still acting as bin boundaries. Greedily
+        # drop the interior edge whose removal most reduces the total cost:
+        #   Δ(remove e between bins [a,e] and [e,b]) = cost[a,b] - cost[a,e] - cost[e,b]
+        kept = list(range(K + 1))
+        while len(kept) > 2:
+            best_m, best_delta = None, None
+            for m in range(1, len(kept) - 1):
+                a, e, b = kept[m - 1], kept[m], kept[m + 1]
+                delta = cost[a, b] - cost[a, e] - cost[e, b]
+                if best_delta is None or delta < best_delta:
+                    best_delta, best_m = delta, m
+            # merge while it does not INCREASE the total cost (delta <= 0): the
+            # discount rewards fusing similar bins, and equal-cost regions (e.g.
+            # constant effect) are collapsed rather than left as spurious splits.
+            # A genuine variance jump gives delta > 0 and halts merging.
+            if best_delta is None or best_delta > 0.0:
+                break
+            kept.pop(best_m)
 
-        # merging
-        i = 0
-        merged_limits = [limits[0]]
-        while i < init_nof_bins:
-            # left limit is the last item of the merged_limits list
-            left_lim = merged_limits[-1]
-
-            # choose whether to close the bin
-            if i == init_nof_bins - 1:
-                # if last bin, close it
-                close_bin = True
-            else:
-                # bin_1, the bin if I close it here
-                bin_1_loss = self._bin_cost(left_lim, limits[i + 1], discount)
-                bin_1_valid = self._bin_valid(left_lim, limits[i + 1])
-
-                # bin_2: the bin if I close it in the next limit
-                bin_2_loss = self._bin_cost(left_lim, limits[i + 2], discount)
-                bin_2_valid = self._bin_valid(left_lim, limits[i + 2])
-
-                # if both bins valid
-                if bin_1_valid and bin_2_valid:
-                    # if first zero, second positive -> close
-                    if bin_1_loss == 0.0 and bin_2_loss > 0:
-                        close_bin = True
-                    # if both zero, keep it (we could close as well)
-                    elif bin_1_loss == 0.0 and bin_2_loss == 0:
-                        close_bin = False
-                    # if both positive, compare and decide
-                    else:
-                        close_bin = False if bin_2_loss <= bin_1_loss else True
-                else:
-                    # if either invalid, keep open
-                    close_bin = False
-
-            # if close_bin, then add the next limit to the merged_limits
-            if close_bin:
-                merged_limits.append(limits[i + 1])
-
-            i += 1
-
-        # if last bin is without enough points, merge it with the previous
-        if not self._bin_valid(merged_limits[-2], merged_limits[-1]):
-            merged_limits = merged_limits[:-2] + merged_limits[-1:]
-
-        # store result
-        result = np.array(merged_limits)
-        self.method_outputs = {"limits": result}
-        return result
+        dx = (self.x_max - self.x_min) / K
+        limits = self.x_min + np.array(kept) * dx
+        self.method_outputs = {"limits": limits}
+        return limits
 
 
 class DynamicProgramming(Base):
@@ -381,53 +401,6 @@ class DynamicProgramming(Base):
             [limits[i + 1] - limits[i] for i in range(limits.shape[0] - 1)]
         )
         return limits, dx_list
-
-    def _bin_cost_matrix(self, max_nof_bins, discount):
-        """`cost[i, j]` = cost of a single bin spanning limit-index i..j, for all
-        i, j at once, in O(N + K^2).
-
-        Points are assigned to the K uniform grid cells and per-cell count / Σy /
-        Σy^2 are prefix-summed, so any bin's mean and variance are O(1). This
-        replaces the O(K^2 · N) matrix build (one O(N) `filter_points_in_bin` +
-        `np.var` per bin) with a single O(N) pass.
-
-        Boundary note: the grid cells are HALF-OPEN `[edge_m, edge_{m+1})`, unlike
-        `filter_points_in_bin` which is inclusive on both ends. The two agree on
-        every input except one where a point lands *exactly* on an interior grid
-        edge — measure-zero for continuous data, and impossible on the
-        integer-code categorical grid (positions are half-integers). Variance is
-        `E[y^2] - E[y]^2`, clamped at 0 to absorb floating-point noise (`np.var`
-        is non-negative by construction).
-        """
-        big_M = self.big_M
-        nof_limits = max_nof_bins + 1
-        nof_points = self.x.shape[0]
-        thres = max(self.constraints.min_points_per_bin, 2)
-        dx = (self.x_max - self.x_min) / max_nof_bins
-
-        cell = np.clip(((self.x - self.x_min) / dx).astype(int), 0, max_nof_bins - 1)
-        count = np.bincount(cell, minlength=max_nof_bins).astype(float)
-        sum_y = np.bincount(cell, self.y, minlength=max_nof_bins)
-        sum_y2 = np.bincount(cell, self.y * self.y, minlength=max_nof_bins)
-        cum_count = np.concatenate([[0.0], np.cumsum(count)])
-        cum_sum_y = np.concatenate([[0.0], np.cumsum(sum_y)])
-        cum_sum_y2 = np.concatenate([[0.0], np.cumsum(sum_y2)])
-
-        # n[i, j] / s[i, j] / q[i, j] over the points in cells [i, j)
-        n = cum_count[None, :] - cum_count[:, None]
-        s = cum_sum_y[None, :] - cum_sum_y[:, None]
-        q = cum_sum_y2[None, :] - cum_sum_y2[:, None]
-        idx = np.arange(nof_limits)
-        width = (idx[None, :] - idx[:, None]) * dx
-        with np.errstate(divide="ignore", invalid="ignore"):
-            mean = s / n
-            var = np.maximum(q / n - mean * mean, 0.0)
-        cost = var * width * (1.0 - discount * n / nof_points)
-        # under-filled bins (n < thres, which also covers i >= j) cost big_M...
-        cost = np.where(n < thres, big_M, cost)
-        # ...except a zero-width bin (i == j), which costs 0
-        np.fill_diagonal(cost, 0.0)
-        return cost
 
     def _search(self) -> np.ndarray:
         max_nof_bins = self.constraints.max_nof_bins
@@ -489,21 +462,77 @@ class Fixed(Base):
         return limits
 
 
+class Quantile(Base):
+    """Equal-frequency binning: edges at data quantiles so every bin holds ~the
+    same number of points. Like `Fixed` it ignores `y`, but it adapts the edge
+    positions to the `x` distribution — robust for skewed features where a
+    uniform grid wastes bins. O(N log N). Under-filled bins (only with heavy
+    ties) are merged into a neighbor to honor `min_points_per_bin`."""
+
+    def __init__(self, nof_bins: int = 20, min_points_per_bin: int = 0):
+        constraints = Constraints(min_points_per_bin=min_points_per_bin)
+        params = {"nof_bins": nof_bins}
+        super(Quantile, self).__init__("quantile", constraints, params)
+
+    def _set_candidate_bin_count(self, k: int) -> None:
+        self.params["nof_bins"] = k
+
+    def _collapse_to_one_bin(self) -> bool:
+        # y-agnostic: collapse only when the axis itself is degenerate (single
+        # point). Avoids `_only_one_bin_possible`, which reads y.size.
+        return bool(np.allclose(self.x_min, self.x_max))
+
+    def _search(self) -> np.ndarray:
+        nof_bins = self.params["nof_bins"]
+        min_points = self.constraints.min_points_per_bin
+
+        edges = np.quantile(self.x, np.linspace(0.0, 1.0, nof_bins + 1))
+        edges[0], edges[-1] = self.x_min, self.x_max
+        edges = np.unique(edges)  # collapse ties / discrete duplicates
+
+        # honor min_points: merge the least-populated bin into a neighbor until
+        # all bins are valid (equal-frequency rarely needs this)
+        while min_points > 0 and edges.size > 2:
+            counts = np.array(
+                [
+                    np.sum((self.x >= edges[i]) & (self.x <= edges[i + 1]))
+                    for i in range(edges.size - 1)
+                ]
+            )
+            if counts.min() >= min_points:
+                break
+            b = int(np.argmin(counts))
+            drop = b + 1 if b < edges.size - 2 else b  # never an endpoint
+            edges = np.delete(edges, drop)
+
+        self.method_outputs = {"limits": edges}
+        return edges
+
+
 def adapt_for_categorical(method: Base, nof_levels: int) -> Base:
     """A copy of `method` whose candidate bin edges land exactly on the
-    integer level codes 0..K-1, so Greedy/DP merging over the K-1 transitions
-    becomes *adaptive level grouping* (method_semantics.md, RHALE-ordinal)."""
+    integer level codes 0..K-1, so Agglomerative/DP merging over the K-1
+    transitions becomes *adaptive level grouping* (method_semantics.md,
+    RHALE-ordinal)."""
     method = copy.deepcopy(method)
     method._set_candidate_bin_count(nof_levels - 1)
     return method
+
+
+# `Greedy` is retained as a deprecated alias for `Agglomerative` (the old
+# left-to-right sweep was renamed and replaced by the proper agglomerative
+# algorithm). Existing `Greedy(...)` / `"greedy"` code keeps working.
+Greedy = Agglomerative
 
 
 # the single alias table for binning-method strings (R6): validation and
 # resolution both read it, so they cannot disagree
 VALID_METHODS = {
     "fixed": Fixed,
-    "greedy": Greedy,
+    "agglomerative": Agglomerative,
+    "quantile": Quantile,
     "dp": DynamicProgramming,
+    "greedy": Agglomerative,  # deprecated alias
 }
 
 

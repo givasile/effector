@@ -175,8 +175,9 @@ class RegionalRHALE(RegionalEffectBase):
             str,
             ap.Fixed,
             ap.DynamicProgramming,
-            ap.Greedy,
-        ] = "greedy",
+            ap.Agglomerative,
+            ap.Quantile,
+        ] = "dp",
     ):
         """
         Find subregions by minimizing the RHALE-based heterogeneity.

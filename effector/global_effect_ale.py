@@ -586,8 +586,8 @@ class RHALE(ALEBase):
         self,
         feature: int,
         binning_method: Union[
-            str, ap.DynamicProgramming, ap.Greedy, ap.Fixed
-        ] = "greedy",
+            str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
+        ] = "dp",
         order=None,
     ) -> typing.Dict:
         if self._is_cat(feature):
@@ -622,8 +622,8 @@ class RHALE(ALEBase):
         centering: typing.Union[bool, str] = True,
         points_for_centering: int = helpers.NOF_INTERNAL_POINTS,
         binning_method: typing.Union[
-            str, ap.DynamicProgramming, ap.Greedy, ap.Fixed
-        ] = "greedy",
+            str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
+        ] = "dp",
         order: typing.Union[None, str, list] = None,
     ) -> None:
         """Fit the model.

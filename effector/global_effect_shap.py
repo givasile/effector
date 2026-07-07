@@ -223,7 +223,9 @@ class ShapDP(GlobalEffectBase):
     def _fit_feature(
         self,
         feature: int,
-        binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
+        binning_method: Union[
+            str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
+        ] = "dp",
     ) -> typing.Dict:
         data = self.data
 
@@ -313,7 +315,10 @@ class ShapDP(GlobalEffectBase):
             return y
         y = params["spline_mean"](x)
         if heterogeneity:
-            return y, params["spline_var"](x)
+            # variance is non-negative by definition; linear extrapolation of the
+            # per-bin variance beyond the outer bin centers (fill_value=
+            # "extrapolate") can dip below 0, so clamp it.
+            return y, np.maximum(params["spline_var"](x), 0.0)
         return y
 
     def fit(
@@ -322,7 +327,9 @@ class ShapDP(GlobalEffectBase):
         *,
         centering: Union[bool, str] = True,
         points_for_centering: int = helpers.NOF_INTERNAL_POINTS,
-        binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
+        binning_method: Union[
+            str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
+        ] = "dp",
     ) -> None:
         r"""Fit the SHAP Dependence Plot to the data.
 
