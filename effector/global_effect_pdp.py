@@ -377,9 +377,7 @@ class PDPBase(GlobalEffectBase):
                 )
             if heterogeneity is not False:
                 params = (
-                    self._summarize(feature, mask, **self._replay_fit_kwargs(feature))
-                    if mask is not None
-                    else None
+                    self._masked_params(feature, mask) if mask is not None else None
                 )
                 variances = self._eval_unnorm(
                     feature, x, heterogeneity=True, params=params

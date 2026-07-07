@@ -245,7 +245,7 @@ class ALEBase(GlobalEffectBase):
             # transient subregion payload from the cached local effects —
             # pure numpy, nothing stored (the masked-plot path)
             self._ensure_local_effects(feature)
-            params = self._summarize(feature, mask, **self._replay_fit_kwargs(feature))
+            params = self._masked_params(feature, mask)
             x_window = (
                 None if params.get("is_cat") else self._effective_limits(feature, mask)
             )

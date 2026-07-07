@@ -1,5 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
@@ -129,6 +130,14 @@ class GlobalEffectBase(ABC):
         # the cached path can be flagged by the (silent) diagnostic
         self._sealed: set = set()
 
+        # Invisible performance memo (R12): masked summaries are pure functions
+        # of (feature, fitted state, mask). Keyed by (feature, fit_epoch,
+        # mask.tobytes()) so a refit — which bumps the epoch — invalidates it.
+        # A cache is not API state; the partition it accelerates is the value.
+        self._masked_cache: "OrderedDict" = OrderedDict()
+        self._fit_epoch: dict = {}  # "feature_i" -> int, bumped on (re)fit/recompute
+        self._MASKED_CACHE_MAX = 512
+
     @abstractmethod
     def fit(
         self,
@@ -231,6 +240,8 @@ class GlobalEffectBase(ABC):
                     feature,
                 )
             self._compute_local_effects(feature)
+            # local effects changed -> stale masked summaries must not be served
+            self._fit_epoch[key] = self._fit_epoch.get(key, 0) + 1
         self._sealed.add(key)
 
     def _summarize(
@@ -252,6 +263,25 @@ class GlobalEffectBase(ABC):
             for k, v in prev.items()
             if k not in ("centering", "points_for_centering")
         }
+
+    def _masked_params(self, feature: int, mask: np.ndarray) -> dict:
+        """Bounded-LRU memo around the masked `_summarize` (with replayed fit
+        kwargs). Semantically transparent: same (feature, fitted state, mask) ->
+        same payload as calling `_summarize` directly, only faster on repeats
+        (the split search re-proposes identical candidate masks; a plot after a
+        search hits the exact node masks). The `_fit_epoch` term in the key means
+        a refit invalidates stale entries. Callers must have ensured local
+        effects first. Treat the return value as read-only."""
+        key = (feature, self._fit_epoch.get(f"feature_{feature}", 0), mask.tobytes())
+        cached = self._masked_cache.get(key)
+        if cached is not None:
+            self._masked_cache.move_to_end(key)
+            return cached
+        params = self._summarize(feature, mask, **self._replay_fit_kwargs(feature))
+        self._masked_cache[key] = params
+        if len(self._masked_cache) > self._MASKED_CACHE_MAX:
+            self._masked_cache.popitem(last=False)
+        return params
 
     def _prep_mask(self, mask) -> Optional[np.ndarray]:
         """Normalize a user `mask` to a boolean `(N,)` array (`None` passes
@@ -391,6 +421,8 @@ class GlobalEffectBase(ABC):
                 else None
             )
             self.is_fitted[s] = True
+            # fitted state (fit_args/payload) changed -> invalidate masked memo
+            self._fit_epoch[key] = self._fit_epoch.get(key, 0) + 1
 
     def _compute_norm_const(
         self,
@@ -467,7 +499,7 @@ class GlobalEffectBase(ABC):
                 self._refit(feature)
             return self._eval_unnorm(feature, xs, heterogeneity=True)[1]
         self._ensure_local_effects(feature)
-        params = self._summarize(feature, mask, **self._replay_fit_kwargs(feature))
+        params = self._masked_params(feature, mask)
         return self._eval_unnorm(feature, xs, heterogeneity=True, params=params)[1]
 
     def payload(self, feature: int) -> dict:
@@ -502,6 +534,58 @@ class GlobalEffectBase(ABC):
             helpers.NOF_INTERNAL_POINTS,
         )
         return float(np.mean(self.eval_heter(feature, xs, mask)))
+
+    def find_regions(
+        self,
+        feature: int,
+        *,
+        finder="best",
+        candidate_conditioning_features="all",
+    ):
+        """Search for heterogeneity-reducing subregions of `feature` and return a
+        `Partition` — a value (R12): nothing is stored on `self`.
+
+        The search is model-free: every candidate's score is
+        `heter_score(feature, mask)`, re-summarized from the cached local effects
+        (and memoized). There are no method fit kwargs here — the binning/scope
+        etc. are exactly those `feature` was fitted with, replayed.
+
+        Args:
+            feature: index of the feature to partition.
+            finder: a region finder — either a name (`"best"` /
+                `"best_level_wise"`) or any object implementing the finder
+                protocol (`find_regions(feature, data, score_fn, ...) -> Partition`).
+            candidate_conditioning_features: features allowed to define splits
+                (`"all"` or a list of indices).
+
+        Returns:
+            a `Partition` bound to this effect (its `plot`/`eval` re-query `self`).
+        """
+        from effector import space_partitioning  # lazy: one-way dep guard
+
+        self._check_feature_type_supported(feature)
+        if self.requires_refit(feature, centering=False):
+            self._refit(feature)
+        self._ensure_local_effects(feature)
+
+        if isinstance(finder, str):
+            finder = space_partitioning.return_default(finder)
+
+        def score_fn(mask):
+            return self.heter_score(feature, mask=mask)  # RAW; guard is the finder's
+
+        partition = finder.find_regions(
+            feature,
+            self.data,
+            score_fn,
+            axis_limits=self.axis_limits,
+            feature_types=self.feature_types,
+            cat_limit=self.cat_limit,
+            candidate_conditioning_features=candidate_conditioning_features,
+            feature_names=self.feature_names,
+            target_name=self.target_name,
+        )
+        return partition._bind(self)
 
     def requires_refit(self, feature, centering):
         """Check if refitting is needed."""
@@ -603,7 +687,7 @@ class GlobalEffectBase(ABC):
             if not self._is_cat(feature):
                 self._effective_limits(feature, mask)  # degeneracy guard
             self._ensure_local_effects(feature)
-            params = self._summarize(feature, mask, **self._replay_fit_kwargs(feature))
+            params = self._masked_params(feature, mask)
             y = self._eval_masked_mean(feature, xs, params, mask)
             if centering is not False:
                 norm_const = self._compute_norm_const(

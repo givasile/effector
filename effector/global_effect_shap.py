@@ -482,9 +482,7 @@ class ShapDP(GlobalEffectBase):
             if not self._is_cat(feature):
                 self._effective_limits(feature, mask)  # degeneracy guard
             self._ensure_local_effects(feature)
-            m_params = self._summarize(
-                feature, mask, **self._replay_fit_kwargs(feature)
-            )
+            m_params = self._masked_params(feature, mask)
             m_norm = (
                 self._compute_norm_const(
                     feature, method=centering, params=m_params, mask=mask

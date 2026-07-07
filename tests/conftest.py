@@ -250,3 +250,54 @@ def regional_data():
 def fitted_regional(request, regional_data):
     """One fitted regional object per method, cached for the whole module."""
     return request.param, fit_regional(request.param, regional_data)
+
+
+# ---------------------------------------------------------------------------
+# find_regions registry (the 5 GLOBAL classes on the gated model): regional
+# questions are now asked via GlobalEffectBase.find_regions -> Partition.
+# ---------------------------------------------------------------------------
+
+
+def make_gated_global(name, data, **kwargs):
+    """Construct a fresh global-effect object on the gated-linear model."""
+    if name == "pdp":
+        return effector.PDP(data, gated_model, **kwargs)
+    if name == "derpdp":
+        return effector.DerPDP(data, gated_model, model_jac=gated_model_jac, **kwargs)
+    if name == "ale":
+        return effector.ALE(data, gated_model, **kwargs)
+    if name == "rhale":
+        return effector.RHALE(data, gated_model, model_jac=gated_model_jac, **kwargs)
+    if name == "shapdp":
+        return effector.ShapDP(data, gated_model, **kwargs)
+    raise ValueError(f"unknown global method: {name}")
+
+
+def fit_and_find(name, data):
+    """Fit feature 0 on the gated model and return (effect, partition).
+
+    ShapDP: N=50 / budget=128 / seeded explainer to keep the gate fast and the
+    tree stable (mirrors the old fit_regional convention)."""
+    finder = effector.space_partitioning.Best(max_depth=2)
+    if name == "shapdp":
+        np.random.seed(0)
+        fx = make_gated_global(
+            "shapdp",
+            data[:50],
+            budget=128,
+            shap_explainer_kwargs={"seed": 0},
+            nof_instances="all",
+        )
+        fx.fit(0, centering=False)
+        return fx, fx.find_regions(0, finder=finder)
+    fx = make_gated_global(name, data, nof_instances="all")
+    fx.fit(0, centering=False)
+    return fx, fx.find_regions(0, finder=finder)
+
+
+@pytest.fixture(scope="module", params=GLOBAL_NAMES)
+def fitted_partition(request, regional_data):
+    """One (name, effect, partition) triple per global method, module-cached."""
+    name = request.param
+    effect, part = fit_and_find(name, regional_data)
+    return name, effect, part
