@@ -379,11 +379,51 @@ class ALE(ALEBase):
             method_name="ALE",
         )
 
+    def _compute_local_effects(self, feature: int) -> None:
+        """Step 2: ALE's local effect is the secant of the model across each
+        fixed bin — *edge-bound* (it depends on the bin limits), so the bins are
+        frozen at the global Fixed grid and a subregion re-bins these same
+        secants rather than re-querying the model."""
+        if self._is_cat(feature):
+            # ordinal kernel handled by the (combined) `_fit_feature_cat`
+            raise NotImplementedError
+        binning_method = self.fit_args.get("feature_" + str(feature), {}).get(
+            "binning_method", "fixed"
+        )
+        if isinstance(binning_method, str):
+            binning_method = ap.Fixed()
+        limits = binning_method.find_limits(
+            self.data[:, feature], None, self.axis_limits[:, feature]
+        )
+        utils.raise_if_no_binning(limits, feature, binning_method)
+        secants = utils.compute_local_effects(self.data, self.model, limits, feature)
+        self.local_effects["feature_" + str(feature)] = {
+            "effects": secants,
+            "limits": limits,
+        }
+        # back-compat mirrors (regional ALE reads these until the collapse)
+        self.data_effect_ale["feature_" + str(feature)] = secants
+        self.bin_limits["feature_" + str(feature)] = limits
+
+    def _summarize(
+        self, feature: int, mask=None, binning_method="fixed", order=None
+    ) -> typing.Dict:
+        """Step 3 (pure numpy): re-bin the cached secants over the subregion
+        `mask` (None = all) on the frozen global bins → bin effects/variances."""
+        self._ensure_local_effects(feature)
+        prim = self.local_effects["feature_" + str(feature)]
+        secants, limits = prim["effects"], prim["limits"]
+        col = self.data[:, feature]
+        if mask is not None:
+            secants = secants[mask]
+            col = col[mask]
+        dale_params = utils.compute_ale_params(col, secants, limits)
+        dale_params["alg_params"] = "fixed"
+        return dale_params
+
     def _fit_feature(
         self, feature: int, binning_method="fixed", order=None
     ) -> typing.Dict:
-
-        data = self.data
         if self._is_cat(feature):
             return self._fit_feature_cat(feature, order=order)
         if not (binning_method == "fixed" or isinstance(binning_method, ap.Fixed)):
@@ -391,23 +431,7 @@ class ALE(ALEBase):
                 f"Invalid binning_method: {binning_method!r}; ALE works only with "
                 "the fixed binning method ('fixed' or an ap.Fixed instance)"
             )
-
-        if isinstance(binning_method, str):
-            binning_method = ap.Fixed()
-        limits = binning_method.find_limits(
-            data[:, feature], None, self.axis_limits[:, feature]
-        )
-        utils.raise_if_no_binning(limits, feature, binning_method)
-
-        # compute data effect on bin limits
-        data_effect = utils.compute_local_effects(data, self.model, limits, feature)
-        self.data_effect_ale["feature_" + str(feature)] = data_effect
-        self.bin_limits["feature_" + str(feature)] = limits
-
-        # compute the bin effect
-        dale_params = utils.compute_ale_params(data[:, feature], data_effect, limits)
-        dale_params["alg_params"] = "fixed"
-        return dale_params
+        return self._summarize(feature, None, binning_method=binning_method, order=order)
 
     def fit(
         self,
