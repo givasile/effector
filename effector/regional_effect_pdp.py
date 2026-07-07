@@ -3,7 +3,6 @@ import typing
 import numpy as np
 
 from effector import helpers, ingestion
-from effector.global_effect_pdp import PDP, DerPDP
 from effector.regional_effect import RegionalEffectBase
 from effector.space_partitioning import Best
 
@@ -23,8 +22,6 @@ class RegionalPDPBase(RegionalEffectBase):
         schema: typing.Optional[typing.Union[ingestion.Schema, dict]] = None,
         random_state: typing.Optional[int] = 21,
     ):
-        self.y_ice = {}
-        self.heter_grid: dict = {}
         super(RegionalPDPBase, self).__init__(
             method_name,
             data,
@@ -35,30 +32,6 @@ class RegionalPDPBase(RegionalEffectBase):
             schema=schema,
             random_state=random_state,
         )
-
-    def _create_heterogeneity_function(self, feature: int, min_points: int):
-        is_cat = ingestion.is_categorical(self.feature_types[feature])
-
-        def heter(active_indices) -> float:
-            if np.sum(active_indices) < min_points:
-                return BIG_M
-            mask = active_indices.astype(bool)
-            yy = self.y_ice["feature_" + str(feature)][mask, :]
-            z = np.var(yy, axis=0)
-            if is_cat:
-                # H = freq-weighted mean over levels, frequencies within the
-                # candidate region (method_semantics.md)
-                levels = self.heter_grid["feature_" + str(feature)]
-                col = self.data[mask, feature]
-                counts = np.array(
-                    [np.isclose(col, lev).sum() for lev in levels], dtype=float
-                )
-                if counts.sum() == 0:
-                    return BIG_M
-                return float(np.average(z, weights=counts))
-            return float(np.mean(z))
-
-        return heter
 
 
 class RegionalPDP(RegionalPDPBase):
@@ -130,42 +103,6 @@ class RegionalPDP(RegionalPDPBase):
             schema=schema,
             random_state=random_state,
         )
-
-    def _precompute_global(self, feature: int):
-        """Fit the global PDP once and keep the centered ICE table on the
-        heterogeneity grid: candidate regions score row-subsets of it."""
-        pdp = PDP(
-            self.data,
-            self.model,
-            axis_limits=self.axis_limits,
-            nof_instances="all",
-            schema=self._node_schema(),
-            random_state=self.random_state,
-        )
-        pdp.fit(
-            features=feature,
-            centering=True,
-            points_for_centering=self.kwargs_fitting["points_for_centering"],
-            use_vectorized=self.kwargs_fitting["use_vectorized"],
-        )
-
-        if ingestion.is_categorical(self.feature_types[feature]):
-            xx = pdp._levels(feature)
-        else:
-            xx = np.linspace(
-                self.axis_limits[0, feature],
-                self.axis_limits[1, feature],
-                helpers.NOF_INTERNAL_POINTS,
-            )
-        self.heter_grid["feature_" + str(feature)] = xx
-        y_ice = pdp._predict(
-            pdp.data, xx, feature, self.kwargs_fitting["use_vectorized"]
-        )
-        y_ice = (
-            y_ice
-            - pdp.feature_effect["feature_" + str(feature)]["norm_const"][np.newaxis, :]
-        )
-        self.y_ice["feature_" + str(feature)] = y_ice.T
 
     def fit(
         self,
@@ -335,38 +272,6 @@ class RegionalDerPDP(RegionalPDPBase):
             schema=schema,
             random_state=random_state,
         )
-
-    def _precompute_global(self, feature: int):
-        """Fit the global DerPDP once and keep the d-ICE table on the
-        heterogeneity grid: candidate regions score row-subsets of it."""
-        pdp = DerPDP(
-            self.data,
-            self.model,
-            self.model_jac,
-            axis_limits=self.axis_limits,
-            nof_instances="all",
-            schema=self._node_schema(),
-            random_state=self.random_state,
-        )
-        pdp.fit(
-            features=feature,
-            centering=False,
-            use_vectorized=self.kwargs_fitting["use_vectorized"],
-        )
-
-        if ingestion.is_categorical(self.feature_types[feature]):
-            xx = pdp._levels(feature)
-        else:
-            xx = np.linspace(
-                self.axis_limits[0, feature],
-                self.axis_limits[1, feature],
-                helpers.NOF_INTERNAL_POINTS,
-            )
-        self.heter_grid["feature_" + str(feature)] = xx
-        y_ice = pdp._predict(
-            pdp.data, xx, feature, self.kwargs_fitting["use_vectorized"]
-        )
-        self.y_ice["feature_" + str(feature)] = y_ice.T
 
     def fit(
         self,

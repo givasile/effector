@@ -1,5 +1,4 @@
 import typing
-import warnings
 from typing import Callable, Optional, Union
 
 import numpy as np
@@ -7,7 +6,6 @@ import numpy as np
 import effector.space_partitioning
 from effector import axis_partitioning as ap
 from effector import helpers, ingestion, utils
-from effector.global_effect_ale import ALE, RHALE
 from effector.regional_effect import RegionalEffectBase
 
 BIG_M = helpers.BIG_M
@@ -108,62 +106,10 @@ class RegionalRHALE(RegionalEffectBase):
         elif self.data_effect is None and self.model_jac is None:
             self.data_effect = utils.compute_jacobian_numerically(self.model, self.data)
 
-    def _create_heterogeneity_function(self, feature: int, min_points: int):
-        binning_method = ap.return_default(self.kwargs_fitting["binning_method"])
-        points_for_mean_heterogeneity = helpers.NOF_INTERNAL_POINTS
-
-        def heter(active_indices) -> float:
-            if np.sum(active_indices) < min_points:
-                return BIG_M
-
-            data = self.data[active_indices.astype(bool), :]
-            if self.data_effect is not None:
-                instance_effects = self.data_effect[active_indices.astype(bool), :]
-            else:
-                instance_effects = None
-            rhale = RHALE(
-                data,
-                self.model,
-                self.model_jac,
-                data_effect=instance_effects,
-                nof_instances="all",
-                axis_limits=self.axis_limits,
-                schema=self._node_schema(),
-                random_state=self.random_state,
-            )
-            try:
-                rhale.fit(
-                    features=feature, binning_method=binning_method, centering=False
-                )
-            except utils.AllBinsHaveAtMostOnePointError as e:
-                warnings.warn(
-                    f"RegionalRHALE: at a candidate split, some bins had at most "
-                    f"one point; the split is rejected. Error: {e}"
-                )
-                return BIG_M
-            except Exception as e:
-                warnings.warn(
-                    f"RegionalRHALE: an unexpected error occurred at a candidate "
-                    f"split ({np.sum(active_indices)} active points); the split "
-                    f"is rejected. Error: {e}"
-                )
-                return BIG_M
-
-            # heterogeneity is the mean of the heterogeneity curve
-            # (freq-weighted over the subset's levels for discrete features)
-            if ingestion.is_categorical(self.feature_types[feature]):
-                xs, counts = np.unique(data[:, feature], return_counts=True)
-                z = rhale.eval_heter(feature, xs)
-                return float(np.average(z, weights=counts))
-            xs = np.linspace(
-                self.axis_limits[0, feature],
-                self.axis_limits[1, feature],
-                points_for_mean_heterogeneity,
-            )
-            z = rhale.eval_heter(feature, xs)
-            return np.mean(z)
-
-        return heter
+    def _global_fe_kwargs(self) -> dict:
+        # hand the already-computed jacobian to the global RHALE so it is not
+        # recomputed there (the split search re-bins it, model-free)
+        return {"data_effect": self.data_effect}
 
     def fit(
         self,
@@ -311,8 +257,6 @@ class RegionalALE(RegionalEffectBase):
                 - `None`, for non-deterministic behavior
         """
 
-        self.global_bin_limits = {}
-        self.global_data_effect = {}
         super(RegionalALE, self).__init__(
             "ale",
             data,
@@ -322,87 +266,6 @@ class RegionalALE(RegionalEffectBase):
             schema=schema,
             random_state=random_state,
         )
-
-    def _precompute_global(self, feature: int):
-        """Fit the global ALE once and keep its per-instance bin effects: the
-        candidate regions re-bin those instead of refitting the model."""
-        global_ale = ALE(
-            self.data,
-            self.model,
-            nof_instances="all",
-            axis_limits=self.axis_limits,
-            schema=self._node_schema(),
-            random_state=self.random_state,
-        )
-        global_ale.fit(
-            features=feature,
-            binning_method=self.kwargs_fitting["binning_method"],
-            centering=False,
-        )
-        self.global_data_effect["feature_" + str(feature)] = global_ale.data_effect_ale[
-            "feature_" + str(feature)
-        ]
-        self.global_bin_limits["feature_" + str(feature)] = global_ale.bin_limits[
-            "feature_" + str(feature)
-        ]
-
-    def _create_heterogeneity_function(self, feature: int, min_points: int):
-        points_for_mean_heterogeneity = helpers.NOF_INTERNAL_POINTS
-        is_cat = ingestion.is_categorical(self.feature_types[feature])
-
-        def heter_cat(active_indices) -> float:
-            if np.sum(active_indices) < min_points:
-                return BIG_M
-            mask = active_indices.astype(bool)
-            contrib = self.global_data_effect["feature_" + str(feature)]
-            keep = mask[contrib["instance_idx"]]
-            if not keep.any():
-                return BIG_M
-            levels = contrib["levels"]
-            try:
-                params = utils.compute_ale_params(
-                    contrib["positions"][keep],
-                    contrib["effects"][keep],
-                    np.arange(len(levels), dtype=float),
-                )
-            except utils.AllBinsHaveAtMostOnePointError:
-                return BIG_M
-            # H = freq-weighted mean of h(v_k) within the candidate region;
-            # h(v_k) = variance of the step into level k
-            col = self.data[mask, feature]
-            counts = np.array(
-                [np.isclose(col, lev).sum() for lev in levels], dtype=float
-            )
-            if counts.sum() == 0:
-                return BIG_M
-            step_into = np.maximum(np.arange(len(levels)), 1) - 1
-            h_levels = params["bin_variance"][step_into]
-            return float(np.average(h_levels, weights=counts))
-
-        if is_cat:
-            return heter_cat
-
-        def heter(active_indices) -> float:
-            if np.sum(active_indices) < min_points:
-                return BIG_M
-
-            data_effect = self.global_data_effect["feature_" + str(feature)][
-                active_indices.astype(bool)
-            ]
-            data = self.data[active_indices.astype(bool), feature]
-            bin_limits = self.global_bin_limits["feature_" + str(feature)]
-
-            params = utils.compute_ale_params(data, data_effect, bin_limits)
-
-            xx = np.linspace(
-                params["limits"][0], params["limits"][-1], points_for_mean_heterogeneity
-            )
-            var = utils.apply_bin_value(
-                x=xx, bin_limits=params["limits"], bin_value=params["bin_variance"]
-            )
-            return np.mean(var)
-
-        return heter
 
     def fit(
         self,

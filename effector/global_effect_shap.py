@@ -220,34 +220,44 @@ class ShapDP(GlobalEffectBase):
             random_state=random_state,
         )
 
-    def _fit_feature(
-        self,
-        feature: int,
-        binning_method: Union[
-            str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
-        ] = "dp",
-    ) -> typing.Dict:
-        data = self.data
-
+    def _compute_local_effects(self, feature: int) -> None:
+        """Step 2: the SHAP values are the local effect — computed once by the
+        backend (or injected via `shap_values=`), feature-independent. Fill the
+        whole `(N,D)` table on first use and cache this feature's column."""
         if self.shap_values is None:
             self.shap_values = _compute_shap_values(
                 self.model,
-                data,
+                self.data,
                 self.backend,
                 self.budget,
                 self.shap_explainer_kwargs,
                 self.shap_explanation_kwargs,
                 self.random_state,
             )
+        self.local_effects["feature_" + str(feature)] = self.shap_values[:, feature]
 
-        # extract x and y
-        yy = self.shap_values[:, feature]
-        xx = data[:, feature]
+    def _summarize(
+        self,
+        feature: int,
+        mask=None,
+        binning_method: Union[
+            str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
+        ] = "dp",
+    ) -> typing.Dict:
+        """Step 3 (pure numpy): bin/aggregate the cached SHAP column over the
+        subregion `mask` (None = all) — a spline of per-bin mean/variance for
+        continuous features, per-level mean/variance for discrete ones."""
+        self._ensure_local_effects(feature)
+        yy = self.local_effects["feature_" + str(feature)]
+        xx = self.data[:, feature]
+        if mask is not None:
+            yy = yy[mask]
+            xx = xx[mask]
 
         if self._is_cat(feature):
             # per-level mean/variance of the shap values with a step lookup —
             # no spline, no order enters the math (method_semantics.md)
-            levels = self._levels(feature)
+            levels = np.unique(xx)
             codes = utils.codes_from_levels(
                 xx, levels, feature, self.feature_names[feature]
             )
@@ -264,24 +274,18 @@ class ShapDP(GlobalEffectBase):
                 "yy": yy,
             }
 
-        if isinstance(binning_method, str):
-            binning_method = ap.return_default(binning_method)
-
-        limits = binning_method.find_limits(
-            data[:, feature], self.shap_values[:, feature], self.axis_limits[:, feature]
+        binning = (
+            ap.return_default(binning_method)
+            if isinstance(binning_method, str)
+            else binning_method
         )
+        limits = binning.find_limits(xx, yy, self.axis_limits[:, feature])
+        utils.raise_if_no_binning(limits, feature, binning)
+        feature_effect_dict = utils.compute_ale_params(xx, yy, limits)
+        feature_effect_dict["alg_params"] = binning
 
-        utils.raise_if_no_binning(limits, feature, binning_method)
-        # compute the bin effect
-        feature_effect_dict = utils.compute_ale_params(
-            data[:, feature], self.shap_values[:, feature], limits
-        )
-        feature_effect_dict["alg_params"] = binning_method
-
-        # Compute bin edges and bin centers
+        # Compute bin edges and bin centers, then piecewise-linear interpolation
         bin_centers = (limits[:-1] + limits[1:]) / 2
-
-        # Create piecewise linear interpolation
         mean_spline = interp1d(
             bin_centers,
             feature_effect_dict["bin_effect"],
@@ -294,17 +298,27 @@ class ShapDP(GlobalEffectBase):
             kind="linear",
             fill_value="extrapolate",
         )
-
-        ret_dict = {
+        return {
             "spline_mean": mean_spline,
             "spline_var": var_spline,
             "xx": xx,
             "yy": yy,
         }
-        return ret_dict
 
-    def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
-        params = self.feature_effect["feature_" + str(feature)]
+    def _fit_feature(
+        self,
+        feature: int,
+        binning_method: Union[
+            str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
+        ] = "dp",
+    ) -> typing.Dict:
+        return self._summarize(feature, None, binning_method=binning_method)
+
+    def _eval_unnorm(
+        self, feature: int, x: np.ndarray, heterogeneity: bool = False, params=None
+    ):
+        if params is None:
+            params = self.feature_effect["feature_" + str(feature)]
         if params.get("is_cat"):
             codes = utils.codes_from_levels(
                 x, params["levels"], feature, self.feature_names[feature]

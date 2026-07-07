@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Callable, Optional, Tuple, Union
 
@@ -56,6 +57,7 @@ class GlobalEffectBase(ABC):
         model_jac: Optional[Callable] = None,
         *,
         data_effect: Optional[np.ndarray] = None,
+        local_effects: Optional[dict] = None,
         nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
         schema: Optional[Union[ingestion.Schema, dict]] = None,
@@ -106,6 +108,15 @@ class GlobalEffectBase(ABC):
 
         # dict, like {"feature_i": {"quantity_1": value_1, "quantity_2": value_2, ...}} for the i-th
         self.feature_effect: dict = {}
+
+        # step 2 output cache: {"feature_i": <per-instance local effect>} —
+        # computed once (model-touching, `_compute_local_effects`) or injected
+        # here at construction; steps 3-4 (summarize/eval/plot/heter) read it and
+        # never re-touch the model (R: single-model-touch constitution)
+        self.local_effects: dict = dict(local_effects) if local_effects else {}
+        # feature keys whose local effects are cached, so a later model touch on
+        # the cached path can be flagged by the (silent) diagnostic
+        self._sealed: set = set()
 
     @abstractmethod
     def fit(
@@ -162,13 +173,65 @@ class GlobalEffectBase(ABC):
 
     @abstractmethod
     def _eval_unnorm(
-        self, feature: int, x: np.ndarray, heterogeneity: bool = False
+        self,
+        feature: int,
+        x: np.ndarray,
+        heterogeneity: bool = False,
+        params: Optional[dict] = None,
     ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
-        """The method-specific evaluation kernel, over the stored (fitted)
-        state: the *uncentered* mean effect at `x`, and — if `heterogeneity`
-        — also the heterogeneity curve h(x) (a variance-like quantity in the
-        method's own units, independent of any centering)."""
+        """The method-specific evaluation kernel: the *uncentered* mean effect
+        at `x`, and — if `heterogeneity` — also the heterogeneity curve h(x) (a
+        variance-like quantity in the method's own units, independent of any
+        centering).
+
+        `params` selects the payload to evaluate against: `None` reads the
+        stored fitted state (`feature_effect["feature_i"]`); a passed dict (the
+        output of `_summarize`) lets the masked heterogeneity path evaluate a
+        *transient* subregion payload without disturbing the stored one."""
         raise NotImplementedError
+
+    def _compute_local_effects(self, feature: int) -> None:
+        """Step 2 (model-touching): compute the per-instance local effect for
+        `feature` and store it in `self.local_effects["feature_i"]`. The single
+        place the model is queried for the effect. Overridden per method."""
+        raise NotImplementedError
+
+    def _ensure_local_effects(self, feature: int) -> None:
+        """Populate the local-effects cache for `feature` if absent — skipped
+        when the effects were injected at construction. Seals the feature; a
+        later recompute on a sealed feature (a parameter incompatible with the
+        cache) is flagged by the silent diagnostic below."""
+        key = "feature_" + str(feature)
+        if key not in self.local_effects:
+            if key in self._sealed:
+                logging.getLogger("effector").debug(
+                    "%s: recomputing local effects for feature %d after it was "
+                    "sealed — a parameter is incompatible with the cache",
+                    self.method_name,
+                    feature,
+                )
+            self._compute_local_effects(feature)
+        self._sealed.add(key)
+
+    def _summarize(
+        self, feature: int, mask: Optional[np.ndarray] = None, **fit_kwargs
+    ) -> dict:
+        """Step 3 (pure numpy): derive the effect payload for `feature` from the
+        cached local effects restricted to `mask` (`None` = all instances),
+        returning the same shape as the stored `feature_effect["feature_i"]`.
+        Overridden per method."""
+        raise NotImplementedError
+
+    def _replay_fit_kwargs(self, feature: int) -> dict:
+        """The method-specific fit kwargs recorded at the last `fit` (e.g.
+        `binning_method`, `order`, `use_vectorized`), minus centering — what a
+        transient `_summarize` must replay to match the fitted state."""
+        prev = self.fit_args.get("feature_" + str(feature), {})
+        return {
+            k: v
+            for k, v in prev.items()
+            if k not in ("centering", "points_for_centering")
+        }
 
     def _is_cat(self, feature: int) -> bool:
         """Does `feature` behave categorically (ordinal or nominal)?"""
@@ -178,10 +241,14 @@ class GlobalEffectBase(ABC):
         """The observed levels of a discrete feature, ascending."""
         return np.unique(self.data[:, feature])
 
-    def _level_weights(self, feature: int) -> Tuple[np.ndarray, np.ndarray]:
+    def _level_weights(
+        self, feature: int, mask: Optional[np.ndarray] = None
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """(levels, frequencies) of a discrete feature — the weights of every
-        frequency-weighted quantity in method_semantics.md."""
-        levels, counts = np.unique(self.data[:, feature], return_counts=True)
+        frequency-weighted quantity in method_semantics.md. With a `mask` the
+        levels and frequencies are those *within* the masked subregion."""
+        col = self.data[:, feature] if mask is None else self.data[mask, feature]
+        levels, counts = np.unique(col, return_counts=True)
         return levels, counts / counts.sum()
 
     def _level_display(self, feature: int, levels=None):
@@ -300,7 +367,9 @@ class GlobalEffectBase(ABC):
             return utils.mean_1d_linspace(partial_eval, start, stop, nof_points)
         return partial_eval(np.array([start])).item()
 
-    def eval_heter(self, feature: int, xs: np.ndarray) -> np.ndarray:
+    def eval_heter(
+        self, feature: int, xs: np.ndarray, mask: Optional[np.ndarray] = None
+    ) -> np.ndarray:
         """Evaluate the heterogeneity curve h(xs) of the `feature`-th feature.
 
         Notes:
@@ -316,13 +385,21 @@ class GlobalEffectBase(ABC):
         Args:
             feature: index of feature of interest
             xs: the points to evaluate the heterogeneity at, `(T,)`
+            mask: optional boolean `(N,)` selecting a subregion. `None` (default)
+                evaluates over the fitted state; a mask summarizes that subset of
+                the cached local effects on the fly (the regional split search) —
+                pure numpy, no model calls.
 
         Returns:
             the heterogeneity curve h(xs), `(T,)`, non-negative
         """
-        if self.requires_refit(feature, centering=False):
-            self._refit(feature)
-        return self._eval_unnorm(feature, xs, heterogeneity=True)[1]
+        if mask is None:
+            if self.requires_refit(feature, centering=False):
+                self._refit(feature)
+            return self._eval_unnorm(feature, xs, heterogeneity=True)[1]
+        self._ensure_local_effects(feature)
+        params = self._summarize(feature, mask, **self._replay_fit_kwargs(feature))
+        return self._eval_unnorm(feature, xs, heterogeneity=True, params=params)[1]
 
     def payload(self, feature: int) -> dict:
         """The method's raw fitted object for the `feature`-th feature — the
@@ -333,22 +410,29 @@ class GlobalEffectBase(ABC):
             self._refit(feature)
         return dict(self.feature_effect["feature_" + str(feature)])
 
-    def heter_score(self, feature: int) -> float:
+    def heter_score(self, feature: int, mask: Optional[np.ndarray] = None) -> float:
         """The method-agnostic heterogeneity scalar of the `feature`-th
         feature: the mean of `eval_heter` over a uniform grid
         (`helpers.NOF_INTERNAL_POINTS` points) on the feature's interval — the
         single quantity regional splitting (and the future interaction module)
-        consumes."""
+        consumes.
+
+        With a `mask` (boolean `(N,)`), the score is computed over that
+        subregion from the cached local effects — the entry point the regional
+        split search calls for every candidate, model-free."""
         if self._is_cat(feature):
-            # frequency-weighted over levels (method_semantics.md)
-            levels, weights = self._level_weights(feature)
-            return float(np.average(self.eval_heter(feature, levels), weights=weights))
+            # frequency-weighted over levels (method_semantics.md); with a mask
+            # the levels/frequencies are those within the subregion
+            levels, weights = self._level_weights(feature, mask)
+            return float(
+                np.average(self.eval_heter(feature, levels, mask), weights=weights)
+            )
         xs = np.linspace(
             self.axis_limits[0, feature],
             self.axis_limits[1, feature],
             helpers.NOF_INTERNAL_POINTS,
         )
-        return float(np.mean(self.eval_heter(feature, xs)))
+        return float(np.mean(self.eval_heter(feature, xs, mask)))
 
     def requires_refit(self, feature, centering):
         """Check if refitting is needed."""

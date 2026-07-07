@@ -12,7 +12,13 @@ import pytest
 
 import effector
 import effector.axis_partitioning as ap
-from tests.conftest import make_regional_data
+from tests.conftest import (
+    REGIONAL_NAMES,
+    CountingModel,
+    gated_model,
+    gated_model_jac,
+    make_regional_data,
+)
 
 XS = np.linspace(-0.9, 0.9, 30)
 
@@ -154,3 +160,53 @@ def test_rc5_best_level_wise_works(rc5_data):
 def test_rc5_junk_raises(rc5_data, junk):
     with pytest.raises((ValueError, AssertionError)):
         _fit_pdp_with_partitioner(rc5_data, junk)
+
+
+# ---------------------------------------------------------------------------
+# RC6 — the split search is model-free: the whole point of the local-effects
+# lifecycle. The global effect is fit once (its local effects computed once),
+# and every candidate split re-scores cached subsets. So the number of model
+# (and jacobian) calls during fit must NOT grow with how many candidate splits
+# are evaluated — the old per-candidate object rebuilds scaled with grid size.
+# ---------------------------------------------------------------------------
+
+
+def _fit_counted(name, data, grid):
+    model = CountingModel(gated_model)
+    jac = CountingModel(gated_model_jac)
+    part = effector.space_partitioning.Best(
+        max_depth=2, numerical_features_grid_size=grid
+    )
+    if name == "regional_pdp":
+        reg = effector.RegionalPDP(data, model)
+    elif name == "regional_derpdp":
+        reg = effector.RegionalDerPDP(data, model, model_jac=jac)
+    elif name == "regional_ale":
+        reg = effector.RegionalALE(data, model)
+    elif name == "regional_rhale":
+        reg = effector.RegionalRHALE(data, model, model_jac=jac)
+    elif name == "regional_shapdp":
+        # inject attributions: the split search never touches the model (0 calls)
+        shap_values = np.random.RandomState(0).normal(size=data.shape)
+        reg = effector.RegionalShapDP(data, model, shap_values=shap_values)
+    else:
+        raise ValueError(name)
+    reg.fit(0, space_partitioner=part)
+    return model.n_calls + jac.n_calls
+
+
+@pytest.mark.parametrize("name", REGIONAL_NAMES)
+def test_rc6_split_search_is_model_free(name):
+    data = make_regional_data()
+    # 5 vs 40 candidate positions per conditioning feature at the root — an ~8x
+    # difference in candidate splits scored
+    n_small = _fit_counted(name, data, grid=5)
+    n_large = _fit_counted(name, data, grid=40)
+    assert n_small == n_large, (
+        f"{name}: model calls grew with the candidate count "
+        f"({n_small} at grid=5 vs {n_large} at grid=40) — the split search is "
+        f"re-querying the model instead of re-scoring cached local effects"
+    )
+    # a one-time precompute is a small constant; per-candidate work would be
+    # >= the number of candidates (>= grid)
+    assert n_large < 40, f"{name}: {n_large} model calls looks like per-candidate work"

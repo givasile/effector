@@ -163,6 +163,21 @@ def mixed_df_model(df):
 N_REGIONAL = 500
 
 
+class CountingModel:
+    """Wrap a model (or jacobian) callable and count its invocations — the
+    instrument behind the single-model-touch invariant (steps 3-4 of the
+    local-effects lifecycle must not re-query the model during the split
+    search)."""
+
+    def __init__(self, fn):
+        self.fn = fn
+        self.n_calls = 0
+
+    def __call__(self, x):
+        self.n_calls += 1
+        return self.fn(x)
+
+
 def gated_model(x):
     y = np.zeros_like(x[:, 0])
     ind = np.logical_and(x[:, 1] > 0, x[:, 2] == 0)
