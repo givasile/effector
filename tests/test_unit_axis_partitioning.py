@@ -113,7 +113,7 @@ class TestBinEstimation:
         # test Greedy
         min_points = 2
         est = effector.axis_partitioning.Greedy(
-            init_nof_bins=100, discount=0.3, min_points_per_bin=min_points, cat_limit=1
+            init_nof_bins=100, discount=0.3, min_points_per_bin=min_points
         )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
 
@@ -124,7 +124,7 @@ class TestBinEstimation:
         # test DP
         min_points = 2
         est = effector.axis_partitioning.DynamicProgramming(
-            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+            max_nof_bins=10, min_points_per_bin=min_points
         )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
 
@@ -139,14 +139,14 @@ class TestBinEstimation:
 
         min_points = 3
         est = effector.axis_partitioning.Greedy(
-            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1
+            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points
         )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert np.allclose(gt_limits, limits_greedy)
 
         min_points = 3
         est = effector.axis_partitioning.DynamicProgramming(
-            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+            max_nof_bins=10, min_points_per_bin=min_points
         )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert np.allclose(gt_limits, limits_dp)
@@ -157,14 +157,14 @@ class TestBinEstimation:
 
         min_points = 4
         est = effector.axis_partitioning.Greedy(
-            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1
+            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points
         )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert np.allclose(gt_limits, limits_greedy)
 
         min_points = 4
         est = effector.axis_partitioning.DynamicProgramming(
-            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+            max_nof_bins=10, min_points_per_bin=min_points
         )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert np.allclose(gt_limits, limits_dp)
@@ -174,14 +174,14 @@ class TestBinEstimation:
 
         min_points = 5
         est = effector.axis_partitioning.Greedy(
-            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1
+            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points
         )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert limits_greedy is False
 
         min_points = 5
         est = effector.axis_partitioning.DynamicProgramming(
-            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+            max_nof_bins=10, min_points_per_bin=min_points
         )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert limits_dp is False
@@ -193,7 +193,7 @@ class TestBinEstimation:
         # test Greedy
         min_points = 10
         est = effector.axis_partitioning.Greedy(
-            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points, cat_limit=1
+            init_nof_bins=100, discount=1.05, min_points_per_bin=min_points
         )
         limits_greedy = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert (
@@ -245,7 +245,7 @@ class TestBinEstimation:
         # test DP
         min_points = 10
         est = effector.axis_partitioning.DynamicProgramming(
-            max_nof_bins=10, min_points_per_bin=min_points, cat_limit=1
+            max_nof_bins=10, min_points_per_bin=min_points
         )
         limits_dp = est.find_limits(x[:, 0], y_grad[:, 0], axis_limits[:, 0])
         assert (
@@ -355,20 +355,18 @@ class TestConstantEffectMerging:
 
 def _greedy():
     return effector.axis_partitioning.Greedy(
-        init_nof_bins=20, min_points_per_bin=2, discount=0.3, cat_limit=1
+        init_nof_bins=20, min_points_per_bin=2, discount=0.3
     )
 
 
 def _dp():
     return effector.axis_partitioning.DynamicProgramming(
-        max_nof_bins=20, min_points_per_bin=2, discount=0.3, cat_limit=1
+        max_nof_bins=20, min_points_per_bin=2, discount=0.3
     )
 
 
 def _fixed():
-    return effector.axis_partitioning.Fixed(
-        nof_bins=4, min_points_per_bin=2, cat_limit=1
-    )
+    return effector.axis_partitioning.Fixed(nof_bins=4, min_points_per_bin=2)
 
 
 def _case_4pt():
@@ -459,17 +457,19 @@ class TestAxisPartitioningEdgeCases:
         assert _dp().find_limits(x, g, np.array([0.3, 0.3])) is False
 
     def test_adapt_for_categorical_rewrites_bin_count_greedy(self):
+        # Greedy's candidate-bin knob is a method param (init_nof_bins)
         method = effector.axis_partitioning.Greedy(init_nof_bins=20)
         adapted = effector.axis_partitioning.adapt_for_categorical(method, nof_levels=5)
-        assert adapted.method_args["init_nof_bins"] == 4  # nof_levels - 1
+        assert adapted.params["init_nof_bins"] == 4  # nof_levels - 1
         # deepcopy independence: the original is untouched
-        assert method.method_args["init_nof_bins"] == 20
+        assert method.params["init_nof_bins"] == 20
 
     def test_adapt_for_categorical_rewrites_bin_count_dp(self):
+        # DP's candidate-bin knob is a constraint (max_nof_bins)
         method = effector.axis_partitioning.DynamicProgramming(max_nof_bins=20)
         adapted = effector.axis_partitioning.adapt_for_categorical(method, nof_levels=5)
-        assert adapted.method_args["max_nof_bins"] == 4
-        assert method.method_args["max_nof_bins"] == 20
+        assert adapted.constraints.max_nof_bins == 4
+        assert method.constraints.max_nof_bins == 20
 
     def test_axis_limits_none_branch(self):
         # axis_limits=None => xs_min/xs_max derive from data.min()/max().
@@ -515,3 +515,180 @@ class TestAxisPartitioningEdgeCases:
         dp = _dp().find_limits(x, g, ax)
         np.testing.assert_array_equal(gr, dp)
         np.testing.assert_array_equal(gr, np.array([0.0, 0.5, 1.0]))
+
+    def test_fixed_min_points_none_no_longer_raises(self):
+        # AP-3: Fixed(min_points_per_bin=None) used to raise TypeError in
+        # _none_valid_binning (`size < None`). Now None == "no minimum" and it
+        # returns the exact uniform grid.
+        x = np.linspace(0.0, 1.0, 100)
+        est = effector.axis_partitioning.Fixed(nof_bins=4, min_points_per_bin=None)
+        limits = est.find_limits(x, None, np.array([0.0, 1.0]))
+        np.testing.assert_allclose(limits, np.linspace(0.0, 1.0, 5))
+        assert est.no_binning_reason is None
+
+
+class TestNoBinningReason:
+    """The `False` outcome carries a machine-readable reason (folded into PR-2)."""
+
+    _Reason = effector.axis_partitioning.NoBinningReason
+
+    def test_greedy_single_unique_reason(self):
+        est = _greedy()
+        assert (
+            est.find_limits(np.ones(50) * 0.3, np.ones(50), np.array([0.3, 0.3]))
+            is False
+        )
+        assert est.no_binning_reason is self._Reason.SINGLE_UNIQUE_VALUE
+
+    def test_dp_single_unique_reason(self):
+        est = _dp()
+        assert (
+            est.find_limits(np.ones(50) * 0.3, np.ones(50), np.array([0.3, 0.3]))
+            is False
+        )
+        assert est.no_binning_reason is self._Reason.SINGLE_UNIQUE_VALUE
+
+    def test_greedy_too_few_points_reason(self):
+        # 4 points, min_points=5 -> data.size < min_points
+        x, g, ax = _case_4pt()
+        est = effector.axis_partitioning.Greedy(init_nof_bins=100, min_points_per_bin=5)
+        assert est.find_limits(x, g, ax) is False
+        assert est.no_binning_reason is self._Reason.TOO_FEW_POINTS
+
+    def test_dp_too_few_points_reason(self):
+        x, g, ax = _case_4pt()
+        est = effector.axis_partitioning.DynamicProgramming(
+            max_nof_bins=10, min_points_per_bin=5
+        )
+        assert est.find_limits(x, g, ax) is False
+        assert est.no_binning_reason is self._Reason.TOO_FEW_POINTS
+
+    def test_fixed_grid_underfilled_reason(self):
+        # 3 points, 4 fixed bins, min 2 per bin -> a bin is under-filled
+        x = np.array([0.05, 0.1, 0.9])
+        est = effector.axis_partitioning.Fixed(nof_bins=4, min_points_per_bin=2)
+        assert est.find_limits(x, None, np.array([0.0, 1.0])) is False
+        assert est.no_binning_reason is self._Reason.FIXED_GRID_UNDERFILLED
+
+    def test_reason_resets_on_success(self):
+        # a failing call then a succeeding call on the same instance: no stale reason
+        est = _fixed()
+        est.find_limits(np.ones(50) * 0.3, None, np.array([0.3, 0.3]))
+        assert est.no_binning_reason is not None
+        est.find_limits(np.linspace(0, 1, 100), None, np.array([0.0, 1.0]))
+        assert est.no_binning_reason is None
+
+    def test_raise_if_no_binning_surfaces_reason(self):
+        import effector.utils as utils
+
+        est = _greedy()
+        limits = est.find_limits(np.ones(50) * 0.3, np.ones(50), np.array([0.3, 0.3]))
+        with pytest.raises(ValueError, match="all points share a single value"):
+            utils.raise_if_no_binning(limits, feature=0, binning_method=est)
+
+
+def _inclusive_reference_dp_limits(est, x, y, x_lims):
+    """Recompute DP limits with the ORIGINAL inclusive-boundary cost (np.var +
+    filter_points_in_bin), reusing the class's DP fill + backtracking. Used to
+    cross-check the O(N+K^2) prefix-sum (half-open) cost matrix of Stage 2."""
+    import effector.utils as utils
+
+    est._preprocess_find(x, y, x_lims)
+    K = est.constraints.max_nof_bins
+    discount = est.params["discount"]
+    N = x.shape[0]
+    thres = max(est.constraints.min_points_per_bin, 2)
+    x_min, x_max = est.x_min, est.x_max
+    dx = (x_max - x_min) / K
+    nof = K + 1
+
+    cost = np.full((nof, nof), est.big_M)
+    for i in range(nof):
+        for j in range(i, nof):
+            if i == j:
+                cost[i, j] = 0.0
+                continue
+            start, stop = x_min + i * dx, x_min + j * dx
+            _, yb = utils.filter_points_in_bin(x, y, np.array([start, stop]))
+            if yb.size >= thres:
+                cost[i, j] = np.var(yb) * (stop - start) * (1 - discount * yb.size / N)
+
+    matrix = np.ones((nof, K)) * est.big_M
+    argmatrix = np.ones((nof, K)) * np.nan
+    matrix[:, 0] = cost[0, :]
+    for b in range(1, K):
+        prev = matrix[:, b - 1][:, None] + cost
+        matrix[:, b] = prev.min(axis=0)
+        argmatrix[:, b] = prev.argmin(axis=0)
+    est.method_outputs = {"argmatrix": argmatrix}
+    limits, _ = est._argmatrix_to_limits(K)
+    return limits
+
+
+class TestDPPrefixSumEquivalence:
+    """Stage 2 (prefix-sum, half-open) must match the inclusive-boundary
+    reference on all realistic data; it may differ only when points land exactly
+    on interior grid edges (unreachable for continuous data)."""
+
+    def _DP(self, K, mp):
+        return effector.axis_partitioning.DynamicProgramming(
+            max_nof_bins=K, min_points_per_bin=mp
+        )
+
+    def test_matches_inclusive_reference_on_random_data(self):
+        rng = np.random.default_rng(0)
+        compared = 0
+        for _ in range(120):
+            N = int(rng.integers(60, 1500))
+            x = np.sort(rng.uniform(0, 1, N))
+            kind = rng.integers(0, 3)
+            if kind == 0:
+                y = np.sin(rng.uniform(2, 12) * x) + rng.normal(0, 0.2, N)
+            elif kind == 1:
+                y = np.where(x < rng.uniform(0.3, 0.7), 5.0, -5.0)
+            else:
+                y = rng.normal(0, 1, N)
+            K = int(rng.integers(3, 18))
+            mp = int(rng.integers(2, 6))
+            ax = np.array([0.0, 1.0])
+
+            stage2 = self._DP(K, mp).find_limits(x, y, ax)
+            # only cross-check when a full search ran (not collapsed / False)
+            if stage2 is False or stage2.size <= 2:
+                continue
+            ref = _inclusive_reference_dp_limits(self._DP(K, mp), x, y, ax)
+            np.testing.assert_array_equal(stage2, ref)
+            compared += 1
+        assert compared > 40  # the sweep actually exercised full searches
+
+    def test_exact_grid_edge_half_open_behavior(self):
+        # The one place Stage 2 legitimately differs: many points sitting EXACTLY
+        # on interior grid edges (K=4 -> 0.25/0.5/0.75) with contrasting y.
+        # Inclusive boundaries double-count them (-> collapse to [0, 1]); the
+        # half-open cells count them once (-> full split). Unreachable for
+        # continuous data; impossible on the categorical t-0.5 grid. Pinned so
+        # the behavior is explicit, not accidental.
+        x = np.concatenate(
+            [
+                np.full(20, 0.25),
+                np.full(20, 0.5),
+                np.full(20, 0.75),
+                np.linspace(0.01, 0.24, 30),
+                np.linspace(0.76, 0.99, 30),
+            ]
+        )
+        y = np.concatenate(
+            [
+                np.full(20, 100.0),
+                np.full(20, -100.0),
+                np.full(20, 100.0),
+                np.zeros(30),
+                np.zeros(30),
+            ]
+        )
+        ax = np.array([0.0, 1.0])
+        stage2 = self._DP(4, 2).find_limits(x, y, ax)
+        ref = _inclusive_reference_dp_limits(self._DP(4, 2), x, y, ax)
+        np.testing.assert_array_equal(stage2, np.array([0.0, 0.25, 0.5, 0.75, 1.0]))
+        np.testing.assert_array_equal(ref, np.array([0.0, 1.0]))
+        assert not np.array_equal(stage2, ref)

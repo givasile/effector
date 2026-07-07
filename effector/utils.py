@@ -18,11 +18,15 @@ class AllBinsHaveAtMostOnePointError(ValueError):
 
 def raise_if_no_binning(limits, feature: int, binning_method) -> None:
     """Shared guard after `find_limits`: a `False` result means no binning with
-    enough points per bin exists for this feature/strategy combination."""
+    enough points per bin exists for this feature/strategy combination. When the
+    optimizer recorded *why* (`binning_method.no_binning_reason`, a
+    `NoBinningReason`), surface that specific reason in the message."""
     if limits is False:
+        reason = getattr(binning_method, "no_binning_reason", None)
+        detail = f" ({reason.value})" if reason is not None else ""
         raise ValueError(
             f"Impossible to compute bins with enough points for feature "
-            f"{feature} and binning strategy {binning_method!r}. "
+            f"{feature} and binning strategy {binning_method!r}{detail}. "
             "Change the binning strategy or its parameters."
         )
 

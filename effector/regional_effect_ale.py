@@ -430,7 +430,7 @@ class RegionalALE(RegionalEffectBase):
                 `20` bins with at least `0` points per bin
                 - If you want to change the parameters of the method, you pass an instance of the
                 class `effector.axis_partitioning.Fixed` with the desired parameters.
-                For example: `Fixed(nof_bins=20, min_points_per_bin=0, cat_limit=10)`
+                For example: `Fixed(nof_bins=20, min_points_per_bin=0)`
         """
         self.kwargs_subregion_detection = {
             "features": features,
