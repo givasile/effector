@@ -413,32 +413,31 @@ class DynamicProgramming(Base):
         nof_limits = max_nof_bins + 1
         nof_bins = max_nof_bins
 
+        # cost[i, j] = cost of a single bin spanning limit-index i..j. It does
+        # NOT depend on which bin (bin_index) it is, so build it ONCE here rather
+        # than recomputing `_cost_of_move` inside the bin_index loop as before —
+        # that dropped a full O(K) factor of redundant O(N) bin-cost scans
+        # (O(K^3 N) -> O(K^2 N)). Values are identical to `_cost_of_move(i, j)`.
+        cost = np.empty((nof_limits, nof_limits))
+        for i in range(nof_limits):
+            for j in range(nof_limits):
+                cost[i, j] = self._cost_of_move(i, j, max_nof_bins, discount)
+
         # init matrices
         matrix = np.ones((nof_limits, nof_bins)) * big_M
         argmatrix = np.ones((nof_limits, nof_bins)) * np.nan
 
-        # init first bin_index
-        bin_index = 0
-        for lim_index in range(nof_limits):
-            matrix[lim_index, bin_index] = self._cost_of_move(
-                bin_index, lim_index, max_nof_bins, discount
-            )
+        # first bin: cost of a single bin from index 0 to each limit
+        matrix[:, 0] = cost[0, :]
 
-        # for all other bins
+        # for all other bins: matrix[next, b] = min_before matrix[before, b-1] +
+        # cost[before, next]. `argmin(axis=0)` scans ascending `before`, the same
+        # tie-break the previous `np.argmin(tmp)` used; the addition order is
+        # preserved, so the result is byte-identical to the triple loop.
         for bin_index in range(1, max_nof_bins):
-            for lim_index_next in range(max_nof_bins + 1):
-                # find best solution
-                tmp = []
-                for lim_index_before in range(max_nof_bins + 1):
-                    tmp.append(
-                        matrix[lim_index_before, bin_index - 1]
-                        + self._cost_of_move(
-                            lim_index_before, lim_index_next, max_nof_bins, discount
-                        )
-                    )
-                # store best solution
-                matrix[lim_index_next, bin_index] = np.min(tmp)
-                argmatrix[lim_index_next, bin_index] = np.argmin(tmp)
+            prev = matrix[:, bin_index - 1][:, None] + cost
+            matrix[:, bin_index] = prev.min(axis=0)
+            argmatrix[:, bin_index] = prev.argmin(axis=0)
 
         # find indices
         self.method_outputs = {"matrix": matrix, "argmatrix": argmatrix}
