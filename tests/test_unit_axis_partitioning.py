@@ -343,3 +343,175 @@ class TestConstantEffectMerging:
         limits = est.find_limits(x, y_grad, np.array([0.0, 1.0]))
         assert limits is not False
         assert len(limits) <= 5
+
+
+# ---------------------------------------------------------------------------
+# Golden oracle + edge-case coverage (PR-1 of the axis_partitioning rework).
+# The golden values below are byte-exact outputs captured from the code as of
+# this commit; they FREEZE current behavior so the later template/efficiency
+# refactors can be proven drift-free with `assert_array_equal` (not allclose).
+# ---------------------------------------------------------------------------
+
+
+def _greedy():
+    return effector.axis_partitioning.Greedy(
+        init_nof_bins=20, min_points_per_bin=2, discount=0.3, cat_limit=1
+    )
+
+
+def _dp():
+    return effector.axis_partitioning.DynamicProgramming(
+        max_nof_bins=20, min_points_per_bin=2, discount=0.3, cat_limit=1
+    )
+
+
+def _fixed():
+    return effector.axis_partitioning.Fixed(
+        nof_bins=4, min_points_per_bin=2, cat_limit=1
+    )
+
+
+def _case_4pt():
+    x = np.array([0.0, 0.2, 0.8, 1.0])
+    g = np.array([10.0, 10.0, -10.0, -10.0])
+    return x, g, np.array([0.0, 1.0])
+
+
+def _case_1k():
+    rng = np.random.default_rng(21)
+    x = np.sort(rng.uniform(0.0, 1.0, 1000))
+    g = np.piecewise(
+        x,
+        [x < 0.25, (x >= 0.25) & (x < 0.5), (x >= 0.5) & (x < 0.75), x >= 0.75],
+        [10.0, -10.0, 5.0, -5.0],
+    )
+    return x, g, np.array([0.0, 1.0])
+
+
+def _case_const():
+    rng = np.random.default_rng(99)
+    x = np.sort(rng.uniform(0.0, 1.0, 1000))
+    g = np.ones_like(x) * 5.0
+    return x, g, np.array([0.0, 1.0])
+
+
+def _case_unique():
+    x = np.ones(50) * 0.3
+    g = np.ones(50) * 4.0
+    return x, g, np.array([0.3, 0.3])
+
+
+_CASES = {
+    "4pt": _case_4pt,
+    "1k": _case_1k,
+    "const": _case_const,
+    "unique": _case_unique,
+}
+
+# (id, method_factory, case_name, expected) — `False` or the exact edge list.
+_GOLDEN = [
+    ("greedy-4pt", _greedy, "4pt", [0.0, 0.75, 1.0]),
+    ("dp-4pt", _dp, "4pt", [0.0, 0.25, 1.0]),
+    ("fixed-4pt", _fixed, "4pt", False),
+    ("greedy-1k", _greedy, "1k", [0.0, 0.25, 0.5, 0.75, 1.0]),
+    ("dp-1k", _dp, "1k", [0.0, 0.25, 0.5, 0.75, 1.0]),
+    ("fixed-1k", _fixed, "1k", [0.0, 0.25, 0.5, 0.75, 1.0]),
+    ("greedy-const", _greedy, "const", [0.0, 1.0]),
+    ("dp-const", _dp, "const", [0.0, 1.0]),
+    ("fixed-const", _fixed, "const", [0.0, 0.25, 0.5, 0.75, 1.0]),
+    ("greedy-unique", _greedy, "unique", False),
+    ("dp-unique", _dp, "unique", False),
+    ("fixed-unique", _fixed, "unique", False),
+]
+
+
+class TestGoldenFindLimits:
+    """Byte-exact behavioral freeze across {Greedy, DP, Fixed} × cases."""
+
+    @pytest.mark.parametrize(
+        "method_factory, case_name, expected",
+        [(m, c, e) for _, m, c, e in _GOLDEN],
+        ids=[i for i, _, _, _ in _GOLDEN],
+    )
+    def test_golden_find_limits(self, method_factory, case_name, expected):
+        x, g, axis_limits = _CASES[case_name]()
+        data_effect = None if method_factory is _fixed else g
+        limits = method_factory().find_limits(x, data_effect, axis_limits)
+        if expected is False:
+            assert limits is False
+        else:
+            np.testing.assert_array_equal(limits, np.array(expected))
+
+
+class TestAxisPartitioningEdgeCases:
+    """Gap-fillers for branches the existing suite never exercised."""
+
+    def test_greedy_single_unique_value_returns_false(self):
+        # _none_valid_binning cond_1 (len(unique)==1) for Greedy (only Fixed
+        # covered this before).
+        x = np.ones(50) * 0.3
+        g = np.ones(50) * 4.0
+        assert _greedy().find_limits(x, g, np.array([0.3, 0.3])) is False
+
+    def test_dp_single_unique_value_returns_false(self):
+        x = np.ones(50) * 0.3
+        g = np.ones(50) * 4.0
+        assert _dp().find_limits(x, g, np.array([0.3, 0.3])) is False
+
+    def test_adapt_for_categorical_rewrites_bin_count_greedy(self):
+        method = effector.axis_partitioning.Greedy(init_nof_bins=20)
+        adapted = effector.axis_partitioning.adapt_for_categorical(method, nof_levels=5)
+        assert adapted.method_args["init_nof_bins"] == 4  # nof_levels - 1
+        # deepcopy independence: the original is untouched
+        assert method.method_args["init_nof_bins"] == 20
+
+    def test_adapt_for_categorical_rewrites_bin_count_dp(self):
+        method = effector.axis_partitioning.DynamicProgramming(max_nof_bins=20)
+        adapted = effector.axis_partitioning.adapt_for_categorical(method, nof_levels=5)
+        assert adapted.method_args["max_nof_bins"] == 4
+        assert method.method_args["max_nof_bins"] == 20
+
+    def test_axis_limits_none_branch(self):
+        # axis_limits=None => xs_min/xs_max derive from data.min()/max().
+        x = np.linspace(0.1, 0.9, 100)
+        limits = _fixed().find_limits(x, None, None)
+        assert limits[0] == x.min()
+        assert limits[-1] == x.max()
+        np.testing.assert_allclose(limits, np.linspace(0.1, 0.9, 5))
+
+    def test_dp_max_nof_bins_1_returns_single_bin(self):
+        # the max_nof_bins==1 shortcut -> 2-edge [xs_min, xs_max].
+        rng = np.random.default_rng(7)
+        x = np.sort(rng.uniform(0, 1, 500))
+        g = np.sin(10 * x)
+        est = effector.axis_partitioning.DynamicProgramming(
+            max_nof_bins=1, min_points_per_bin=2
+        )
+        np.testing.assert_array_equal(
+            est.find_limits(x, g, np.array([0.0, 1.0])), np.array([0.0, 1.0])
+        )
+
+    def test_greedy_last_bin_merge_back(self):
+        # zero-variance body keeps bins open; a high-variance, under-filled final
+        # cell forces a close at 0.95 whose bin (<min_points) is merged back into
+        # the previous one (Greedy L234-235). A naive result would be
+        # [0, 0.95, 1.0] with an under-filled last bin.
+        body_x = np.linspace(0.0, 0.9, 300)
+        x = np.concatenate([body_x, np.array([0.97, 0.99])])
+        g = np.concatenate([np.zeros(300), np.array([50.0, -50.0])])
+        est = effector.axis_partitioning.Greedy(
+            init_nof_bins=20, min_points_per_bin=5, discount=0.3
+        )
+        limits = est.find_limits(x, g, np.array([0.0, 1.0]))
+        np.testing.assert_array_equal(limits, np.array([0.0, 1.0]))
+
+    def test_greedy_dp_agree_on_clean_step(self):
+        # A single sharp step at 0.5: both optimizers must recover the same split.
+        rng = np.random.default_rng(3)
+        x = np.sort(rng.uniform(0, 1, 2000))
+        g = np.where(x < 0.5, 8.0, -8.0)
+        ax = np.array([0.0, 1.0])
+        gr = _greedy().find_limits(x, g, ax)
+        dp = _dp().find_limits(x, g, ax)
+        np.testing.assert_array_equal(gr, dp)
+        np.testing.assert_array_equal(gr, np.array([0.0, 0.5, 1.0]))
