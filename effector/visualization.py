@@ -160,11 +160,13 @@ def ale_plot(
 def plot_pdp_ice(
     x,
     feature,
-    yy,
+    y_mean,
     title,
     heterogeneity,
     y_pdp_label,
     y_ice_label,
+    band=None,
+    ice=None,
     scale_x: typing.Union[None, dict] = None,
     scale_y: typing.Union[None, dict] = None,
     avg_output: typing.Union[None, float] = None,
@@ -176,38 +178,34 @@ def plot_pdp_ice(
     show_plot: bool = True,
     random_state: typing.Union[None, int] = None,
 ):
-    """Draw the mean of the ICE table `yy` (shape `(T, N)`) plus the requested
-    heterogeneity: a std or standard-error band, or the ICE curves themselves."""
+    """Draw the pre-computed PDP mean curve `y_mean` (shape `(T,)`) plus the
+    requested heterogeneity (R1 — nothing is computed here): a std/std-err
+    `band` (shape `(T,)`), or the raw ICE table `ice` (shape `(T, N)`) as a
+    curve cloud. A band is a spread, so it scales by `scale_y["std"]` only."""
     x = _scale_x(x, scale_x)
-    yy = _scale_y(yy, scale_y, is_derivative)
-    y_mean = np.mean(yy, axis=1)
+    y_mean = _scale_y(y_mean, scale_y, is_derivative)
 
     fig, ax = plt.subplots()
     t = theme.active()
     ax.set_title(title)
 
-    if heterogeneity == "std":
-        std = np.std(yy, axis=1)
-        ax.fill_between(
-            x, y_mean - std, y_mean + std, color=t.BAND, alpha=t.BAND_ALPHA, label="std"
-        )
-    elif heterogeneity == "std_err":
-        std_err = np.std(yy, axis=1) / np.sqrt(yy.shape[1])
+    if heterogeneity in ("std", "std_err"):
+        b = band if scale_y is None else trans_scale(band, scale_y["std"])
         ax.fill_between(
             x,
-            y_mean - std_err,
-            y_mean + std_err,
+            y_mean - b,
+            y_mean + b,
             color=t.BAND,
             alpha=t.BAND_ALPHA,
-            label="std_err",
+            label=heterogeneity,
         )
     elif heterogeneity == "ice":
-        yy_show = yy
-        if nof_ice != "all" and nof_ice < yy.shape[1]:
+        yy_show = _scale_y(ice, scale_y, is_derivative)
+        if nof_ice != "all" and nof_ice < yy_show.shape[1]:
             ind = np.random.default_rng(random_state).choice(
-                yy.shape[1], size=nof_ice, replace=False
+                yy_show.shape[1], size=nof_ice, replace=False
             )
-            yy_show = yy[:, ind]
+            yy_show = yy_show[:, ind]
         ax.plot(
             x,
             yy_show[:, 0],

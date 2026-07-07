@@ -56,7 +56,10 @@ class PDPBase(GlobalEffectBase):
         return {}
 
     def _compute_norm_const(
-        self, feature: int, method: str = "zero_integral", nof_points: int = 30
+        self,
+        feature: int,
+        method: str = "zero_integral",
+        nof_points: int = helpers.NOF_INTERNAL_POINTS,
     ):
         """(d-)PDP overrides the base: its normalization constant is
         *per-instance* — each ICE curve is centered on its own — so an
@@ -84,6 +87,11 @@ class PDPBase(GlobalEffectBase):
         y = self._predict(self.data, xx, feature, use_vectorized)
         return y[0]
 
+    def _mean_norm_const(self, norm_const):
+        # PDP's norm_const is per-instance (each ICE centers on its own); the
+        # mean-effect shift is their average
+        return np.mean(norm_const)
+
     def _eval_unnorm(self, feature: int, x: np.ndarray, heterogeneity: bool = False):
         """Kernel: uncentered mean (d-)ICE at `x`; with `heterogeneity`, also
         h(x) — the variance across the *per-instance centered* ICE curves for
@@ -109,7 +117,9 @@ class PDPBase(GlobalEffectBase):
                 )
             else:
                 xx = np.linspace(
-                    self.axis_limits[0, feature], self.axis_limits[1, feature], 30
+                    self.axis_limits[0, feature],
+                    self.axis_limits[1, feature],
+                    helpers.NOF_INTERNAL_POINTS,
                 )
                 per_instance_norm = np.mean(
                     self._predict(self.data, xx, feature, use_vectorized=True), axis=0
@@ -124,7 +134,7 @@ class PDPBase(GlobalEffectBase):
         features: Union[int, str, list] = "all",
         *,
         centering: Union[bool, str] = False,
-        points_for_centering: int = 30,
+        points_for_centering: int = helpers.NOF_INTERNAL_POINTS,
         use_vectorized: bool = True,
     ):
         """
@@ -244,10 +254,22 @@ class PDPBase(GlobalEffectBase):
                 y_limits=y_limits,
                 show_plot=show_plot,
             )
+        # R1: the method owns the compute. Derive the mean line and the
+        # std/std_err band here (from the ICE table we already have — one model
+        # pass, no re-eval); the plot layer only draws. The raw table is handed
+        # over only for the "ice" cloud, which genuinely needs every curve.
+        y_mean = yy.mean(axis=1)
+        band = None
+        if heterogeneity == "std":
+            band = np.std(yy, axis=1)
+        elif heterogeneity == "std_err":
+            band = np.std(yy, axis=1) / np.sqrt(yy.shape[1])
         return vis.plot_pdp_ice(
             x,
             feature,
-            yy=yy,
+            y_mean=y_mean,
+            band=band,
+            ice=yy if heterogeneity == "ice" else None,
             title=title,
             heterogeneity=heterogeneity,
             y_pdp_label="PDP" if self.method_name == "pdp" else "d-PDP",
