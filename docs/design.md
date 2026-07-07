@@ -214,3 +214,19 @@ optional display metadata (`parent_idx`).
 are allowed inside the effect because they are semantically transparent — keyed
 by fit epoch, so a refit invalidates them, and they never change an answer, only
 its latency. A cache is not API surface; a stored partition would be.
+
+## R13 — Importance
+
+`importance(feature, mask=None) -> float >= 0` is the method-agnostic scalar
+measuring how much the **mean effect** of a feature varies over the data — the
+μ-twin of `heter_score` (which measures per-instance spread). It is
+centering-invariant (no `centering` kwarg — the signature enforces it),
+model-free (re-summarized from the cached local effects; the masked variant
+re-summarizes the subset through the same memo), and data-weighted (evaluated at
+the observed feature values, so dense regions count more — not a uniform grid).
+The default is the (frequency-weighted) standard deviation of the centered mean
+effect; ShapDP overrides it with the canonical `mean(|phi_s|)` over the (masked)
+instances. `importances(mask=None) -> (D,)` is the per-feature vector, warning
+once (R9) for feature types a method cannot explain. effector never sees `y`, so
+loss/permutation importance is out of scope by construction — importance here is
+a property of the fitted effect, not of a held-out error.
