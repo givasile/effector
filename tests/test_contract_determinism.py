@@ -3,9 +3,11 @@
 Every public effect-class constructor takes ``random_state`` (default ``21``):
 two identical constructions give identical ``eval``/``fit``/``plot`` output,
 ``None`` opts into fresh randomness, and no effect-class code touches the
-global ``np.random`` state.  Parametrized over the 5 global and 5 regional classes on
-the shared tiny models (see conftest); ``nof_instances`` is always set below
-the dataset size so the subsampling draw is actually exercised.
+global ``np.random`` state.  Parametrized over the 5 global classes on the
+shared tiny models (see conftest); ``nof_instances`` is always set below the
+dataset size so the subsampling draw is actually exercised.  D5 extends the
+same reproducibility contract to ``find_regions``: two independent runs of the
+same global class on the same seed must yield an identical ``Partition``.
 """
 
 import numpy as np
@@ -14,11 +16,10 @@ import pytest
 import effector
 from tests.conftest import (
     GLOBAL_NAMES,
-    REGIONAL_NAMES,
     analytic_shap_values,
     eval_mean,
+    make_gated_global,
     make_global,
-    make_regional,
 )
 
 XS = np.linspace(-0.8, 0.8, 40)
@@ -96,37 +97,51 @@ def test_d4_none_seed_works(name, global_data):
 
 
 # ---------------------------------------------------------------------------
-# D5 — regional: same seed -> identical tree and node effects
+# D5 — find_regions: same seed -> identical partition (masks, heterogeneities,
+# split metadata).  Regional questions are now asked via the GLOBAL class's
+# ``find_regions`` -> ``Partition``; the reproducibility contract carries the
+# constructor's default random_state end-to-end into the split search (for
+# shapdp, all the way into the shap backend).
 # ---------------------------------------------------------------------------
 
 
-def fit_regional_subsampled(name, data):
-    """Fit feature 0 with forced subsampling and *no* explicit seed kwargs:
-    the constructor's default random_state must carry determinism end-to-end
-    (for regional_shapdp, all the way into the shap backend)."""
-    if name == "regional_shapdp":
-        reg = make_regional(name, data[:50], nof_instances=30, budget=128)
-        reg.fit(
-            0,
-            space_partitioner=effector.space_partitioning.Best(max_depth=2),
+def fit_find_subsampled(name, data):
+    """Construct the GLOBAL class with forced subsampling and *no* explicit seed
+    kwargs, fit feature 0, then find_regions — twice-callable so two independent
+    runs can be compared for determinism.  For shapdp keep the old
+    N=50/budget=128/seed convention that keeps the gate fast and stable."""
+    finder = effector.space_partitioning.Best(max_depth=2)
+    if name == "shapdp":
+        fx = make_gated_global(
+            "shapdp",
+            data[:50],
+            budget=128,
+            shap_explainer_kwargs={"seed": 0},
+            nof_instances="all",
         )
-        return reg
-    reg = make_regional(name, data, nof_instances=300)
-    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
-    return reg
+        fx.fit(0, centering=False)
+        return fx, fx.find_regions(0, finder=finder)
+    fx = make_gated_global(name, data, nof_instances=300)
+    fx.fit(0, centering=False)
+    return fx, fx.find_regions(0, finder=finder)
 
 
-@pytest.mark.parametrize("name", params(REGIONAL_NAMES))
-def test_d5_regional_fit_deterministic(name, regional_data):
-    reg1 = fit_regional_subsampled(name, regional_data)
-    reg2 = fit_regional_subsampled(name, regional_data)
-    assert np.array_equal(reg1.data, reg2.data)
-    tree1, tree2 = reg1.tree["feature_0"], reg2.tree["feature_0"]
-    assert len(tree1.nodes) == len(tree2.nodes)
-    for node_idx in range(len(tree1.nodes)):
-        np.testing.assert_allclose(
-            reg1.eval(0, node_idx, XS), reg2.eval(0, node_idx, XS), atol=1e-12
-        )
+@pytest.mark.parametrize("name", params(GLOBAL_NAMES))
+def test_d5_find_regions_deterministic(name, regional_data):
+    fx1, part1 = fit_find_subsampled(name, regional_data)
+    fx2, part2 = fit_find_subsampled(name, regional_data)
+    # same subsample end-to-end, then an identical partition
+    assert np.array_equal(fx1.data, fx2.data)
+    assert len(part1) == len(part2)
+    for r1, r2 in zip(part1, part2, strict=True):
+        assert np.array_equal(r1.mask, r2.mask)
+        np.testing.assert_allclose(r1.heterogeneity, r2.heterogeneity, atol=1e-12)
+        # split metadata (None on the root) must match exactly
+        assert r1.foc_index == r2.foc_index
+        assert r1.foc_split_position == r2.foc_split_position
+        assert r1.comparison == r2.comparison
+        assert r1.level == r2.level
+        assert r1.parent_idx == r2.parent_idx
 
 
 # ---------------------------------------------------------------------------

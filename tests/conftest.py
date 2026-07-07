@@ -46,13 +46,6 @@ D_GLOBAL = 3
 COEF = np.array([2.0, -3.0, 0.5])
 
 GLOBAL_NAMES = ["pdp", "derpdp", "ale", "rhale", "shapdp"]
-REGIONAL_NAMES = [
-    "regional_pdp",
-    "regional_derpdp",
-    "regional_ale",
-    "regional_rhale",
-    "regional_shapdp",
-]
 
 
 def linear_model(x):
@@ -204,52 +197,9 @@ def make_regional_data(n=N_REGIONAL, seed=21):
     )
 
 
-def make_regional(name, data, **kwargs):
-    """Construct a fresh (unfitted) regional-effect object of the given kind."""
-    if name == "regional_pdp":
-        return effector.RegionalPDP(data, gated_model, **kwargs)
-    if name == "regional_derpdp":
-        return effector.RegionalDerPDP(
-            data, gated_model, model_jac=gated_model_jac, **kwargs
-        )
-    if name == "regional_ale":
-        return effector.RegionalALE(data, gated_model, **kwargs)
-    if name == "regional_rhale":
-        return effector.RegionalRHALE(
-            data, gated_model, model_jac=gated_model_jac, **kwargs
-        )
-    if name == "regional_shapdp":
-        return effector.RegionalShapDP(data, gated_model, **kwargs)
-    raise ValueError(f"unknown regional method: {name}")
-
-
-def fit_regional(name, data):
-    """Fit feature 0 the standard way for the contract tests.
-
-    RegionalShapDP: N=50 / budget=128 and seeded explainer, per the runtime
-    budget (PLAN II §5) — shap cost stays ~seconds and the tree is stable.
-    """
-    if name == "regional_shapdp":
-        np.random.seed(0)
-        reg = make_regional(
-            name, data[:50], budget=128, shap_explainer_kwargs={"seed": 0}
-        )
-        reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
-        return reg
-    reg = make_regional(name, data)
-    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
-    return reg
-
-
 @pytest.fixture(scope="module")
 def regional_data():
     return make_regional_data()
-
-
-@pytest.fixture(scope="module", params=REGIONAL_NAMES)
-def fitted_regional(request, regional_data):
-    """One fitted regional object per method, cached for the whole module."""
-    return request.param, fit_regional(request.param, regional_data)
 
 
 # ---------------------------------------------------------------------------

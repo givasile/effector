@@ -39,60 +39,65 @@ def model():
     return models.ConditionalCategorical()
 
 
-def _fit(reg):
-    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=1))
-    return reg
+def _find(fx):
+    """Fit feature 0 globally, then search for the region tree (one split)."""
+    fx.fit(0)
+    return fx.find_regions(0, finder=effector.space_partitioning.Best(max_depth=1))
 
 
-def _assert_gate_found(reg):
-    nodes = reg.tree["feature_0"].nodes
-    names = " ".join(n.name for n in nodes)
-    assert len(nodes) == 3, names  # root + two children
+def _assert_gate_found(part):
+    regions = list(part)
+    names = " ".join(r.name for r in regions)
+    assert len(part) == 3, names  # root + two children
     assert "x_2" in names, names  # the gate is found
     # both children: zero heterogeneity at every level
     for idx in (1, 2):
-        h = reg.eval_heter(0, idx, LEVELS)
+        h = part.eval_heter(idx, LEVELS)
         np.testing.assert_allclose(h, 0.0, atol=1e-10)
 
 
 def test_regional_pdp_on_categorical_foi_finds_the_gate(data):
-    reg = _fit(effector.RegionalPDP(data, gated_cat_model, schema=SCHEMA))
+    fx = effector.PDP(data, gated_cat_model, nof_instances="all", schema=SCHEMA)
+    part = _find(fx)
     # root heterogeneity is the closed form (b_k - b_bar_w)^2 Var(1{x2>0})
     w = np.unique(data[:, 0], return_counts=True)[1] / len(data)
     gate_var = (data[:, 2] > 0).var()
     expected_root = (B - np.average(B, weights=w)) ** 2 * gate_var
-    np.testing.assert_allclose(reg.eval_heter(0, 0, LEVELS), expected_root, atol=1e-10)
+    np.testing.assert_allclose(part.eval_heter(0, LEVELS), expected_root, atol=1e-10)
 
-    _assert_gate_found(reg)
+    _assert_gate_found(part)
 
-    # per-node eval keeps the eval-at-levels contract
-    y = reg.eval(0, 1, LEVELS, centering="zero_start")
+    # per-region eval keeps the eval-at-levels contract
+    y = part.eval(1, LEVELS, centering="zero_start")
     assert y.shape == (3,)
     with pytest.raises(ValueError, match="observed"):
-        reg.eval(0, 1, np.array([0.5]))
+        part.eval(1, np.array([0.5]))
 
 
 def test_regional_ale_on_categorical_foi_finds_the_gate(data):
-    reg = _fit(effector.RegionalALE(data, gated_cat_model, schema=SCHEMA))
-    _assert_gate_found(reg)
+    fx = effector.ALE(data, gated_cat_model, nof_instances="all", schema=SCHEMA)
+    _assert_gate_found(_find(fx))
 
 
 def test_regional_rhale_on_ordinal_foi(data):
-    reg = effector.RegionalRHALE(data, gated_cat_model, gated_cat_jac, schema=SCHEMA)
-    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=1))
-    _assert_gate_found(reg)
+    fx = effector.RHALE(
+        data, gated_cat_model, model_jac=gated_cat_jac, nof_instances="all", schema=SCHEMA
+    )
+    _assert_gate_found(_find(fx))
 
 
 def test_regional_derpdp_on_categorical_foi_raises(data, model):
-    reg = effector.RegionalDerPDP(data, model.predict, model.jacobian, schema=SCHEMA)
+    # the capability matrix rejects an ordinal FOI for d-PDP at fit time
+    fx = effector.DerPDP(data, model.predict, model_jac=model.jacobian, schema=SCHEMA)
     with pytest.raises(ValueError, match="does not support ordinal"):
-        reg.fit(0)
+        fx.fit(0)
 
 
 def test_regional_summary_and_plot_smoke(data, model):
-    reg = _fit(effector.RegionalPDP(data, gated_cat_model, schema=SCHEMA))
-    reg.summary(0)
-    fig, ax = reg.plot(0, 1, heterogeneity="ice", show_plot=False)
+    fx = effector.PDP(data, gated_cat_model, nof_instances="all", schema=SCHEMA)
+    part = _find(fx)
+    part.show()
+    fig, ax = part.plot(1, heterogeneity="ice", show_plot=False)
     assert fig is not None
 
 
@@ -164,9 +169,10 @@ def test_nominal_plot_uses_level_labels():
 
 
 def test_regional_capability_matrix_enforced_at_fit():
-    # regression: the capability matrix must be enforced at regional fit, not
-    # only later at plot — otherwise fit/summary run on an unsupported FOI and
-    # only plot raises (RHALE on nominal was inconsistent this way).
+    # regression: the capability matrix must be enforced on the unsupported FOI,
+    # not only later at plot — otherwise fit/summary run on an unsupported FOI
+    # and only plot raises (RHALE on nominal was inconsistent this way). For the
+    # methods that reject a nominal FOI the guard fires already at fit.
     rng = np.random.default_rng(0)
     X = np.column_stack(
         [rng.integers(0, 3, 800).astype(float), rng.uniform(-1, 1, 800)]
@@ -174,16 +180,17 @@ def test_regional_capability_matrix_enforced_at_fit():
     f = lambda z: z[:, 0] * (z[:, 1] > 0)
     jac = lambda z: np.zeros_like(z)
     schema = {"feature_types": ["nominal", "continuous"]}
-    part = effector.space_partitioning.Best(max_depth=2)
+    finder = effector.space_partitioning.Best(max_depth=2)
 
     with pytest.raises(ValueError, match="rhale does not support nominal"):
-        effector.RegionalRHALE(X, f, model_jac=jac, schema=schema).fit(
-            0, space_partitioner=part
-        )
+        effector.RHALE(X, f, model_jac=jac, schema=schema).fit(0)
     with pytest.raises(ValueError, match="d-pdp does not support nominal"):
-        effector.RegionalDerPDP(X, f, model_jac=jac, schema=schema).fit(
-            0, space_partitioner=part
-        )
-    # supported methods still fit on the same nominal FOI
-    effector.RegionalPDP(X, f, schema=schema).fit(0, space_partitioner=part)
-    effector.RegionalALE(X, f, schema=schema).fit(0, space_partitioner=part)
+        effector.DerPDP(X, f, model_jac=jac, schema=schema).fit(0)
+
+    # supported methods still fit AND find regions on the same nominal FOI
+    fx = effector.PDP(X, f, nof_instances="all", schema=schema)
+    fx.fit(0)
+    fx.find_regions(0, finder=finder)
+    fx = effector.ALE(X, f, nof_instances="all", schema=schema)
+    fx.fit(0)
+    fx.find_regions(0, finder=finder)

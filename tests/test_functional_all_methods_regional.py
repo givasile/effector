@@ -55,31 +55,33 @@ def data():
 
 
 CASES = [
-    pytest.param("pdp", {}, id="regional-pdp"),
-    pytest.param("derpdp", {}, id="regional-derpdp"),
-    pytest.param("ale", {}, id="regional-ale"),
-    pytest.param("rhale", {}, id="regional-rhale"),
+    pytest.param("pdp", {}, id="pdp"),
+    pytest.param("derpdp", {}, id="derpdp"),
+    pytest.param("ale", {}, id="ale"),
+    pytest.param("rhale", {}, id="rhale"),
     pytest.param(
-        "shapdp", {"backend": "shap"}, id="regional-shapdp-shap", marks=pytest.mark.slow
+        "shapdp", {"backend": "shap"}, id="shapdp-shap", marks=pytest.mark.slow
     ),
     pytest.param(
         "shapdp",
         {"backend": "shapiq"},
-        id="regional-shapdp-shapiq",
+        id="shapdp-shapiq",
         marks=pytest.mark.slow,
     ),
 ]
 
 
 def make_fitted(kind, opts, data):
+    """Build the GLOBAL effect, fit feature 0, and return its find_regions Partition."""
+    finder = effector.space_partitioning.Best(max_depth=2)
     if kind == "pdp":
-        reg = effector.RegionalPDP(data, model, nof_instances=N)
+        fx = effector.PDP(data, model, nof_instances=N)
     elif kind == "derpdp":
-        reg = effector.RegionalDerPDP(data, model, model_jac, nof_instances=N)
+        fx = effector.DerPDP(data, model, model_jac=model_jac, nof_instances=N)
     elif kind == "ale":
-        reg = effector.RegionalALE(data, model, nof_instances=N)
+        fx = effector.ALE(data, model, nof_instances=N)
     elif kind == "rhale":
-        reg = effector.RegionalRHALE(data, model, model_jac, nof_instances=N)
+        fx = effector.RHALE(data, model, model_jac=model_jac, nof_instances=N)
     elif kind == "shapdp":
         # 100 instances: at 50 the subsample is too thin for the partitioner
         # to find the second (categorical) split at all.
@@ -88,37 +90,35 @@ def make_fitted(kind, opts, data):
         # first-class seed — HOMOGENIZATION candidate).
         np.random.seed(0)
         seed_kw = {"shap": {"seed": 0}, "shapiq": {"random_state": 0}}[opts["backend"]]
-        reg = effector.RegionalShapDP(
+        fx = effector.ShapDP(
             data,
             model,
             nof_instances=100,
             backend=opts["backend"],
             shap_explainer_kwargs=seed_kw,
         )
-        reg.fit(
-            0,
-            space_partitioner=effector.space_partitioning.Best(max_depth=2),
-        )
-        return reg
-    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
-    return reg
+        fx.fit(0, centering=False)
+        return fx.find_regions(0, finder=finder)
+    fx.fit(0, centering=False)
+    return fx.find_regions(0, finder=finder)
 
 
-def path_conditions(node):
-    """Collect (feature, comparison) pairs from the node up to the root."""
+def path_conditions(part, region):
+    """Collect (feature, comparison) pairs from the region up to the root."""
     conds = []
-    while node is not None and node.info["level"] > 0:
-        conds.append((node.info["foc_index"], node.info["comparison"]))
-        node = getattr(node, "parent_node", None)
+    while region is not None and region.parent_idx is not None:
+        conds.append((region.foc_index, region.comparison))
+        region = part[region.parent_idx]
     return conds
 
 
-def find_active_leaf(tree):
-    """The leaf whose region is {x1 > split, x2 == 0} — derived, not hardcoded."""
+def find_active_leaf(part):
+    """The leaf region whose mask is {x1 > split, x2 == 0} — derived, not hardcoded."""
     matches = [
-        n
-        for n in tree.nodes
-        if (1, ">") in path_conditions(n) and (2, "==") in path_conditions(n)
+        r
+        for r in part
+        if (1, ">") in path_conditions(part, r)
+        and (2, "==") in path_conditions(part, r)
     ]
     assert len(matches) == 1, f"expected exactly one active leaf, got {len(matches)}"
     return matches[0]
@@ -126,28 +126,29 @@ def find_active_leaf(tree):
 
 @pytest.mark.parametrize("kind,opts", CASES)
 def test_active_region_effect(kind, opts, data):
-    reg = make_fitted(kind, opts, data)
-    tree = reg.tree["feature_0"]
+    part = make_fitted(kind, opts, data)
 
     # the gate must be found: a split on x1 near 0, then x2 == 0
-    leaf = find_active_leaf(tree)
-    chain = dict(path_conditions(leaf))
+    leaf = find_active_leaf(part)
+    chain = dict(path_conditions(part, leaf))
     assert set(chain) == {1, 2}
 
     if kind == "derpdp":
         gt = np.full_like(XS, 5.0)  # derivative of 5*x0
-        y, heter = reg.eval(0, leaf.idx, XS, heterogeneity=True, centering=False)
+        y = part.eval(leaf.idx, XS, centering=False)
+        heter = part.eval_heter(leaf.idx, XS)
         atol = 1e-1
     elif kind == "shapdp":
-        # RegionalShapDP does NOT recompute shap values within the region: it
-        # subsets the precomputed GLOBAL attributions (regional_effect_shap.py,
-        # global_shap_values). For gate instances the exact interventional
-        # Shapley slope is 5*(1/3*Pg + 1/6*P2 + 1/6*P1 + 1/3) = 5*7/12 ~ 2.9
+        # find_regions ShapDP does NOT recompute shap values within the region:
+        # it subsets the precomputed GLOBAL attributions (global_shap_values).
+        # For gate instances the exact interventional Shapley slope is
+        # 5*(1/3*Pg + 1/6*P2 + 1/6*P1 + 1/3) = 5*7/12 ~ 2.9
         # (P1 = P(x1>0) = P2 = P(x2=0) = 1/2) — NOT 5, which recompute-within-
         # region semantics would give. Subsample-P jitter and the spline
         # aggregation move the realized slope by a few tenths, so the assert
         # is at slope granularity: near 35/12, decisively far from 5.
-        y, heter = reg.eval(0, leaf.idx, XS, heterogeneity=True, centering=True)
+        y = part.eval(leaf.idx, XS, centering=True)
+        heter = part.eval_heter(leaf.idx, XS)
         A = np.vstack([XS, np.ones_like(XS)]).T
         slope, intercept = np.linalg.lstsq(A, y, rcond=None)[0]
         assert 2.4 < slope < 3.5, f"slope {slope:.2f}: not subset-global semantics?"
@@ -158,7 +159,8 @@ def test_active_region_effect(kind, opts, data):
         return
     else:
         gt = 5 * XS  # already zero-integral over [-1, 1]
-        y, heter = reg.eval(0, leaf.idx, XS, heterogeneity=True, centering=True)
+        y = part.eval(leaf.idx, XS, centering=True)
+        heter = part.eval_heter(leaf.idx, XS)
         atol = 1e-1
     np.testing.assert_allclose(y, gt, atol=atol)
     np.testing.assert_allclose(heter, np.zeros_like(heter), atol=atol)
@@ -170,19 +172,14 @@ def test_inactive_leaves_are_flat(kind, opts, data):
     exactly 0) leaks a sliver of active points into the inactive branch, which
     makes the derivative-based trees legitimately split it again — their
     'inactive' leaves are not flat by construction, only PDP/DerPDP's are."""
-    reg = make_fitted(kind, opts, data)
-    tree = reg.tree["feature_0"]
-    active = find_active_leaf(tree)
-    leaves = [
-        n
-        for n in tree.nodes
-        if n.info["level"] > 0
-        and not any(c.parent_node is n for c in tree.nodes if c.info["level"] > 0)
-    ]
+    part = make_fitted(kind, opts, data)
+    active = find_active_leaf(part)
+    leaves = [r for r in part.leaves if r.level > 0]
     for leaf in leaves:
         if leaf.idx == active.idx:
             continue
-        y, heter = reg.eval(0, leaf.idx, XS, heterogeneity=True, centering=True)
+        y = part.eval(leaf.idx, XS, centering=True)
+        heter = part.eval_heter(leaf.idx, XS)
         np.testing.assert_allclose(y, np.zeros_like(XS), atol=1e-1)
         if kind in ("pdp", "derpdp"):
             # bin-based methods (ale/rhale) spike in the 1-2 bins holding the

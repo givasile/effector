@@ -21,13 +21,12 @@ from tests.conftest import (
     GLOBAL_NAMES,
     analytic_shap_values,
     eval_mean,
-    gated_model,
     linear_model,
+    make_gated_global,
     make_global,
     make_global_data,
     make_global_df,
     make_mixed_df,
-    make_regional,
     make_regional_data,
 )
 
@@ -52,7 +51,7 @@ def test_r10_df_numpy_parity_eval(name):
     np.testing.assert_array_equal(y_np, y_df)
 
 
-@pytest.mark.parametrize("name", ["regional_pdp", "regional_ale"])
+@pytest.mark.parametrize("name", ["pdp", "ale"])
 def test_r10_df_numpy_parity_regional_tree(name):
     import pandas as pd
 
@@ -63,22 +62,23 @@ def test_r10_df_numpy_parity_regional_tree(name):
     # would otherwise be dtype-decided continuous while the numpy heuristic
     # reads the same binary values as ordinal (both correct per R10)
     types = ["continuous", "continuous", "ordinal"]
-    reg_np = make_regional(name, data, schema={"feature_types": types})
-    cls = effector.RegionalPDP if name == "regional_pdp" else effector.RegionalALE
+    fx_np = make_gated_global(name, data, schema={"feature_types": types})
     # numpy-only: convert the DataFrame first, force the shared types, and feed
     # the plain numpy model (the encoded matrix equals `data`)
     X_df, schema = effector.from_dataframe(df)
     schema = dataclasses.replace(schema, feature_types=types)
-    reg_df = cls(X_df, gated_model, schema=schema)
-    part = effector.space_partitioning.Best(max_depth=2)
-    reg_np.fit(0, space_partitioner=part)
-    reg_df.fit(0, space_partitioner=part)
+    fx_df = make_gated_global(name, X_df, schema=schema)
+    finder = effector.space_partitioning.Best(max_depth=2)
+    fx_np.fit(0, centering=False)
+    fx_df.fit(0, centering=False)
+    part_np = fx_np.find_regions(0, finder=finder)
+    part_df = fx_df.find_regions(0, finder=finder)
 
-    nodes_np = [n.name for n in reg_np.tree["feature_0"].nodes]
-    nodes_df = [n.name for n in reg_df.tree["feature_0"].nodes]
+    names_np = [r.name for r in part_np]
+    names_df = [r.name for r in part_df]
     # same split structure; names differ only by the column labels
-    assert len(nodes_np) == len(nodes_df)
-    for a, b in zip(nodes_np, nodes_df):
+    assert len(names_np) == len(names_df)
+    for a, b in zip(names_np, names_df):
         assert a.replace("x_1", "b").replace("x_2", "c").replace("x_0", "a") == b
 
 
@@ -101,14 +101,16 @@ def test_r10_feature_metadata_exposed_global(name):
 
 @pytest.mark.parametrize(
     "name",
-    ["regional_pdp", "regional_derpdp", "regional_ale", "regional_rhale"],
+    ["pdp", "derpdp", "ale", "rhale"],
 )
 def test_r10_feature_metadata_exposed_regional(name):
-    reg = make_regional(name, make_regional_data())
-    assert isinstance(reg.feature_metadata, ingestion.FeatureMetadata)
-    assert len(reg.feature_types) == 3
+    # the effect backing find_regions exposes the resolved metadata; every
+    # region reads it through this one object.
+    fx = make_gated_global(name, make_regional_data())
+    assert isinstance(fx.feature_metadata, ingestion.FeatureMetadata)
+    assert len(fx.feature_types) == 3
     # binary integer-valued column -> ordinal under the numpy heuristic
-    assert reg.feature_types[2] == ingestion.ORDINAL
+    assert fx.feature_types[2] == ingestion.ORDINAL
 
 
 def test_r10_feature_metadata_exposed_facade():
@@ -132,15 +134,16 @@ def test_r10_alias_stored_canonical_global():
 
 
 def test_r10_alias_stored_canonical_regional_and_splits():
-    reg = make_regional(
-        "regional_pdp",
+    fx = make_gated_global(
+        "pdp",
         make_regional_data(),
         schema={"feature_types": ["cont", "cont", "cat"]},
     )
-    assert reg.feature_types == ["continuous", "continuous", "nominal"]
-    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
-    # the x2 split must stay categorical-style (= / ≠ in the tree display)
-    names = " ".join(n.name for n in reg.tree["feature_0"].nodes)
+    assert fx.feature_types == ["continuous", "continuous", "nominal"]
+    fx.fit(0, centering=False)
+    part = fx.find_regions(0, finder=effector.space_partitioning.Best(max_depth=2))
+    # the x2 split must stay categorical-style (= / ≠ in the region labels)
+    names = " ".join(r.name for r in part)
     assert "≠" in names
 
 
@@ -157,12 +160,15 @@ def test_r10_schema_object_equals_dict():
 
 
 def test_r10_regional_node_inherits_types():
-    reg = make_regional("regional_pdp", make_regional_data())
-    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
-    # the ONE internally built global effect (all node eval/plot delegate to
-    # its masked summaries) must NOT re-infer: parent's types verbatim
-    assert reg._global_fe.feature_types == reg.feature_types
-    assert reg._global_fe.cat_limit == reg.cat_limit
+    fx = make_gated_global("pdp", make_regional_data())
+    fx.fit(0, centering=False)
+    part = fx.find_regions(0, finder=effector.space_partitioning.Best(max_depth=2))
+    # the ONE effect every region's eval/plot delegates to is `fx` itself
+    # (find_regions binds part._effect = fx) -> types are the parent's verbatim,
+    # nothing is re-inferred from a subset
+    assert part._effect is fx
+    assert part._effect.feature_types == fx.feature_types
+    assert part._effect.cat_limit == fx.cat_limit
 
 
 def test_r10_facade_submethods_inherit_types():
@@ -240,16 +246,17 @@ def test_r10_scale_false_disables():
 
 
 def test_r10_summary_uses_stored_scale(capsys):
-    reg = make_regional(
-        "regional_pdp",
+    fx = make_gated_global(
+        "pdp",
         make_regional_data(),
         schema={"scale_x_list": [None, None, {"mean": 100.0, "std": 1.0}]},
     )
-    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=1))
-    reg.summary(0)
+    fx.fit(0, centering=False)
+    part = fx.find_regions(0, finder=effector.space_partitioning.Best(max_depth=1))
+    part.show()
     out = capsys.readouterr().out
     # the x_2 = 0 split prints in scaled units (= 100.00) without passing
-    # scale_x_list to summary
+    # scale_x_list to show() — the partition carries the effect's stored scale
     assert "100.00" in out
 
 
@@ -266,7 +273,7 @@ def _cat_model(x):
 
 
 def _cat_gated(x):
-    # gender effect only when x1 > 0 -> RegionalPDP(gender) splits on x1
+    # gender effect only when x1 > 0 -> find_regions(gender) splits on x1
     x = np.asarray(x)
     return x[:, 0] * (x[:, 1] > 0).astype(float)
 
@@ -313,9 +320,10 @@ def test_r10_category_names_regional_node():
         "feature_types": ["nominal", "continuous"],
         "category_names": [_CAT_NAMES, None],
     }
-    reg = effector.RegionalPDP(_cat_data(1500), _cat_gated, schema=schema)
-    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=1))
-    _, ax = reg.plot(0, 1, centering="zero_integral", show_plot=False)
+    fx = effector.PDP(_cat_data(1500), _cat_gated, schema=schema)
+    fx.fit(0, centering="zero_integral")
+    part = fx.find_regions(0, finder=effector.space_partitioning.Best(max_depth=1))
+    _, ax = part.plot(1, centering="zero_integral", show_plot=False)
     assert _xtick_texts(ax) == _CAT_NAMES
 
 
@@ -327,10 +335,14 @@ def test_r10_category_names_regional_split_on_categorical():
         "feature_types": ["nominal", "continuous"],
         "category_names": [_CAT_NAMES, None],
     }
-    reg = effector.RegionalPDP(_cat_data(1500), _cat_gated, schema=schema)
-    reg.fit(1, space_partitioner=effector.space_partitioning.Best(max_depth=2))
-    for node_idx in range(len(reg.tree["feature_1"].nodes)):
-        reg.plot(1, node_idx, show_plot=False)  # must not raise
+    fx = effector.PDP(_cat_data(1500), _cat_gated, schema=schema)
+    fx.fit(1, centering=False)
+    part = fx.find_regions(1, finder=effector.space_partitioning.Best(max_depth=2))
+    # the partition conditions feature 1 on the categorical feature 0 (gender):
+    # at least one region restricts that categorical split feature to a subset
+    assert any(r.foc_index == 0 for r in part)
+    for idx in range(len(part)):
+        part.plot(idx, show_plot=False)  # must not raise
 
 
 def _ord_1based(n=1500):
@@ -359,8 +371,9 @@ def test_ale_plot_non_zero_based_ordinal_global():
 def test_ale_plot_non_zero_based_ordinal_regional():
     # regional ALE builds a global ALE per node and calls its .plot(), so it
     # inherits the same P1 crash; the root node exercises the categorical path.
-    ra = effector.RegionalALE(
+    fx = effector.ALE(
         _ord_1based(), _ord_model, schema={"feature_types": ["ordinal", "continuous"]}
     )
-    ra.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
-    ra.plot(0, 0, show_plot=False)  # must not raise
+    fx.fit(0)
+    part = fx.find_regions(0, finder=effector.space_partitioning.Best(max_depth=2))
+    part.plot(0, show_plot=False)  # must not raise

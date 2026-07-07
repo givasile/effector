@@ -108,49 +108,59 @@ class TestGlobalEffects:
 
 
 class TestRegionalEffects:
-    """The only multi-level regional ground truth in the suite."""
+    """The only multi-level regional ground truth in the suite.
+
+    Built on GLOBAL effects + `find_regions(finder=Best(max_depth=2))`, which
+    yields a 2-level `Partition` (root + 2 + 4 = 7 regions). The hierarchy is
+    walked via `region.parent_idx` / `part[region.parent_idx]`.
+    """
 
     @pytest.fixture(scope="class", params=["pdp", "rhale"])
     def fitted(self, request, bench, data):
         if request.param == "pdp":
-            reg = effector.RegionalPDP(
+            fx = effector.PDP(
                 data, bench.model.predict, axis_limits=bench.axis_limits
             )
         else:
-            reg = effector.RegionalRHALE(
+            fx = effector.RHALE(
                 data,
                 bench.model.predict,
                 bench.model.jacobian,
                 axis_limits=bench.axis_limits,
             )
-        reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
-        return reg
+        fx.fit(0, centering=True)
+        return fx.find_regions(
+            0, finder=effector.space_partitioning.Best(max_depth=2)
+        )
 
     def test_two_levels_sign_gate_then_power_gate(self, fitted, bench):
-        tree = fitted.tree["feature_0"]
-        level1 = [n for n in tree.nodes if n.info["level"] == 1]
-        level2 = [n for n in tree.nodes if n.info["level"] == 2]
+        part = fitted
+        # root + 2 + 4 = 7 regions in a two-level tree
+        assert len(part) == 7
+        level1 = [r for r in part if r.level == 1]
+        level2 = [r for r in part if r.level == 2]
         assert len(level1) == 2 and len(level2) == 4
-        for node in level1:
-            assert node.info["foc_index"] == bench.regional_level1_split_feature
-            assert abs(node.info["foc_split_position"]) <= 0.15
-        for node in level2:
-            assert node.info["foc_index"] == bench.regional_level2_split_feature
-            assert abs(node.info["foc_split_position"]) <= 0.15
+        for region in level1:
+            assert region.foc_index == bench.regional_level1_split_feature
+            assert abs(region.foc_split_position) <= 0.15
+        for region in level2:
+            assert region.foc_index == bench.regional_level2_split_feature
+            assert abs(region.foc_split_position) <= 0.15
 
     def test_leaf_effects_match_the_four_regions(self, fitted, bench):
-        tree = fitted.tree["feature_0"]
-        for node in (n for n in tree.nodes if n.info["level"] == 2):
-            parent = tree.get_node_by_idx(node.parent_node.idx)
-            x3_side = "left" if parent.info["comparison"] == "<=" else "right"
-            x2_side = "left" if node.info["comparison"] == "<=" else "right"
-            y, heter = fitted.eval(0, node.idx, XS, heterogeneity=True, centering=True)
+        part = fitted
+        for region in (r for r in part if r.level == 2):
+            parent = part[region.parent_idx]
+            x3_side = "left" if parent.comparison == "<=" else "right"
+            x2_side = "left" if region.comparison == "<=" else "right"
+            y = part.eval(region.idx, XS, centering=True)
+            heter = part.eval_heter(region.idx, XS)
             gt = bench.regional_effect_gt(x2_side, x3_side, XS)
             np.testing.assert_allclose(y, gt, atol=ATOL)
             np.testing.assert_allclose(heter, np.zeros_like(XS), atol=LEAF_HETER_ATOL)
 
     def test_partition_removes_the_heterogeneity(self, fitted):
-        tree = fitted.tree["feature_0"]
-        root = next(n for n in tree.nodes if n.info["level"] == 0)
-        for node in (n for n in tree.nodes if n.info["level"] == 2):
-            assert node.info["heterogeneity"] < 0.05 * root.info["heterogeneity"]
+        part = fitted
+        root = part[0]
+        for region in (r for r in part if r.level == 2):
+            assert region.heterogeneity < 0.05 * root.heterogeneity
