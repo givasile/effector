@@ -337,20 +337,21 @@ Adding the two parts, we have the total runtime:
 
 ### Binning cost: the role of `K` and `binning_method`
 
-The table above folds binning into the constants by using `Fixed(nof_bins=20)`. But **ALE and RHALE bin the local effects inside `.fit()`**, and that step has its own cost — a pure-numpy pass over the $N$ local effects, *independent of the model*. With $K$ the number of bins, the per-feature binning cost $C_\text{bin}$ depends on the `binning_method`:
+The table above folds binning into the constants by using `Fixed(nof_bins=20)`. But **ALE and RHALE bin the local effects inside `.fit()`**, and that step has its own cost — a pure-numpy pass over the $N$ local effects, *independent of the model*. With $K$ the number of bins, the per-feature binning cost $C_\text{bin}$ depends on the `binning_method` (`effector.axis_partitioning`):
 
 | `binning_method` | complexity | notes |
 |---|---|---|
-| `Fixed` | $O(N)$ | uniform grid; ALE's only option, RHALE-capable |
-| `Greedy` | $O(K \cdot N)$ | adaptive one-pass merge; **RHALE default** |
-| `DynamicProgramming` | $O(N + K^2)$ | globally optimal bins |
+| `Fixed` | $O(N)$ | uniform grid; **ALE's only option** |
+| `Quantile` | $O(N \log N)$ | equal-frequency edges; adapts to skewed $x$, ignores $y$ |
+| `Agglomerative` | $O(N + K^2)$ | greedy bottom-up merge of similar bins |
+| `DynamicProgramming` | $O(N + K^2)$ | globally optimal bins; **RHALE / ShapDP default** |
 
 Because it touches no model, $C_\text{bin}$ is negligible against any nonzero $t_f$ — **as long as it stays sub-model-call.** The catch is that it is paid **per feature** ($D \cdot C_\text{bin}$), so a slow binner over many features can quietly dominate when $t_f$ is small.
 
-Measured at $N = 50{,}000$ (per feature): `Fixed` ≈ 1.5 ms, `Greedy` ≈ 8 ms, `DynamicProgramming` ≈ 1.5 ms.
+Measured at $N = 50{,}000$ (per feature): `Fixed` ≈ 1.5 ms, `Quantile` ≈ 2 ms, `Agglomerative` ≈ 1 ms, `DynamicProgramming` ≈ 1.5 ms — all millisecond-scale.
 
 !!! note "DynamicProgramming used to be the landmine"
-    `DynamicProgramming` was previously $O(K^3 N)$: at $N = 50{,}000,\ K = 40$ it cost **≈ 3.3 s per feature** (≈ **66 s** for $D = 20$) — which could dwarf the model itself for fast $t_f$, and even make RHALE slower than PDP. It is now $O(N + K^2)$ (**≈ 1.5 ms**, a ~2000× speedup), so the binning method no longer changes the runtime picture.
+    `DynamicProgramming` was previously $O(K^3 N)$: at $N = 50{,}000,\ K = 40$ it cost **≈ 3.3 s per feature** (≈ **66 s** for $D = 20$) — which could dwarf the model itself for fast $t_f$, and even make RHALE slower than PDP. It is now $O(N + K^2)$ (**≈ 1.5 ms**, a ~2000× speedup), which is why it is now the RHALE/ShapDP default: optimal *and* cheap.
 
 Making binning explicit, the totals for the two accumulation-based methods become:
 
