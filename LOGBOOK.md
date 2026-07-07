@@ -1149,3 +1149,26 @@ eval path, so importance routes through the *masked* path with an all-ones mask
 (≡ None by M1) to read the cached ICE — model-free for every method after the one
 lazy touch. Closed form on the linear anchor pins it: importance ratio = |coef|
 ratio for all five methods.
+
+---
+
+## 29. 2026-07-08 — One-click report: effector.explain -> Report (tag: code)  [design goal (b); branch `feat/find-regions`]
+
+**What:** `effector.explain(data, model, ...) -> Report` runs the whole pipeline
+in one call — fit once, rank by importance (R13), curves for the top-k,
+find_regions (R12) on the heterogeneous ones — and returns a `Report` value:
+`show()` (ranked table + region trees), `plot_importance()`, `to_html()` (a
+self-contained page, every figure a base64 PNG data URI), `to_dict`/`from_dict`
+(round-trips without an effect). This is the "(b) one-click auto-explanation" end
+goal made concrete; it consumes the Phase A/B surfaces (find_regions, importance)
+and stores only values.
+
+**Why (the model-free trap it had to dodge):** the whole point is "one fit's
+worth of model calls, stable as top_k grows." But PDP/DerPDP recompute their ICE
+on the *unmasked* eval path and on *off-grid* points, so a naive 100-point
+unmasked display curve re-touched the model per feature. Fix: route every reported
+surface (eval / eval_heter / heter_score) through the *masked* path with an
+all-ones mask (≡ unmasked by M1) and, for PDP/DerPDP, evaluate on their cache grid
+(discrete features on their levels). After `importances()` computes the local
+effects once, the report is model-free — pinned by a contract test that holds the
+model-call count fixed across top_k=1 vs 3.

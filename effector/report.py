@@ -21,7 +21,7 @@ from typing import List, Optional
 
 import numpy as np
 
-from effector import method_registry
+from effector import helpers, method_registry
 from effector.partition import Partition
 
 
@@ -300,7 +300,23 @@ def explain(
         if not np.isnan(imp[f])
     ][:top_k]
 
-    hs_map = {f: float(effect.heter_score(f)) for f in ranked}
+    # evaluate every reported surface through the model-free masked path (an
+    # all-ones mask ≡ unmasked by M1); PDP/DerPDP are model-free only ON their
+    # cache grid, so continuous features use that grid, discrete ones the levels.
+    # Net effect: after importances() computed the local effects once, the whole
+    # report is model-free — the count does not grow with top_k.
+    mask_all = np.ones(effect.data.shape[0], dtype=bool)
+
+    def _grid(f):
+        if effect._is_cat(f):
+            return np.unique(effect.data[:, f])
+        return np.linspace(
+            effect.axis_limits[0, f],
+            effect.axis_limits[1, f],
+            helpers.NOF_INTERNAL_POINTS,
+        )
+
+    hs_map = {f: float(effect.heter_score(f, mask=mask_all)) for f in ranked}
     if heter_threshold is None:
         thr = float(np.median(list(hs_map.values()))) if hs_map else 0.0
     else:
@@ -308,10 +324,10 @@ def explain(
 
     features = []
     for f in ranked:
-        xs = np.linspace(effect.axis_limits[0, f], effect.axis_limits[1, f], 100)
-        y = effect.eval(f, xs)
+        xs = _grid(f)
+        y = effect.eval(f, xs, mask=mask_all)
         y = y[0] if isinstance(y, tuple) else y
-        h = effect.eval_heter(f, xs)
+        h = effect.eval_heter(f, xs, mask=mask_all)
         hs = hs_map[f]
         part = (
             effect.find_regions(

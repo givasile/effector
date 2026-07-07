@@ -12,6 +12,10 @@ API DOCS:
     - [`effector.Partition`](./api_docs/api_partition.md/#effector.partition.Partition)
     - [`effector.Region`](./api_docs/api_partition.md/#effector.partition.Region)
 
+- [One-click report — explain & Report](./api_docs/api_report.md)
+    - [`effector.explain`](./api_docs/api_report.md/#effector.report.explain)
+    - [`effector.Report`](./api_docs/api_report.md/#effector.report.Report)
+
 
 - [`effector.axis_partitioning`](./api_docs/api_axis_partitioning.md)
 - [`effector.space_partitioning`](./api_docs/api_space_partitioning.md)
