@@ -9,7 +9,7 @@ import effector.helpers as helpers
 import effector.utils as utils
 import effector.visualization as vis
 from effector import ingestion
-from effector.global_effect import GlobalEffectBase
+from effector.global_effect import GlobalEffectBase, check_binning_scope
 
 
 class ALEBase(GlobalEffectBase):
@@ -173,6 +173,8 @@ class ALEBase(GlobalEffectBase):
         dy_limits: Optional[List] = None,
         show_only_aggregated: bool = False,
         show_plot: bool = True,
+        mask: Optional[np.ndarray] = None,
+        feature_label: Optional[str] = None,
     ):
         """
         Plot the (RH)ALE feature effect of feature `feature`.
@@ -214,6 +216,12 @@ class ALEBase(GlobalEffectBase):
 
             show_only_aggregated: if True, only the main ale plot will be shown
             show_plot: if True, the plot will be shown
+            mask: optional boolean `(N,)` selecting a subregion — plot the
+                effect *within* it (re-binned from the cached local effects,
+                no model calls) with the x-axis windowed to the subregion's
+                own interval
+            feature_label: optional display name for the feature axis (e.g. a
+                regional node's name), overriding `feature_names[feature]`
         """
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
@@ -221,12 +229,36 @@ class ALEBase(GlobalEffectBase):
             scale_x, self.scale_x_list[feature] if self.scale_x_list else None
         )
         scale_y = helpers.resolve_scale(scale_y, self.scale_y)
+        mask = self._prep_mask(mask)
+        feature_names = list(self.feature_names)
+        if feature_label is not None:
+            feature_names[feature] = feature_label
 
-        # fit the feature if needed (the eval below reuses the stored state)
-        self.eval(
-            feature, np.array([self.axis_limits[0, feature]]), centering=centering
-        )
-        params = self.feature_effect["feature_" + str(feature)]
+        if mask is None:
+            # fit the feature if needed (the eval below reuses the stored state)
+            self.eval(
+                feature, np.array([self.axis_limits[0, feature]]), centering=centering
+            )
+            params = self.feature_effect["feature_" + str(feature)]
+            x_window = None
+        else:
+            # transient subregion payload from the cached local effects —
+            # pure numpy, nothing stored (the masked-plot path)
+            self._ensure_local_effects(feature)
+            params = self._summarize(feature, mask, **self._replay_fit_kwargs(feature))
+            x_window = (
+                None if params.get("is_cat") else self._effective_limits(feature, mask)
+            )
+
+        def centered_eval(xs):
+            if mask is None:
+                return self.eval(feature, xs, centering=centering)
+            y = self._eval_unnorm(feature, xs, params=params)
+            if centering is not False:
+                y = y - self._compute_norm_const(
+                    feature, method=centering, params=params, mask=mask
+                )
+            return y
 
         # the accumulated curve is piecewise linear between bin limits, so
         # evaluating exactly at the limits draws it exactly (no resampling).
@@ -235,10 +267,11 @@ class ALEBase(GlobalEffectBase):
         # would reject, so only build this grid for continuous features.
         if not params.get("is_cat"):
             x = np.asarray(params["limits"], dtype=float)
-            y = self.eval(feature, x, centering=centering)
+            y = centered_eval(x)
 
         if show_avg_output:
-            avg_output = helpers.prep_avg_output(self.data, self.model, None, scale_y)
+            data = self.data if mask is None else self.data[mask]
+            avg_output = helpers.prep_avg_output(data, self.model, None, scale_y)
         else:
             avg_output = None
 
@@ -251,9 +284,9 @@ class ALEBase(GlobalEffectBase):
             # bars = accumulated per-level values (in fit order); whiskers =
             # the variance of the step into each level (method_semantics.md)
             levels, labels = self._level_display(feature, params["levels"])
-            y_levels = self.eval(feature, levels, centering=centering)
+            y_levels = centered_eval(levels)
             variances = (
-                self._eval_unnorm(feature, levels, heterogeneity=True)[1]
+                self._eval_unnorm(feature, levels, heterogeneity=True, params=params)[1]
                 if heterogeneity is not False
                 else None
             )
@@ -274,7 +307,7 @@ class ALEBase(GlobalEffectBase):
                 scale_x=scale_x,
                 scale_y=scale_y,
                 avg_output=avg_output,
-                feature_names=self.feature_names,
+                feature_names=feature_names,
                 target_name=self.target_name,
                 y_limits=y_limits,
                 connect_line=True,  # (RH)ALE bars accumulate: show the step path
@@ -293,12 +326,13 @@ class ALEBase(GlobalEffectBase):
             scale_y=scale_y,
             title=title,
             avg_output=avg_output,
-            feature_names=self.feature_names,
+            feature_names=feature_names,
             target_name=self.target_name,
             y_limits=y_limits,
             dy_limits=dy_limits,
             show_only_aggregated=show_only_aggregated,
             show_plot=show_plot,
+            x_limits=x_window,
         )
 
 
@@ -655,11 +689,18 @@ class RHALE(ALEBase):
             str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
         ] = "dp",
         order=None,
+        binning_scope: str = "global",
     ) -> typing.Dict:
         """Step 3 (pure numpy): bin the cached per-instance jacobian over the
-        subregion `mask` (None = all) and derive the bin effects/variances."""
+        subregion `mask` (None = all) and derive the bin effects/variances.
+
+        `binning_scope` (masked only): the x-range handed to the binner —
+        `"global"` keeps the frozen global frame (one frame for the split
+        search and every node), `"effective"` packs the bins into the masked
+        column's own `[min, max]` (finer subregion resolution)."""
         if self._is_cat(feature):
             # ordinal: merge adjacent transitions with the chosen binning
+            # (code-space bins — binning_scope does not apply)
             return self._summarize_cat(feature, mask, binning_method)
         self._ensure_local_effects(feature)
         eff = self.local_effects["feature_" + str(feature)]
@@ -673,7 +714,11 @@ class RHALE(ALEBase):
             if isinstance(binning_method, str)
             else binning_method
         )
-        limits = binning.find_limits(col, eff, self.axis_limits[:, feature])
+        if mask is not None and binning_scope == "effective":
+            limits_range = np.asarray(self._effective_limits(feature, mask))
+        else:
+            limits_range = self.axis_limits[:, feature]
+        limits = binning.find_limits(col, eff, limits_range)
         utils.raise_if_no_binning(limits, feature, binning)
 
         dale_params = utils.compute_ale_params(col, eff, limits)
@@ -687,13 +732,18 @@ class RHALE(ALEBase):
             str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
         ] = "dp",
         order=None,
+        binning_scope: str = "global",
     ) -> typing.Dict:
         if self._is_cat(feature):
             # ordinal kernel: adjacent-level differences are the discrete
             # derivative; the jacobian (if any) is ignored for this feature
             return self._fit_feature_cat(feature, binning_method, order=order)
         return self._summarize(
-            feature, None, binning_method=binning_method, order=order
+            feature,
+            None,
+            binning_method=binning_method,
+            order=order,
+            binning_scope=binning_scope,
         )
 
     def fit(
@@ -706,6 +756,7 @@ class RHALE(ALEBase):
             str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
         ] = "dp",
         order: typing.Union[None, str, list] = None,
+        binning_scope: str = "global",
     ) -> None:
         """Fit the model.
 
@@ -745,10 +796,24 @@ class RHALE(ALEBase):
 
                 Changing `order` requires calling `fit` again; `eval`/`plot`
                 reuse the fitted order.
+
+            binning_scope: the x-range the binner covers when a *masked*
+                summary re-bins a subregion (`eval`/`eval_heter`/`plot`/
+                `heter_score` with `mask=`; the regional split search)
+
+                - `"global"` (default): the frozen global `axis_limits` — one
+                  frame for every subregion, directly comparable
+                - `"effective"`: the masked column's own `[min, max]` — bins
+                  packed into the subregion, finer resolution
+
+                Recorded at fit and replayed by every masked call, so the
+                split search and the display always share the same scope.
+                Ignored when no mask is involved.
         """
         # validation is the resolver's job (R6): one table, one error message
         binning_method = ap.return_default(binning_method)
         self._validate_order_arg(features, order)
+        check_binning_scope(binning_scope)
 
         self._fit_loop(
             features,
@@ -756,4 +821,5 @@ class RHALE(ALEBase):
             points_for_centering,
             binning_method=binning_method,
             order=order,
+            binning_scope=binning_scope,
         )

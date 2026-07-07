@@ -44,7 +44,7 @@ class PDPBase(GlobalEffectBase):
         if self.method_name == "pdp":
             y = method(self.model, None, data, xx, feature, False)
         else:
-            y = method(self.model, self.model_jac, self.data, xx, feature, True)
+            y = method(self.model, self.model_jac, data, xx, feature, True)
         return y
 
     def _fit_feature(self, feature: int, use_vectorized: bool = True) -> dict:
@@ -108,11 +108,34 @@ class PDPBase(GlobalEffectBase):
         feature: int,
         method: str = "zero_integral",
         nof_points: int = helpers.NOF_INTERNAL_POINTS,
+        params: Optional[dict] = None,
+        mask: Optional[np.ndarray] = None,
     ):
         """(d-)PDP overrides the base: its normalization constant is
         *per-instance* — each ICE curve is centered on its own — so an
-        `(N,)` array is stored instead of a scalar."""
+        `(N,)` array is stored instead of a scalar.
+
+        The masked path is model-free: the constants come from the cached ICE
+        table's masked columns, integrated over the subregion's effective
+        interval (linear interpolation between grid rows)."""
         assert method in ["zero_integral", "zero_start"]
+        if mask is not None:
+            prim = self.local_effects["feature_" + str(feature)]
+            grid, ice = prim["grid"], prim["ice"][:, mask]
+            if self._is_cat(feature):
+                # weights of the levels *within* the mask, aligned to the grid
+                # (= the globally observed levels); absent levels weigh zero
+                levels, weights = self._level_weights(feature, mask)
+                if method == "zero_integral":
+                    w = np.zeros(len(grid))
+                    w[np.searchsorted(grid, levels)] = weights
+                    return np.average(ice, axis=0, weights=w)
+                return ice[np.searchsorted(grid, levels[0])]
+            lo, hi = self._effective_limits(feature, mask)
+            if method == "zero_integral":
+                xs = np.linspace(lo, hi, nof_points)
+                return np.mean(_interp_columns(grid, ice, xs), axis=0)
+            return _interp_columns(grid, ice, np.array([lo]))[0]
         use_vectorized = self.fit_args.get("feature_" + str(feature), {}).get(
             "use_vectorized", True
         )
@@ -197,6 +220,25 @@ class PDPBase(GlobalEffectBase):
             y_var = np.var(y_ice, axis=1)
         return y_mean, y_var
 
+    def _eval_masked_mean(
+        self, feature: int, x: np.ndarray, params: dict, mask: np.ndarray
+    ) -> np.ndarray:
+        """Masked mean (d-)ICE: read the cached-grid payload when `x` lies on
+        it (levels are always on it), otherwise recompute ICE on `data[mask]`
+        at `x` — the exact-evaluation retouch, symmetric with the global
+        (d-)PDP `eval` (the one model-touching exception of the masked path)."""
+        if params.get("is_cat"):
+            return self._eval_unnorm(feature, x, params=params)
+        grid = params["grid"]
+        on_grid = np.isclose(x[:, None], grid[None, :]).any(axis=1).all()
+        if on_grid:
+            return self._eval_unnorm(feature, x, params=params)
+        use_vectorized = self.fit_args.get("feature_" + str(feature), {}).get(
+            "use_vectorized", True
+        )
+        y_ice = self._predict(self.data[mask], x, feature, use_vectorized)
+        return np.mean(y_ice, axis=1)
+
     def fit(
         self,
         features: Union[int, str, list] = "all",
@@ -244,6 +286,8 @@ class PDPBase(GlobalEffectBase):
         y_limits: Optional[List] = None,
         use_vectorized: bool = True,
         show_plot: bool = True,
+        mask: Optional[np.ndarray] = None,
+        feature_label: Optional[str] = None,
     ):
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
@@ -251,27 +295,57 @@ class PDPBase(GlobalEffectBase):
             scale_x, self.scale_x_list[feature] if self.scale_x_list else None
         )
         scale_y = helpers.resolve_scale(scale_y, self.scale_y)
+        mask = self._prep_mask(mask)
+        feature_names = list(self.feature_names)
+        if feature_label is not None:
+            feature_names[feature] = feature_label
 
         is_cat = self._is_cat(feature)
-        x = (
-            self._levels(feature)
-            if is_cat
-            else np.linspace(
-                self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
+        if mask is None:
+            x = (
+                self._levels(feature)
+                if is_cat
+                else np.linspace(
+                    self.axis_limits[0, feature],
+                    self.axis_limits[1, feature],
+                    nof_points,
+                )
             )
-        )
 
-        # the ICE table is the method's own object: computed by the kernel and
-        # centered with the stored per-instance norms (payload state)
-        if self.requires_refit(feature, centering):
-            self._refit(feature, centering)
-        yy = self._predict(self.data, x, feature, use_vectorized)
-        if centering is not False:
-            norm_consts = self.feature_effect["feature_" + str(feature)]["norm_const"]
-            yy = yy - norm_consts[np.newaxis, :]
+            # the ICE table is the method's own object: computed by the kernel
+            # and centered with the stored per-instance norms (payload state)
+            if self.requires_refit(feature, centering):
+                self._refit(feature, centering)
+            yy = self._predict(self.data, x, feature, use_vectorized)
+            if centering is not False:
+                norm_consts = self.feature_effect["feature_" + str(feature)][
+                    "norm_const"
+                ]
+                yy = yy - norm_consts[np.newaxis, :]
+        else:
+            # masked branch: the cached ICE table's masked columns at grid
+            # resolution — no model calls; `nof_points` does not apply. The x
+            # arrays are cropped to the subregion's effective interval, so the
+            # figure windows itself to the region.
+            self._ensure_local_effects(feature)
+            prim = self.local_effects["feature_" + str(feature)]
+            grid, ice_m = prim["grid"], prim["ice"][:, mask]
+            if is_cat:
+                x = grid
+                yy = ice_m
+            else:
+                lo, hi = self._effective_limits(feature, mask)
+                x = np.concatenate([[lo], grid[(grid > lo) & (grid < hi)], [hi]])
+                yy = _interp_columns(grid, ice_m, x)
+            if centering is not False:
+                norm_consts = self._compute_norm_const(
+                    feature, method=centering, mask=mask
+                )
+                yy = yy - norm_consts[np.newaxis, :]
 
         if show_avg_output:
-            avg_output = helpers.prep_avg_output(self.data, self.model, None, scale_y)
+            data = self.data if mask is None else self.data[mask]
+            avg_output = helpers.prep_avg_output(data, self.model, None, scale_y)
         else:
             avg_output = None
 
@@ -294,18 +368,24 @@ class PDPBase(GlobalEffectBase):
                     scale_x=scale_x,
                     scale_y=scale_y,
                     avg_output=avg_output,
-                    feature_names=self.feature_names,
+                    feature_names=feature_names,
                     target_name=self.target_name,
                     nof_ice=nof_ice,
                     y_limits=y_limits,
                     show_plot=show_plot,
                     random_state=self.random_state,
                 )
-            variances = (
-                self._eval_unnorm(feature, x, heterogeneity=True)[1]
-                if heterogeneity is not False
-                else None
-            )
+            if heterogeneity is not False:
+                params = (
+                    self._summarize(feature, mask, **self._replay_fit_kwargs(feature))
+                    if mask is not None
+                    else None
+                )
+                variances = self._eval_unnorm(
+                    feature, x, heterogeneity=True, params=params
+                )[1]
+            else:
+                variances = None
             return vis.plot_categorical_effect(
                 levels,
                 yy.mean(axis=1),
@@ -317,7 +397,7 @@ class PDPBase(GlobalEffectBase):
                 scale_x=scale_x,
                 scale_y=scale_y,
                 avg_output=avg_output,
-                feature_names=self.feature_names,
+                feature_names=feature_names,
                 target_name=self.target_name,
                 y_limits=y_limits,
                 show_plot=show_plot,
@@ -345,7 +425,7 @@ class PDPBase(GlobalEffectBase):
             scale_x=scale_x,
             scale_y=scale_y,
             avg_output=avg_output,
-            feature_names=self.feature_names,
+            feature_names=feature_names,
             target_name=self.target_name,
             is_derivative=self.IS_DERIVATIVE,
             nof_ice=nof_ice,
@@ -468,6 +548,8 @@ class PDP(PDPBase):
         y_limits: Optional[List] = None,
         use_vectorized: bool = True,
         show_plot: bool = True,
+        mask: Optional[np.ndarray] = None,
+        feature_label: Optional[str] = None,
     ):
         """
         Plot the feature effect.
@@ -507,6 +589,12 @@ class PDP(PDPBase):
                 - If set to a tuple, the limits are manually set
 
             use_vectorized: whether to use the vectorized version of the PDP computation
+            mask: optional boolean `(N,)` selecting a subregion — plot the PDP/
+                ICE *within* it from the cached ICE table (grid resolution;
+                `nof_points` does not apply), model-free, with the x-axis
+                windowed to the subregion's own interval
+            feature_label: optional display name for the feature axis (e.g. a
+                regional node's name), overriding `feature_names[feature]`
         """
         ret = self._plot(
             feature,
@@ -520,6 +608,8 @@ class PDP(PDPBase):
             y_limits,
             use_vectorized,
             show_plot,
+            mask,
+            feature_label,
         )
 
         if not show_plot:
@@ -644,6 +734,8 @@ class DerPDP(PDPBase):
         y_limits: Optional[List] = None,
         use_vectorized: bool = True,
         show_plot: bool = True,
+        mask: Optional[np.ndarray] = None,
+        feature_label: Optional[str] = None,
     ):
         """
         Plot the feature effect.
@@ -684,6 +776,12 @@ class DerPDP(PDPBase):
 
             use_vectorized: whether to use the vectorized version of the PDP computation
             show_plot: whether to show the plot
+            mask: optional boolean `(N,)` selecting a subregion — plot the
+                d-PDP/d-ICE *within* it from the cached d-ICE table (grid
+                resolution; `nof_points` does not apply), model-free, with the
+                x-axis windowed to the subregion's own interval
+            feature_label: optional display name for the feature axis (e.g. a
+                regional node's name), overriding `feature_names[feature]`
         """
         ret = self._plot(
             feature,
@@ -697,11 +795,25 @@ class DerPDP(PDPBase):
             y_limits,
             use_vectorized,
             show_plot,
+            mask,
+            feature_label,
         )
 
         if not show_plot:
             fig, ax = ret
             return fig, ax
+
+
+def _interp_columns(grid: np.ndarray, table: np.ndarray, xs: np.ndarray) -> np.ndarray:
+    """Linear interpolation of each column of `table` `(T, N)` at positions
+    `xs` `(M,)` → `(M, N)`. Outside `grid` the edge rows extend flat (the
+    masked path's flat-edge-extension convention)."""
+    xs = np.asarray(xs, dtype=float)
+    idx = np.clip(np.searchsorted(grid, xs, side="right") - 1, 0, len(grid) - 2)
+    x0, x1 = grid[idx], grid[idx + 1]
+    w = np.where(x1 > x0, (xs - x0) / (x1 - x0), 0.0)
+    w = np.clip(w, 0.0, 1.0)
+    return table[idx] * (1 - w)[:, None] + table[idx + 1] * w[:, None]
 
 
 def ice_non_vectorized(
