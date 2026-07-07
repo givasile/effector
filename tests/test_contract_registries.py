@@ -88,8 +88,18 @@ def test_axis_partitioning_return_default_roundtrip():
     assert isinstance(ap.return_default("dp"), ap.DynamicProgramming)
     inst = ap.Fixed(nof_bins=7)
     assert ap.return_default(inst) is inst
+    # any Base instance passes through untouched
+    greedy = ap.Greedy()
+    assert ap.return_default(greedy) is greedy
     with pytest.raises((AssertionError, ValueError)):
         ap.return_default("junk")
+
+
+def test_axis_partitioning_return_default_rejects_non_str_non_base():
+    # non-string, non-Base inputs hit the `not isinstance(method, str)` branch.
+    for bad in (123, 3.5, None, ["greedy"]):
+        with pytest.raises(ValueError):
+            ap.return_default(bad)
 
 
 def test_space_partitioning_return_default_roundtrip():
