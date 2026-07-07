@@ -36,6 +36,17 @@ def check_feature_type_supported(
     )
 
 
+def check_binning_scope(binning_scope: str) -> None:
+    """Validate the `binning_scope` fit kwarg of the adaptive-binning methods
+    (RHALE/ShapDP): the x-range handed to the binner when a mask restricts the
+    data — `"global"` = the frozen global frame, `"effective"` = the masked
+    column's own `[min, max]`."""
+    if binning_scope not in ("global", "effective"):
+        raise ValueError(
+            f"binning_scope must be 'global' or 'effective'; got {binning_scope!r}"
+        )
+
+
 class GlobalEffectBase(ABC):
     # the class-level centering default (R3): each subclass declares it once;
     # fit/eval/plot signatures converge on it during the homogenization
@@ -190,6 +201,15 @@ class GlobalEffectBase(ABC):
         *transient* subregion payload without disturbing the stored one."""
         raise NotImplementedError
 
+    def _eval_masked_mean(
+        self, feature: int, x: np.ndarray, params: dict, mask: np.ndarray
+    ) -> np.ndarray:
+        """The uncentered masked mean effect at `x` — default reads the
+        transient payload (pure numpy). PDP overrides it: on the cached grid it
+        reads the payload, off-grid it recomputes ICE on `data[mask]` (the
+        exact-evaluation retouch, symmetric with the global PDP `eval`)."""
+        return self._eval_unnorm(feature, x, heterogeneity=False, params=params)
+
     def _compute_local_effects(self, feature: int) -> None:
         """Step 2 (model-touching): compute the per-instance local effect for
         `feature` and store it in `self.local_effects["feature_i"]`. The single
@@ -232,6 +252,44 @@ class GlobalEffectBase(ABC):
             for k, v in prev.items()
             if k not in ("centering", "points_for_centering")
         }
+
+    def _prep_mask(self, mask) -> Optional[np.ndarray]:
+        """Normalize a user `mask` to a boolean `(N,)` array (`None` passes
+        through). Strictly boolean — an integer index array is rejected rather
+        than silently reinterpreted as truth values."""
+        if mask is None:
+            return None
+        mask = np.asarray(mask)
+        if mask.dtype != bool:
+            raise ValueError(
+                f"mask must be a boolean array of shape ({self.data.shape[0]},); "
+                f"got dtype {mask.dtype}"
+            )
+        if mask.shape != (self.data.shape[0],):
+            raise ValueError(
+                f"mask must have shape ({self.data.shape[0]},); got {mask.shape}"
+            )
+        if not mask.any():
+            raise ValueError("mask selects no instances")
+        return mask
+
+    def _effective_limits(
+        self, feature: int, mask: Optional[np.ndarray] = None
+    ) -> Tuple[float, float]:
+        """The transient x-interval a (feature, mask) pair lives on: the masked
+        column's `[min, max]`; `None` = the immutable global frame. The global
+        `axis_limits` are never mutated by a mask — anything region-shaped is
+        derived per call. Raises on a degenerate masked interval."""
+        if mask is None:
+            return self.axis_limits[0, feature], self.axis_limits[1, feature]
+        col = self.data[mask, feature]
+        lo, hi = float(col.min()), float(col.max())
+        if not lo < hi:
+            raise ValueError(
+                f"Feature {feature} has a degenerate interval [{lo}, {hi}] "
+                f"within the masked subregion"
+            )
+        return lo, hi
 
     def _is_cat(self, feature: int) -> bool:
         """Does `feature` behave categorically (ordinal or nominal)?"""
@@ -339,29 +397,39 @@ class GlobalEffectBase(ABC):
         feature: int,
         method: str = "zero_integral",
         nof_points: int = helpers.NOF_INTERNAL_POINTS,
+        params: Optional[dict] = None,
+        mask: Optional[np.ndarray] = None,
     ) -> float:
         """Compute the normalization constant from the evaluation kernel:
         `zero_integral` = the mean over the feature interval, `zero_start` =
-        the value at its left limit."""
+        the value at its left limit.
+
+        With `params`/`mask` (the masked path), the constant belongs to a
+        *transient* subregion payload: the integral runs over the subregion's
+        effective interval (its own `[min, max]`, not the global frame) and the
+        level weights are those within the mask. Nothing is stored."""
         assert method in ["zero_integral", "zero_start"]
 
         def partial_eval(x):
-            return self._eval_unnorm(feature, x, heterogeneity=False)
+            return self._eval_unnorm(feature, x, heterogeneity=False, params=params)
 
         if self._is_cat(feature):
             # discrete centering (method_semantics.md): zero_integral is the
             # frequency-weighted level mean (order-invariant); zero_start
             # zeroes the first level *in fit order* (a custom `order` makes
             # its first entry the reference level)
-            levels, weights = self._level_weights(feature)
+            levels, weights = self._level_weights(feature, mask)
             if method == "zero_integral":
                 return float(np.average(partial_eval(levels), weights=weights))
-            fitted = self.feature_effect.get("feature_" + str(feature), {})
-            fit_levels = fitted.get("levels", levels)
+            source = (
+                params
+                if params is not None
+                else self.feature_effect.get("feature_" + str(feature), {})
+            )
+            fit_levels = source.get("levels", levels)
             return partial_eval(np.asarray(fit_levels[:1])).item()
 
-        start = self.axis_limits[0, feature]
-        stop = self.axis_limits[1, feature]
+        start, stop = self._effective_limits(feature, mask)
 
         if method == "zero_integral":
             return utils.mean_1d_linspace(partial_eval, start, stop, nof_points)
@@ -393,6 +461,7 @@ class GlobalEffectBase(ABC):
         Returns:
             the heterogeneity curve h(xs), `(T,)`, non-negative
         """
+        mask = self._prep_mask(mask)
         if mask is None:
             if self.requires_refit(feature, centering=False):
                 self._refit(feature)
@@ -492,6 +561,7 @@ class GlobalEffectBase(ABC):
         feature: int,
         xs: np.ndarray,
         centering: Union[None, bool, str] = None,
+        mask: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Evaluate the mean effect of the `feature`-th feature at positions `xs`.
 
@@ -515,11 +585,32 @@ class GlobalEffectBase(ABC):
                 - `True` or `"zero_integral"`: center around the `y` axis
                 - `"zero_start"`: the effect starts from `y=0`
 
+            mask: optional boolean `(N,)` selecting a subregion. `None`
+                (default) evaluates the fitted state; a mask summarizes that
+                subset of the cached local effects on the fly — the effect
+                *within* the subregion, on the global frame, without model
+                calls. Centering is then computed over the subregion's own
+                interval. Nothing is stored.
+
         Returns:
             the mean effect `y` at the given `xs`, `(T,)`
         """
         centering = self.DEFAULT_CENTERING if centering is None else centering
         centering = helpers.prep_centering(centering)
+        mask = self._prep_mask(mask)
+
+        if mask is not None:
+            if not self._is_cat(feature):
+                self._effective_limits(feature, mask)  # degeneracy guard
+            self._ensure_local_effects(feature)
+            params = self._summarize(feature, mask, **self._replay_fit_kwargs(feature))
+            y = self._eval_masked_mean(feature, xs, params, mask)
+            if centering is not False:
+                norm_const = self._compute_norm_const(
+                    feature, method=centering, params=params, mask=mask
+                )
+                y = y - self._mean_norm_const(norm_const)
+            return y
 
         if self.requires_refit(feature, centering):
             self._refit(feature, centering)

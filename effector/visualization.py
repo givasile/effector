@@ -96,12 +96,14 @@ def ale_plot(
     dy_limits: typing.Union[None, tuple] = None,
     show_only_aggregated: bool = False,
     show_plot: bool = True,
+    x_limits: typing.Union[None, tuple] = None,
 ):
     """Draw the (RH)ALE mean effect (top axis) and the bin-effects bar plot
     (bottom axis, with sqrt(bin_variance) error bars if `heterogeneity`).
 
     `x`/`y` is the mean-effect curve; `bin_effect`/`bin_variance`/`limits`/`dx`
-    is the stored bin payload.
+    is the stored bin payload. `x_limits` (raw feature units) windows the
+    shared x-axis — the masked/subregion zoom.
     """
     x = _scale_x(x, scale_x)
     y = _scale_y(y, scale_y)
@@ -153,6 +155,11 @@ def ale_plot(
             label="dy_dx",
         )
         _decorate_ax(ax2, xlabel=x_name, ylabel="dy/dx", y_limits=dy_limits)
+
+    if x_limits is not None:
+        # window the (shared) x-axis to the caller's interval, e.g. a
+        # subregion's effective range
+        ax1.set_xlim(*_scale_x(np.asarray(x_limits, dtype=float), scale_x))
 
     return _finalize(fig, axes, show_plot)
 

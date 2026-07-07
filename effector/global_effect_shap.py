@@ -6,7 +6,7 @@ import numpy as np
 import effector.helpers as helpers
 import effector.visualization as vis
 from effector import ingestion
-from effector.global_effect import GlobalEffectBase
+from effector.global_effect import GlobalEffectBase, check_binning_scope
 
 try:
     import shap
@@ -243,10 +243,15 @@ class ShapDP(GlobalEffectBase):
         binning_method: Union[
             str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
         ] = "dp",
+        binning_scope: str = "global",
     ) -> typing.Dict:
         """Step 3 (pure numpy): bin/aggregate the cached SHAP column over the
         subregion `mask` (None = all) — a spline of per-bin mean/variance for
-        continuous features, per-level mean/variance for discrete ones."""
+        continuous features, per-level mean/variance for discrete ones.
+
+        `binning_scope` (masked only): `"global"` bins over the frozen global
+        frame, `"effective"` packs the bins into the masked column's own
+        `[min, max]` (see `fit`)."""
         self._ensure_local_effects(feature)
         yy = self.local_effects["feature_" + str(feature)]
         xx = self.data[:, feature]
@@ -279,7 +284,11 @@ class ShapDP(GlobalEffectBase):
             if isinstance(binning_method, str)
             else binning_method
         )
-        limits = binning.find_limits(xx, yy, self.axis_limits[:, feature])
+        if mask is not None and binning_scope == "effective":
+            limits_range = np.asarray(self._effective_limits(feature, mask))
+        else:
+            limits_range = self.axis_limits[:, feature]
+        limits = binning.find_limits(xx, yy, limits_range)
         utils.raise_if_no_binning(limits, feature, binning)
         feature_effect_dict = utils.compute_ale_params(xx, yy, limits)
         feature_effect_dict["alg_params"] = binning
@@ -311,8 +320,11 @@ class ShapDP(GlobalEffectBase):
         binning_method: Union[
             str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
         ] = "dp",
+        binning_scope: str = "global",
     ) -> typing.Dict:
-        return self._summarize(feature, None, binning_method=binning_method)
+        return self._summarize(
+            feature, None, binning_method=binning_method, binning_scope=binning_scope
+        )
 
     def _eval_unnorm(
         self, feature: int, x: np.ndarray, heterogeneity: bool = False, params=None
@@ -344,6 +356,7 @@ class ShapDP(GlobalEffectBase):
         binning_method: Union[
             str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
         ] = "dp",
+        binning_scope: str = "global",
     ) -> None:
         r"""Fit the SHAP Dependence Plot to the data.
 
@@ -369,12 +382,26 @@ class ShapDP(GlobalEffectBase):
                 - If set to "greedy", the greedy binning method will be used.
                 - If set to "fixed", the fixed binning method will be used.
 
+            binning_scope: the x-range the binner covers when a *masked*
+                summary re-bins a subregion (`eval`/`eval_heter`/`plot`/
+                `heter_score` with `mask=`; the regional split search)
+
+                - `"global"` (default): the frozen global `axis_limits` — one
+                  frame for every subregion, directly comparable
+                - `"effective"`: the masked column's own `[min, max]` — bins
+                  packed into the subregion, finer resolution
+
+                Recorded at fit and replayed by every masked call, so the
+                split search and the display always share the same scope.
+                Ignored when no mask is involved.
         """
+        check_binning_scope(binning_scope)
         self._fit_loop(
             features,
             centering,
             points_for_centering,
             binning_method=binning_method,
+            binning_scope=binning_scope,
         )
 
     def plot(
@@ -390,6 +417,8 @@ class ShapDP(GlobalEffectBase):
         y_limits: Optional[List] = None,
         only_shap_values: bool = False,
         show_plot: bool = True,
+        mask: Optional[np.ndarray] = None,
+        feature_label: Optional[str] = None,
     ) -> Union[Tuple, None]:
         """
         Plot the SHAP Dependence Plot (SDP) of the s-th feature.
@@ -416,6 +445,12 @@ class ShapDP(GlobalEffectBase):
             y_limits: limits of the y-axis
             only_shap_values: whether to plot only the shap values
             show_plot: whether to show the plot
+            mask: optional boolean `(N,)` selecting a subregion — plot the
+                SHAP-DP *within* it (the masked φ re-binned/re-splined from the
+                cached attributions, no model calls), with the x-axis windowed
+                to the subregion's own interval
+            feature_label: optional display name for the feature axis (e.g. a
+                regional node's name), overriding `feature_names[feature]`
         """
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
@@ -423,16 +458,46 @@ class ShapDP(GlobalEffectBase):
             scale_x, self.scale_x_list[feature] if self.scale_x_list else None
         )
         scale_y = helpers.resolve_scale(scale_y, self.scale_y)
+        mask = self._prep_mask(mask)
+        feature_names = list(self.feature_names)
+        if feature_label is not None:
+            feature_names[feature] = feature_label
+
+        if mask is not None:
+            # transient subregion payload from the cached attributions —
+            # pure numpy, nothing stored (the masked-plot path)
+            if not self._is_cat(feature):
+                self._effective_limits(feature, mask)  # degeneracy guard
+            self._ensure_local_effects(feature)
+            m_params = self._summarize(
+                feature, mask, **self._replay_fit_kwargs(feature)
+            )
+            m_norm = (
+                self._compute_norm_const(
+                    feature, method=centering, params=m_params, mask=mask
+                )
+                if centering is not False
+                else 0.0
+            )
 
         params_key = "feature_" + str(feature)
         if self._is_cat(feature):
-            # fit if needed, then draw per-level bars (+ the shap cloud)
-            self.eval(feature, self._levels(feature)[:1], centering=centering)
-            params = self.feature_effect[params_key]
-            levels, labels = self._level_display(feature)
-            y_levels = self.eval(feature, levels, centering=centering)
+            if mask is not None:
+                # the masked payload's frame: the levels observed *within* the
+                # subregion (its φ were re-binned per level by _summarize)
+                params = m_params
+                levels, labels = self._level_display(feature, params["levels"])
+                y_levels = self._eval_unnorm(feature, levels, params=params) - m_norm
+                data = self.data[mask]
+            else:
+                # fit if needed, then draw per-level bars (+ the shap cloud)
+                self.eval(feature, self._levels(feature)[:1], centering=centering)
+                params = self.feature_effect[params_key]
+                levels, labels = self._level_display(feature)
+                y_levels = self.eval(feature, levels, centering=centering)
+                data = self.data
             avg_output = (
-                helpers.prep_avg_output(self.data, self.model, None, scale_y)
+                helpers.prep_avg_output(data, self.model, None, scale_y)
                 if show_avg_output
                 else None
             )
@@ -440,7 +505,7 @@ class ShapDP(GlobalEffectBase):
             if heterogeneity == "shap_values":
                 yy = params["yy"]
                 if centering is not False:
-                    yy = yy - params["norm_const"]
+                    yy = yy - (m_norm if mask is not None else params["norm_const"])
                 return vis.plot_shap_categorical(
                     levels,
                     y_levels,
@@ -452,7 +517,7 @@ class ShapDP(GlobalEffectBase):
                     scale_x=scale_x,
                     scale_y=scale_y,
                     avg_output=avg_output,
-                    feature_names=self.feature_names,
+                    feature_names=feature_names,
                     target_name=self.target_name,
                     nof_shap_values=nof_shap_values,
                     y_limits=y_limits,
@@ -460,7 +525,7 @@ class ShapDP(GlobalEffectBase):
                     random_state=self.random_state,
                 )
             variances = (
-                self._eval_unnorm(feature, levels, heterogeneity=True)[1]
+                self._eval_unnorm(feature, levels, heterogeneity=True, params=params)[1]
                 if heterogeneity is not False
                 else None
             )
@@ -475,43 +540,67 @@ class ShapDP(GlobalEffectBase):
                 scale_x=scale_x,
                 scale_y=scale_y,
                 avg_output=avg_output,
-                feature_names=self.feature_names,
+                feature_names=feature_names,
                 target_name=self.target_name,
                 y_limits=y_limits,
                 show_plot=show_plot,
             )
 
-        x = np.linspace(
-            self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
-        )
+        if mask is not None:
+            # the masked payload's frame: x spans the subregion's effective
+            # interval, the cloud is the masked φ (already filtered by
+            # _summarize) — model-free
+            lo, hi = self._effective_limits(feature, mask)
+            x = np.linspace(lo, hi, nof_points)
+            y = self._eval_unnorm(feature, x, params=m_params)
+            if centering is not False:
+                y = y - m_norm
+            y_std = (
+                np.sqrt(np.maximum(m_params["spline_var"](x), 0.0))
+                if heterogeneity == "std"
+                else None
+            )
+            _, ind = helpers.prep_nof_instances(
+                nof_shap_values, len(m_params["yy"]), self.random_state
+            )
+            yy = m_params["yy"][ind] if heterogeneity == "shap_values" else None
+            if yy is not None and centering is not False:
+                yy = yy - m_norm
+            xx = m_params["xx"][ind] if heterogeneity == "shap_values" else None
+            data = self.data[mask]
+        else:
+            x = np.linspace(
+                self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
+            )
 
-        # get the SHAP curve
-        y = self.eval(feature, x, centering=centering)
-        y_std = (
-            np.sqrt(self.feature_effect["feature_" + str(feature)]["spline_var"](x))
-            if heterogeneity == "std"
-            else None
-        )
+            # get the SHAP curve
+            y = self.eval(feature, x, centering=centering)
+            y_std = (
+                np.sqrt(self.feature_effect["feature_" + str(feature)]["spline_var"](x))
+                if heterogeneity == "std"
+                else None
+            )
 
-        # get some SHAP values
-        _, ind = helpers.prep_nof_instances(
-            nof_shap_values, self.data.shape[0], self.random_state
-        )
-        yy = (
-            self.feature_effect["feature_" + str(feature)]["yy"][ind]
-            if heterogeneity == "shap_values"
-            else None
-        )
-        if yy is not None and centering is not False:
-            yy = yy - self.feature_effect["feature_" + str(feature)]["norm_const"]
-        xx = (
-            self.feature_effect["feature_" + str(feature)]["xx"][ind]
-            if heterogeneity == "shap_values"
-            else None
-        )
+            # get some SHAP values
+            _, ind = helpers.prep_nof_instances(
+                nof_shap_values, self.data.shape[0], self.random_state
+            )
+            yy = (
+                self.feature_effect["feature_" + str(feature)]["yy"][ind]
+                if heterogeneity == "shap_values"
+                else None
+            )
+            if yy is not None and centering is not False:
+                yy = yy - self.feature_effect["feature_" + str(feature)]["norm_const"]
+            xx = (
+                self.feature_effect["feature_" + str(feature)]["xx"][ind]
+                if heterogeneity == "shap_values"
+                else None
+            )
+            data = self.data
 
         if show_avg_output:
-            avg_output = helpers.prep_avg_output(self.data, self.model, None, scale_y)
+            avg_output = helpers.prep_avg_output(data, self.model, None, scale_y)
         else:
             avg_output = None
 
@@ -526,7 +615,7 @@ class ShapDP(GlobalEffectBase):
             scale_x=scale_x,
             scale_y=scale_y,
             avg_output=avg_output,
-            feature_names=self.feature_names,
+            feature_names=feature_names,
             target_name=self.target_name,
             y_limits=y_limits,
             only_shap_values=only_shap_values,
