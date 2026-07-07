@@ -153,3 +153,59 @@ def test_no_split_when_threshold_huge():
     )
     assert len(tree.nodes) == 1
     assert tree.get_root() is not None
+
+
+def _raw_gini(y):
+    """Raw score_fn for the finder protocol: no min-points guard (the adapter
+    owns that) — just the weighted-Gini of the masked labels."""
+
+    def score(mask):
+        labels = y[mask]
+        _, counts = np.unique(labels, return_counts=True)
+        p = counts / counts.sum()
+        return 1 - np.sum(p**2)
+
+    return score
+
+
+def test_find_regions_returns_partition_and_leaves_caller_clean():
+    from effector.partition import Partition
+
+    X, y = _make_toy()
+    finder = Best(max_depth=2, min_samples_leaf=50)
+    part = finder.find_regions(
+        feature=0,
+        data=X,
+        score_fn=_raw_gini(y),
+        axis_limits=AXIS_LIMITS,
+        feature_types=None,
+        cat_limit=10,
+        candidate_conditioning_features=[0, 1, 2],
+        feature_names=["x1", "x2", "x3"],
+        target_name="y",
+    )
+    assert isinstance(part, Partition)
+    assert part[0].idx == 0
+    assert part[0].weight == 1.0
+    assert len(part) >= 3  # root + at least one accepted split on the structured toy
+    assert part[1].mask.dtype == bool
+    # the caller's finder instance must be untouched (compile ran on the deepcopy)
+    assert finder.data is None
+    assert finder.feature is None
+
+
+def test_find_regions_rejects_min_points_below_two():
+    X, y = _make_toy()
+    finder = Best(min_samples_leaf=1)
+    with pytest.raises(ValueError):
+        finder.find_regions(
+            feature=0,
+            data=X,
+            score_fn=_raw_gini(y),
+            axis_limits=AXIS_LIMITS,
+            feature_types=None,
+            cat_limit=10,
+            candidate_conditioning_features=[0, 1, 2],
+            feature_names=["x1", "x2", "x3"],
+            target_name="y",
+        )

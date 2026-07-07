@@ -1,8 +1,10 @@
+import copy
 import typing
 
 import numpy as np
 
 from effector import helpers, ingestion
+from effector.partition import Partition, Region, partition_from_tree
 from effector.tree import Tree
 
 BIG_M = helpers.BIG_M
@@ -126,6 +128,85 @@ class Base:
         self.foc_types = [
             self.feature_types[i] for i in self.candidate_conditioning_features
         ]
+
+    def find_regions(
+        self,
+        feature,
+        data,
+        score_fn,
+        *,
+        axis_limits,
+        feature_types,
+        cat_limit,
+        candidate_conditioning_features,
+        feature_names,
+        target_name,
+    ) -> Partition:
+        """Finder protocol: given a ``mask -> float`` ``score_fn`` plus the data
+        and metadata needed to PROPOSE candidate splits, return a `Partition`.
+
+        Any object exposing this method (returning a `Partition`) is a valid
+        region finder. ``score_fn`` is RAW — it may raise ``ValueError`` or
+        return nan; this adapter owns the min-points and degeneracy guard, so the
+        ``BIG_M`` vocabulary lives here and never leaks into the effect.
+        """
+        if self.min_points_per_subregion < 2:
+            raise ValueError("min_points_per_subregion must be >= 2")
+
+        from effector import utils  # local import for the except tuple
+
+        def guarded(active_indices):
+            mask = active_indices.astype(bool)
+            if mask.sum() < self.min_points_per_subregion:
+                return BIG_M
+            try:
+                score = score_fn(mask)
+            except (utils.AllBinsHaveAtMostOnePointError, ValueError):
+                return BIG_M
+            return score if np.isfinite(score) else BIG_M
+
+        # compile() mutates the partitioner in place; work on a copy so the
+        # caller's instance stays reusable (RC5 non-mutation contract).
+        worker = copy.deepcopy(self)
+        worker.compile(
+            feature,
+            data,
+            guarded,
+            axis_limits,
+            feature_types,
+            cat_limit,
+            candidate_conditioning_features,
+            feature_names,
+            target_name,
+        )
+        tree = worker.fit()
+
+        if tree is None or len(tree.nodes) == 0:
+            # BestLevelWise no-search path: a root-only Partition.
+            n = data.shape[0]
+            root = Region(
+                idx=0,
+                name=feature_names[feature],
+                mask=np.ones(n, dtype=bool),
+                heterogeneity=float(guarded(np.ones(n))),
+                nof_instances=n,
+                weight=1.0,
+                level=0,
+                parent_idx=None,
+            )
+            return Partition(
+                [root],
+                feature=feature,
+                feature_name=feature_names[feature],
+                finder_name=self.name,
+            )
+
+        return partition_from_tree(
+            tree,
+            feature=feature,
+            feature_name=feature_names[feature],
+            finder_name=self.name,
+        )
 
     def fit(self) -> Tree:
         """Find the subregions."""
