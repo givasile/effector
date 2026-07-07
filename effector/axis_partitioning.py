@@ -1,4 +1,5 @@
 import copy
+import dataclasses
 import enum
 import typing
 
@@ -17,8 +18,24 @@ class NoBinningReason(enum.Enum):
     Each member's ``.value`` is the human-readable sentence."""
 
     SINGLE_UNIQUE_VALUE = "all points share a single value"
-    TOO_FEW_POINTS = "fewer points than min_points"
-    FIXED_GRID_UNDERFILLED = "the fixed uniform grid leaves a bin under min_points"
+    TOO_FEW_POINTS = "fewer points than min_points_per_bin"
+    FIXED_GRID_UNDERFILLED = (
+        "the fixed uniform grid leaves a bin under min_points_per_bin"
+    )
+
+
+@dataclasses.dataclass
+class Constraints:
+    """Feasibility rules any valid 1D partition must obey — algorithm-agnostic.
+
+    Kept separate from each optimizer's *method parameters* (which shape the
+    objective and the search, e.g. ``discount``, ``init_nof_bins``): constraints
+    say what a *valid* partition is, params say how a given method looks for one.
+    The shared ``Base`` guards read only these.
+    """
+
+    min_points_per_bin: int = 0  # a bin with fewer points is invalid (0 == no minimum)
+    max_nof_bins: typing.Optional[int] = None  # never emit more (None == unbounded)
 
 
 class Base:
@@ -29,7 +46,9 @@ class Base:
     value ``y``, and produces bin edges over a range ``x_lims`` that keep the
     within-bin variance of ``y`` low. Callers translate their own quantities
     (feature columns, local effects, SHAP values, ...) into this ``x``/``y``
-    vocabulary at the boundary.
+    vocabulary at the boundary — including feature types: the binner always
+    operates on continuous positions (ordinal features reach it as integer level
+    codes via `adapt_for_categorical`; nominal features never reach it).
     """
 
     big_M = helpers.BIG_M
@@ -37,26 +56,32 @@ class Base:
     def __init__(
         self,
         name: str,
-        method_args: typing.Dict[str, typing.Any],
+        constraints: Constraints,
+        params: typing.Dict[str, typing.Any],
     ):
         """Initializer.
 
         Parameters
         ----------
         name: the method's canonical name (e.g. "fixed", "greedy")
-        method_args: the method's hyperparameters; `find_limits` reads them
-            (all subclasses store at least `min_points`)
+        constraints: the feasibility rules (min points per bin, max #bins)
+        params: the method's own parameters (objective/search knobs)
         """
         self.name = name
+
+        # constraints (shared vocabulary) vs params (method-specific)
+        self.constraints = constraints
+        # normalize the min_points contract so guards never see None (0 == "no
+        # minimum"); also removes the latent Fixed(min_points_per_bin=None) crash
+        if self.constraints.min_points_per_bin is None:
+            self.constraints.min_points_per_bin = 0
+        self.params: typing.Dict[str, typing.Any] = params
 
         # set in _preprocess_find
         self.x_min = None
         self.x_max = None
         self.x = None
         self.y = None
-
-        # arguments passed to method find
-        self.method_args: typing.Dict[str, typing.Any] = method_args
 
         # set in method find
         self.method_outputs: typing.Dict[str, typing.Any] = {}
@@ -89,9 +114,8 @@ class Base:
         Returns:
             An ascending float array `(K+1,)` of bin edges with `edges[0] ==
             x_min` and `edges[-1] == x_max`; **or** the literal `False` when no
-            binning satisfies the method's constraints. A degenerate but valid
-            "one bin" result is the 2-element `[x_min, x_max]` — that is *not* a
-            failure.
+            binning satisfies the constraints. A degenerate but valid "one bin"
+            result is the 2-element `[x_min, x_max]` — that is *not* a failure.
 
         Failure is a *fact, not a severity*: the optimizer never raises. It
         returns `False` and records `self.no_binning_reason` (a
@@ -125,8 +149,14 @@ class Base:
         `self.no_binning_reason`) if the method's own constraints fail."""
         raise NotImplementedError
 
+    def _set_candidate_bin_count(self, k: int) -> None:
+        """Set how many candidate bins the method considers. Used by
+        `adapt_for_categorical` to run a continuous binner over the K-1 ordinal
+        level transitions. Each optimizer maps `k` to its own bin-count knob."""
+        raise NotImplementedError
+
     def _bin_cost(self, start, stop, discount):
-        min_points = self.method_args["min_points"]
+        min_points = self.constraints.min_points_per_bin
         nof_points = self.x.shape[0]
         x, y = utils.filter_points_in_bin(self.x, self.y, np.array([start, stop]))
 
@@ -145,10 +175,7 @@ class Base:
         Returns:
             Boolean, True if the bin is valid, False otherwise
         """
-        min_points = self.method_args["min_points"]
-        if min_points is None:
-            return True
-
+        min_points = self.constraints.min_points_per_bin
         filtered_points, _ = utils.filter_points_in_bin(
             self.x, None, np.array([start, stop])
         )
@@ -165,8 +192,8 @@ class Base:
         if len(np.unique(self.x)) == 1:
             return NoBinningReason.SINGLE_UNIQUE_VALUE
 
-        # if there are fewer than min_points, no binning is possible
-        if self.x.size < self.method_args["min_points"]:
+        # if there are fewer than min_points_per_bin, no binning is possible
+        if self.x.size < self.constraints.min_points_per_bin:
             return NoBinningReason.TOO_FEW_POINTS
 
         return None
@@ -177,7 +204,7 @@ class Base:
         Returns:
             Boolean, True if the only possible binning is all points in one bin, False otherwise
         """
-        min_points = self.method_args["min_points"]
+        min_points = self.constraints.min_points_per_bin
         # if x is categorical (single point on the axis), only one bin is possible
         is_categorical = np.allclose(self.x_min, self.x_max)
 
@@ -186,12 +213,8 @@ class Base:
         return is_categorical or enough_for_one_bin
 
     def _preprocess_find(self, x, y, x_lims):
-        # reset per-call state; normalize the min_points contract so subclasses
-        # and guards never see None (0 == "no minimum"). This also removes the
-        # latent `x.size < None` TypeError for `Fixed(min_points_per_bin=None)`.
+        # reset per-call state
         self.no_binning_reason = None
-        if self.method_args.get("min_points") is None:
-            self.method_args["min_points"] = 0
 
         self.x_min: float = x_lims[0] if x_lims is not None else x.min()
         self.x_max: float = x_lims[1] if x_lims is not None else x.max()
@@ -234,22 +257,20 @@ class Greedy(Base):
         init_nof_bins: int = 20,
         min_points_per_bin: int = 2,
         discount: float = 0.3,
-        cat_limit: int = 10,
     ):
         assert min_points_per_bin >= 2, "min_points_per_bin should be at least 2"
-        method_args = {
-            "init_nof_bins": init_nof_bins,
-            "min_points": min_points_per_bin,
-            "discount": discount,
-            "cat_limit": cat_limit,
-        }
-        super(Greedy, self).__init__("greedy", method_args)
+        constraints = Constraints(min_points_per_bin=min_points_per_bin)
+        params = {"init_nof_bins": init_nof_bins, "discount": discount}
+        super(Greedy, self).__init__("greedy", constraints, params)
+
+    def _set_candidate_bin_count(self, k: int) -> None:
+        self.params["init_nof_bins"] = k
 
     def _search(self) -> np.ndarray:
         x_min = self.x_min
         x_max = self.x_max
-        init_nof_bins = self.method_args["init_nof_bins"]
-        discount = self.method_args["discount"]
+        init_nof_bins = self.params["init_nof_bins"]
+        discount = self.params["discount"]
 
         # limits with high resolution
         limits, _ = np.linspace(
@@ -313,22 +334,24 @@ class DynamicProgramming(Base):
         max_nof_bins: int = 20,
         min_points_per_bin: int = 2,
         discount: float = 0.3,
-        cat_limit: int = 10,
     ):
         assert min_points_per_bin >= 2, "min_points_per_bin should be at least 2"
-        method_args = {
-            "max_nof_bins": max_nof_bins,
-            "min_points": min_points_per_bin,
-            "discount": discount,
-            "cat_limit": cat_limit,
-        }
-        super(DynamicProgramming, self).__init__("dynamic_programming", method_args)
+        constraints = Constraints(
+            min_points_per_bin=min_points_per_bin, max_nof_bins=max_nof_bins
+        )
+        params = {"discount": discount}
+        super(DynamicProgramming, self).__init__(
+            "dynamic_programming", constraints, params
+        )
+
+    def _set_candidate_bin_count(self, k: int) -> None:
+        self.constraints.max_nof_bins = k
 
     def _collapse_to_one_bin(self) -> bool:
         # DP's dedicated single-bin shortcut folds into the collapse policy: an
         # explicit request for one bin yields the same [x_min, x_max] as the
         # generic "only one bin possible" case.
-        return self._only_one_bin_possible() or self.method_args["max_nof_bins"] == 1
+        return self._only_one_bin_possible() or self.constraints.max_nof_bins == 1
 
     def _index_to_position(self, index_start, index_stop, K):
         dx = (self.x_max - self.x_min) / K
@@ -383,8 +406,8 @@ class DynamicProgramming(Base):
         return limits, dx_list
 
     def _search(self) -> np.ndarray:
-        max_nof_bins = self.method_args["max_nof_bins"]
-        discount = self.method_args["discount"]
+        max_nof_bins = self.constraints.max_nof_bins
+        discount = self.params["discount"]
 
         big_M = self.big_M
         nof_limits = max_nof_bins + 1
@@ -425,15 +448,13 @@ class DynamicProgramming(Base):
 
 
 class Fixed(Base):
-    def __init__(
-        self, nof_bins: int = 20, min_points_per_bin: int = 0, cat_limit: int = 10
-    ):
-        method_args = {
-            "nof_bins": nof_bins,
-            "min_points": min_points_per_bin,
-            "cat_limit": cat_limit,
-        }
-        super(Fixed, self).__init__("fixed", method_args)
+    def __init__(self, nof_bins: int = 20, min_points_per_bin: int = 0):
+        constraints = Constraints(min_points_per_bin=min_points_per_bin)
+        params = {"nof_bins": nof_bins}
+        super(Fixed, self).__init__("fixed", constraints, params)
+
+    def _set_candidate_bin_count(self, k: int) -> None:
+        self.params["nof_bins"] = k
 
     def _collapse_to_one_bin(self) -> bool:
         # Fixed honors the requested bin count exactly: it never collapses to a
@@ -443,7 +464,7 @@ class Fixed(Base):
         return False
 
     def _search(self) -> typing.Union[np.ndarray, bool]:
-        nof_bins = self.method_args["nof_bins"]
+        nof_bins = self.params["nof_bins"]
 
         limits, _ = np.linspace(
             self.x_min, self.x_max, num=nof_bins + 1, endpoint=True, retstep=True
@@ -459,10 +480,7 @@ def adapt_for_categorical(method: Base, nof_levels: int) -> Base:
     integer level codes 0..K-1, so Greedy/DP merging over the K-1 transitions
     becomes *adaptive level grouping* (method_semantics.md, RHALE-ordinal)."""
     method = copy.deepcopy(method)
-    nof_transitions = nof_levels - 1
-    for key in ("init_nof_bins", "max_nof_bins", "nof_bins"):
-        if key in method.method_args:
-            method.method_args[key] = nof_transitions
+    method._set_candidate_bin_count(nof_levels - 1)
     return method
 
 

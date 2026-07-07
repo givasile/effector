@@ -49,13 +49,13 @@ BINNING = [
     ),
     pytest.param(
         effector.axis_partitioning.DynamicProgramming(
-            max_nof_bins=20, min_points_per_bin=10, cat_limit=1
+            max_nof_bins=20, min_points_per_bin=10
         ),
         id="dp-20",
     ),
     pytest.param(
         effector.axis_partitioning.Greedy(
-            init_nof_bins=100, min_points_per_bin=10, discount=0.2, cat_limit=1
+            init_nof_bins=100, min_points_per_bin=10, discount=0.2
         ),
         id="greedy-100",
     ),
