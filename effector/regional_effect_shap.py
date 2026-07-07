@@ -1,12 +1,11 @@
 import typing
-import warnings
 from typing import Callable, Optional, Union
 
 import numpy as np
 
 import effector
 from effector import axis_partitioning as ap
-from effector import helpers, ingestion, utils
+from effector import helpers, ingestion
 from effector.regional_effect import RegionalEffectBase
 
 BIG_M = helpers.BIG_M
@@ -100,74 +99,20 @@ class RegionalShapDP(RegionalEffectBase):
         values (attributions are not recomputed within the region)."""
         return {"shap_values": self.global_shap_values[active_indices, :]}
 
-    def _precompute_global(self, feature: int):
-        """Compute the global SHAP values once; regions score slices of them."""
-        if self.global_shap_values is None:
-            global_shap_dp = effector.ShapDP(
-                self.data,
-                self.model,
-                axis_limits=self.axis_limits,
-                nof_instances="all",
-                schema=self._node_schema(),
-                random_state=self.random_state,
-                backend=self.backend,
-                budget=self.budget,
-                shap_explainer_kwargs=self.shap_explainer_kwargs,
-                shap_explanation_kwargs=self.shap_explanation_kwargs,
-            )
-            global_shap_dp.fit(feature, centering=False, **self.kwargs_fitting)
-            self.global_shap_values = global_shap_dp.shap_values
+    def _global_fe_kwargs(self) -> dict:
+        # the global ShapDP is constructed with the backend/budget config and
+        # any user-provided attributions (reused, not recomputed)
+        return dict(
+            backend=self.backend,
+            budget=self.budget,
+            shap_values=self.global_shap_values,
+            shap_explainer_kwargs=self.shap_explainer_kwargs,
+            shap_explanation_kwargs=self.shap_explanation_kwargs,
+        )
 
-    def _create_heterogeneity_function(self, feature: int, min_points: int):
-        binning_method = ap.return_default(self.kwargs_fitting["binning_method"])
-        points_for_mean_heterogeneity = helpers.NOF_INTERNAL_POINTS
-
-        def heterogeneity_function(active_indices) -> float:
-            if np.sum(active_indices) < min_points:
-                return BIG_M
-
-            data = self.data[active_indices.astype(bool), :]
-            shap_values = self.global_shap_values[active_indices.astype(bool), :]
-            shap_dp = effector.ShapDP(
-                data,
-                self.model,
-                axis_limits=self.axis_limits,
-                nof_instances="all",
-                schema=self._node_schema(),
-                random_state=self.random_state,
-                shap_values=shap_values,
-            )
-
-            try:
-                shap_dp.fit(
-                    features=feature, binning_method=binning_method, centering=False
-                )
-            except utils.AllBinsHaveAtMostOnePointError as e:
-                warnings.warn(
-                    f"RegionalShapDP: at a candidate split, some bins had at most "
-                    f"one point; the split is rejected. Error: {e}"
-                )
-                return BIG_M
-            except Exception as e:
-                warnings.warn(
-                    f"RegionalShapDP: an unexpected error occurred at a candidate "
-                    f"split; the split is rejected. Error: {e}"
-                )
-                return BIG_M
-
-            if ingestion.is_categorical(self.feature_types[feature]):
-                xs, counts = np.unique(data[:, feature], return_counts=True)
-                z = shap_dp.eval_heter(feature, xs)
-                return float(np.average(z, weights=counts))
-            xs = np.linspace(
-                self.axis_limits[0, feature],
-                self.axis_limits[1, feature],
-                points_for_mean_heterogeneity,
-            )
-            z = shap_dp.eval_heter(feature, xs)
-            return np.mean(z)
-
-        return heterogeneity_function
+    def _after_precompute(self, feature: int, fe) -> None:
+        # stash the computed attributions for node injection (_extra_fe_kwargs)
+        self.global_shap_values = fe.shap_values
 
     def fit(
         self,

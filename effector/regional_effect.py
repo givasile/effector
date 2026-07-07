@@ -8,9 +8,11 @@ from tqdm import tqdm
 
 import effector.helpers as helpers
 import effector.space_partitioning
-from effector import global_effect, ingestion
+from effector import global_effect, ingestion, utils
 from effector.method_registry import resolve as resolve_method
 from effector.space_partitioning import Best, Tree
+
+BIG_M = helpers.BIG_M
 
 
 class RegionalEffectBase:
@@ -78,18 +80,60 @@ class RegionalEffectBase:
         self.partitioners: typing.Dict[str, Best] = {}
         self.tree: typing.Dict[str, Tree] = {}
 
+        # the ONE global effect object per feature: fit once on the full data,
+        # its cached local effects re-scored (masked) for every candidate split
+        self._global_fe: typing.Dict = {}
+
     def fit(self, *args, **kwargs):
         raise NotImplementedError
 
+    def _global_fe_kwargs(self) -> dict:
+        """Hook: method-specific constructor kwargs for the global effect built
+        in `_precompute_global` (e.g. the SHAP backend/budget, or a precomputed
+        jacobian to avoid recomputing it)."""
+        return {}
+
+    def _after_precompute(self, feature: int, fe) -> None:
+        """Hook: run after the global effect is fitted (e.g. stash the computed
+        SHAP values for node injection)."""
+
     def _precompute_global(self, feature: int) -> None:
-        """Hook: method-specific global precompute for `feature` (ICE table,
-        global ALE effects, shap values), run once per feature before the
-        heterogeneity function is built."""
+        """Fit the ONE global effect for `feature` on the full data and cache it
+        (its local effects are computed here, once). The heterogeneity function
+        then re-scores masked subsets of those cached effects — no model calls,
+        no per-candidate object rebuilds (the single-model-touch constitution)."""
+        spec = resolve_method(self.method_name)
+        kwargs = dict(
+            axis_limits=self.axis_limits,
+            nof_instances="all",
+            schema=self._node_schema(),
+            random_state=self.random_state,
+        )
+        kwargs.update(self._global_fe_kwargs())
+        if spec.needs_jac:
+            fe = spec.cls(self.data, self.model, self.model_jac, **kwargs)
+        else:
+            fe = spec.cls(self.data, self.model, **kwargs)
+        fe.fit(features=feature, centering=False, **self.kwargs_fitting)
+        self._global_fe["feature_" + str(feature)] = fe
+        self._after_precompute(feature, fe)
 
     def _create_heterogeneity_function(self, feature: int, min_points: int) -> Callable:
-        """Hook: the heterogeneity function the partitioner minimizes —
-        `active_indices -> float` (BIG_M when the region is invalid)."""
-        raise NotImplementedError
+        """The heterogeneity the partitioner minimizes: delegate to the global
+        effect's own `heter_score(feature, mask)` over the candidate subregion —
+        pure numpy over the cached local effects. A degenerate subregion (empty
+        or singleton bins) is rejected with BIG_M."""
+        fe = self._global_fe["feature_" + str(feature)]
+
+        def heter(active_indices) -> float:
+            if np.sum(active_indices) < min_points:
+                return BIG_M
+            try:
+                return fe.heter_score(feature, mask=active_indices.astype(bool))
+            except (utils.AllBinsHaveAtMostOnePointError, ValueError):
+                return BIG_M
+
+        return heter
 
     def _fit_loop(
         self,

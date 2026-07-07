@@ -74,9 +74,7 @@ class PDPBase(GlobalEffectBase):
         ice = self._predict(self.data, grid, feature, use_vectorized)  # (T, N)
         self.local_effects["feature_" + str(feature)] = {"grid": grid, "ice": ice}
 
-    def _summarize(
-        self, feature: int, mask=None, use_vectorized: bool = True
-    ) -> dict:
+    def _summarize(self, feature: int, mask=None, use_vectorized: bool = True) -> dict:
         """Step 3 (pure numpy): from the cached (d-)ICE table restricted to the
         subregion `mask` (None = all), the mean curve and the heterogeneity curve
         on the grid — cross-instance variance of the per-instance-centered ICE
@@ -161,7 +159,11 @@ class PDPBase(GlobalEffectBase):
                 y = params["mean"][codes]
                 return (y, params["heter"][codes]) if heterogeneity else y
             y = np.interp(x, params["grid"], params["mean"])
-            return (y, np.interp(x, params["grid"], params["heter"])) if heterogeneity else y
+            return (
+                (y, np.interp(x, params["grid"], params["heter"]))
+                if heterogeneity
+                else y
+            )
 
         if self._is_cat(feature):
             # discrete features are evaluated only at levels (R10)

@@ -410,9 +410,7 @@ class GlobalEffectBase(ABC):
             self._refit(feature)
         return dict(self.feature_effect["feature_" + str(feature)])
 
-    def heter_score(
-        self, feature: int, mask: Optional[np.ndarray] = None
-    ) -> float:
+    def heter_score(self, feature: int, mask: Optional[np.ndarray] = None) -> float:
         """The method-agnostic heterogeneity scalar of the `feature`-th
         feature: the mean of `eval_heter` over a uniform grid
         (`helpers.NOF_INTERNAL_POINTS` points) on the feature's interval — the
