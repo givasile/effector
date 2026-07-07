@@ -353,8 +353,8 @@ class TestConstantEffectMerging:
 # ---------------------------------------------------------------------------
 
 
-def _greedy():
-    return effector.axis_partitioning.Greedy(
+def _agglomerative():
+    return effector.axis_partitioning.Agglomerative(
         init_nof_bins=20, min_points_per_bin=2, discount=0.3
     )
 
@@ -367,6 +367,10 @@ def _dp():
 
 def _fixed():
     return effector.axis_partitioning.Fixed(nof_bins=4, min_points_per_bin=2)
+
+
+def _quantile():
+    return effector.axis_partitioning.Quantile(nof_bins=4, min_points_per_bin=2)
 
 
 def _case_4pt():
@@ -408,23 +412,23 @@ _CASES = {
 
 # (id, method_factory, case_name, expected) — `False` or the exact edge list.
 _GOLDEN = [
-    ("greedy-4pt", _greedy, "4pt", [0.0, 0.75, 1.0]),
+    ("agglomerative-4pt", _agglomerative, "4pt", [0.0, 0.8, 1.0]),
     ("dp-4pt", _dp, "4pt", [0.0, 0.25, 1.0]),
     ("fixed-4pt", _fixed, "4pt", False),
-    ("greedy-1k", _greedy, "1k", [0.0, 0.25, 0.5, 0.75, 1.0]),
+    ("agglomerative-1k", _agglomerative, "1k", [0.0, 0.25, 0.5, 0.75, 1.0]),
     ("dp-1k", _dp, "1k", [0.0, 0.25, 0.5, 0.75, 1.0]),
     ("fixed-1k", _fixed, "1k", [0.0, 0.25, 0.5, 0.75, 1.0]),
-    ("greedy-const", _greedy, "const", [0.0, 1.0]),
+    ("agglomerative-const", _agglomerative, "const", [0.0, 1.0]),
     ("dp-const", _dp, "const", [0.0, 1.0]),
     ("fixed-const", _fixed, "const", [0.0, 0.25, 0.5, 0.75, 1.0]),
-    ("greedy-unique", _greedy, "unique", False),
+    ("agglomerative-unique", _agglomerative, "unique", False),
     ("dp-unique", _dp, "unique", False),
     ("fixed-unique", _fixed, "unique", False),
 ]
 
 
 class TestGoldenFindLimits:
-    """Byte-exact behavioral freeze across {Greedy, DP, Fixed} × cases."""
+    """Byte-exact behavioral freeze across {Agglomerative, DP, Fixed} × cases."""
 
     @pytest.mark.parametrize(
         "method_factory, case_name, expected",
@@ -449,7 +453,7 @@ class TestAxisPartitioningEdgeCases:
         # covered this before).
         x = np.ones(50) * 0.3
         g = np.ones(50) * 4.0
-        assert _greedy().find_limits(x, g, np.array([0.3, 0.3])) is False
+        assert _agglomerative().find_limits(x, g, np.array([0.3, 0.3])) is False
 
     def test_dp_single_unique_value_returns_false(self):
         x = np.ones(50) * 0.3
@@ -511,7 +515,7 @@ class TestAxisPartitioningEdgeCases:
         x = np.sort(rng.uniform(0, 1, 2000))
         g = np.where(x < 0.5, 8.0, -8.0)
         ax = np.array([0.0, 1.0])
-        gr = _greedy().find_limits(x, g, ax)
+        gr = _agglomerative().find_limits(x, g, ax)
         dp = _dp().find_limits(x, g, ax)
         np.testing.assert_array_equal(gr, dp)
         np.testing.assert_array_equal(gr, np.array([0.0, 0.5, 1.0]))
@@ -533,7 +537,7 @@ class TestNoBinningReason:
     _Reason = effector.axis_partitioning.NoBinningReason
 
     def test_greedy_single_unique_reason(self):
-        est = _greedy()
+        est = _agglomerative()
         assert (
             est.find_limits(np.ones(50) * 0.3, np.ones(50), np.array([0.3, 0.3]))
             is False
@@ -581,7 +585,7 @@ class TestNoBinningReason:
     def test_raise_if_no_binning_surfaces_reason(self):
         import effector.utils as utils
 
-        est = _greedy()
+        est = _agglomerative()
         limits = est.find_limits(np.ones(50) * 0.3, np.ones(50), np.array([0.3, 0.3]))
         with pytest.raises(ValueError, match="all points share a single value"):
             utils.raise_if_no_binning(limits, feature=0, binning_method=est)
@@ -692,3 +696,57 @@ class TestDPPrefixSumEquivalence:
         np.testing.assert_array_equal(stage2, np.array([0.0, 0.25, 0.5, 0.75, 1.0]))
         np.testing.assert_array_equal(ref, np.array([0.0, 1.0]))
         assert not np.array_equal(stage2, ref)
+
+
+class TestQuantile:
+    """Equal-frequency binning: adapts edges to the x distribution, ignores y."""
+
+    def test_equal_frequency_on_skewed_data(self):
+        rng = np.random.default_rng(0)
+        x = np.sort(rng.exponential(1.0, 4000))  # skewed
+        est = effector.axis_partitioning.Quantile(nof_bins=8)
+        edges = est.find_limits(x, None, np.array([x.min(), x.max()]))
+        assert edges[0] == x.min() and edges[-1] == x.max()
+        counts = np.array(
+            [
+                np.sum((x >= edges[i]) & (x < edges[i + 1]))
+                for i in range(len(edges) - 1)
+            ]
+        )
+        # equal-frequency: bin counts are within a small band of N/nbins
+        assert counts.max() - counts.min() <= 0.05 * len(x)
+
+    def test_ignores_y(self):
+        rng = np.random.default_rng(1)
+        x = np.sort(rng.uniform(0, 1, 2000))
+        ax = np.array([0.0, 1.0])
+        est_a = effector.axis_partitioning.Quantile(nof_bins=10)
+        est_b = effector.axis_partitioning.Quantile(nof_bins=10)
+        e_none = est_a.find_limits(x, None, ax)
+        e_y = est_b.find_limits(x, rng.normal(0, 5, 2000), ax)
+        np.testing.assert_array_equal(e_none, e_y)
+
+    def test_min_points_merges_underfilled(self):
+        # heavy ties: many points stacked, quantile edges would collide/underfill
+        x = np.concatenate([np.full(100, 0.1), np.linspace(0.2, 1.0, 20)])
+        est = effector.axis_partitioning.Quantile(nof_bins=10, min_points_per_bin=5)
+        edges = est.find_limits(x, None, np.array([0.0, 1.0]))
+        counts = np.array(
+            [
+                np.sum((x >= edges[i]) & (x <= edges[i + 1]))
+                for i in range(len(edges) - 1)
+            ]
+        )
+        assert counts.min() >= 5
+
+    def test_single_unique_value_returns_false(self):
+        est = effector.axis_partitioning.Quantile(nof_bins=4)
+        assert est.find_limits(np.ones(50) * 0.3, None, np.array([0.3, 0.3])) is False
+
+
+def test_greedy_is_deprecated_alias_for_agglomerative():
+    ap = effector.axis_partitioning
+    assert ap.Greedy is ap.Agglomerative
+    assert isinstance(ap.return_default("agglomerative"), ap.Agglomerative)
+    assert isinstance(ap.return_default("quantile"), ap.Quantile)
+    assert isinstance(ap.return_default("greedy"), ap.Agglomerative)  # back-compat

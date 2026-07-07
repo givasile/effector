@@ -65,16 +65,14 @@ jacobian = ... # jacobian of the model
 
 
         ```python
-        # customize the space partitioning algorithm
-        axis_partitioner = effector.axis_partitioning.Greedy(
+        # customize the axis-partitioning (binning) method
+        binning_method = effector.axis_partitioning.Agglomerative(
             init_nof_bins = 50, # start from 50 bins (default: 20)
             min_points_per_bin = 10, # minimum number of points per bin (default: 2)
-            cat_limit = 20 # maximum number of categories for a feature to be considered categorical (default: 10)
-
         )
         g_method.fit(
             features=[0, 1], # list of features to be analyzed
-            axis_partitioner=axis_partitioner, # custom axis partitioner
+            binning_method=binning_method, # custom binning method
         )
         ```
 

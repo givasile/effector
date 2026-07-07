@@ -175,7 +175,9 @@ class RegionalShapDP(RegionalEffectBase):
         *,
         candidate_conditioning_features: typing.Union[str, list] = "all",
         space_partitioner: typing.Union[str, effector.space_partitioning.Best] = "best",
-        binning_method: Union[str, ap.Greedy, ap.Fixed] = "greedy",
+        binning_method: Union[
+            str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
+        ] = "dp",
     ):
         """
         Fit the regional SHAP.
