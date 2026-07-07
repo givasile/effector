@@ -619,6 +619,19 @@ class DerPDP(PDPBase):
     DEFAULT_CENTERING: Union[bool, str] = False
     IS_DERIVATIVE: bool = True
 
+    def _importance(self, feature, mask):
+        """R13 for d-PDP: the mean effect is already the derivative, whose
+        *dispersion* is ~0 for a locally-linear model — a poor importance. Use
+        the mean **magnitude** of the derivative over the grid instead (for a
+        linear model this recovers `|coefficient|`)."""
+        xs = np.linspace(
+            self.axis_limits[0, feature],
+            self.axis_limits[1, feature],
+            helpers.NOF_INTERNAL_POINTS,
+        )
+        mu = self.eval(feature, xs, centering=False, mask=mask)
+        return float(np.mean(np.abs(mu)))
+
     def __init__(
         self,
         data: np.ndarray,

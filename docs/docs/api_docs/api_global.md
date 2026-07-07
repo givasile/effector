@@ -138,6 +138,9 @@ jacobian = ... # jacobian of the model
           - fit
           - eval
           - plot
+          - find_regions
+          - importance
+          - importances
 
 ### ::: effector.global_effect_ale.RHALE
       options:

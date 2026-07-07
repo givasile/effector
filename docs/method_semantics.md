@@ -153,3 +153,27 @@ Plot: bars + jittered per-level $\phi$ dots (continuous: curve + scatter, as now
 | ALE | ✓ (as now) | ✓ exact, value-edged bins | ✓ with order caveat |
 | RHALE | ✓ (as now) | ✓ discrete derivative + level grouping | error |
 | ShapDP | ✓ (as now) | ✓ per-level, step lookup | ✓ per-level, step lookup |
+
+## Importance (R13)
+
+`importance(feature, mask=None) -> float >= 0` is the **μ-twin of `heter_score`**:
+where `heter_score` measures the per-instance spread of the effect, `importance`
+measures how much the **mean** effect varies. It is evaluated exactly the way
+`heter_score` is — so the two form a mean/spread pair over the same grid:
+
+- **continuous**: the standard deviation of the mean effect over the uniform grid
+  (`heter_score`'s grid). For a linear model this is `|a_j| * std(grid_j)`.
+- **discrete**: the frequency-weighted standard deviation over the levels.
+- **ShapDP** overrides the default with the canonical `mean(|phi_s|)` over the
+  (masked) instances — `phi_s` is the cached local effect.
+- **DerPDP** overrides it with the mean `|derivative|` over the grid: its mean
+  effect is already a derivative, so the *dispersion* would be ~0 for a linear
+  model (a useless ranking), while the magnitude recovers `|a_j|`.
+
+It is centering-invariant (no `centering` argument — the std of the mean effect
+does not depend on the additive centering constant) and model-free (re-summarized
+from the cached local effects; a `mask` restricts it to a subregion through the
+same memo). `importances(mask=None) -> (D,)` is the per-feature vector, returning
+`NaN` (with one `UserWarning`) for feature types a method cannot explain.
+effector never sees `y`, so loss/permutation importance is out of scope by
+construction.

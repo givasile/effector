@@ -1,4 +1,5 @@
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Callable, Optional, Tuple, Union
@@ -586,6 +587,69 @@ class GlobalEffectBase(ABC):
             target_name=self.target_name,
         )
         return partition._bind(self)
+
+    def importance(self, feature: int, mask: Optional[np.ndarray] = None) -> float:
+        """R13: how much the **mean effect** of `feature` varies over the
+        (masked) data — the μ-twin of `heter_score` (which measures per-instance
+        spread). Model-free (re-summarized from the cached local effects) and
+        centering-invariant (the dispersion of the mean effect does not depend on
+        the additive centering constant, so there is deliberately no `centering`
+        argument). A `mask` restricts it to a subregion.
+
+        Args:
+            feature: index of the feature of interest.
+            mask: optional boolean `(N,)` selecting a subregion.
+
+        Returns:
+            a non-negative scalar.
+        """
+        self._check_feature_type_supported(feature)
+        mask = self._prep_mask(mask)
+        if mask is None:
+            # route through the masked (cached) path so PDP/DerPDP read the
+            # cached ICE instead of re-predicting; all-ones ≡ None (M1)
+            mask = np.ones(self.data.shape[0], dtype=bool)
+        self._ensure_local_effects(feature)
+        return float(self._importance(feature, mask))
+
+    def _importance(self, feature: int, mask: np.ndarray) -> float:
+        """Default (PDP/ALE/RHALE): the standard deviation of the mean effect —
+        the μ-twin of `heter_score`, evaluated the same way it is. Continuous
+        features use the uniform grid `heter_score` averages over; discrete
+        features weight by level frequency. `centering=False` keeps it a pure
+        query — the std is invariant to centering and triggers no refit."""
+        if self._is_cat(feature):
+            levels, weights = self._level_weights(feature, mask)
+            mu = self.eval(feature, levels, centering=False, mask=mask)
+            mu_bar = float(np.average(mu, weights=weights))
+            return float(np.sqrt(np.average((mu - mu_bar) ** 2, weights=weights)))
+        xs = np.linspace(
+            self.axis_limits[0, feature],
+            self.axis_limits[1, feature],
+            helpers.NOF_INTERNAL_POINTS,
+        )
+        mu = self.eval(feature, xs, centering=False, mask=mask)
+        return float(np.std(mu))
+
+    def importances(self, mask: Optional[np.ndarray] = None) -> np.ndarray:
+        """R13: the per-feature importance vector `(D,)`. Feature types this
+        method cannot explain are `NaN`, with one `UserWarning` (R9) naming the
+        skipped columns."""
+        out = np.full(self.dim, np.nan)
+        skipped = []
+        for f in range(self.dim):
+            try:
+                out[f] = self.importance(f, mask=mask)
+            except ValueError:
+                skipped.append(self.feature_names[f])
+        if skipped:
+            warnings.warn(
+                f"importance is undefined for feature(s) {skipped} — this "
+                f"method does not support their feature type; returned NaN.",
+                UserWarning,
+                stacklevel=2,
+            )
+        return out
 
     def requires_refit(self, feature, centering):
         """Check if refitting is needed."""

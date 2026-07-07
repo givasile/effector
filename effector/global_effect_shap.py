@@ -236,6 +236,12 @@ class ShapDP(GlobalEffectBase):
             )
         self.local_effects["feature_" + str(feature)] = self.shap_values[:, feature]
 
+    def _importance(self, feature, mask):
+        """R13 for SHAP: the canonical `mean(|phi_s|)` over the (masked)
+        instances — `phi_s` is already the cached local effect."""
+        phi = self.local_effects["feature_" + str(feature)][mask]
+        return float(np.mean(np.abs(phi)))
+
     def _summarize(
         self,
         feature: int,
