@@ -335,6 +335,32 @@ Adding the two parts, we have the total runtime:
 | **ALE**         | $2 t_f$                       | $2 D t_f$                      |
 | **RHALE**       | $t_f$                         | $t_f$                          |
 
+### Binning cost: the role of `K` and `binning_method`
+
+The table above folds binning into the constants by using `Fixed(nof_bins=20)`. But **ALE and RHALE bin the local effects inside `.fit()`**, and that step has its own cost — a pure-numpy pass over the $N$ local effects, *independent of the model*. With $K$ the number of bins, the per-feature binning cost $C_\text{bin}$ depends on the `binning_method`:
+
+| `binning_method` | complexity | notes |
+|---|---|---|
+| `Fixed` | $O(N)$ | uniform grid; ALE's only option, RHALE-capable |
+| `Greedy` | $O(K \cdot N)$ | adaptive one-pass merge; **RHALE default** |
+| `DynamicProgramming` | $O(N + K^2)$ | globally optimal bins |
+
+Because it touches no model, $C_\text{bin}$ is negligible against any nonzero $t_f$ — **as long as it stays sub-model-call.** The catch is that it is paid **per feature** ($D \cdot C_\text{bin}$), so a slow binner over many features can quietly dominate when $t_f$ is small.
+
+Measured at $N = 50{,}000$ (per feature): `Fixed` ≈ 1.5 ms, `Greedy` ≈ 8 ms, `DynamicProgramming` ≈ 1.5 ms.
+
+!!! note "DynamicProgramming used to be the landmine"
+    `DynamicProgramming` was previously $O(K^3 N)$: at $N = 50{,}000,\ K = 40$ it cost **≈ 3.3 s per feature** (≈ **66 s** for $D = 20$) — which could dwarf the model itself for fast $t_f$, and even make RHALE slower than PDP. It is now $O(N + K^2)$ (**≈ 1.5 ms**, a ~2000× speedup), so the binning method no longer changes the runtime picture.
+
+Making binning explicit, the totals for the two accumulation-based methods become:
+
+| Method | $T$ (all features) |
+|---|---|
+| **ALE** | $2 D\, t_f + D \cdot O(N)$ |
+| **RHALE** | $t_f + D \cdot C_\text{bin}(N, K, \texttt{binning\_method})$ |
+
+RHALE still needs only **one** Jacobian pass for all $D$ features, so it stays model-bound: for realistic $t_f$, $C_\text{bin}$ is milliseconds and any `binning_method` is a fine choice.
+
 ## SHAP-DP
 
 SHAP-DP is a much slower method, compared to the others. Let's see how it scales with $N$ and $t_f$.
