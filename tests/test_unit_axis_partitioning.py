@@ -515,3 +515,73 @@ class TestAxisPartitioningEdgeCases:
         dp = _dp().find_limits(x, g, ax)
         np.testing.assert_array_equal(gr, dp)
         np.testing.assert_array_equal(gr, np.array([0.0, 0.5, 1.0]))
+
+    def test_fixed_min_points_none_no_longer_raises(self):
+        # AP-3: Fixed(min_points_per_bin=None) used to raise TypeError in
+        # _none_valid_binning (`size < None`). Now None == "no minimum" and it
+        # returns the exact uniform grid.
+        x = np.linspace(0.0, 1.0, 100)
+        est = effector.axis_partitioning.Fixed(nof_bins=4, min_points_per_bin=None)
+        limits = est.find_limits(x, None, np.array([0.0, 1.0]))
+        np.testing.assert_allclose(limits, np.linspace(0.0, 1.0, 5))
+        assert est.no_binning_reason is None
+
+
+class TestNoBinningReason:
+    """The `False` outcome carries a machine-readable reason (folded into PR-2)."""
+
+    _Reason = effector.axis_partitioning.NoBinningReason
+
+    def test_greedy_single_unique_reason(self):
+        est = _greedy()
+        assert (
+            est.find_limits(np.ones(50) * 0.3, np.ones(50), np.array([0.3, 0.3]))
+            is False
+        )
+        assert est.no_binning_reason is self._Reason.SINGLE_UNIQUE_VALUE
+
+    def test_dp_single_unique_reason(self):
+        est = _dp()
+        assert (
+            est.find_limits(np.ones(50) * 0.3, np.ones(50), np.array([0.3, 0.3]))
+            is False
+        )
+        assert est.no_binning_reason is self._Reason.SINGLE_UNIQUE_VALUE
+
+    def test_greedy_too_few_points_reason(self):
+        # 4 points, min_points=5 -> data.size < min_points
+        x, g, ax = _case_4pt()
+        est = effector.axis_partitioning.Greedy(init_nof_bins=100, min_points_per_bin=5)
+        assert est.find_limits(x, g, ax) is False
+        assert est.no_binning_reason is self._Reason.TOO_FEW_POINTS
+
+    def test_dp_too_few_points_reason(self):
+        x, g, ax = _case_4pt()
+        est = effector.axis_partitioning.DynamicProgramming(
+            max_nof_bins=10, min_points_per_bin=5
+        )
+        assert est.find_limits(x, g, ax) is False
+        assert est.no_binning_reason is self._Reason.TOO_FEW_POINTS
+
+    def test_fixed_grid_underfilled_reason(self):
+        # 3 points, 4 fixed bins, min 2 per bin -> a bin is under-filled
+        x = np.array([0.05, 0.1, 0.9])
+        est = effector.axis_partitioning.Fixed(nof_bins=4, min_points_per_bin=2)
+        assert est.find_limits(x, None, np.array([0.0, 1.0])) is False
+        assert est.no_binning_reason is self._Reason.FIXED_GRID_UNDERFILLED
+
+    def test_reason_resets_on_success(self):
+        # a failing call then a succeeding call on the same instance: no stale reason
+        est = _fixed()
+        est.find_limits(np.ones(50) * 0.3, None, np.array([0.3, 0.3]))
+        assert est.no_binning_reason is not None
+        est.find_limits(np.linspace(0, 1, 100), None, np.array([0.0, 1.0]))
+        assert est.no_binning_reason is None
+
+    def test_raise_if_no_binning_surfaces_reason(self):
+        import effector.utils as utils
+
+        est = _greedy()
+        limits = est.find_limits(np.ones(50) * 0.3, np.ones(50), np.array([0.3, 0.3]))
+        with pytest.raises(ValueError, match="all points share a single value"):
+            utils.raise_if_no_binning(limits, feature=0, binning_method=est)
