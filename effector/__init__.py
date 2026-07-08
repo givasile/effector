@@ -19,4 +19,4 @@ from effector.partition import Partition, Region
 from effector.report import Report, explain
 from effector.rules import Rule
 from effector.theme import set_theme
-from effector.visualization import compare
+from effector.visualization import compare, plot_triage

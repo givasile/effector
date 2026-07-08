@@ -752,3 +752,145 @@ def compare(
         level_labels=level_labels,
         show_plot=show_plot,
     )
+
+
+def plot_triage(
+    effect,
+    partitions: typing.Union[None, dict] = None,
+    threshold: typing.Union[None, bool, float] = None,
+    features: typing.Union[str, list] = "all",
+    title: typing.Union[None, str] = None,
+    show_plot: bool = True,
+):
+    """The triage plane of one fitted effect: importance (x) against
+    heterogeneity (y), one labeled point per feature.
+
+    Read it as a to-do list: bottom-left is unimportant and honest, the
+    bottom-right features are important and fully described by their mean
+    effect, and the top-right corner — important *and* heterogeneous — is
+    where the mean effect hides something and `find_regions` should look.
+
+    With `partitions`, the plot becomes the before/after story: for every
+    partitioned feature an arrow runs from its global point to each leaf
+    point (the leaf's `importance`/`heter_score` under its rule, computed
+    model-free from the caches). Leaves of a good partition land right and
+    down — more decisive, less heterogeneous.
+
+    Args:
+        effect: a fitted effect object (`PDP`/`RHALE`/...); its `importance`
+            and `heter_score` are queried per feature.
+        partitions: optional `{feature_name_or_index: Partition}` — exactly
+            what `effect.find_regions(features=...)` returns. Root-only
+            partitions are skipped.
+        threshold: the heterogeneity threshold line. `None` (default) draws
+            the median heterogeneity of the plotted features — the same
+            convention `effector.explain` and `find_regions
+            (features="heterogeneous")` use; a float draws that value;
+            `False` draws nothing.
+        features: which features to plot — `"all"` or a list of
+            indices/names. Feature types the method does not support are
+            skipped with one `UserWarning`.
+        title: figure title.
+        show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`.
+    """
+    if isinstance(features, str):
+        if features != "all":
+            raise ValueError(
+                f"Invalid features argument: {features!r}; use 'all' or a "
+                "list of indices/names"
+            )
+        candidates = list(range(effect.dim))
+    else:
+        candidates = [effect._resolve_feature(f) for f in features]
+
+    plotted, skipped = [], []
+    for f in candidates:
+        try:
+            effect._check_feature_type_supported(f)
+            plotted.append(f)
+        except ValueError:
+            skipped.append(effect.feature_names[f])
+    if skipped:
+        warnings.warn(
+            f"plot_triage skipped feature(s) {skipped} — this method does "
+            f"not support their feature type.",
+            UserWarning,
+            stacklevel=2,
+        )
+    if not plotted:
+        raise ValueError("plot_triage: no supported features to plot")
+
+    imp = {f: effect.importance(f) for f in plotted}
+    het = {f: effect.heter_score(f) for f in plotted}
+
+    fig, ax = plt.subplots()
+    t = theme.active()
+    ax.set_title("Feature triage" if title is None else title)
+
+    ax.scatter(
+        [imp[f] for f in plotted],
+        [het[f] for f in plotted],
+        color=t.MEAN,
+        zorder=3,
+        label="global effect",
+    )
+    for f in plotted:
+        ax.annotate(
+            effect.feature_names[f],
+            (imp[f], het[f]),
+            textcoords="offset points",
+            xytext=(6, 6),
+            fontsize="small",
+        )
+
+    if threshold is None:
+        threshold = float(np.median([het[f] for f in plotted]))
+        thr_label = "heterogeneity threshold (median)"
+    else:
+        thr_label = "heterogeneity threshold"
+    if threshold is not False:
+        ax.axhline(
+            threshold,
+            color=t.AVG,
+            linestyle="--",
+            linewidth=1.0,
+            label=thr_label,
+        )
+
+    if partitions:
+        cat_cycle = t.CAT
+        for i, (key, partition) in enumerate(partitions.items()):
+            f = effect._resolve_feature(key)
+            leaves = partition.leaves
+            if len(partition) <= 1:
+                continue  # root-only: nothing was found
+            color = cat_cycle[i % len(cat_cycle)]
+            start = (imp[f], het[f])
+            first_leaf = True
+            for leaf in leaves:
+                end = (
+                    effect.importance(f, rule=leaf.rule),
+                    effect.heter_score(f, rule=leaf.rule),
+                )
+                ax.annotate(
+                    "",
+                    xy=end,
+                    xytext=start,
+                    arrowprops=dict(
+                        arrowstyle="->", color=color, linewidth=1.2, alpha=0.9
+                    ),
+                )
+                ax.scatter(
+                    [end[0]],
+                    [end[1]],
+                    facecolors="none",
+                    edgecolors=color,
+                    zorder=3,
+                    label=(
+                        f"{effect.feature_names[f]} leaves" if first_leaf else None
+                    ),
+                )
+                first_leaf = False
+
+    _decorate_ax(ax, xlabel="importance", ylabel="heterogeneity")
+    return _finalize(fig, ax, show_plot)
