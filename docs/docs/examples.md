@@ -10,6 +10,7 @@ Synthetic Examples:
 - [Example 5 - A model with general form interactions](./notebooks/synthetic-examples/06_general_interaction_independent_uniform_global.md)
 - [Example 6 - A conditional interaction model with four regions](./notebooks/synthetic-examples/07_conditional_interaction_4_regions_independent_uniform_global.md)
 - [Example 7 - Categorical features (ordinal & nominal) as feature of interest](./notebooks/synthetic-examples/08_categorical_features.md)
+- [Example 8 - One-click explanations: importance, `explain`, and the `Report`](./notebooks/synthetic-examples/09_explain_importance_report.md)
   
 Real Examples:
 
