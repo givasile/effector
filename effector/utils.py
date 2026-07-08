@@ -611,6 +611,46 @@ def compute_jacobian_numerically(
     return jacobian
 
 
+def interp_linear_extrap(
+    x: np.ndarray, xp: np.ndarray, fp: np.ndarray
+) -> np.ndarray:
+    """Piecewise-linear interpolation with linear extrapolation.
+
+    Inside `[xp[0], xp[-1]]` this is `np.interp`; outside, the first/last
+    segment's slope is extended — parity with
+    `scipy.interpolate.interp1d(kind="linear", fill_value="extrapolate")`.
+    A single knot yields a constant. `xp` must be strictly increasing; the
+    call sites (bin centers of `find_limits` limits that survived
+    `raise_if_no_binning`) guarantee it.
+
+    Examples:
+        >>> xp, fp = np.array([0.5, 1.5]), np.array([1.0, 3.0])
+        >>> interp_linear_extrap(np.array([0.0, 0.5, 1.0, 2.0]), xp, fp)
+        array([0., 1., 2., 4.])
+        >>> interp_linear_extrap(np.array([0.0, 5.0]), np.array([1.0]), np.array([2.0]))
+        array([2., 2.])
+
+    Args:
+        x: positions to evaluate at, (T)
+        xp: knot positions, strictly increasing, (K)
+        fp: knot values, (K)
+
+    Returns:
+        the interpolated/extrapolated values at `x`, (T)
+    """
+    x = np.asarray(x, dtype=float)
+    xp = np.asarray(xp, dtype=float)
+    fp = np.asarray(fp, dtype=float)
+    if len(xp) == 1:
+        return np.full(x.shape, fp[0])
+    y = np.interp(x, xp, fp)
+    slope_lo = (fp[1] - fp[0]) / (xp[1] - xp[0])
+    slope_hi = (fp[-1] - fp[-2]) / (xp[-1] - xp[-2])
+    y = np.where(x < xp[0], fp[0] + slope_lo * (x - xp[0]), y)
+    y = np.where(x > xp[-1], fp[-1] + slope_hi * (x - xp[-1]), y)
+    return y
+
+
 def mean_1d_linspace(
     func: typing.Callable, start: float, stop: float, nof_points: int = 100
 ) -> float:
