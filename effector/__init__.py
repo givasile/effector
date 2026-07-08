@@ -4,6 +4,7 @@ from effector import (
     datasets,
     ingestion,
     models,
+    rules,
     space_partitioning,
     theme,
 )
@@ -14,4 +15,5 @@ from effector.global_effect_shap import ShapDP
 from effector.ingestion import Schema, from_dataframe
 from effector.partition import Partition, Region
 from effector.report import Report, explain
+from effector.rules import Rule
 from effector.theme import set_theme
