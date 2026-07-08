@@ -236,6 +236,49 @@ class CategoricalOrdered:
         ]
 
 
+class ContinuousQuantiles:
+    """One k-way candidate per child count ``k`` in ``2..max_children``,
+    ascending (ties in the finder's argmin therefore prefer fewer children):
+    the children split the conditioning column at its marginal quantiles
+    ``i/k`` — a jointly-covering chain of canonical half-open `Interval`s
+    over ``(-inf, inf)``.
+
+    Edges are data-driven (x-only): duplicate quantiles collapse, so a
+    candidate may end up with fewer than ``k`` children; edges at the column
+    minimum are dropped (they would bound an empty first child — a constant
+    column therefore proposes nothing); identical edge chains produced by
+    different ``k`` are proposed once. Both
+    ``ctx.numerical_grid_size`` (the threshold-grid knob) and
+    ``ctx.axis_limits`` are ignored — ``max_children`` is this proposer's own
+    knob and the unbounded chain covers any axis.
+    """
+
+    def __init__(self, max_children: int = 5):
+        if max_children < 2:
+            raise ValueError(f"max_children must be >= 2; got {max_children}")
+        self.max_children = max_children
+
+    def propose(self, ctx: SearchContext, foc: int) -> list:
+        col = ctx.data[:, foc]
+        candidates, seen = [], set()
+        for k in range(2, self.max_children + 1):
+            edges = np.unique(np.quantile(col, np.arange(1, k) / k))
+            edges = tuple(float(e) for e in edges if col.min() < e)
+            if not edges or edges in seen:
+                continue
+            seen.add(edges)
+            bounds = [-np.inf, *edges, np.inf]
+            candidates.append(
+                CandidateSplit(
+                    tuple(
+                        Condition(foc, Interval(lo=lo, hi=hi))
+                        for lo, hi in zip(bounds[:-1], bounds[1:])
+                    )
+                )
+            )
+        return candidates
+
+
 def default_proposer(feature_type: str):
     """The finder default: one-vs-rest for categorical conditioning features,
     binary threshold for continuous ones."""

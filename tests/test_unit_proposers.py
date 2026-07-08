@@ -11,6 +11,7 @@ from effector.proposers import (
     CategoricalOneVsRest,
     CategoricalOrdered,
     CategoricalSubsets,
+    ContinuousQuantiles,
     ContinuousThreshold,
     SearchContext,
     default_proposer,
@@ -288,3 +289,67 @@ def test_ordered_two_levels_single_candidate():
 
 def test_ordered_single_level_proposes_nothing():
     assert CategoricalOrdered().propose(_single_level_ctx(), 1) == []
+
+
+# ---- the continuous quantile k-way proposer (PR-D) ---------------------------
+
+
+def _quant_ctx(col, grid=20):
+    col = np.asarray(col, dtype=float)
+    data = np.stack([col, np.arange(len(col), dtype=float)], axis=1)
+    axis_limits = np.array([[col.min(), 0.0], [col.max(), len(col) - 1.0]])
+    return _ctx(data, axis_limits, ["cont", "cont"], grid=grid)
+
+
+def test_quantiles_one_candidate_per_k_edges_are_marginal_quantiles():
+    rng = np.random.default_rng(7)
+    col = rng.exponential(size=200)
+    ctx = _quant_ctx(col)
+    candidates = ContinuousQuantiles(max_children=4).propose(ctx, 0)
+    assert [len(c.conditions) for c in candidates] == [2, 3, 4]  # k ascending
+    for cand, k in zip(candidates, [2, 3, 4]):
+        edges = np.quantile(col, np.arange(1, k) / k)
+        first, *middle, last = cand.conditions
+        assert first.subset == Interval(hi=edges[0])
+        assert last.subset == Interval(lo=edges[-1])
+        for cond, lo, hi in zip(middle, edges[:-1], edges[1:]):
+            assert cond.subset == Interval(lo=lo, hi=hi)
+        _assert_children_partition(cand, ctx.data)
+
+
+def test_quantiles_dedups_identical_edge_chains_across_k():
+    ctx = _quant_ctx(np.tile([0.0, 10.0], 10))
+    candidates = ContinuousQuantiles(max_children=5).propose(ctx, 0)
+    chains = [tuple(c.subset.lo for c in cand.conditions[1:]) for cand in candidates]
+    assert len(chains) == len(set(chains))
+    assert len(candidates) < 4  # some k collapsed onto an already-seen chain
+    for cand in candidates:
+        _assert_children_partition(cand, ctx.data)
+
+
+def test_quantiles_drops_edges_at_the_column_minimum():
+    # 75% of the mass at 0.0: low quantiles land on the minimum and would
+    # bound an empty first child -> only the k=4 upper-quartile edge survives
+    ctx = _quant_ctx(np.tile([0.0, 0.0, 0.0, 4.0], 5))
+    candidates = ContinuousQuantiles(max_children=4).propose(ctx, 0)
+    assert len(candidates) == 1
+    below, above = candidates[0].conditions
+    assert below.subset == Interval(hi=1.0)
+    assert above.subset == Interval(lo=1.0)
+
+
+def test_quantiles_constant_column_proposes_nothing():
+    ctx = _quant_ctx(np.full(30, 3.0))
+    assert ContinuousQuantiles().propose(ctx, 0) == []
+
+
+def test_quantiles_ignores_numerical_grid_size():
+    col = np.linspace(0, 1, 50) ** 2
+    a = ContinuousQuantiles().propose(_quant_ctx(col, grid=3), 0)
+    b = ContinuousQuantiles().propose(_quant_ctx(col, grid=50), 0)
+    assert a == b
+
+
+def test_quantiles_max_children_below_two_raises():
+    with pytest.raises(ValueError, match="max_children"):
+        ContinuousQuantiles(max_children=1)
