@@ -27,7 +27,8 @@ aggregation ladder with one consumer per level:
 - **`eval_heter(feature, xs)` → `(T,)`** — the heterogeneity curve h(xs).
   h is the *variance* of the method's own per-instance effect object
   (PDP: centered ICE levels; DerPDP: d-ICE slopes; (RH)ALE: per-bin slope
-  variance as a step function; ShapDP: the residual spline). Variance
+  variance as a step function; ShapDP: the interpolated per-bin φ variance).
+  Variance
   internally, std only at the plot layer. **No centering kwarg** — h is
   invariant to centering, and the signature enforces it. Every plotted
   band/error-bar equals `eval_heter` (R1 extended to heterogeneity).
@@ -308,7 +309,12 @@ additive). Frame change → replace the entry and bump the feature's **epoch**.
 
 **Cache (b) — summaries** (pure numpy, LRU-bounded). Entries are payloads,
 keyed `(feature, epoch, mask_key)`, and centering constants, keyed
-`(feature, epoch, mask_key, mode)`. `mask_key` normalizes `None` and all-ones
+`(feature, epoch, mask_key, mode)`. Payloads come in two archetypes, both
+plain-numpy dicts (serializable, no callables): *binned* —
+`limits`/`bin_effect`/`bin_variance` (+ `levels` on a discrete axis) for
+ALE/RHALE/ShapDP, whose readers accumulate or interpolate between bins — and
+*gridded* — `grid`/`mean`/`heter` for (d-)PDP, read by exact lookup at grid
+positions. `mask_key` normalizes `None` and all-ones
 to a single key (rule M1) — that equivalence lives in exactly one function.
 The epoch bumps on frame replacement **or** config change (a refit with new
 binning/scope), so stale summaries become *unreachable*: staleness is handled
@@ -324,10 +330,18 @@ caches nothing — partial-N columns cannot enter an instance-aligned cache);
 is zero model calls, pinned by counting-model contract tests.
 
 **Subclass contract.** A method implements a frame declaration
-(`_frame_from_config`) and three pure kernels — `_compute_local` (the only
-kernel that may touch the model), `_summarize` (numpy in, payload dict out),
-`_eval_payload` (payload + xs in, numbers out) — and contains **no cache,
-retrigger, or mask logic, ever**. Methods that don't fit the mold override a
-named hook (`_eval_mean`, `_importance`, the norm-const shape) — they
+(`_frame_from_config`) and three pure kernels, each split into a continuous
+and a categorical variant — `_compute_local_cont|_cat` (the only kernels that
+may touch the model), `_summarize_cont|_cat` (numpy in, payload dict out),
+`_eval_payload_cont|_cat` (payload + xs in, numbers out) — and contains **no
+cache, retrigger, or mask logic, ever**. The base owns the dispatch: each
+gate-facing name (`_compute_local`, `_summarize`, `_eval_payload`,
+`_compute_norm_const`) forks on `_is_cat(feature)` exactly once, so a kernel
+body never inspects the feature type. A type-agnostic kernel is declared with
+a class-level alias (`_compute_local_cat = _compute_local_cont`), never a fork
+in the body. The `_cat` defaults raise — unreachable when
+`SUPPORTED_FEATURE_TYPES` excludes ordinal/nominal, so continuous-only
+methods (DerPDP) skip them entirely. Methods that don't fit the mold override
+a named hook (`_eval_mean`, `_importance`, the norm-const shape) — they
 never bypass the gates. `tests/toy_method.py` is the reference implementation
 and the contract suite's guinea pig.
