@@ -2,13 +2,16 @@
 
 Absorbs the old test_space_partitioning.py Gini toy (kept verbatim as the
 validity check) and adds the pointed assertions the refactor needs:
-split-position correctness, categorical ==/!= splits, the no-split threshold,
-and Best vs BestLevelWise agreement on a clean toy.
+split-position correctness, categorical one-vs-rest splits, the no-split
+threshold, Best vs BestLevelWise agreement on a clean toy, and the proposer
+seam (a custom k-way proposer flows through search and construction).
 """
 
 import numpy as np
 import pytest
 
+from effector.proposers import CandidateSplit
+from effector.rules import Condition, Interval, LevelSet
 from effector.space_partitioning import Best, BestLevelWise
 
 BIG = 10_000_000_000
@@ -63,22 +66,22 @@ def _compile(partitioner, X, heter, **kwargs):
     return partitioner.fit()
 
 
-def _parent_heter_lower(node, is_lower):
-    if not is_lower:
-        return False
-    if node.parent_node is None:
-        return is_lower
-    return _parent_heter_lower(
-        node.parent_node,
-        node.info["weighted_heterogeneity"]
-        <= node.parent_node.info["weighted_heterogeneity"],
-    )
+def _children_of(part, idx):
+    return [r for r in part if r.parent_idx == idx]
+
+
+def _split_position(region, foc):
+    """The threshold a binary continuous split put on `foc` (whichever
+    Interval bound is finite)."""
+    interval = region.rule[foc]
+    assert isinstance(interval, Interval)
+    return interval.hi if np.isfinite(interval.hi) else interval.lo
 
 
 @pytest.mark.parametrize("cls", [Best, BestLevelWise])
 def test_heterogeneity_decreases_along_the_tree(cls):
     X, y = _make_toy()
-    tree = _compile(
+    part = _compile(
         cls(
             min_heterogeneity_decrease_pcg=0.1,
             heter_small_enough=0.0,
@@ -89,39 +92,39 @@ def test_heterogeneity_decreases_along_the_tree(cls):
         X,
         _gini(y),
     )
-    assert tree is not None
-    assert all(_parent_heter_lower(n, True) for n in tree.nodes)
+    assert part is not None
+    for r in part:
+        if r.parent_idx is None:
+            continue
+        parent = part[r.parent_idx]
+        assert r.heterogeneity * r.weight <= parent.heterogeneity * parent.weight
 
 
-def _root_split(tree):
-    root = tree.get_root()
-    children = tree.get_children(root.name)
+def _root_split(part):
+    children = _children_of(part, 0)
     assert len(children) == 2
     return children
 
 
 def test_split_position_correctness():
     X, y = _make_toy()
-    tree = _compile(Best(max_depth=1, heter_small_enough=0.0), X, _gini(y))
-    children = _root_split(tree)
-    for child in children:
-        assert child.info["foc_index"] == 1
-        assert abs(child.info["foc_split_position"] - 5.0) < 0.5
+    part = _compile(Best(max_depth=1, heter_small_enough=0.0), X, _gini(y))
+    for child in _root_split(part):
+        assert child.rule.features == (1,)
+        assert abs(_split_position(child, 1) - 5.0) < 0.5
 
 
 def test_best_and_best_level_wise_find_same_first_split():
     X, y = _make_toy()
-    tree_a = _compile(Best(max_depth=1, heter_small_enough=0.0), X, _gini(y))
-    tree_b = _compile(BestLevelWise(max_depth=1, heter_small_enough=0.0), X, _gini(y))
-    child_a = _root_split(tree_a)[0]
-    child_b = _root_split(tree_b)[0]
-    assert child_a.info["foc_index"] == child_b.info["foc_index"]
-    np.testing.assert_allclose(
-        child_a.info["foc_split_position"], child_b.info["foc_split_position"]
-    )
+    part_a = _compile(Best(max_depth=1, heter_small_enough=0.0), X, _gini(y))
+    part_b = _compile(BestLevelWise(max_depth=1, heter_small_enough=0.0), X, _gini(y))
+    child_a = _root_split(part_a)[0]
+    child_b = _root_split(part_b)[0]
+    assert child_a.rule.features == child_b.rule.features
+    np.testing.assert_allclose(_split_position(child_a, 1), _split_position(child_b, 1))
 
 
-def test_categorical_conditioning_feature_splits_with_equality():
+def test_categorical_conditioning_feature_splits_one_vs_rest():
     np.random.seed(0)
     N = 600
     X = np.stack(
@@ -134,25 +137,67 @@ def test_categorical_conditioning_feature_splits_with_equality():
     )
     y = X[:, 2].astype(int)  # heterogeneity fully explained by the binary x3
 
-    tree = _compile(
+    part = _compile(
         Best(max_depth=1, heter_small_enough=0.0),
         X,
         _gini(y),
         feature_types=["cont", "cont", "cat"],
     )
-    children = _root_split(tree)
-    assert {c.info["comparison"] for c in children} == {"==", "!="}
+    children = _root_split(part)
+    subsets = [c.rule[2] for c in children]
+    assert all(isinstance(s, LevelSet) for s in subsets)
+    # one level vs its explicit complement, jointly covering the universe
+    assert {len(s.levels) for s in subsets} == {1}
+    assert set().union(*(s.levels for s in subsets)) == {0.0, 1.0}
     for child in children:
-        assert child.info["foc_index"] == 2
+        assert child.rule.features == (2,)
 
 
 def test_no_split_when_threshold_huge():
     X, y = _make_toy()
-    tree = _compile(
+    part = _compile(
         Best(min_heterogeneity_decrease_pcg=1000.0, heter_small_enough=0.0), X, _gini(y)
     )
-    assert len(tree.nodes) == 1
-    assert tree.get_root() is not None
+    assert len(part) == 1
+    assert part[0].idx == 0
+    assert part[0].rule.is_root
+
+
+class _ThreeWayOnX2:
+    """A stub k-way proposer: one 3-way candidate on feature 1 (the toy's
+    true group boundaries at 3 and 5), nothing for other features."""
+
+    def propose(self, ctx, foc):
+        if foc != 1:
+            return []
+        return [
+            CandidateSplit(
+                (
+                    Condition(1, Interval(hi=3.0)),
+                    Condition(1, Interval(lo=3.0, hi=5.0)),
+                    Condition(1, Interval(lo=5.0)),
+                )
+            )
+        ]
+
+
+def test_kway_proposer_flows_through_search_and_construction():
+    X, y = _make_toy()
+    finder = Best(max_depth=1, heter_small_enough=0.0)
+    finder.proposer_factory = lambda ftype: _ThreeWayOnX2()
+    part = _compile(finder, X, _gini(y))
+
+    children = _children_of(part, 0)
+    assert len(children) == 3
+    assert [c.rule[1] for c in children] == [
+        Interval(hi=3.0),
+        Interval(lo=3.0, hi=5.0),
+        Interval(lo=5.0),
+    ]
+    # the children partition the data (also enforced by the Partition invariant)
+    counts = np.sum([c.mask for c in children], axis=0)
+    np.testing.assert_array_equal(counts, np.ones(len(X), dtype=int))
+    assert sum(c.nof_instances for c in children) == len(X)
 
 
 def _raw_gini(y):
