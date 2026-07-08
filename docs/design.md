@@ -7,11 +7,15 @@ enforce most of them mechanically.
 
 ## R1 — Lifecycle
 
-`fit` does the hard work once and stores everything under
-`feature_effect["feature_{i}"]`. `eval(feature, xs, centering=<class default>)`
-returns the **mean effect only — one return type, always** — and never
-recomputes unless `requires_refit`. `plot` is a thin wrapper over `eval` /
-stored state plus one `vis.*` call: the plot layer draws, it does not compute.
+Construction ingests and nothing else. `fit(features, **config)` *declares the
+method configuration* (binning, order, scope, default centering — the kwargs
+`eval`/`plot` deliberately do not accept) and eagerly warms the two caches
+(R14); nothing `fit` does is unavailable lazily — every query silently ensures
+what it needs through the same gates, and fit-then-query equals
+never-fit-just-query byte for byte. `eval(feature, xs, centering=<class
+default>)` returns the **mean effect only — one return type, always**. `plot`
+is a thin wrapper over the same summaries plus one `vis.*` call: the plot
+layer draws, it does not compute.
 
 ## R2 — Heterogeneity semantics
 
@@ -19,7 +23,7 @@ Heterogeneity does **not** go through `eval`; it has its own surface, an
 aggregation ladder with one consumer per level:
 
 - **`payload(feature)` → dict** — the method's honest raw object (ICE table,
-  per-bin variances, shap cloud) from stored state.
+  per-bin variances, shap cloud): the all-ones summary (R14).
 - **`eval_heter(feature, xs)` → `(T,)`** — the heterogeneity curve h(xs).
   h is the *variance* of the method's own per-instance effect object
   (PDP: centered ICE levels; DerPDP: d-ICE slopes; (RH)ALE: per-bin slope
@@ -41,10 +45,14 @@ aggregation ladder with one consumer per level:
 
 ## R4 — State schema
 
-`feature_effect["feature_{i}"]` always contains `norm_const: float | None`
-(`None` means "not centered" — never a sentinel value) plus the
-method-specific payload; `fit_args["feature_{i}"]` records the kwargs needed
-to detect refit.
+An effect object holds exactly two caches and one config (R14): the
+local-effects store `_local[feature]` (frame-carrying, model-derived), the
+summaries memo `_summaries` (payloads *and* centering constants, keyed by
+`(feature, epoch, mask_key[, mode])`), and `fit_args["feature_{i}"]` (the
+declared config). There is no separate "fitted state": the fitted payload *is*
+the all-ones entry of the memo, and `payload(feature)` returns it. Centering
+constants are summaries — always derived from the local effects on demand,
+never stored as fitted state and never a refit trigger.
 
 ## R5 — One method registry
 
@@ -210,10 +218,11 @@ clustering, subgroup discovery, a user `groupby`) plug in with zero changes
 elsewhere, so `Partition` must not structurally assume a tree — hierarchy is
 optional display metadata (`parent_idx`).
 
-**Invisible memos are not state.** Performance caches (the masked-summary memo)
-are allowed inside the effect because they are semantically transparent — keyed
-by fit epoch, so a refit invalidates them, and they never change an answer, only
-its latency. A cache is not API surface; a stored partition would be.
+**Invisible memos are not state.** Performance caches (the summaries memo,
+R14) are allowed inside the effect because they are semantically transparent —
+keyed by the feature's epoch, so a frame or config change makes stale entries
+unreachable, and they never change an answer, only its latency. A cache is not
+API surface; a stored partition would be.
 
 ## R13 — Importance
 
@@ -233,3 +242,53 @@ the *dispersion* would be ~0 for a linear model). `importances(mask=None) ->
 cannot explain. effector never sees `y`, so loss/permutation importance is out of
 scope by construction — importance here is a property of the fitted effect, not
 of a held-out error.
+
+## R14 — Two-block lifecycle
+
+The engine has exactly two caches, owned entirely by `GlobalEffectBase`.
+
+**Cache (a) — local effects** (the only model-touching block). One entry per
+feature, `{"frame": tuple, ...instance-aligned arrays}`, plus shared raw
+material computed once per object (`_jac`, `_shap`, `_y_pred`). Every array is
+instance-aligned, so a boolean `(N,)` mask slices it in one expression. The
+*frame* is the discretization the method's local effect is defined on:
+
+| method | local effect | frame |
+|---|---|---|
+| PDP / DerPDP | (d-)ICE columns, one per x-position | `()` — the position store only grows |
+| ALE (continuous) | per-instance bin secants | `("fixed", nof_bins, min_points)` |
+| (RH)ALE (categorical) | adjacent-level differences | `("order", (levels…))` |
+| RHALE (continuous) | jacobian column | `()` (view of the shared table) |
+| ShapDP | shap column | `()` (view of the shared table) |
+
+**The one retrigger rule.** Recompute a local-effects entry iff it is absent or
+its stored frame differs from the frame derived from the current config
+(tuple equality, checked on every access). Same frame → the cache only grows
+(PDP positions are appended, missing-only, no invalidation — growth is
+additive). Frame change → replace the entry and bump the feature's **epoch**.
+
+**Cache (b) — summaries** (pure numpy, LRU-bounded). Entries are payloads,
+keyed `(feature, epoch, mask_key)`, and centering constants, keyed
+`(feature, epoch, mask_key, mode)`. `mask_key` normalizes `None` and all-ones
+to a single key (rule M1) — that equivalence lives in exactly one function.
+The epoch bumps on frame replacement **or** config change (a refit with new
+binning/scope), so stale summaries become *unreachable*: staleness is handled
+by key structure, never by deletion logic.
+
+**Model-touch inventory.** The model is called in exactly three situations:
+(i) filling cache (a), once per frame; (ii) (d-)PDP evaluation at a
+never-before-seen position — the missing columns only, cached forever (the
+masked off-grid variant instead recomputes transiently on `data[mask]` and
+caches nothing — partial-N columns cannot enter an instance-aligned cache);
+(iii) `_y_pred`, once. Everything else — masked/regional surfaces,
+`heter_score`, `importance`, centering constants, repeated evals and plots —
+is zero model calls, pinned by counting-model contract tests.
+
+**Subclass contract.** A method implements a frame declaration
+(`_frame_from_config`) and three pure kernels — `_compute_local` (the only
+kernel that may touch the model), `_summarize` (numpy in, payload dict out),
+`_eval_payload` (payload + xs in, numbers out) — and contains **no cache,
+retrigger, or mask logic, ever**. Methods that don't fit the mold override a
+named hook (`_eval_masked_mean`, `_importance`, the norm-const shape) — they
+never bypass the gates. `tests/toy_method.py` is the reference implementation
+and the contract suite's guinea pig.

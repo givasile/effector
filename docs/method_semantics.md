@@ -19,7 +19,9 @@ their natural numeric order. Nominal levels are indexed by an order $\pi$: decla
   `zero_integral` subtracts $c = \frac{1}{30}\sum_{j=1}^{30}\hat\mu(x_j)$ (uniform grid)
   for continuous, $c = \sum_k w_k\, \hat\mu(v_k)$ (frequency-weighted level mean) for
   discrete. `zero_start` subtracts $c=\hat\mu(a)$ for continuous, $c=\hat\mu(v_1)$ for
-  discrete (reference level = 0, as in dummy coding).
+  discrete (reference level = 0, as in dummy coding). Constants are always
+  derived from the cached local effects (design contract R14) — computing one,
+  globally or masked, never touches the model.
 - **heter_score**: $H = \frac{1}{30}\sum_{j=1}^{30} h(x_j)$ (uniform grid) for continuous;
   $H = \sum_k w_k\, h(v_k)$ (frequency-weighted) for discrete. H is what
   `find_regions` consumes.
@@ -38,12 +40,14 @@ selected instances. This is exactly what a region is (design contract R11):
 they re-summarize the stored per-instance local effects (one exception below).
 Per method, what re-runs and what stays frozen:
 
-- **PDP / DerPDP** — the grid is frozen (global frame). Masked mean and
-  variance are re-averaged over the masked *columns* of the cached ICE (d-ICE)
-  table; centering constants are recomputed per masked instance. The one
-  allowed model touch: `eval(mask=)` at points off the cached grid recomputes
-  ICE on `data[mask]` exactly; heterogeneity and plot always interpolate from
-  the cached grid.
+- **PDP / DerPDP** — the canonical grid is frozen (global frame); the position
+  store only grows as new x-positions are evaluated. Masked mean and variance
+  are re-averaged over the masked *columns* of the cached ICE (d-ICE) table;
+  centering constants are derived from those cached columns — per instance,
+  global and masked alike. The one allowed model touch: `eval(mask=)` at
+  points off the cached positions recomputes ICE on `data[mask]` exactly
+  (transient, never cached); heterogeneity and plot always interpolate from
+  the canonical grid.
 - **ALE** — bin edges are frozen (the edge-bound secants cannot be recomputed
   without touching the model). Masked per-bin means/variances are re-averaged
   from the stored per-instance effects; bins left empty by the mask are
