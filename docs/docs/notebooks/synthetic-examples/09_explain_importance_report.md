@@ -189,7 +189,7 @@ print("length (chars):", len(html))
     wrote explain_report.html
     inlined figures: True
     no external assets: True
-    length (chars): 350318
+    length (chars): 350374
 
 
 ### The `Report` is a value: it round-trips without the model
@@ -370,7 +370,7 @@ for method in ["pdp", "ale", "rhale", "shapdp"]:
     rhale   -> [('x1', 0.239), ('x0', 0.021)]
 
 
-    /home/givasile/github/packages/effector/effector/report.py:296: UserWarning: importance is undefined for feature(s) ['x2'] — this method does not support their feature type; returned NaN.
+    /home/givasile/github/packages/effector/effector/report.py:300: UserWarning: importance is undefined for feature(s) ['x2'] — this method does not support their feature type; returned NaN.
       imp = effect.importances()
 
 

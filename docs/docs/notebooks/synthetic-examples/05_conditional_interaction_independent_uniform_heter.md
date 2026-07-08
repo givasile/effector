@@ -103,7 +103,7 @@ for feature in [0, 1, 2]:
     heter_per_feat.append(y_var.mean())
 ```
 
-    Heterogeneity of x_0: 0.093
+    Heterogeneity of x_0: 0.094
     Heterogeneity of x_1: 0.088
     Heterogeneity of x_2: 0.000
 
@@ -351,7 +351,7 @@ ale_ground_truth = bench.ale_bin_variance_gt
 K = 31
 bin_centers = np.linspace(-1 + 1/K, 1 - 1/K, K)
 for feature in [0, 1, 2]:
-    bin_var = ale.feature_effect[f"feature_{feature}"]["bin_variance"]
+    bin_var = ale.payload(feature)["bin_variance"]
     gt_var = ale_ground_truth(feature)
     mask = ~np.isnan(gt_var)
     np.testing.assert_allclose(bin_var[mask], gt_var[mask], atol=1e-1)
@@ -435,7 +435,7 @@ $$H_k(x_3) \approx 0.$$
 ```python
 # make a test
 for feature in [0, 1, 2]:
-    bin_var = rhale.feature_effect[f"feature_{feature}"]["bin_variance"]
+    bin_var = rhale.payload(feature)["bin_variance"]
     gt_var = bench.rhale_bin_variance_gt(feature)
     np.testing.assert_allclose(bin_var, gt_var, atol=1e-1)
 ```
