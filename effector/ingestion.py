@@ -368,6 +368,19 @@ def ingest(
             f"data has non-numeric dtype {data.dtype}; encode it to a numeric "
             f"matrix first (see effector.from_dataframe for DataFrame columns)"
         )
+    if not callable(model):
+        raise TypeError(
+            f"`model` must be a numpy->numpy callable, got "
+            f"{type(model).__name__}. Wrap your model first — see "
+            f"effector.adapters (from_sklearn / classifier_proba / from_torch) "
+            f"or write the wrapper yourself, then verify it with "
+            f"effector.adapters.check(model, X)."
+        )
+    if model_jac is not None and not callable(model_jac):
+        raise TypeError(
+            f"`model_jac` must be a numpy->numpy callable, got "
+            f"{type(model_jac).__name__}."
+        )
     matrix = data
     dim = matrix.shape[1]
 

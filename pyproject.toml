@@ -52,6 +52,7 @@ test = [
     "numba>=0.60; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "ucimlrepo",
     "pandas",  # DataFrame-ingestion tests only; never a runtime dependency (R10)
+    "scikit-learn",  # adapter tests only; never a runtime dependency
 ]
 docs = [
     "mkdocs",

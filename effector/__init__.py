@@ -1,4 +1,5 @@
 from effector import (
+    adapters,
     axis_partitioning,
     benchmarks,
     datasets,
