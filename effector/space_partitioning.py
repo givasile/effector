@@ -154,7 +154,7 @@ class Base:
         self.target_name = target_name
 
         self.candidate_conditioning_features = helpers.prep_conditioning_features(
-            candidate_conditioning_features, feature, self.dim
+            candidate_conditioning_features, feature, self.dim, feature_names
         )
 
         self.feature_types = (

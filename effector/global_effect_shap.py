@@ -383,7 +383,7 @@ class ShapDP(GlobalEffectBase):
 
     def plot(
         self,
-        feature: int,
+        feature: Union[int, str],
         heterogeneity: Union[bool, str] = "shap_values",
         centering: Union[bool, str] = True,
         nof_points: int = 100,
@@ -402,7 +402,7 @@ class ShapDP(GlobalEffectBase):
         Plot the SHAP Dependence Plot (SDP) of the s-th feature.
 
         Args:
-            feature: index of the plotted feature
+            feature: index or name of the plotted feature
             heterogeneity: whether to output the heterogeneity of the SHAP values
 
                 - If `heterogeneity` is `False`, no heterogeneity is plotted
@@ -432,6 +432,7 @@ class ShapDP(GlobalEffectBase):
             feature_label: optional display name for the feature axis (e.g. a
                 regional node's name), overriding `feature_names[feature]`
         """
+        feature = self._resolve_feature(feature)
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
         scale_x = helpers.resolve_scale(

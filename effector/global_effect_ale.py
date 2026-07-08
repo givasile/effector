@@ -92,7 +92,7 @@ class ALEBase(GlobalEffectBase):
     def _validate_order_arg(self, features, order):
         if order is None or isinstance(order, str):
             return
-        feats = helpers.prep_features(features, self.dim)
+        feats = helpers.prep_features(features, self.dim, self.feature_names)
         cats = [f for f in feats if self._is_cat(f)]
         if len(feats) != 1 or len(cats) != 1:
             raise ValueError(
@@ -160,7 +160,7 @@ class ALEBase(GlobalEffectBase):
 
     def plot(
         self,
-        feature: int,
+        feature: Union[int, str],
         heterogeneity: Union[bool, str] = True,
         centering: Union[bool, str] = True,
         scale_x: Optional[dict] = None,
@@ -181,7 +181,7 @@ class ALEBase(GlobalEffectBase):
             This is a common method inherited by both ALE and RHALE.
 
         Parameters:
-            feature: the feature to plot
+            feature: index or name of the feature to plot
             heterogeneity: whether to plot the heterogeneity
 
                   - `False`, plots only the mean effect
@@ -223,6 +223,7 @@ class ALEBase(GlobalEffectBase):
             feature_label: optional display name for the feature axis (e.g. a
                 regional node's name), overriding `feature_names[feature]`
         """
+        feature = self._resolve_feature(feature)
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
         scale_x = helpers.resolve_scale(

@@ -561,6 +561,26 @@ class GlobalEffectBase(ABC):
             self.feature_names[feature],
         )
 
+    def _resolve_feature(self, feature: Union[int, str]) -> int:
+        """Resolve a feature given by index or name to its index (R9 errors).
+
+        Every public verb calls this first, so `pdp.plot("hour")` works
+        wherever `pdp.plot(3)` does.
+        """
+        if isinstance(feature, str):
+            return helpers.resolve_feature_name(feature, self.feature_names, self.dim)
+        if isinstance(feature, bool) or not isinstance(feature, (int, np.integer)):
+            raise TypeError(
+                f"Invalid feature of type {type(feature).__name__}: {feature!r}; "
+                "use an integer index or a feature name"
+            )
+        if not 0 <= feature < self.dim:
+            raise ValueError(
+                f"Feature index {feature} out of range for data with "
+                f"{self.dim} features"
+            )
+        return int(feature)
+
     # ------------------------------------------------------------------
     # fit: declare the config + warm the caches (R1/R14)
     # ------------------------------------------------------------------
@@ -595,7 +615,7 @@ class GlobalEffectBase(ABC):
         config, bump the epoch (the config may have changed — old summaries
         must become unreachable), then warm cache (a) and the all-ones payload
         (plus the centering constant, if a mode was declared)."""
-        features = helpers.prep_features(features, self.dim)
+        features = helpers.prep_features(features, self.dim, self.feature_names)
         centering = helpers.prep_centering(centering)
         for s in features:
             self._check_feature_type_supported(s)
@@ -615,7 +635,7 @@ class GlobalEffectBase(ABC):
     # ------------------------------------------------------------------
     def eval(
         self,
-        feature: int,
+        feature: Union[int, str],
         xs: np.ndarray,
         centering: Union[None, bool, str] = None,
         mask: Optional[np.ndarray] = None,
@@ -631,7 +651,7 @@ class GlobalEffectBase(ABC):
             `payload(feature)` for the method's raw object.
 
         Args:
-            feature: index of feature of interest
+            feature: index or name of the feature of interest
             xs: the points along the s-th axis to evaluate the effect at
 
               - `np.ndarray` of shape `(T, )`
@@ -658,6 +678,7 @@ class GlobalEffectBase(ABC):
         Returns:
             the mean effect `y` at the given `xs`, `(T,)`
         """
+        feature = self._resolve_feature(feature)
         centering = self.DEFAULT_CENTERING if centering is None else centering
         centering = helpers.prep_centering(centering)
         mask = self._resolve_mask(mask, rule)
@@ -681,7 +702,7 @@ class GlobalEffectBase(ABC):
 
     def eval_heter(
         self,
-        feature: int,
+        feature: Union[int, str],
         xs: np.ndarray,
         mask: Optional[np.ndarray] = None,
         rule: Union[None, str, "Rule"] = None,
@@ -699,7 +720,7 @@ class GlobalEffectBase(ABC):
             invariant to centering.
 
         Args:
-            feature: index of feature of interest
+            feature: index or name of the feature of interest
             xs: the points to evaluate the heterogeneity at, `(T,)`
             mask: optional boolean `(N,)` selecting a subregion. `None` (default)
                 evaluates over all instances; a mask summarizes that subset of
@@ -711,20 +732,21 @@ class GlobalEffectBase(ABC):
         Returns:
             the heterogeneity curve h(xs), `(T,)`, non-negative
         """
+        feature = self._resolve_feature(feature)
         mask = self._resolve_mask(mask, rule)
         params = self._summary(feature, mask)
         return self._eval_payload(feature, params, xs, heterogeneity=True)[1]
 
-    def payload(self, feature: int) -> dict:
+    def payload(self, feature: Union[int, str]) -> dict:
         """The method's raw fitted object for the `feature`-th feature — the
         honest method-specific state behind `eval`/`eval_heter` (per-bin
         effects and variances for (RH)ALE and ShapDP, the grid summaries for
         (d-)PDP): the all-ones summary (R14), pure numpy."""
-        return dict(self._summary(feature, None))
+        return dict(self._summary(self._resolve_feature(feature), None))
 
     def heter_score(
         self,
-        feature: int,
+        feature: Union[int, str],
         mask: Optional[np.ndarray] = None,
         rule: Union[None, str, "Rule"] = None,
     ) -> float:
@@ -739,6 +761,7 @@ class GlobalEffectBase(ABC):
         split search calls for every candidate, model-free. `rule` is sugar
         over `mask` (an `effector.Rule` or a rule string; mutually
         exclusive)."""
+        feature = self._resolve_feature(feature)
         mask = self._resolve_mask(mask, rule)
         if self._is_cat(feature):
             # frequency-weighted over levels (method_semantics.md); with a mask
@@ -756,7 +779,7 @@ class GlobalEffectBase(ABC):
 
     def find_regions(
         self,
-        feature: int,
+        feature: Union[int, str],
         *,
         finder="best",
         candidate_conditioning_features="all",
@@ -770,18 +793,23 @@ class GlobalEffectBase(ABC):
         etc. are exactly those `feature` was fitted with, replayed.
 
         Args:
-            feature: index of the feature to partition.
+            feature: index or name of the feature to partition.
             finder: a region finder — either a name (`"best"` /
                 `"best_level_wise"`) or any object implementing the finder
                 protocol (`find_regions(feature, data, score_fn, ...) -> Partition`).
             candidate_conditioning_features: features allowed to define splits
-                (`"all"` or a list of indices).
+                (`"all"` or a list of indices/names).
 
         Returns:
             a `Partition` bound to this effect (its `plot`/`eval` re-query `self`).
         """
         from effector import space_partitioning  # lazy: one-way dep guard
 
+        feature = self._resolve_feature(feature)
+        if isinstance(candidate_conditioning_features, list):
+            candidate_conditioning_features = [
+                self._resolve_feature(f) for f in candidate_conditioning_features
+            ]
         self._check_feature_type_supported(feature)
         self._ensure_local(feature)
 
@@ -806,7 +834,7 @@ class GlobalEffectBase(ABC):
 
     def importance(
         self,
-        feature: int,
+        feature: Union[int, str],
         mask: Optional[np.ndarray] = None,
         rule: Union[None, str, "Rule"] = None,
     ) -> float:
@@ -818,7 +846,7 @@ class GlobalEffectBase(ABC):
         argument). A `mask` restricts it to a subregion.
 
         Args:
-            feature: index of the feature of interest.
+            feature: index or name of the feature of interest.
             mask: optional boolean `(N,)` selecting a subregion.
             rule: sugar over `mask` — an `effector.Rule` or a rule string,
                 applied to the effect's data. Mutually exclusive with `mask`.
@@ -826,6 +854,7 @@ class GlobalEffectBase(ABC):
         Returns:
             a non-negative scalar.
         """
+        feature = self._resolve_feature(feature)
         self._check_feature_type_supported(feature)
         mask = self._resolve_mask(mask, rule)
         if mask is None:
@@ -882,7 +911,7 @@ class GlobalEffectBase(ABC):
     @abstractmethod
     def plot(
         self,
-        feature: int,
+        feature: Union[int, str],
         heterogeneity: Union[bool, str] = False,
         centering: Union[bool, str] = False,
         **kwargs,

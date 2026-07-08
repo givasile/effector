@@ -518,7 +518,7 @@ class PDP(PDPBase):
 
     def plot(
         self,
-        feature: int,
+        feature: Union[int, str],
         heterogeneity: Union[bool, str] = "ice",
         centering: Union[bool, str] = True,
         nof_points: int = 100,
@@ -537,7 +537,7 @@ class PDP(PDPBase):
         Plot the feature effect.
 
         Parameters:
-            feature: the feature to plot
+            feature: index or name of the feature to plot
             heterogeneity: whether to plot the heterogeneity
 
                   - `False`, plot only the mean effect
@@ -580,6 +580,7 @@ class PDP(PDPBase):
             feature_label: optional display name for the feature axis (e.g. a
                 regional node's name), overriding `feature_names[feature]`
         """
+        feature = self._resolve_feature(feature)
         mask = self._resolve_mask(mask, rule)
         ret = self._plot(
             feature,
@@ -721,7 +722,7 @@ class DerPDP(PDPBase):
 
     def plot(
         self,
-        feature: int,
+        feature: Union[int, str],
         heterogeneity: Union[bool, str] = "ice",
         centering: Union[bool, str] = False,
         nof_points: int = 100,
@@ -784,6 +785,7 @@ class DerPDP(PDPBase):
             feature_label: optional display name for the feature axis (e.g. a
                 regional node's name), overriding `feature_names[feature]`
         """
+        feature = self._resolve_feature(feature)
         mask = self._resolve_mask(mask, rule)
         ret = self._plot(
             feature,
