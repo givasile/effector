@@ -1,6 +1,11 @@
 """The plot layer: pure matplotlib, zero computation (R1 — every curve/band
 drawn here is handed in by the caller, already evaluated and centered).
 
+Two deliberate exceptions to "zero computation": the user-facing gatherers
+`compare` and `plot_triage` take fitted *effect objects*, query their public
+verbs (`eval`, `importance`, `heter_score`), and then draw — every private
+drawing function below stays value-in.
+
 Heterogeneity-option names are normalized once, by
 ``helpers.prep_confidence_interval``: ``True`` always means ``"std"``;
 per-method extras are ``"std_err"``/``"ice"`` (PDP family) and
@@ -11,10 +16,12 @@ otherwise (R7).
 """
 
 import typing
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+import effector.helpers as helpers
 import effector.theme as theme
 
 
@@ -588,3 +595,160 @@ def plot_shap_categorical(
         y_limits=y_limits,
     )
     return _finalize(fig, ax, show_plot)
+
+
+# ---------------------------------------------------------------------------
+# user-facing gatherers: take fitted effect objects, query public verbs, draw
+# ---------------------------------------------------------------------------
+
+
+def _method_labels(effects) -> list:
+    """Display names per effect via the method registry, deduped `PDP (2)`."""
+    from effector import method_registry  # lazy: one-way dep guard
+
+    labels, seen = [], {}
+    for e in effects:
+        base = method_registry.resolve(e.method_name).display_name
+        seen[base] = seen.get(base, 0) + 1
+        labels.append(base if seen[base] == 1 else f"{base} ({seen[base]})")
+    return labels
+
+
+def compare(
+    *effects,
+    feature: typing.Union[int, str],
+    labels: typing.Union[None, list] = None,
+    centering: typing.Union[bool, str] = True,
+    nof_points: int = 100,
+    scale_x: typing.Union[None, dict] = None,
+    scale_y: typing.Union[None, dict] = None,
+    y_limits: typing.Union[None, tuple] = None,
+    title: typing.Union[None, str] = None,
+    show_plot: bool = True,
+):
+    """Overlay the mean effect of several *fitted* effect objects on one feature.
+
+    This is the cross-examination verb that stands above the engines: you hold
+    the effect objects (possibly of different methods, or even different
+    models over the same columns), `compare` queries each one's `eval` on a
+    shared grid and overlays the curves — one color per effect from the theme
+    cycle. It computes nothing itself and stores nothing.
+
+    The single-model shortcut with the same look is
+    `effector.FeatureEffect(data, model).plot(feature, methods=[...])`, which
+    builds its own engines; `compare` overlays engines you already have.
+
+    Args:
+        *effects: two or more effect objects (`PDP`/`ALE`/`RHALE`/`ShapDP`/
+            `DerPDP`) over data with the same columns. Derivative-unit effects
+            (`DerPDP`, dy/dx) cannot be mixed with level-unit ones.
+        feature: index or name of the feature to compare on.
+        labels: one legend label per effect; defaults to the method display
+            names (`"PDP"`, `"RHALE"`, ...), deduped.
+        centering: how to center the curves. A comparison is meaningful only
+            when centered, so `False` is coerced to `"zero_integral"` with a
+            warning.
+        nof_points: size of the shared grid (continuous features).
+        scale_x, scale_y: `None` or dict with keys `["mean", "std"]`; default
+            to the first effect's schema scaling.
+        y_limits: `None` or tuple, manual y-axis limits.
+        title: figure title.
+        show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`.
+    """
+    if len(effects) < 2:
+        raise ValueError(
+            f"compare needs at least two effect objects, got {len(effects)}"
+        )
+
+    dims = {e.dim for e in effects}
+    if len(dims) != 1:
+        raise ValueError(
+            f"compare needs effects over data with the same columns; "
+            f"got dims {sorted(dims)}"
+        )
+    idxs = [e._resolve_feature(feature) for e in effects]
+    if len(set(idxs)) != 1:
+        raise ValueError(
+            f"feature {feature!r} resolves to different columns across the "
+            f"effects: {idxs}; align the schemas or pass an index"
+        )
+    f = idxs[0]
+
+    is_cat = {bool(e._is_cat(f)) for e in effects}
+    if len(is_cat) != 1:
+        raise ValueError(
+            f"the effects disagree on whether feature {feature!r} is "
+            "categorical; align the schemas"
+        )
+    discrete = is_cat.pop()
+
+    is_der = [e.method_name == "d-pdp" for e in effects]
+    if any(is_der) and not all(is_der):
+        raise ValueError(
+            "cannot mix derivative-unit effects (DerPDP, dy/dx) with "
+            "level-unit effects (PDP/ALE/RHALE/ShapDP) on one axis"
+        )
+
+    centering = helpers.prep_centering(centering)
+    if centering is False:
+        warnings.warn(
+            "Comparing methods without centering is not meaningful (each "
+            "method uses a different reference level). Using "
+            "centering='zero_integral'.",
+            stacklevel=2,
+        )
+        centering = "zero_integral"
+
+    first = effects[0]
+    if discrete:
+        level_sets = [tuple(np.unique(e.data[:, f]).tolist()) for e in effects]
+        if len(set(level_sets)) != 1:
+            raise ValueError(
+                f"the effects observe different level sets for feature "
+                f"{feature!r}: {sorted(set(level_sets))}"
+            )
+        xs, level_labels = first._level_display(f)
+        xs = np.asarray(xs, dtype=float)
+    else:
+        lo = max(e.axis_limits[0, f] for e in effects)
+        hi = min(e.axis_limits[1, f] for e in effects)
+        if not lo < hi:
+            raise ValueError(
+                f"the effects' axis intervals for feature {feature!r} do not "
+                f"overlap (intersection [{lo}, {hi}])"
+            )
+        xs = np.linspace(lo, hi, nof_points)
+        level_labels = None
+
+    if labels is None:
+        labels = _method_labels(effects)
+    elif len(labels) != len(effects):
+        raise ValueError(
+            f"got {len(labels)} labels for {len(effects)} effects"
+        )
+
+    curves = {
+        label: e.eval(f, xs, centering=centering)
+        for label, e in zip(labels, effects)
+    }
+
+    scale_x = helpers.resolve_scale(
+        scale_x, first.scale_x_list[f] if first.scale_x_list else None
+    )
+    scale_y = helpers.resolve_scale(scale_y, first.scale_y)
+
+    return plot_effect_comparison(
+        xs,
+        f,
+        curves,
+        scale_x=scale_x,
+        scale_y=scale_y,
+        avg_output=None,  # possibly different models: no shared baseline
+        feature_names=first.feature_names,
+        target_name="dy/dx" if all(is_der) else first.target_name,
+        y_limits=y_limits,
+        title=title,
+        discrete=discrete,
+        level_labels=level_labels,
+        show_plot=show_plot,
+    )
