@@ -289,6 +289,6 @@ is zero model calls, pinned by counting-model contract tests.
 kernel that may touch the model), `_summarize` (numpy in, payload dict out),
 `_eval_payload` (payload + xs in, numbers out) — and contains **no cache,
 retrigger, or mask logic, ever**. Methods that don't fit the mold override a
-named hook (`_eval_masked_mean`, `_importance`, the norm-const shape) — they
+named hook (`_eval_mean`, `_importance`, the norm-const shape) — they
 never bypass the gates. `tests/toy_method.py` is the reference implementation
 and the contract suite's guinea pig.
