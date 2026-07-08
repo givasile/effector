@@ -10,16 +10,25 @@ axis limits, never from a parent subset. Candidates are k-way by
 construction (``len(conditions) >= 2``), so richer proposers (categorical
 subsets, multiway, continuous change-point) plug in without a finder change.
 
-This module is a **leaf**: numpy + stdlib + `effector.rules` (itself a leaf)
-+ the `effector.ingestion` taxonomy predicate. It must NOT import
-`partition`, `space_partitioning`, or `global_effect`.
+This module is a **leaf**: numpy + stdlib + `effector.rules` (itself a leaf),
+the `effector.ingestion` taxonomy predicate, and `effector.ordering` (level
+seriation). It must NOT import `partition`, `space_partitioning`, or
+`global_effect`.
+
+Proposers are **stateless**: the finder protocol deep-copies the finder but
+not the proposer instances captured in its `proposer_factory`, so the same
+instance may serve searches over different datasets — any instance cache
+would silently go stale.
 """
 
+import itertools
+import math
+import warnings
 from dataclasses import dataclass
 
 import numpy as np
 
-from effector import ingestion
+from effector import ingestion, ordering
 from effector.rules import Condition, Interval, LevelSet
 
 
@@ -77,13 +86,19 @@ class ContinuousThreshold:
         ]
 
 
+def _observed_levels(ctx: SearchContext, foc: int) -> list:
+    """The observed level universe, ascending — the one float
+    canonicalization every categorical proposer must share."""
+    return sorted({float(v) for v in np.unique(ctx.data[:, foc])})
+
+
 class CategoricalOneVsRest:
     """One-vs-rest over the observed levels: ``({v}, universe - {v})`` per
     level, ascending. Owns the ``!=`` semantics — the complement is
     materialized as an explicit `LevelSet` over the observed universe."""
 
     def propose(self, ctx: SearchContext, foc: int) -> list:
-        universe = {float(v) for v in np.unique(ctx.data[:, foc])}
+        universe = set(_observed_levels(ctx, foc))
         return [
             CandidateSplit(
                 (
@@ -92,6 +107,132 @@ class CategoricalOneVsRest:
                 )
             )
             for v in sorted(universe)
+        ]
+
+
+class CategoricalMultiway:
+    """One k-way candidate: one ``LevelSet({v})`` child per observed level,
+    ascending. Fewer than 2 observed levels proposes nothing (a 1-condition
+    candidate is not a split)."""
+
+    def propose(self, ctx: SearchContext, foc: int) -> list:
+        universe = _observed_levels(ctx, foc)
+        if len(universe) < 2:
+            return []
+        return [CandidateSplit(tuple(Condition(foc, LevelSet({v})) for v in universe))]
+
+
+class CategoricalSubsets:
+    """Every binary subset-vs-complement split over the observed levels, each
+    unordered ``{S, complement}`` pair exactly once: the smallest level is
+    pinned to the first child, subsets enumerate size-ascending (ties in the
+    finder's argmin therefore prefer simpler splits), lexicographic within a
+    size — so the first candidates are exactly the one-vs-rest singletons.
+
+    ``2^(K-1) - 1`` candidates explode with the level count, so above
+    ``max_levels`` the proposal degrades to the singleton slice (the
+    one-vs-rest list) with a `UserWarning` — the feature stays searchable
+    instead of silently vanishing from the candidate set.
+    """
+
+    def __init__(self, max_levels: int = 8):
+        if max_levels < 2:
+            raise ValueError(f"max_levels must be >= 2; got {max_levels}")
+        self.max_levels = max_levels
+
+    def propose(self, ctx: SearchContext, foc: int) -> list:
+        universe = _observed_levels(ctx, foc)
+        if len(universe) < 2:
+            return []
+        if len(universe) > self.max_levels:
+            warnings.warn(
+                f"feature {foc} has {len(universe)} observed levels "
+                f"(> max_levels={self.max_levels}); proposing only the "
+                f"one-vs-rest subsets"
+            )
+            return CategoricalOneVsRest().propose(ctx, foc)
+        head, rest = universe[0], universe[1:]
+        return [
+            CandidateSplit(
+                (
+                    Condition(foc, LevelSet({head, *combo})),
+                    Condition(foc, LevelSet(set(universe) - {head, *combo})),
+                )
+            )
+            for r in range(len(rest))  # |S| - 1, ascending; complement nonempty
+            for combo in itertools.combinations(rest, r)
+        ]
+
+
+class CategoricalOrdered:
+    """``K - 1`` contiguous prefix/suffix binary splits after ordering the
+    levels — both sides explicit `LevelSet`s.
+
+    ``order`` decides the level order, resolved per feature at propose time:
+
+    - ``"auto"`` (default): natural ascending for ordinal features,
+      `effector.ordering.similarity_order` seriation for nominal ones;
+    - ``"natural"`` / ``"similarity"``: force one of the two;
+    - an explicit sequence of level values: used as-is, restricted to the
+      observed levels (an observed level missing from it raises).
+
+    The similarity order is recomputed on each propose call (per node or per
+    level of the search) — deterministic, and cheap at ``cat_limit``-sized
+    level counts; it must not be cached on the instance (see the module note
+    on statelessness).
+    """
+
+    _ORDER_STRINGS = ("auto", "natural", "similarity")
+
+    def __init__(self, order="auto"):
+        if isinstance(order, str):
+            if order not in self._ORDER_STRINGS:
+                raise ValueError(
+                    f"order must be one of {self._ORDER_STRINGS} or a "
+                    f"sequence of level values; got {order!r}"
+                )
+            self.order = order
+        else:
+            levels = tuple(float(v) for v in order)
+            if any(math.isnan(v) for v in levels):
+                raise ValueError("an explicit order must not contain NaN")
+            self.order = levels
+
+    def _ordered_levels(self, ctx: SearchContext, foc: int, universe: list) -> list:
+        if not isinstance(self.order, str):  # explicit level sequence
+            observed = set(universe)
+            ordered = [v for v in self.order if v in observed]
+            missing = observed - set(ordered)
+            if missing:
+                raise ValueError(
+                    f"explicit order for feature {foc} is missing the "
+                    f"observed levels {sorted(missing)}"
+                )
+            return ordered
+        by_similarity = self.order == "similarity" or (
+            self.order == "auto"
+            and ctx.feature_types[foc] in (ingestion.NOMINAL, "cat")
+        )
+        if by_similarity:
+            perm = ordering.similarity_order(
+                ctx.data, foc, np.array(universe), list(ctx.feature_types)
+            )
+            return [universe[i] for i in perm]
+        return universe  # natural ascending
+
+    def propose(self, ctx: SearchContext, foc: int) -> list:
+        universe = _observed_levels(ctx, foc)
+        if len(universe) < 2:
+            return []
+        levels = self._ordered_levels(ctx, foc, universe)
+        return [
+            CandidateSplit(
+                (
+                    Condition(foc, LevelSet(levels[:i])),
+                    Condition(foc, LevelSet(levels[i:])),
+                )
+            )
+            for i in range(1, len(levels))
         ]
 
 
