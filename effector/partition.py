@@ -3,75 +3,74 @@
 `find_regions(feature)` returns a `Partition` — a *value*, not stored state
 (design contract R12). A `Partition` holds an ordered list of `Region`s plus a
 weak-ish binding to the effect that produced it (for the `plot`/`eval` sugar and
-the future report/interactive layers). Serialization crosses the boundary via
+the report/interactive layers). Serialization crosses the boundary via
 `to_dict()`; the bound effect is never serialized.
 
-This module is a **leaf**: it imports only numpy + stdlib + `effector.helpers`
-(scale precedence) and `effector.ingestion` (categorical predicate). It must NOT
-import `space_partitioning`, `tree`, or `global_effect` — the dependency flows
-one way (those import this).
+A `Region` is **rule-primary**: its identity is a `rules.Rule` (a normalized
+conjunction of per-feature conditions). Membership, display, and serialization
+all derive from that one object, so they cannot drift apart. The boolean mask
+is a derived cache stamped against one dataset — `bind(effect)` recomputes it
+from the rule and verifies it, which is what makes a deserialized partition
+safely re-attachable.
+
+This module is a **leaf**: it imports only numpy + stdlib, `effector.helpers`
+(scale precedence), `effector.ingestion` (categorical predicate), and
+`effector.rules` (itself a leaf). It must NOT import `space_partitioning`,
+`tree`, or `global_effect` — the dependency flows one way (those import this).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Optional
 
 import numpy as np
 
-from effector import helpers
-
-# Comparison glyphs — ported from tree.py:_comparison_str so we need not import
-# tree (keeps this module a leaf). Keep in sync with tree.Tree._comparison_str.
-_COMPARISON_GLYPH = {">=": "≥", "<=": "≤", "!=": "≠", "==": "="}
-
-
-def _glyph(comparison: str) -> str:
-    return _COMPARISON_GLYPH.get(comparison, comparison)
+from effector import helpers, ingestion
+from effector.rules import Condition, Interval, LevelSet, Rule
 
 
 @dataclass(frozen=True)
 class Region:
-    """One subregion of a feature's domain, defined by a boolean mask over the data.
+    """One subregion of a feature's domain, defined by a `Rule`.
 
-    `idx == 0` is the full-data region (root). Split metadata (`foc_*`,
-    `comparison`) is None for the root and for flat finders that do not split.
+    `idx == 0` is the full-data region (root, `rule.is_root`). `mask` is a
+    derived cache — the rule applied to one dataset; it is `None` on a
+    deserialized region until `Partition.bind` recomputes it.
     """
 
     idx: int
     name: str
-    mask: np.ndarray
+    rule: Rule
     heterogeneity: float
     nof_instances: int
     weight: float
     level: int = 0
     parent_idx: Optional[int] = None
-    foc_index: Optional[int] = None
-    foc_name: Optional[str] = None
-    foc_type: Optional[str] = None
-    foc_split_position: Optional[float] = None
-    comparison: Optional[str] = None
+    mask: Optional[np.ndarray] = field(default=None, compare=False, repr=False)
 
-    def _condition_string(self, scale_x_list=None) -> str:
-        """The single condition that carves this region out of its parent, e.g.
-        ``"temp ≤ 6.50"``. Mirrors tree.Tree._get_condition_string exactly."""
-        pos = self.foc_split_position
-        if scale_x_list:
-            stats = scale_x_list[self.foc_index]
-            if stats is not None:
-                pos = stats["std"] * pos + stats["mean"]
-        return f"{self.foc_name} {_glyph(self.comparison)} {pos:.2f}"
+
+def _subset_sort_key(subset):
+    if isinstance(subset, Interval):
+        return (0, subset.lo, subset.hi)
+    return (1, tuple(sorted(subset.levels)))
 
 
 class Partition:
     """An ordered set of `Region`s covering a feature, produced by a finder.
 
-    Constructed with keyword-only metadata. `regions[0]` is the root (full data,
-    weight 1.0). A hierarchy is optional: `parent_idx` chains encode a tree when a
-    tree finder produced it, but flat finders may leave `parent_idx is None`.
+    Constructed with keyword-only metadata. `regions[0]` is the root (full
+    data, weight 1.0, root rule). A hierarchy is optional: `parent_idx` chains
+    encode a tree when a tree finder produced it, but flat producers (a user's
+    `from_rules`, future flat finders) may leave non-root `parent_idx` chains
+    shallow. The construction invariant: the leaves partition the root —
+    pairwise disjoint and jointly covering (checked whenever masks are
+    present; `bind` re-checks after recomputing masks from rules).
     """
 
-    def __init__(self, regions, *, feature, feature_name, finder_name):
+    def __init__(
+        self, regions, *, feature, feature_name, finder_name, feature_names=None
+    ):
         if not regions:
             raise ValueError("Partition needs at least one region (the root).")
         for i, r in enumerate(regions):
@@ -84,27 +83,147 @@ class Partition:
             raise ValueError("Root region (idx 0) must have parent_idx=None.")
         if root.weight != 1.0:
             raise ValueError("Root region (idx 0) must have weight == 1.0.")
+        if not root.rule.is_root:
+            raise ValueError("Root region (idx 0) must have the root rule (Rule({})).")
 
         self.regions = list(regions)
         self.feature = feature
         self.feature_name = feature_name
         self.finder_name = finder_name
+        self.feature_names = list(feature_names) if feature_names is not None else None
         self._effect = None
         self._default_scale_x_list = None
+        self._category_names = None
+        self._check_leaves_partition()
 
-    # -- binding to the producing effect (set by find_regions) ----------------
-    def _bind(self, effect):
+    def _check_leaves_partition(self):
+        """The partition invariant: leaves pairwise disjoint ∧ union == root.
+        Runs only when every involved mask is present (post-`from_dict`
+        regions carry no masks until `bind`)."""
+        leaves = self.leaves
+        root = self.regions[0]
+        involved = [root] + leaves
+        if any(r.mask is None for r in involved):
+            return
+        counts = np.zeros(root.mask.shape[0], dtype=int)
+        for leaf in leaves:
+            counts += leaf.mask.astype(int)
+        overlap = int(np.sum(counts > root.mask.astype(int)))
+        gap = int(np.sum((counts == 0) & root.mask))
+        if overlap or gap:
+            raise ValueError(
+                f"Leaves do not partition the root region: {overlap} instance(s) "
+                f"covered more than once (or outside the root), {gap} not covered."
+            )
+
+    # -- binding to an effect ----------------------------------------------------
+    def bind(self, effect):
+        """Attach an effect: recompute every region's mask from its rule
+        against `effect.data` and verify it against the stored evidence — the
+        finder's mask when present (an exactness tripwire on the `find_regions`
+        path), else the serialized `nof_instances` (the `from_dict` path).
+        Returns `self`, live: `eval`/`plot`/`mask` work afterwards."""
+        rebuilt = []
+        for r in self.regions:
+            m = r.rule.contains(effect.data)
+            if r.mask is not None:
+                if not (m.shape == r.mask.shape and np.array_equal(m, r.mask)):
+                    raise ValueError(
+                        f"Region {r.idx} ({r.name!r}): the rule selects different "
+                        f"instances than the stored mask — the partition was built "
+                        f"on different data."
+                    )
+                rebuilt.append(r)
+            else:
+                n = int(m.sum())
+                if n != r.nof_instances:
+                    raise ValueError(
+                        f"Region {r.idx} ({r.name!r}): the rule selects {n} "
+                        f"instances on this effect's data but the partition was "
+                        f"built with {r.nof_instances}. The effect's data differs "
+                        f"— check `nof_instances` subsampling and `random_state`."
+                    )
+                rebuilt.append(replace(r, mask=m))
+        self.regions = rebuilt
         self._effect = effect
         self._default_scale_x_list = effect.scale_x_list
+        self._category_names = effect.feature_metadata.category_names
+        if self.feature_names is None:
+            self.feature_names = list(effect.feature_names)
+        self._check_leaves_partition()
         return self
 
     def _require_effect(self):
         if self._effect is None:
             raise RuntimeError(
                 "This Partition is not bound to an effect (e.g. it was rebuilt "
-                "from to_dict()); eval/plot are unavailable."
+                "from to_dict()); call bind(effect) to enable eval/plot."
             )
         return self._effect
+
+    # -- user-authored partitions --------------------------------------------------
+    @classmethod
+    def from_rules(cls, rules, *, effect, feature, finder_name="user"):
+        """Build a partition from user-given rules (Rule objects or strings,
+        parsed with the effect's metadata). The rules must partition the data
+        — pairwise disjoint and jointly covering (constructor invariant).
+        Stats are stamped from the effect (model-free); the result is bound."""
+        parsed = []
+        for r in rules:
+            if isinstance(r, str):
+                levels = {
+                    j: np.unique(effect.data[:, j])
+                    for j in range(effect.dim)
+                    if ingestion.is_categorical(effect.feature_types[j])
+                }
+                r = Rule.parse(
+                    r,
+                    feature_names=effect.feature_names,
+                    feature_types=effect.feature_types,
+                    levels=levels,
+                    category_names=effect.feature_metadata.category_names,
+                )
+            parsed.append(r)
+
+        n_total = effect.data.shape[0]
+        feature_name = effect.feature_names[feature]
+        regions = [
+            Region(
+                idx=0,
+                name=feature_name,
+                rule=Rule({}),
+                heterogeneity=float(effect.heter_score(feature)),
+                nof_instances=n_total,
+                weight=1.0,
+                level=0,
+                parent_idx=None,
+                mask=np.ones(n_total, dtype=bool),
+            )
+        ]
+        for i, rule in enumerate(parsed):
+            mask = rule.contains(effect.data)
+            n = int(mask.sum())
+            regions.append(
+                Region(
+                    idx=i + 1,
+                    name=f"{feature_name} | {rule.format(effect.feature_names)}",
+                    rule=rule,
+                    heterogeneity=float(effect.heter_score(feature, mask=mask)),
+                    nof_instances=n,
+                    weight=n / n_total,
+                    level=1,
+                    parent_idx=0,
+                    mask=mask,
+                )
+            )
+        partition = cls(
+            regions,
+            feature=feature,
+            feature_name=feature_name,
+            finder_name=finder_name,
+            feature_names=effect.feature_names,
+        )
+        return partition.bind(effect)
 
     # -- container protocol ----------------------------------------------------
     def __len__(self):
@@ -131,37 +250,49 @@ class Partition:
     # -- masks & labels --------------------------------------------------------
     def mask(self, idx):
         """Boolean mask of region `idx` (a COPY — safe to mutate)."""
-        return self[idx].mask.copy()
+        region = self[idx]
+        if region.mask is None:
+            raise RuntimeError(
+                f"Region {idx} has no mask (unbound partition — rebuilt from "
+                f"to_dict()); call bind(effect) first."
+            )
+        return region.mask.copy()
+
+    def _format_rule(self, rule, scale_x_list):
+        return rule.format(self.feature_names, scale_x_list, self._category_names)
 
     def label(self, idx, scale_x_list=None):
         """Human-readable label for region `idx`. Root -> feature name; else
-        ``"<feature> | cond and cond and ..."`` walking root->idx."""
+        ``"<feature> | <formatted rule>"``."""
         scale_x_list = helpers.resolve_scale(scale_x_list, self._default_scale_x_list)
         region = self[idx]
-        if region.parent_idx is None and region.level == 0:
+        if region.rule.is_root:
             return self.feature_name
-        # walk from idx up to (but excluding) the root, collecting conditions
-        chain = []
-        cur = region
-        while cur is not None and cur.parent_idx is not None:
-            chain.append(cur)
-            cur = self.regions[cur.parent_idx]
-        chain.reverse()
-        conds = [r._condition_string(scale_x_list) for r in chain]
-        return f"{self.feature_name} | " + " and ".join(conds)
+        return f"{self.feature_name} | {self._format_rule(region.rule, scale_x_list)}"
 
-    def _short_label(self, region, scale_x_list=None):
-        """The node's own single condition (root -> feature name)."""
-        if region.parent_idx is None and region.level == 0:
+    def _own_condition(self, region, scale_x_list=None):
+        """The condition(s) that carve this region out of its parent (root ->
+        feature name) — the per-node short label of the tree print."""
+        if region.rule.is_root:
             return self.feature_name
-        return region._condition_string(scale_x_list)
+        parent_rule = (
+            self.regions[region.parent_idx].rule
+            if region.parent_idx is not None
+            else Rule({})
+        )
+        diff = {
+            f: s
+            for f, s in region.rule.conditions.items()
+            if parent_rule.get(f) != s
+        }
+        return self._format_rule(Rule(diff), scale_x_list)
 
-    # -- terminal summary (byte-for-byte with old RegionalEffectBase.summary) ---
+    # -- terminal summaries ------------------------------------------------------
     def show(self, scale_x_list=None):
         scale_x_list = helpers.resolve_scale(scale_x_list, self._default_scale_x_list)
         feature = self.feature
 
-        # A future flat finder may produce non-root regions with parent_idx=None;
+        # A flat producer yields non-root regions with parent_idx=None;
         # tree rendering does not apply there.
         is_flat = any(r.level > 0 and r.parent_idx is None for r in self.regions)
 
@@ -194,7 +325,7 @@ class Partition:
         for r in self.regions:
             indent = "    " * r.level
             print(
-                f"{indent}{self._short_label(r, scale_x_list)} 🔹 "
+                f"{indent}{self._own_condition(r, scale_x_list)} 🔹 "
                 f"[id: {r.idx} | heter: {r.heterogeneity:.2f} "
                 f"| inst: {r.nof_instances:d} | w: {r.weight:.2f}]"
             )
@@ -216,6 +347,82 @@ class Partition:
                     f"{indent}Level {lev}🔹heter: {hk:.2f} | 🔻{drop:.2f} ({perc:.2f}%)"
                 )
             prev_heter = hk
+
+    def _stat_chip(self, region, with_weight=True):
+        chip = (
+            f"[id: {region.idx} | heter: {region.heterogeneity:.2f} "
+            f"| inst: {region.nof_instances:d}"
+        )
+        return chip + (f" | w: {region.weight:.2f}]" if with_weight else "]")
+
+    def show_axes(self, scale_x_list=None):
+        """The axis view: when the leaves differ on one conditioning feature,
+        print them as a partition of that axis; on two, as a grid. Anything
+        else falls back to the tree print."""
+        scale_x_list = helpers.resolve_scale(scale_x_list, self._default_scale_x_list)
+        leaves = self.leaves
+        feats = sorted({f for leaf in leaves for f in leaf.rule.features})
+
+        def fmt(f, subset):
+            return self._format_rule(Rule({f: subset}), scale_x_list)
+
+        if not feats:
+            return self.show(scale_x_list)
+
+        if len(feats) == 1:
+            f = feats[0]
+            if any(leaf.rule.get(f) is None for leaf in leaves):
+                return self.show(scale_x_list)
+            print("\n")
+            print(f"Feature {self.feature} - Partition along 1 axis:")
+            for leaf in sorted(leaves, key=lambda r: _subset_sort_key(r.rule[f])):
+                print(f"{fmt(f, leaf.rule[f])} 🔹 {self._stat_chip(leaf)}")
+            print("\n")
+            return
+
+        if len(feats) == 2:
+            f_row, f_col = feats
+            cells = {}
+            for leaf in leaves:
+                sr, sc = leaf.rule.get(f_row), leaf.rule.get(f_col)
+                if sr is None or sc is None or (sr, sc) in cells:
+                    return self.show(scale_x_list)
+                cells[(sr, sc)] = leaf
+            rows = sorted({k[0] for k in cells}, key=_subset_sort_key)
+            cols = sorted({k[1] for k in cells}, key=_subset_sort_key)
+            if len(rows) * len(cols) != len(cells):
+                return self.show(scale_x_list)
+
+            row_labels = [fmt(f_row, s) for s in rows]
+            col_labels = [fmt(f_col, s) for s in cols]
+            cell_strs = [
+                [self._stat_chip(cells[(sr, sc)], with_weight=False) for sc in cols]
+                for sr in rows
+            ]
+            w0 = max(len(lab) for lab in row_labels)
+            widths = [
+                max(len(col_labels[j]), *(len(row[j]) for row in cell_strs))
+                for j in range(len(cols))
+            ]
+            print("\n")
+            print(f"Feature {self.feature} - Partition along 2 axes:")
+            print(
+                " " * w0
+                + "   "
+                + "   ".join(lab.ljust(widths[j]) for j, lab in enumerate(col_labels))
+            )
+            for i, row_lab in enumerate(row_labels):
+                print(
+                    row_lab.ljust(w0)
+                    + "   "
+                    + "   ".join(
+                        cell_strs[i][j].ljust(widths[j]) for j in range(len(cols))
+                    )
+                )
+            print("\n")
+            return
+
+        return self.show(scale_x_list)
 
     # -- effect-backed sugar ---------------------------------------------------
     def eval(self, idx, xs, **kwargs):
@@ -241,23 +448,25 @@ class Partition:
     @classmethod
     def from_dict(cls, d):
         """Rebuild a `Partition` from `to_dict()` output. The result is
-        UNBOUND (no effect): `show`/`label`/`leaves`/`mask` work; `eval`/`plot`
-        raise until an effect binds it."""
+        UNBOUND (no effect, no masks): `show`/`label`/`leaves` work;
+        `bind(effect)` recomputes and verifies the masks, restoring
+        `eval`/`plot`/`mask`."""
+        if d.get("schema_version") != 2:
+            raise ValueError(
+                "Unsupported partition dict: expected schema_version 2 "
+                "(rule-based); v1 (mask-based) dicts are not supported."
+            )
         regions = [
             Region(
                 idx=r["idx"],
                 name=r["name"],
-                mask=np.asarray(r["mask"], dtype=bool),
+                rule=Rule.from_dict(r["rule"]),
                 heterogeneity=float(r["heterogeneity"]),
                 nof_instances=int(r["nof_instances"]),
                 weight=float(r["weight"]),
                 level=int(r["level"]),
                 parent_idx=r["parent_idx"],
-                foc_index=r["foc_index"],
-                foc_name=r["foc_name"],
-                foc_type=r["foc_type"],
-                foc_split_position=r["foc_split_position"],
-                comparison=r["comparison"],
+                mask=None,
             )
             for r in d["regions"]
         ]
@@ -266,45 +475,72 @@ class Partition:
             feature=d["feature"],
             feature_name=d["feature_name"],
             finder_name=d["finder"],
+            feature_names=d.get("feature_names"),
         )
 
     def to_dict(self):
         return {
+            "schema_version": 2,
             "feature": self.feature,
             "feature_name": self.feature_name,
+            "feature_names": self.feature_names,
             "finder": self.finder_name,
             "regions": [
                 {
                     "idx": r.idx,
                     "name": r.name,
-                    "mask": r.mask.astype(bool).tolist(),
+                    "rule": r.rule.to_dict(),
                     "heterogeneity": float(r.heterogeneity),
                     "nof_instances": int(r.nof_instances),
                     "weight": float(r.weight),
                     "level": int(r.level),
                     "parent_idx": r.parent_idx,
-                    "foc_index": r.foc_index,
-                    "foc_name": r.foc_name,
-                    "foc_type": r.foc_type,
-                    "foc_split_position": r.foc_split_position,
-                    "comparison": r.comparison,
                 }
                 for r in self.regions
             ],
         }
 
 
-def partition_from_tree(tree, *, feature, feature_name, finder_name) -> Partition:
-    """Build a `Partition` from a `space_partitioning` `Tree`. Region.idx equals
-    the old node idx (insertion order), so downstream code that referenced
-    node_idx keeps working."""
+def partition_from_tree(tree, *, feature, feature_names, finder_name, data) -> Partition:
+    """Build a `Partition` from a `space_partitioning` `Tree`. Region.idx
+    equals the node idx (insertion order). Each node's `Rule` is synthesized
+    by refining its parent's rule with the node's own split condition — with
+    the MASK semantics (`x < t` / `x >= t`; `== v` / the explicit complement
+    of `v` over the observed levels, materialized from `data`)."""
+    feature_name = feature_names[feature]
     regions = []
+    rule_of = {}
     for node in tree.nodes:
+        if node.parent_node is None:
+            rule = Rule({})
+        else:
+            info = node.info
+            foc = int(info["foc_index"])
+            pos = float(info["foc_split_position"])
+            comparison = info["comparison"]
+            if comparison == "<=":  # left child: mask is x < t
+                subset = Interval(hi=pos)
+            elif comparison == ">":  # right child: mask is x >= t
+                subset = Interval(lo=pos)
+            elif comparison == "==":
+                subset = LevelSet([pos])
+            elif comparison == "!=":
+                universe = {float(v) for v in np.unique(data[:, foc])}
+                subset = LevelSet(universe - {pos})
+            else:
+                raise ValueError(f"unknown comparison {comparison!r} in tree node")
+            rule = rule_of[node.parent_node.idx].refine(Condition(foc, subset))
+        rule_of[node.idx] = rule
+        name = (
+            feature_name
+            if rule.is_root
+            else f"{feature_name} | {rule.format(feature_names)}"
+        )
         regions.append(
             Region(
                 idx=node.idx,
-                name=node.name,
-                mask=node.info["active_indices"].astype(bool),
+                name=name,
+                rule=rule,
                 heterogeneity=float(node.info["heterogeneity"]),
                 nof_instances=int(node.info["nof_instances"]),
                 weight=float(node.info["weight"]),
@@ -312,13 +548,13 @@ def partition_from_tree(tree, *, feature, feature_name, finder_name) -> Partitio
                 parent_idx=(
                     node.parent_node.idx if node.parent_node is not None else None
                 ),
-                foc_index=node.info.get("foc_index"),
-                foc_name=node.info.get("foc_name"),
-                foc_type=node.info.get("foc_type"),
-                foc_split_position=node.info.get("foc_split_position"),
-                comparison=node.info.get("comparison"),
+                mask=node.info["active_indices"].astype(bool),
             )
         )
     return Partition(
-        regions, feature=feature, feature_name=feature_name, finder_name=finder_name
+        regions,
+        feature=feature,
+        feature_name=feature_name,
+        finder_name=finder_name,
+        feature_names=feature_names,
     )

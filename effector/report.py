@@ -175,6 +175,8 @@ class Report:
             parts.append(self._img(self._effect_fig(fr)))
             if fr.partition is not None and len(fr.partition["regions"]) > 1:
                 part = Partition.from_dict(fr.partition)
+                if self._effect is not None:
+                    part = part.bind(self._effect)
                 parts.append(f"<pre>{self._partition_text(part)}</pre>")
                 if self._effect is not None:
                     for r in part.leaves:

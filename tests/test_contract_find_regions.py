@@ -310,3 +310,76 @@ def test_rc10_high_cardinality_categorical_conditioning_feature():
         X, model, method="pdp", schema=schema, nof_instances="all", top_k=2
     )
     assert len(rep.features) == 2
+
+# ---------------------------------------------------------------------------
+# RC11 — rule= sugar: equivalent to the mask it materializes; mutually
+# exclusive with mask=; strings parse with the effect's metadata.
+# ---------------------------------------------------------------------------
+
+
+def test_rc11_rule_equals_mask(rc5_effect):
+    fx = rc5_effect
+    r = effector.Rule({1: effector.rules.Interval(lo=0.0)})
+    mask = r.contains(fx.data)
+    np.testing.assert_allclose(
+        fx.eval(0, XS, mask=mask), fx.eval(0, XS, rule=r), atol=1e-12
+    )
+    np.testing.assert_allclose(
+        fx.eval_heter(0, XS, mask=mask), fx.eval_heter(0, XS, rule=r), atol=1e-12
+    )
+    assert fx.heter_score(0, mask=mask) == fx.heter_score(0, rule=r)
+    assert fx.importance(0, mask=mask) == fx.importance(0, rule=r)
+
+
+def test_rc11_rule_string_parses(rc5_effect):
+    fx = rc5_effect
+    y_str = fx.eval(0, XS, rule="x_1 >= 0")
+    y_rule = fx.eval(0, XS, rule=effector.Rule({1: effector.rules.Interval(lo=0.0)}))
+    np.testing.assert_allclose(y_str, y_rule, atol=1e-12)
+
+
+def test_rc11_rule_and_mask_mutually_exclusive(rc5_effect):
+    fx = rc5_effect
+    mask = np.ones(fx.data.shape[0], dtype=bool)
+    with pytest.raises(ValueError, match="not both"):
+        fx.eval(0, XS, mask=mask, rule="x_1 >= 0")
+
+
+# ---------------------------------------------------------------------------
+# RC12 — serialization round trip: to_dict (v2, no masks) -> from_dict ->
+# bind(effect) restores identical masks/labels/eval; binding to different
+# data raises.
+# ---------------------------------------------------------------------------
+
+
+def test_rc12_roundtrip_and_rebind(fitted_partition):
+    import json
+
+    name, effect, part = fitted_partition
+    d = part.to_dict()
+    assert d["schema_version"] == 2
+    assert "mask" not in json.dumps(d)
+
+    restored = Partition.from_dict(d)
+    with pytest.raises(RuntimeError, match="bind"):
+        restored.eval(0, XS)
+    restored.bind(effect)
+    for idx in range(len(part)):
+        assert np.array_equal(restored.mask(idx), part.mask(idx))
+        assert restored.label(idx) == part.label(idx)
+    np.testing.assert_allclose(
+        restored.eval(0, XS, centering=False),
+        part.eval(0, XS, centering=False),
+        atol=1e-12,
+    )
+
+
+def test_rc12_bind_wrong_data_raises(rc5_effect):
+    part = rc5_effect.find_regions(0, finder="best")
+    d = part.to_dict()
+    other = effector.PDP(
+        make_regional_data(n=200, seed=3), gated_model, nof_instances="all"
+    )
+    other.fit(0, centering=False)
+    with pytest.raises(ValueError):
+        Partition.from_dict(d).bind(other)

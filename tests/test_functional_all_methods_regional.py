@@ -103,23 +103,23 @@ def make_fitted(kind, opts, data):
     return fx.find_regions(0, finder=finder)
 
 
-def path_conditions(part, region):
-    """Collect (feature, comparison) pairs from the region up to the root."""
-    conds = []
-    while region is not None and region.parent_idx is not None:
-        conds.append((region.foc_index, region.comparison))
-        region = part[region.parent_idx]
-    return conds
-
-
 def find_active_leaf(part):
-    """The leaf region whose mask is {x1 > split, x2 == 0} — derived, not hardcoded."""
-    matches = [
-        r
-        for r in part
-        if (1, ">") in path_conditions(part, r)
-        and (2, "==") in path_conditions(part, r)
-    ]
+    """The leaf region whose rule is {x1 >= split, x2 == 0} — derived, not
+    hardcoded. The region's rule encodes the whole root->leaf path: the right
+    side of the x1 split is a lower-bounded interval, the '==' side of the x2
+    split a singleton level set."""
+
+    def is_active(region):
+        iv = region.rule.get(1)
+        ls = region.rule.get(2)
+        return (
+            isinstance(iv, effector.rules.Interval)
+            and np.isfinite(iv.lo)
+            and isinstance(ls, effector.rules.LevelSet)
+            and ls.levels == frozenset({0.0})
+        )
+
+    matches = [r for r in part if is_active(r)]
     assert len(matches) == 1, f"expected exactly one active leaf, got {len(matches)}"
     return matches[0]
 
@@ -130,8 +130,7 @@ def test_active_region_effect(kind, opts, data):
 
     # the gate must be found: a split on x1 near 0, then x2 == 0
     leaf = find_active_leaf(part)
-    chain = dict(path_conditions(part, leaf))
-    assert set(chain) == {1, 2}
+    assert set(leaf.rule.features) == {1, 2}
 
     if kind == "derpdp":
         gt = np.full_like(XS, 5.0)  # derivative of 5*x0

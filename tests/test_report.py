@@ -84,6 +84,11 @@ def test_explain_finds_regions_on_heterogeneous_feature():
     # a fired partition is a real tree (root + children)
     fired = [fr for fr in rep.features if fr.partition is not None]
     assert any(len(fr.partition["regions"]) > 1 for fr in fired)
+    # stored partitions use the v2 (rule-based, mask-free) schema
+    for fr in fired:
+        assert fr.partition["schema_version"] == 2
+        for region in fr.partition["regions"]:
+            assert "rule" in region and "mask" not in region
 
 
 @pytest.mark.parametrize("method", ["pdp", "ale", "rhale", "shapdp"])

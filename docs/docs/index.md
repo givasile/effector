@@ -140,11 +140,11 @@ Feature 3 - Full partition tree:
 ───────────────────────
 hr 🔹 [id: 0 | heter: 0.27 | inst: 3476 | w: 1.00]
     workingday = 0.00 🔹 [id: 1 | heter: 0.14 | inst: 1114 | w: 0.32]
-        temp ≤ 8.44 🔹 [id: 2 | heter: 0.07 | inst: 576 | w: 0.17]
-        temp > 8.44 🔹 [id: 3 | heter: 0.10 | inst: 538 | w: 0.15]
-    workingday ≠ 0.00 🔹 [id: 4 | heter: 0.14 | inst: 2362 | w: 0.68]
+        temp < 8.44 🔹 [id: 2 | heter: 0.07 | inst: 576 | w: 0.17]
+        temp ≥ 8.44 🔹 [id: 3 | heter: 0.10 | inst: 538 | w: 0.15]
+    workingday = 1.00 🔹 [id: 4 | heter: 0.14 | inst: 2362 | w: 0.68]
         yr = 0.00 🔹 [id: 5 | heter: 0.06 | inst: 1220 | w: 0.35]
-        yr ≠ 0.00 🔹 [id: 6 | heter: 0.12 | inst: 1142 | w: 0.33]
+        yr = 1.00 🔹 [id: 6 | heter: 0.12 | inst: 1142 | w: 0.33]
 --------------------------------------------------
 Feature 3 - Statistics per tree level:
 🌳 Tree Summary:

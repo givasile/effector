@@ -142,9 +142,10 @@ def test_r10_alias_stored_canonical_regional_and_splits():
     assert fx.feature_types == ["continuous", "continuous", "nominal"]
     fx.fit(0, centering=False)
     part = fx.find_regions(0, finder=effector.space_partitioning.Best(max_depth=2))
-    # the x2 split must stay categorical-style (= / ≠ in the region labels)
+    # the x2 split must stay categorical-style: level conditions in the labels
+    # (the '≠' side of a binary feature materializes to its explicit level)
     names = " ".join(r.name for r in part)
-    assert "≠" in names
+    assert "x_2 = 0.00" in names and "x_2 = 1.00" in names
 
 
 def test_r10_schema_object_equals_dict():
@@ -340,7 +341,7 @@ def test_r10_category_names_regional_split_on_categorical():
     part = fx.find_regions(1, finder=effector.space_partitioning.Best(max_depth=2))
     # the partition conditions feature 1 on the categorical feature 0 (gender):
     # at least one region restricts that categorical split feature to a subset
-    assert any(r.foc_index == 0 for r in part)
+    assert any(0 in r.rule.features for r in part)
     for idx in range(len(part)):
         part.plot(idx, show_plot=False)  # must not raise
 

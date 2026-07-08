@@ -5,6 +5,7 @@ import numpy as np
 
 from effector import helpers, ingestion
 from effector.partition import Partition, Region, partition_from_tree
+from effector.rules import Rule
 from effector.tree import Tree
 
 BIG_M = helpers.BIG_M
@@ -187,25 +188,28 @@ class Base:
             root = Region(
                 idx=0,
                 name=feature_names[feature],
-                mask=np.ones(n, dtype=bool),
+                rule=Rule({}),
                 heterogeneity=float(guarded(np.ones(n))),
                 nof_instances=n,
                 weight=1.0,
                 level=0,
                 parent_idx=None,
+                mask=np.ones(n, dtype=bool),
             )
             return Partition(
                 [root],
                 feature=feature,
                 feature_name=feature_names[feature],
                 finder_name=self.name,
+                feature_names=feature_names,
             )
 
         return partition_from_tree(
             tree,
             feature=feature,
-            feature_name=feature_names[feature],
+            feature_names=feature_names,
             finder_name=self.name,
+            data=data,
         )
 
     def fit(self) -> Tree:

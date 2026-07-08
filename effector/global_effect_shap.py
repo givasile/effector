@@ -419,6 +419,7 @@ class ShapDP(GlobalEffectBase):
         only_shap_values: bool = False,
         show_plot: bool = True,
         mask: Optional[np.ndarray] = None,
+        rule=None,
         feature_label: Optional[str] = None,
     ) -> Union[Tuple, None]:
         """
@@ -450,6 +451,8 @@ class ShapDP(GlobalEffectBase):
                 SHAP-DP *within* it (the masked φ re-binned/re-splined from the
                 cached attributions, no model calls), with the x-axis windowed
                 to the subregion's own interval
+            rule: sugar over `mask` — an `effector.Rule` or a rule string,
+                applied to the effect's data. Mutually exclusive with `mask`.
             feature_label: optional display name for the feature axis (e.g. a
                 regional node's name), overriding `feature_names[feature]`
         """
@@ -459,7 +462,7 @@ class ShapDP(GlobalEffectBase):
             scale_x, self.scale_x_list[feature] if self.scale_x_list else None
         )
         scale_y = helpers.resolve_scale(scale_y, self.scale_y)
-        mask = self._prep_mask(mask)
+        mask = self._resolve_mask(mask, rule)
         feature_names = list(self.feature_names)
         if feature_label is not None:
             feature_names[feature] = feature_label

@@ -162,15 +162,17 @@ class TestRegionalEffects:
         children = [r for r in partition if r.level == 1]
         assert len(children) == 2
         for region in children:
-            assert region.foc_index == bench.regional_split_feature
-            assert (
-                abs(region.foc_split_position - bench.regional_split_position) <= 0.15
-            )
+            assert region.rule.features == (bench.regional_split_feature,)
+            interval = region.rule[bench.regional_split_feature]
+            pos = interval.hi if np.isfinite(interval.hi) else interval.lo
+            assert abs(pos - bench.regional_split_position) <= 0.15
 
     def test_region_effects_are_plus_minus_x_squared(self, partition, bench):
         children = [r for r in partition if r.level == 1]
         for region in children:
-            side = "left" if region.comparison == "<=" else "right"
+            interval = region.rule[bench.regional_split_feature]
+            # x < t (upper-bounded) is the left child; x >= t the right
+            side = "left" if not np.isfinite(interval.lo) else "right"
             y = partition.eval(region.idx, XS, centering=True)
             heter = partition.eval_heter(region.idx, XS)
             gt = bench.regional_effect_gt(side, XS)

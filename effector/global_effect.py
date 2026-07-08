@@ -28,6 +28,7 @@ from typing import Callable, Optional, Tuple, Union
 import numpy as np
 
 from effector import helpers, ingestion, utils
+from effector.rules import Rule
 
 HINT_DERPDP = (
     " A derivative needs a continuous axis; use PDP instead — adjacent "
@@ -332,6 +333,32 @@ class GlobalEffectBase(ABC):
             raise ValueError("mask selects no instances")
         return mask
 
+    def _resolve_mask(
+        self, mask: Optional[np.ndarray] = None, rule: Union[None, str, Rule] = None
+    ) -> Optional[np.ndarray]:
+        """Normalize a query's `mask`/`rule` pair to a prepped boolean mask.
+        `rule` is sugar over the mask path: a `Rule` (or a string parsed with
+        this effect's metadata) applied to `self.data`. Exactly one of the two
+        may be given."""
+        if rule is None:
+            return self._prep_mask(mask)
+        if mask is not None:
+            raise ValueError("pass either `mask` or `rule`, not both")
+        if isinstance(rule, str):
+            levels = {
+                j: np.unique(self.data[:, j])
+                for j in range(self.dim)
+                if self._is_cat(j)
+            }
+            rule = Rule.parse(
+                rule,
+                feature_names=self.feature_names,
+                feature_types=self.feature_types,
+                levels=levels,
+                category_names=self.feature_metadata.category_names,
+            )
+        return self._prep_mask(rule.contains(self.data))
+
     def _effective_limits(
         self, feature: int, mask: Optional[np.ndarray] = None
     ) -> Tuple[float, float]:
@@ -480,6 +507,7 @@ class GlobalEffectBase(ABC):
         xs: np.ndarray,
         centering: Union[None, bool, str] = None,
         mask: Optional[np.ndarray] = None,
+        rule: Union[None, str, "Rule"] = None,
     ) -> np.ndarray:
         """Evaluate the mean effect of the `feature`-th feature at positions `xs`.
 
@@ -510,12 +538,17 @@ class GlobalEffectBase(ABC):
                 calls. Centering is then computed over the subregion's own
                 interval. Nothing is stored.
 
+            rule: sugar over `mask` — an `effector.Rule` (or a string like
+                `"temp < 3 and season == 0"`, parsed with this effect's
+                metadata) applied to the effect's data. Mutually exclusive
+                with `mask`.
+
         Returns:
             the mean effect `y` at the given `xs`, `(T,)`
         """
         centering = self.DEFAULT_CENTERING if centering is None else centering
         centering = helpers.prep_centering(centering)
-        mask = self._prep_mask(mask)
+        mask = self._resolve_mask(mask, rule)
 
         if not self._is_cat(feature):
             if mask is not None:
@@ -535,7 +568,11 @@ class GlobalEffectBase(ABC):
         return y
 
     def eval_heter(
-        self, feature: int, xs: np.ndarray, mask: Optional[np.ndarray] = None
+        self,
+        feature: int,
+        xs: np.ndarray,
+        mask: Optional[np.ndarray] = None,
+        rule: Union[None, str, "Rule"] = None,
     ) -> np.ndarray:
         """Evaluate the heterogeneity curve h(xs) of the `feature`-th feature.
 
@@ -556,11 +593,13 @@ class GlobalEffectBase(ABC):
                 evaluates over all instances; a mask summarizes that subset of
                 the cached local effects on the fly (the regional split search) —
                 pure numpy, no model calls.
+            rule: sugar over `mask` — an `effector.Rule` or a rule string,
+                applied to the effect's data. Mutually exclusive with `mask`.
 
         Returns:
             the heterogeneity curve h(xs), `(T,)`, non-negative
         """
-        mask = self._prep_mask(mask)
+        mask = self._resolve_mask(mask, rule)
         params = self._summary(feature, mask)
         return self._eval_payload(feature, params, xs, heterogeneity=True)[1]
 
@@ -571,7 +610,12 @@ class GlobalEffectBase(ABC):
         grid summaries for (d-)PDP): the all-ones summary (R14)."""
         return dict(self._summary(feature, None))
 
-    def heter_score(self, feature: int, mask: Optional[np.ndarray] = None) -> float:
+    def heter_score(
+        self,
+        feature: int,
+        mask: Optional[np.ndarray] = None,
+        rule: Union[None, str, "Rule"] = None,
+    ) -> float:
         """The method-agnostic heterogeneity scalar of the `feature`-th
         feature: the mean of `eval_heter` over a uniform grid
         (`helpers.NOF_INTERNAL_POINTS` points) on the feature's interval — the
@@ -580,12 +624,14 @@ class GlobalEffectBase(ABC):
 
         With a `mask` (boolean `(N,)`), the score is computed over that
         subregion from the cached local effects — the entry point the regional
-        split search calls for every candidate, model-free."""
+        split search calls for every candidate, model-free. `rule` is sugar
+        over `mask` (an `effector.Rule` or a rule string; mutually
+        exclusive)."""
+        mask = self._resolve_mask(mask, rule)
         if self._is_cat(feature):
             # frequency-weighted over levels (method_semantics.md); with a mask
             # the levels/frequencies are those within the subregion
-            mask_p = self._prep_mask(mask)
-            levels, weights = self._level_weights(feature, mask_p)
+            levels, weights = self._level_weights(feature, mask)
             return float(
                 np.average(self.eval_heter(feature, levels, mask), weights=weights)
             )
@@ -644,9 +690,14 @@ class GlobalEffectBase(ABC):
             feature_names=self.feature_names,
             target_name=self.target_name,
         )
-        return partition._bind(self)
+        return partition.bind(self)
 
-    def importance(self, feature: int, mask: Optional[np.ndarray] = None) -> float:
+    def importance(
+        self,
+        feature: int,
+        mask: Optional[np.ndarray] = None,
+        rule: Union[None, str, "Rule"] = None,
+    ) -> float:
         """R13: how much the **mean effect** of `feature` varies over the
         (masked) data — the μ-twin of `heter_score` (which measures per-instance
         spread). Model-free (re-summarized from the cached local effects) and
@@ -657,12 +708,14 @@ class GlobalEffectBase(ABC):
         Args:
             feature: index of the feature of interest.
             mask: optional boolean `(N,)` selecting a subregion.
+            rule: sugar over `mask` — an `effector.Rule` or a rule string,
+                applied to the effect's data. Mutually exclusive with `mask`.
 
         Returns:
             a non-negative scalar.
         """
         self._check_feature_type_supported(feature)
-        mask = self._prep_mask(mask)
+        mask = self._resolve_mask(mask, rule)
         if mask is None:
             # all-ones ≡ None (M1); the concrete array makes the per-method
             # `_importance` implementations mask-index without a null check
@@ -689,10 +742,15 @@ class GlobalEffectBase(ABC):
         mu = self.eval(feature, xs, centering=False, mask=mask)
         return float(np.std(mu))
 
-    def importances(self, mask: Optional[np.ndarray] = None) -> np.ndarray:
+    def importances(
+        self,
+        mask: Optional[np.ndarray] = None,
+        rule: Union[None, str, "Rule"] = None,
+    ) -> np.ndarray:
         """R13: the per-feature importance vector `(D,)`. Feature types this
         method cannot explain are `NaN`, with one `UserWarning` (R9) naming the
-        skipped columns."""
+        skipped columns. `rule` is sugar over `mask` (mutually exclusive)."""
+        mask = self._resolve_mask(mask, rule)
         out = np.full(self.dim, np.nan)
         skipped = []
         for f in range(self.dim):

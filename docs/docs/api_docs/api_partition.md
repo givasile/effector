@@ -87,11 +87,11 @@ jacobian = ... # jacobian of the model (RHALE / DerPDP only)
         ───────────────────────
         hr 🔹 [id: 0 | heter: 0.43 | inst: 3476 | w: 1.00]
             workingday = 0.00 🔹 [id: 1 | heter: 0.36 | inst: 1129 | w: 0.32]
-                temp ≤ 6.50 🔹 [id: 3 | heter: 0.17 | inst: 568 | w: 0.16]
-                temp > 6.50 🔹 [id: 4 | heter: 0.21 | inst: 561 | w: 0.16]
-            workingday ≠ 0.00 🔹 [id: 2 | heter: 0.28 | inst: 2347 | w: 0.68]
-                temp ≤ 6.50 🔹 [id: 5 | heter: 0.19 | inst: 953 | w: 0.27]
-                temp > 6.50 🔹 [id: 6 | heter: 0.20 | inst: 1394 | w: 0.40]
+                temp < 6.50 🔹 [id: 3 | heter: 0.17 | inst: 568 | w: 0.16]
+                temp ≥ 6.50 🔹 [id: 4 | heter: 0.21 | inst: 561 | w: 0.16]
+            workingday = 1.00 🔹 [id: 2 | heter: 0.28 | inst: 2347 | w: 0.68]
+                temp < 6.50 🔹 [id: 5 | heter: 0.19 | inst: 953 | w: 0.27]
+                temp ≥ 6.50 🔹 [id: 6 | heter: 0.20 | inst: 1394 | w: 0.40]
         --------------------------------------------------
         Feature 3 - Statistics per tree level:
         🌳 Tree Summary:
@@ -112,6 +112,28 @@ jacobian = ... # jacobian of the model (RHALE / DerPDP only)
     h = partition.eval_heter(idx, xs)       # heterogeneity within region idx
     ```
 
+## Rules
+
+Every `Region` is defined by a `Rule` — a normalized conjunction of
+per-feature conditions (`effector.rules`). Membership, display, and
+serialization all derive from the same rule, and rules are also a direct
+query surface:
+
+```python
+# ad-hoc subregion queries, no Partition needed
+effect.eval(feature, xs, rule="temp < 6.5 and workingday == 0")
+effect.heter_score(feature, rule="temp < 6.5")
+
+# user-authored partitions — same object find_regions returns
+part = effector.Partition.from_rules(
+    ["temp < 6.5", "temp >= 6.5"], effect=effect, feature=3
+)
+
+# serialization round-trip: rules travel, masks are recomputed on bind
+d = part.to_dict()                              # small: rules + stats, no masks
+restored = effector.Partition.from_dict(d).bind(effect)
+```
+
 ## API
 
 ### ::: effector.global_effect.GlobalEffectBase.find_regions
@@ -128,12 +150,28 @@ jacobian = ... # jacobian of the model (RHALE / DerPDP only)
            - mask
            - label
            - show
+           - show_axes
            - eval
            - eval_heter
            - plot
+           - bind
+           - from_rules
            - to_dict
 
 ### ::: effector.partition.Region
        options:
          show_root_heading: True
          show_symbol_type_toc: True
+
+### ::: effector.rules.Rule
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+         members:
+           - contains
+           - intersect
+           - refine
+           - format
+           - parse
+           - to_dict
+           - from_dict

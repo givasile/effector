@@ -85,6 +85,16 @@ def mask_jump_bin(y, xs, nof_bins=NOF_BINS):
     return y
 
 
+def split_position(interval):
+    """The finite bound of a one-sided split interval."""
+    return interval.hi if np.isfinite(interval.hi) else interval.lo
+
+
+def split_side(interval):
+    """`x < t` (upper-bounded) is the left child; `x >= t` the right."""
+    return "left" if not np.isfinite(interval.lo) else "right"
+
+
 class TestGlobalEffects:
     @pytest.mark.parametrize("feature", [0, 1, 2, 3])
     def test_pdp(self, pdp, bench, feature):
@@ -136,19 +146,21 @@ class TestRegionalEffects:
         level1 = [r for r in part if r.level == 1]
         level2 = [r for r in part if r.level == 2]
         assert len(level1) == 2 and len(level2) == 4
+        foc1 = bench.regional_level1_split_feature
+        foc2 = bench.regional_level2_split_feature
         for region in level1:
-            assert region.foc_index == bench.regional_level1_split_feature
-            assert abs(region.foc_split_position) <= 0.15
+            assert region.rule.features == (foc1,)
+            assert abs(split_position(region.rule[foc1])) <= 0.15
         for region in level2:
-            assert region.foc_index == bench.regional_level2_split_feature
-            assert abs(region.foc_split_position) <= 0.15
+            assert set(region.rule.features) == {foc1, foc2}
+            assert abs(split_position(region.rule[foc2])) <= 0.15
 
     def test_leaf_effects_match_the_four_regions(self, fitted, bench):
         part = fitted
         for region in (r for r in part if r.level == 2):
             parent = part[region.parent_idx]
-            x3_side = "left" if parent.comparison == "<=" else "right"
-            x2_side = "left" if region.comparison == "<=" else "right"
+            x3_side = split_side(parent.rule[bench.regional_level1_split_feature])
+            x2_side = split_side(region.rule[bench.regional_level2_split_feature])
             y = part.eval(region.idx, XS, centering=True)
             heter = part.eval_heter(region.idx, XS)
             gt = bench.regional_effect_gt(x2_side, x3_side, XS)

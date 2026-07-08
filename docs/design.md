@@ -166,7 +166,11 @@ dict shapes (`{"mean","std"}`, `std != 0`), `cat_limit` sanity, and
 A regional effect is **not** a re-instantiated global object on a data
 subset; it is the one global object's own summary restricted by a boolean
 mask. Every global `eval`/`eval_heter`/`heter_score`/`plot` accepts
-`mask=` (boolean, shape `(N,)`). Regional questions are asked with
+`mask=` (boolean, shape `(N,)`) and, as sugar over it, `rule=` — an
+`effector.Rule` or a string like `"temp < 6.5 and workingday == 0"`,
+parsed with the effect's metadata and applied to the effect's data
+(`Rule.contains` is the single rule→mask site; mutually exclusive with
+`mask=`). Regional questions are asked with
 `find_regions(feature) -> Partition` (R12): the returned `Partition`'s
 `eval`/`eval_heter`/`plot(idx)` call back into the one fitted global object
 with that region's mask (plus `feature_label=` for the region title). One
@@ -205,10 +209,26 @@ fit). *Store what is canonical (a fit), return what is exploratory (a
 partition).* A `Partition` depends on the search config, so there is no single
 canonical one to store; two `find_regions` calls return equal-but-distinct
 values, and the effect gains no public attribute. The `Partition` is a value
-object — an ordered list of `Region`s (each a boolean mask + heterogeneity +
-split metadata) with `show`/`eval`/`eval_heter`/`plot`/`to_dict`; it binds a
+object — an ordered list of `Region`s with
+`show`/`show_axes`/`eval`/`eval_heter`/`plot`/`to_dict`; it binds a
 reference to its producing effect only for the `eval`/`plot` sugar, and
 `to_dict` is the serialization boundary (the effect is never serialized).
+
+**Rule-primary regions.** A `Region`'s identity is its `Rule`
+(`effector.rules`): a normalized conjunction of per-feature conditions —
+half-open intervals matching the split mask semantics (`x < t` / `x >= t`)
+and explicit level sets (a `!=` split materializes the complement over the
+observed levels). Membership (`rule.contains`), display (`rule.format`),
+and serialization (`rule.to_dict`) derive from that one object, so they
+cannot drift apart. The boolean mask is a derived cache stamped against one
+dataset; `to_dict` serializes rules + scalar stats (O(regions), no masks),
+and `bind(effect)` recomputes every mask from its rule and verifies it —
+against the finder's mask on the `find_regions` path (an exactness
+tripwire) or the stored `nof_instances` on the `from_dict` path. The
+constructor enforces the partition invariant: leaves pairwise disjoint and
+jointly covering the root. `Partition.from_rules` builds a user-authored
+partition through the same validation — manual and automated regional
+analysis converge on one value type.
 
 **Finder seam.** A region finder consumes only `(score_fn: mask -> float, data,
 metadata, its own config)` and returns a `Partition`. `heter_score(feature,

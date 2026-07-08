@@ -169,6 +169,7 @@ class ALEBase(GlobalEffectBase):
         show_only_aggregated: bool = False,
         show_plot: bool = True,
         mask: Optional[np.ndarray] = None,
+        rule=None,
         feature_label: Optional[str] = None,
     ):
         """
@@ -215,6 +216,8 @@ class ALEBase(GlobalEffectBase):
                 effect *within* it (re-binned from the cached local effects,
                 no model calls) with the x-axis windowed to the subregion's
                 own interval
+            rule: sugar over `mask` — an `effector.Rule` or a rule string,
+                applied to the effect's data. Mutually exclusive with `mask`.
             feature_label: optional display name for the feature axis (e.g. a
                 regional node's name), overriding `feature_names[feature]`
         """
@@ -224,7 +227,7 @@ class ALEBase(GlobalEffectBase):
             scale_x, self.scale_x_list[feature] if self.scale_x_list else None
         )
         scale_y = helpers.resolve_scale(scale_y, self.scale_y)
-        mask = self._prep_mask(mask)
+        mask = self._resolve_mask(mask, rule)
         feature_names = list(self.feature_names)
         if feature_label is not None:
             feature_names[feature] = feature_label

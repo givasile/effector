@@ -499,6 +499,7 @@ class PDP(PDPBase):
         use_vectorized: bool = True,
         show_plot: bool = True,
         mask: Optional[np.ndarray] = None,
+        rule=None,
         feature_label: Optional[str] = None,
     ):
         """
@@ -543,9 +544,12 @@ class PDP(PDPBase):
                 ICE *within* it from the cached ICE table (grid resolution;
                 `nof_points` does not apply), model-free, with the x-axis
                 windowed to the subregion's own interval
+            rule: sugar over `mask` — an `effector.Rule` or a rule string,
+                applied to the effect's data. Mutually exclusive with `mask`.
             feature_label: optional display name for the feature axis (e.g. a
                 regional node's name), overriding `feature_names[feature]`
         """
+        mask = self._resolve_mask(mask, rule)
         ret = self._plot(
             feature,
             heterogeneity,
@@ -698,6 +702,7 @@ class DerPDP(PDPBase):
         use_vectorized: bool = True,
         show_plot: bool = True,
         mask: Optional[np.ndarray] = None,
+        rule=None,
         feature_label: Optional[str] = None,
     ):
         """
@@ -743,9 +748,12 @@ class DerPDP(PDPBase):
                 d-PDP/d-ICE *within* it from the cached d-ICE table (grid
                 resolution; `nof_points` does not apply), model-free, with the
                 x-axis windowed to the subregion's own interval
+            rule: sugar over `mask` — an `effector.Rule` or a rule string,
+                applied to the effect's data. Mutually exclusive with `mask`.
             feature_label: optional display name for the feature axis (e.g. a
                 regional node's name), overriding `feature_names[feature]`
         """
+        mask = self._resolve_mask(mask, rule)
         ret = self._plot(
             feature,
             heterogeneity,

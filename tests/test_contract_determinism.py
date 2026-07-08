@@ -136,10 +136,8 @@ def test_d5_find_regions_deterministic(name, regional_data):
     for r1, r2 in zip(part1, part2, strict=True):
         assert np.array_equal(r1.mask, r2.mask)
         np.testing.assert_allclose(r1.heterogeneity, r2.heterogeneity, atol=1e-12)
-        # split metadata (None on the root) must match exactly
-        assert r1.foc_index == r2.foc_index
-        assert r1.foc_split_position == r2.foc_split_position
-        assert r1.comparison == r2.comparison
+        # the rule (canonical equality) must match exactly
+        assert r1.rule == r2.rule
         assert r1.level == r2.level
         assert r1.parent_idx == r2.parent_idx
 
