@@ -238,6 +238,20 @@ clustering, subgroup discovery, a user `groupby`) plug in with zero changes
 elsewhere, so `Partition` must not structurally assume a tree — hierarchy is
 optional display metadata (`parent_idx`).
 
+**Proposer seam.** Inside the built-in finders, candidate enumeration is its
+own protocol (`effector.proposers`): a proposer maps a conditioning feature to
+`CandidateSplit`s — ordered tuples of disjoint, jointly-covering `Condition`s
+on that feature, so a split is *parent rule → child conditions* (child i =
+`parent_rule.refine(conditions[i])`, mask = parent mask ∧ condition mask).
+Candidates are parent-independent (a level-wise finder applies one candidate
+to every node of a level) and k-way by construction. The defaults reproduce
+the classic search: binary thresholds on an interior grid for continuous
+features, one-vs-rest over observed levels for categorical ones (the `!=`
+complement is materialized here, as an explicit level set). Richer proposers
+(categorical subsets, ordered/multiway, change-point grids) plug in via the
+finder's `proposer_factory` without touching the search or the construction —
+finders build rule-primary `Region`s directly; there is no tree intermediate.
+
 **Invisible memos are not state.** Performance caches (the summaries memo,
 R14) are allowed inside the effect because they are semantically transparent —
 keyed by the feature's epoch, so a frame or config change makes stale entries

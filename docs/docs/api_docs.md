@@ -19,4 +19,4 @@ API DOCS:
 
 - [`effector.axis_partitioning`](./api_docs/api_axis_partitioning.md)
 - [`effector.space_partitioning`](./api_docs/api_space_partitioning.md)
-- [`effector.tree`](./api_docs/api_tree.md)
+- [`effector.proposers`](./api_docs/api_proposers.md)

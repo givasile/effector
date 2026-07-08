@@ -14,6 +14,10 @@ the effect never sees the `BIG_M` vocabulary (design contract R12). `Best` and
 subgroup discovery, a user `groupby`) plugs into `find_regions` with no changes
 elsewhere.
 
+Both built-in finders enumerate candidate splits through the
+[proposer seam](./api_proposers.md) (*parent rule → child conditions*) and
+build the rule-primary `Partition` directly — there is no tree intermediate.
+
 ## API
 
 ### ::: effector.space_partitioning.Best
