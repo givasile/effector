@@ -15,9 +15,15 @@ Every effect object holds exactly two caches and one config, all owned here:
   not accept.
 
 Subclasses implement a frame declaration (`_frame_from_config`) and three pure
-kernels — `_compute_local` (the only kernel that may touch the model),
-`_summarize` (numpy in, payload dict out), `_eval_payload` (payload + xs in,
-numbers out) — and contain no cache, retrigger, or mask logic.
+kernels, each split into a continuous and a categorical variant —
+`_compute_local_cont|_cat` (the only kernels that may touch the model),
+`_summarize_cont|_cat` (numpy in, payload dict out), `_eval_payload_cont|_cat`
+(payload + xs in, numbers out) — and contain no cache, retrigger, or mask
+logic. The base owns the dispatch (`_is_cat(feature)`, once per kernel); a
+type-agnostic kernel is declared with a class-level alias
+(`_compute_local_cat = _compute_local_cont`), never a fork in the body.
+Methods whose `SUPPORTED_FEATURE_TYPES` exclude ordinal/nominal skip the
+`_cat` variants entirely — the capability matrix makes them unreachable.
 """
 
 import warnings
@@ -27,6 +33,7 @@ from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 
+import effector.axis_partitioning as ap
 from effector import helpers, ingestion, utils
 from effector.rules import Rule
 
@@ -155,7 +162,11 @@ class GlobalEffectBase(ABC):
         self._y_pred: Optional[np.ndarray] = None
 
     # ------------------------------------------------------------------
-    # the three subclass kernels + the frame declaration (R14)
+    # the three kernel dispatchers + the frame declaration (R14). Each kernel
+    # comes in a continuous and a categorical variant; the dispatch below is
+    # the ONLY place a kernel forks on the feature type. The `_cat` defaults
+    # raise: they are unreachable when `SUPPORTED_FEATURE_TYPES` excludes
+    # ordinal/nominal (`_ensure_local` enforces the capability matrix first).
     # ------------------------------------------------------------------
     def _frame_from_config(self, feature: int) -> tuple:
         """The frame tuple this feature's local effects depend on, derived from
@@ -163,23 +174,64 @@ class GlobalEffectBase(ABC):
         (never invalidated; PDP's position store only grows)."""
         return ()
 
-    @abstractmethod
     def _compute_local(self, feature: int, frame: tuple) -> dict:
+        if self._is_cat(feature):
+            return self._compute_local_cat(feature, frame)
+        return self._compute_local_cont(feature, frame)
+
+    @abstractmethod
+    def _compute_local_cont(self, feature: int, frame: tuple) -> dict:
         """The one model-touching kernel: compute the per-instance local
-        effects of `feature` under `frame` and return the cache-(a) entry —
-        a dict that includes `"frame": frame` plus instance-aligned arrays."""
+        effects of a continuous `feature` under `frame` and return the
+        cache-(a) entry — a dict that includes `"frame": frame` plus
+        instance-aligned arrays."""
         raise NotImplementedError
+
+    def _compute_local_cat(self, feature: int, frame: tuple) -> dict:
+        raise NotImplementedError(
+            f"{type(self).__name__} declares no categorical local-effect "
+            f"kernel — unreachable while SUPPORTED_FEATURE_TYPES excludes "
+            f"ordinal/nominal"
+        )
 
     def _summarize(
         self, feature: int, mask: Optional[np.ndarray] = None, **config
     ) -> dict:
-        """Pure-numpy kernel: derive the payload for `feature` from the cached
-        local effects restricted to `mask` (`None` = all instances), under the
-        declared `config`. Overridden per method; must not touch the model."""
-        raise NotImplementedError
+        if self._is_cat(feature):
+            return self._summarize_cat(feature, mask, **config)
+        return self._summarize_cont(feature, mask, **config)
 
     @abstractmethod
+    def _summarize_cont(
+        self, feature: int, mask: Optional[np.ndarray] = None, **config
+    ) -> dict:
+        """Pure-numpy kernel: derive the payload of a continuous `feature`
+        from the cached local effects restricted to `mask` (`None` = all
+        instances), under the declared `config`. Must not touch the model."""
+        raise NotImplementedError
+
+    def _summarize_cat(
+        self, feature: int, mask: Optional[np.ndarray] = None, **config
+    ) -> dict:
+        raise NotImplementedError(
+            f"{type(self).__name__} declares no categorical summary kernel — "
+            f"unreachable while SUPPORTED_FEATURE_TYPES excludes "
+            f"ordinal/nominal"
+        )
+
     def _eval_payload(
+        self,
+        feature: int,
+        params: dict,
+        x: np.ndarray,
+        heterogeneity: bool = False,
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+        if self._is_cat(feature):
+            return self._eval_payload_cat(feature, params, x, heterogeneity)
+        return self._eval_payload_cont(feature, params, x, heterogeneity)
+
+    @abstractmethod
+    def _eval_payload_cont(
         self,
         feature: int,
         params: dict,
@@ -190,6 +242,19 @@ class GlobalEffectBase(ABC):
         payload `params`, and — if `heterogeneity` — also the heterogeneity
         curve h(x). Same payload + same x → same answer; no model, no state."""
         raise NotImplementedError
+
+    def _eval_payload_cat(
+        self,
+        feature: int,
+        params: dict,
+        x: np.ndarray,
+        heterogeneity: bool = False,
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+        raise NotImplementedError(
+            f"{type(self).__name__} declares no categorical reader kernel — "
+            f"unreachable while SUPPORTED_FEATURE_TYPES excludes "
+            f"ordinal/nominal"
+        )
 
     # ------------------------------------------------------------------
     # the two gates (all queries go through these; nothing else checks caches)
@@ -271,33 +336,80 @@ class GlobalEffectBase(ABC):
         method: str,
         params: dict,
         mask: Optional[np.ndarray] = None,
-    ) -> float:
+    ):
         """Derive the centering constant from the payload: `zero_integral` =
         the mean over the (effective) feature interval, `zero_start` = the
-        value at its left limit. Pure numpy; (d-)PDP overrides it with the
-        per-instance variant read off the cached ICE columns."""
+        value at its left limit. Pure numpy; (d-)PDP overrides the two
+        variants (not this dispatcher) with the per-instance form read off
+        the cached ICE columns."""
         assert method in ["zero_integral", "zero_start"]
-
-        def partial_eval(x):
-            return self._eval_payload(feature, params, x)
-
         if self._is_cat(feature):
-            # discrete centering (method_semantics.md): zero_integral is the
-            # frequency-weighted level mean (order-invariant); zero_start
-            # zeroes the first level *in fit order* (a custom `order` makes
-            # its first entry the reference level)
-            levels, weights = self._level_weights(feature, mask)
-            if method == "zero_integral":
-                return float(np.average(partial_eval(levels), weights=weights))
-            fit_levels = params.get("levels", levels)
-            return partial_eval(np.asarray(fit_levels[:1])).item()
+            return self._compute_norm_const_cat(feature, method, params, mask)
+        return self._compute_norm_const_cont(feature, method, params, mask)
 
+    def _compute_norm_const_cat(
+        self,
+        feature: int,
+        method: str,
+        params: dict,
+        mask: Optional[np.ndarray] = None,
+    ):
+        # discrete centering (method_semantics.md): zero_integral is the
+        # frequency-weighted level mean (order-invariant); zero_start
+        # zeroes the first level *in fit order* (a custom `order` makes
+        # its first entry the reference level)
+        levels, weights = self._level_weights(feature, mask)
+        if method == "zero_integral":
+            return float(
+                np.average(self._eval_payload(feature, params, levels), weights=weights)
+            )
+        fit_levels = params.get("levels", levels)
+        return self._eval_payload(feature, params, np.asarray(fit_levels[:1])).item()
+
+    def _compute_norm_const_cont(
+        self,
+        feature: int,
+        method: str,
+        params: dict,
+        mask: Optional[np.ndarray] = None,
+    ):
         start, stop = self._effective_limits(feature, mask)
         if method == "zero_integral":
             return utils.mean_1d_linspace(
-                partial_eval, start, stop, helpers.NOF_INTERNAL_POINTS
+                lambda x: self._eval_payload(feature, params, x),
+                start,
+                stop,
+                helpers.NOF_INTERNAL_POINTS,
             )
-        return partial_eval(np.array([start])).item()
+        return self._eval_payload(feature, params, np.array([start])).item()
+
+    def _bin_local_effects(
+        self,
+        feature: int,
+        col: np.ndarray,
+        eff: np.ndarray,
+        mask: Optional[np.ndarray],
+        binning_method,
+        binning_scope: str,
+    ) -> dict:
+        """The shared continuous-summary tail of the adaptive-binning methods
+        (RHALE/ShapDP): bin the (already mask-sliced) local effects `eff` at
+        positions `col` with the declared binner over the scope's x-range, and
+        return the `compute_ale_params` payload (+ `alg_params`)."""
+        binning = (
+            ap.return_default(binning_method)
+            if isinstance(binning_method, str)
+            else binning_method
+        )
+        if mask is not None and binning_scope == "effective":
+            limits_range = np.asarray(self._effective_limits(feature, mask))
+        else:
+            limits_range = self.axis_limits[:, feature]
+        limits = binning.find_limits(col, eff, limits_range)
+        utils.raise_if_no_binning(limits, feature, binning)
+        params = utils.compute_ale_params(col, eff, limits)
+        params["alg_params"] = binning
+        return params
 
     def _mean_norm_const(self, norm_const):
         """The scalar amount the centered mean effect subtracts. It is a scalar
@@ -605,9 +717,9 @@ class GlobalEffectBase(ABC):
 
     def payload(self, feature: int) -> dict:
         """The method's raw fitted object for the `feature`-th feature — the
-        honest method-specific state behind `eval`/`eval_heter` (bin effects
-        and variances for (RH)ALE, splines and shap values for ShapDP, the
-        grid summaries for (d-)PDP): the all-ones summary (R14)."""
+        honest method-specific state behind `eval`/`eval_heter` (per-bin
+        effects and variances for (RH)ALE and ShapDP, the grid summaries for
+        (d-)PDP): the all-ones summary (R14), pure numpy."""
         return dict(self._summary(feature, None))
 
     def heter_score(

@@ -220,11 +220,12 @@ class ShapDP(GlobalEffectBase):
             random_state=random_state,
         )
 
-    def _compute_local(self, feature: int, frame: tuple) -> dict:
+    def _compute_local_cont(self, feature: int, frame: tuple) -> dict:
         """Cache-(a) kernel: the SHAP values are the local effect — computed
         once per object by the backend (or injected via `shap_values=`),
-        feature-independent. Fill the whole `(N,D)` table on first use; each
-        feature's entry is a column view of it (no frame — instance-anchored)."""
+        feature-independent (hence the class-level cat alias below). Fill the
+        whole `(N,D)` table on first use; each feature's entry is a column
+        view of it (no frame — instance-anchored)."""
         if self.shap_values is None:
             self.shap_values = _compute_shap_values(
                 self.model,
@@ -237,13 +238,24 @@ class ShapDP(GlobalEffectBase):
             )
         return {"frame": frame, "phi": self.shap_values[:, feature]}
 
+    _compute_local_cat = _compute_local_cont
+
     def _importance(self, feature, mask):
         """R13 for SHAP: the canonical `mean(|phi_s|)` over the (masked)
         instances — `phi_s` is already the cached local effect."""
         phi = self._local[feature]["phi"][mask]
         return float(np.mean(np.abs(phi)))
 
-    def _summarize(
+    def _masked_phi(self, feature: int, mask):
+        """(positions, φ) of the SHAP cloud restricted to `mask` (None = all)."""
+        yy = self._local[feature]["phi"]
+        xx = self.data[:, feature]
+        if mask is not None:
+            yy = yy[mask]
+            xx = xx[mask]
+        return xx, yy
+
+    def _summarize_cont(
         self,
         feature: int,
         mask=None,
@@ -252,54 +264,20 @@ class ShapDP(GlobalEffectBase):
         ] = "dp",
         binning_scope: str = "global",
     ) -> typing.Dict:
-        """Step 3 (pure numpy): bin/aggregate the cached SHAP column over the
-        subregion `mask` (None = all) — a spline of per-bin mean/variance for
-        continuous features, per-level mean/variance for discrete ones.
+        """Summary kernel (pure numpy): bin the cached SHAP column over the
+        subregion `mask` (None = all) — per-bin mean/variance of φ, read back
+        by piecewise-linear interpolation between the bin centers.
 
         `binning_scope` (masked only): `"global"` bins over the frozen global
         frame, `"effective"` packs the bins into the masked column's own
         `[min, max]` (see `fit`)."""
-        yy = self._local[feature]["phi"]
-        xx = self.data[:, feature]
-        if mask is not None:
-            yy = yy[mask]
-            xx = xx[mask]
-
-        if self._is_cat(feature):
-            # per-level mean/variance of the shap values with a step lookup —
-            # no spline, no order enters the math (method_semantics.md)
-            levels = np.unique(xx)
-            codes = utils.codes_from_levels(
-                xx, levels, feature, self.feature_names[feature]
-            )
-            limits = np.arange(len(levels) + 1, dtype=float) - 0.5
-            feature_effect_dict = utils.compute_ale_params(
-                codes.astype(float), yy, limits
-            )
-            return {
-                "bin_effect": feature_effect_dict["bin_effect"],
-                "bin_variance": feature_effect_dict["bin_variance"],
-                "levels": levels,
-                "is_cat": True,
-                "xx": xx,
-                "yy": yy,
-            }
-
-        binning = (
-            ap.return_default(binning_method)
-            if isinstance(binning_method, str)
-            else binning_method
+        xx, yy = self._masked_phi(feature, mask)
+        feature_effect_dict = self._bin_local_effects(
+            feature, xx, yy, mask, binning_method, binning_scope
         )
-        if mask is not None and binning_scope == "effective":
-            limits_range = np.asarray(self._effective_limits(feature, mask))
-        else:
-            limits_range = self.axis_limits[:, feature]
-        limits = binning.find_limits(xx, yy, limits_range)
-        utils.raise_if_no_binning(limits, feature, binning)
-        feature_effect_dict = utils.compute_ale_params(xx, yy, limits)
-        feature_effect_dict["alg_params"] = binning
 
         # Compute bin edges and bin centers, then piecewise-linear interpolation
+        limits = feature_effect_dict["limits"]
         bin_centers = (limits[:-1] + limits[1:]) / 2
         if len(bin_centers) == 1:
             # a single bin (e.g. an unstructured φ that the adaptive binning
@@ -333,23 +311,52 @@ class ShapDP(GlobalEffectBase):
             "yy": yy,
         }
 
-    def _eval_payload(
+    def _summarize_cat(
+        self,
+        feature: int,
+        mask=None,
+        binning_method: Union[
+            str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
+        ] = "dp",
+        binning_scope: str = "global",
+    ) -> typing.Dict:
+        # per-level mean/variance of the shap values with a step lookup —
+        # no interpolation, no order enters the math (method_semantics.md)
+        xx, yy = self._masked_phi(feature, mask)
+        levels = np.unique(xx)
+        codes = utils.codes_from_levels(
+            xx, levels, feature, self.feature_names[feature]
+        )
+        limits = np.arange(len(levels) + 1, dtype=float) - 0.5
+        feature_effect_dict = utils.compute_ale_params(codes.astype(float), yy, limits)
+        return {
+            "bin_effect": feature_effect_dict["bin_effect"],
+            "bin_variance": feature_effect_dict["bin_variance"],
+            "levels": levels,
+            "xx": xx,
+            "yy": yy,
+        }
+
+    def _eval_payload_cont(
         self, feature: int, params: dict, x: np.ndarray, heterogeneity: bool = False
     ):
-        if params.get("is_cat"):
-            codes = utils.codes_from_levels(
-                x, params["levels"], feature, self.feature_names[feature]
-            )
-            y = params["bin_effect"][codes]
-            if heterogeneity:
-                return y, params["bin_variance"][codes]
-            return y
         y = params["spline_mean"](x)
         if heterogeneity:
             # variance is non-negative by definition; linear extrapolation of the
             # per-bin variance beyond the outer bin centers (fill_value=
             # "extrapolate") can dip below 0, so clamp it.
             return y, np.maximum(params["spline_var"](x), 0.0)
+        return y
+
+    def _eval_payload_cat(
+        self, feature: int, params: dict, x: np.ndarray, heterogeneity: bool = False
+    ):
+        codes = utils.codes_from_levels(
+            x, params["levels"], feature, self.feature_names[feature]
+        )
+        y = params["bin_effect"][codes]
+        if heterogeneity:
+            return y, params["bin_variance"][codes]
         return y
 
     def fit(

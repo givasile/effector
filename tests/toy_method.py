@@ -9,9 +9,11 @@ Scientific value: none. Pedagogical value: the whole two-block lifecycle
 1. answer the frame question: which config params invalidate the local
    effects? (here: none — predictions are instance-anchored; `nof_bins` is a
    summary-stage knob, like RHALE's binning)
-2. implement the three pure kernels: `_compute_local` (the only one that may
-   touch the model), `_summarize` (numpy in, payload out), `_eval_payload`
-   (payload + xs in, numbers out)
+2. implement the three pure kernels: `_compute_local_cont` (the only one that
+   may touch the model), `_summarize_cont` (numpy in, payload out),
+   `_eval_payload_cont` (payload + xs in, numbers out) — continuous-only here,
+   so the `_cat` variants are skipped (the base's capability matrix makes
+   them unreachable)
 3. write ZERO cache/retrigger/mask logic — the base owns all of it: masking,
    memoization, centering, heter_score, importance, find_regions and the
    Partition sugar all work on this class for free.
@@ -38,7 +40,7 @@ class ToyEffect(GlobalEffectBase):
         return ()  # instance-anchored: the cached predictions never go stale
 
     # -- 2. the model-touching kernel (the ONLY one) ------------------------
-    def _compute_local(self, feature, frame):
+    def _compute_local_cont(self, feature, frame):
         # feature-independent raw material is computed once per OBJECT and
         # shared across features (the RHALE-jacobian / ShapDP-table pattern);
         # here it coincides with the base's `_y_pred` slot
@@ -47,7 +49,7 @@ class ToyEffect(GlobalEffectBase):
         return {"frame": frame, "pred": self._y_pred}
 
     # -- 3. the pure summary kernel -----------------------------------------
-    def _summarize(self, feature, mask=None, nof_bins=10):
+    def _summarize_cont(self, feature, mask=None, nof_bins=10):
         pred = self._local[feature]["pred"]
         col = self.data[:, feature]
         if mask is not None:
@@ -69,7 +71,7 @@ class ToyEffect(GlobalEffectBase):
         }
 
     # -- 4. the pure reader kernel ------------------------------------------
-    def _eval_payload(self, feature, params, x, heterogeneity=False):
+    def _eval_payload_cont(self, feature, params, x, heterogeneity=False):
         idx = np.clip(np.digitize(x, params["limits"]) - 1, 0, len(params["mean"]) - 1)
         y = params["mean"][idx]
         return (y, params["var"][idx]) if heterogeneity else y
