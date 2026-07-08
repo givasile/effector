@@ -279,3 +279,33 @@ def test_rc9_values_not_state():
         assert a.heterogeneity == b.heterogeneity
     assert after == before, "find_regions added public state to the effect"
     assert model.n_calls == n_after_first, "second find_regions re-queried the model"
+
+
+# ---------------------------------------------------------------------------
+# RC10 — regression: a candidate conditioning feature with more categorical
+# levels than max(numerical_grid_size - 1, cat_limit) must not overflow the
+# split-search matrix (e.g. hour-of-day = 24 levels). Previously raised
+# IndexError in space_partitioning._evaluate_splits.
+# ---------------------------------------------------------------------------
+
+
+def test_rc10_high_cardinality_categorical_conditioning_feature():
+    rng = np.random.default_rng(1)
+    n = 4000
+    x0 = rng.uniform(-1, 1, n)
+    hour = rng.integers(0, 25, n).astype(float)  # 25 levels > default width (19)
+    X = np.stack([x0, hour], axis=1)
+
+    def model(x):
+        return np.where(x[:, 1] < 12, 2 * x[:, 0], -2 * x[:, 0])
+
+    schema = {"feature_names": ["x0", "hour"],
+              "feature_types": ["continuous", "nominal"]}
+    fx = effector.PDP(X, model, schema=schema, nof_instances="all")
+    fx.fit(0)
+    part = fx.find_regions(0, finder="best")  # must not raise IndexError
+    assert isinstance(part, Partition)
+    # end-to-end explain path (candidate_conditioning_features="all") must also survive
+    rep = effector.explain(X, model, method="pdp", schema=schema,
+                           nof_instances="all", top_k=2)
+    assert len(rep.features) == 2

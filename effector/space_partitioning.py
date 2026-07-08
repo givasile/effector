@@ -259,12 +259,6 @@ class Base:
         heter_func = self.heter_func
         data = self.data
 
-        # matrix_weighted_heter[i,j] (i index of ccf and j index of split position) is
-        # the weighted heterogeneity if the node(s) split in ccf[i] at position j
-        matrix_weighted_heter = (
-            np.ones([len(ccf), max(nof_splits - 1, self.cat_limit)]) * BIG_M
-        )
-
         # candidate_split_positions[i] is the list of split positions for the
         # i-th feature of conditioning
         candidate_split_positions = [
@@ -275,6 +269,17 @@ class Base:
             )
             for i, foc_i in enumerate(ccf)
         ]
+
+        # matrix_weighted_heter[i,j] (i index of ccf and j index of split position) is
+        # the weighted heterogeneity if the node(s) split in ccf[i] at position j.
+        # The column count must fit the LARGEST candidate-position list: a categorical
+        # conditioning feature can have more levels than cat_limit or the numerical grid
+        # (e.g. hour-of-day = 24 levels), which would otherwise index j out of bounds.
+        max_positions = max((len(p) for p in candidate_split_positions), default=1)
+        matrix_weighted_heter = (
+            np.ones([len(ccf), max(nof_splits - 1, self.cat_limit, max_positions)])
+            * BIG_M
+        )
 
         def apply_split(foc_i, position, foc_type):
             return self._flatten_list(
