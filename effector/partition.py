@@ -15,8 +15,8 @@ safely re-attachable.
 
 This module is a **leaf**: it imports only numpy + stdlib, `effector.helpers`
 (scale precedence), `effector.ingestion` (categorical predicate), and
-`effector.rules` (itself a leaf). It must NOT import `space_partitioning`,
-`tree`, or `global_effect` — the dependency flows one way (those import this).
+`effector.rules` (itself a leaf). It must NOT import `space_partitioning` or
+`global_effect` — the dependency flows one way (those import this).
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from typing import Optional
 import numpy as np
 
 from effector import helpers, ingestion
-from effector.rules import Condition, Interval, LevelSet, Rule
+from effector.rules import Interval, Rule
 
 
 @dataclass(frozen=True)
@@ -281,9 +281,7 @@ class Partition:
             else Rule({})
         )
         diff = {
-            f: s
-            for f, s in region.rule.conditions.items()
-            if parent_rule.get(f) != s
+            f: s for f, s in region.rule.conditions.items() if parent_rule.get(f) != s
         }
         return self._format_rule(Rule(diff), scale_x_list)
 
@@ -499,62 +497,3 @@ class Partition:
                 for r in self.regions
             ],
         }
-
-
-def partition_from_tree(tree, *, feature, feature_names, finder_name, data) -> Partition:
-    """Build a `Partition` from a `space_partitioning` `Tree`. Region.idx
-    equals the node idx (insertion order). Each node's `Rule` is synthesized
-    by refining its parent's rule with the node's own split condition — with
-    the MASK semantics (`x < t` / `x >= t`; `== v` / the explicit complement
-    of `v` over the observed levels, materialized from `data`)."""
-    feature_name = feature_names[feature]
-    regions = []
-    rule_of = {}
-    for node in tree.nodes:
-        if node.parent_node is None:
-            rule = Rule({})
-        else:
-            info = node.info
-            foc = int(info["foc_index"])
-            pos = float(info["foc_split_position"])
-            comparison = info["comparison"]
-            if comparison == "<=":  # left child: mask is x < t
-                subset = Interval(hi=pos)
-            elif comparison == ">":  # right child: mask is x >= t
-                subset = Interval(lo=pos)
-            elif comparison == "==":
-                subset = LevelSet([pos])
-            elif comparison == "!=":
-                universe = {float(v) for v in np.unique(data[:, foc])}
-                subset = LevelSet(universe - {pos})
-            else:
-                raise ValueError(f"unknown comparison {comparison!r} in tree node")
-            rule = rule_of[node.parent_node.idx].refine(Condition(foc, subset))
-        rule_of[node.idx] = rule
-        name = (
-            feature_name
-            if rule.is_root
-            else f"{feature_name} | {rule.format(feature_names)}"
-        )
-        regions.append(
-            Region(
-                idx=node.idx,
-                name=name,
-                rule=rule,
-                heterogeneity=float(node.info["heterogeneity"]),
-                nof_instances=int(node.info["nof_instances"]),
-                weight=float(node.info["weight"]),
-                level=int(node.info["level"]),
-                parent_idx=(
-                    node.parent_node.idx if node.parent_node is not None else None
-                ),
-                mask=node.info["active_indices"].astype(bool),
-            )
-        )
-    return Partition(
-        regions,
-        feature=feature,
-        feature_name=feature_name,
-        finder_name=finder_name,
-        feature_names=feature_names,
-    )

@@ -15,11 +15,12 @@ Two subset types exist:
   (`x <= t`) are representable faithfully.
 - `LevelSet` — an explicit set of observed levels of a discrete feature. No
   level universe is stored: complements (`!=`) are materialized by the caller
-  who knows the levels (the parser via `levels=`, the tree adapter via data).
+  who knows the levels (the parser via `levels=`, the categorical proposer
+  via data).
 
 This module is a **leaf**: it imports only numpy + stdlib and
 `effector.ingestion` (the categorical predicate). It must NOT import
-`partition`, `space_partitioning`, `tree`, or `global_effect`.
+`partition`, `space_partitioning`, or `global_effect`.
 """
 
 from __future__ import annotations
@@ -220,9 +221,7 @@ class Condition:
         return self.subset.contains(np.asarray(X)[:, self.feature])
 
     def format(self, feature_names=None, scale_x_list=None, category_names=None) -> str:
-        name = (
-            feature_names[self.feature] if feature_names else f"x_{self.feature}"
-        )
+        name = feature_names[self.feature] if feature_names else f"x_{self.feature}"
         scale = scale_x_list[self.feature] if scale_x_list else None
         level_names = category_names.get(self.feature) if category_names else None
         return self.subset.format(name, scale=scale, level_names=level_names)
@@ -338,9 +337,7 @@ class Rule:
 
     @classmethod
     def from_dict(cls, d: dict) -> "Rule":
-        return cls(
-            {c["feature"]: subset_from_dict(c) for c in d["conditions"]}
-        )
+        return cls({c["feature"]: subset_from_dict(c) for c in d["conditions"]})
 
     # -- parser ------------------------------------------------------------------
     @classmethod
