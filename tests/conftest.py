@@ -16,6 +16,8 @@ Regional methods run on the gated-linear model from the functional anchor
 which runs on N=50 / budget=128 to keep the gate fast.
 """
 
+from contextlib import contextmanager
+
 import matplotlib
 
 matplotlib.use("Agg")
@@ -169,6 +171,18 @@ class CountingModel:
     def __call__(self, x):
         self.n_calls += 1
         return self.fn(x)
+
+
+@contextmanager
+def budget(*counters, expected):
+    """Assert the exact number of model calls a block issues (R14 budgets):
+    the sum of the given `CountingModel` counters must grow by `expected`."""
+    before = sum(c.n_calls for c in counters)
+    yield
+    got = sum(c.n_calls for c in counters) - before
+    assert got == expected, (
+        f"model-call budget violated: expected exactly {expected} calls, got {got}"
+    )
 
 
 def gated_model(x):
