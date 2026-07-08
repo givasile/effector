@@ -3,6 +3,7 @@ site_name: effector
 nav:
   - effector: index.md
   - Quickstart: quickstart.md
+  - The mental model: mental_model.md
   - API Docs: api_docs.md
   - Design:
       - The design contract (R1-R13): design.md
