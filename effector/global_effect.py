@@ -779,21 +779,34 @@ class GlobalEffectBase(ABC):
 
     def find_regions(
         self,
-        feature: Union[int, str],
+        feature: Union[int, str, None] = None,
         *,
+        features: Union[list, str, None] = None,
         finder="best",
         candidate_conditioning_features="all",
     ):
-        """Search for heterogeneity-reducing subregions of `feature` and return a
-        `Partition` — a value (R12): nothing is stored on `self`.
+        """Search for heterogeneity-reducing subregions and return the result as
+        a value (R12): nothing is stored on `self`.
 
         The search is model-free: every candidate's score is
         `heter_score(feature, mask)`, re-summarized from the cached local effects
         (and memoized). There are no method fit kwargs here — the binning/scope
         etc. are exactly those `feature` was fitted with, replayed.
 
+        Exactly one of `feature`/`features` must be given. The singular form
+        returns one `Partition`; the plural form runs the same search per
+        feature and returns a `{feature_name: Partition}` dict — the shape
+        `plot_triage(effect, partitions=...)` consumes directly.
+
         Args:
-            feature: index or name of the feature to partition.
+            feature: index or name of the one feature to partition.
+            features: partition several features — a list of indices/names,
+                `"all"` (every feature this method supports), or
+                `"heterogeneous"` (supported features whose `heter_score` is at
+                or above the median — the same threshold convention
+                `effector.explain` uses). With `"all"`/`"heterogeneous"`,
+                unsupported feature types are skipped with one `UserWarning`;
+                a feature named explicitly in a list raises instead.
             finder: a region finder — either a name (`"best"` /
                 `"best_level_wise"`) or any object implementing the finder
                 protocol (`find_regions(feature, data, score_fn, ...) -> Partition`).
@@ -801,8 +814,21 @@ class GlobalEffectBase(ABC):
                 (`"all"` or a list of indices/names).
 
         Returns:
-            a `Partition` bound to this effect (its `plot`/`eval` re-query `self`).
+            a `Partition` bound to this effect (its `plot`/`eval` re-query
+            `self`) — or `{feature_name: Partition}` when `features=` is used.
         """
+        if (feature is None) == (features is None):
+            raise ValueError(
+                "find_regions takes exactly one of `feature` (singular -> "
+                "Partition) or `features` (plural -> {name: Partition})"
+            )
+        if features is not None:
+            return self._find_regions_plural(
+                features,
+                finder=finder,
+                candidate_conditioning_features=candidate_conditioning_features,
+            )
+
         from effector import space_partitioning  # lazy: one-way dep guard
 
         feature = self._resolve_feature(feature)
@@ -831,6 +857,55 @@ class GlobalEffectBase(ABC):
             target_name=self.target_name,
         )
         return partition.bind(self)
+
+    def _find_regions_plural(
+        self,
+        features: Union[list, str],
+        *,
+        finder,
+        candidate_conditioning_features,
+    ) -> dict:
+        """The `features=` form of `find_regions`: one search per feature,
+        keyed by feature name. `"all"`/`"heterogeneous"` iterate the supported
+        features (one UserWarning for the skipped ones, mirroring
+        `importances`); an explicit list is strict."""
+        if isinstance(features, str):
+            if features not in ("all", "heterogeneous"):
+                raise ValueError(
+                    f"Invalid features argument: {features!r}; use a list of "
+                    "indices/names, 'all', or 'heterogeneous'"
+                )
+            supported, skipped = [], []
+            for f in range(self.dim):
+                try:
+                    self._check_feature_type_supported(f)
+                    supported.append(f)
+                except ValueError:
+                    skipped.append(self.feature_names[f])
+            if skipped:
+                warnings.warn(
+                    f"find_regions skipped feature(s) {skipped} — this method "
+                    f"does not support their feature type.",
+                    UserWarning,
+                    stacklevel=3,
+                )
+            if features == "heterogeneous":
+                # the explain() threshold convention: at/above the median
+                hs = {f: self.heter_score(f) for f in supported}
+                thr = float(np.median(list(hs.values()))) if hs else 0.0
+                supported = [f for f in supported if hs[f] >= thr]
+            resolved = supported
+        else:
+            resolved = [self._resolve_feature(f) for f in features]
+
+        return {
+            self.feature_names[f]: self.find_regions(
+                f,
+                finder=finder,
+                candidate_conditioning_features=candidate_conditioning_features,
+            )
+            for f in resolved
+        }
 
     def importance(
         self,

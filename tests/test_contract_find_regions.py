@@ -391,3 +391,55 @@ def test_rc12_bind_wrong_data_raises(rc5_effect):
     other.fit(0, centering=False)
     with pytest.raises(ValueError):
         Partition.from_dict(d).bind(other)
+
+
+# ---------------------------------------------------------------------------
+# RC13 — the plural features= form: {name: Partition}, one search per feature
+# ---------------------------------------------------------------------------
+
+
+def test_rc13_plural_list_matches_singular(rc5_effect):
+    parts = rc5_effect.find_regions(features=[0])
+    assert set(parts) == {"x_0"}
+    assert parts["x_0"].to_dict() == rc5_effect.find_regions(0).to_dict()
+
+
+def test_rc13_plural_accepts_names(rc5_effect):
+    parts = rc5_effect.find_regions(features=["x_0"])
+    assert isinstance(parts["x_0"], Partition)
+
+
+def test_rc13_exactly_one_of_feature_features(rc5_effect):
+    with pytest.raises(ValueError, match="exactly one"):
+        rc5_effect.find_regions(0, features=[0])
+    with pytest.raises(ValueError, match="exactly one"):
+        rc5_effect.find_regions()
+
+
+def test_rc13_junk_features_string_raises(rc5_effect):
+    with pytest.raises(ValueError, match="heterogeneous"):
+        rc5_effect.find_regions(features="some")
+
+
+def test_rc13_all_covers_supported_and_warns_on_skipped():
+    # DerPDP is continuous-only; x_2 is categorical -> skipped with one warning
+    data = make_regional_data(n=300)
+    fx = effector.DerPDP(data, gated_model, model_jac=gated_model_jac, nof_instances="all")
+    with pytest.warns(UserWarning, match="x_2"):
+        parts = fx.find_regions(features="all")
+    assert set(parts) == {"x_0", "x_1"}
+
+
+def test_rc13_explicit_unsupported_feature_raises():
+    data = make_regional_data(n=300)
+    fx = effector.DerPDP(data, gated_model, model_jac=gated_model_jac, nof_instances="all")
+    with pytest.raises(ValueError):
+        fx.find_regions(features=[2])
+
+
+def test_rc13_heterogeneous_selects_the_gated_feature(rc5_effect):
+    # x_0 carries all the heterogeneity in the gated model; the median-heter
+    # threshold must keep it
+    parts = rc5_effect.find_regions(features="heterogeneous")
+    assert "x_0" in parts
+    assert len(parts["x_0"]) > 1  # it actually found the gate
