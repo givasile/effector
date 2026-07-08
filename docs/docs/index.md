@@ -95,9 +95,9 @@ pdp = effector.PDP(
     },
 )
 
-# Plot the effect of a feature
+# Plot the effect of a feature (by name or index — "hr" is feature 3)
 pdp.plot(
-    feature=3,  # Select the 3rd feature (feature: hour)
+    "hr",
     nof_ice=200,  # (optional) Number of Individual Conditional Expectation (ICE) curves to plot
     scale_x={"mean": bike_sharing.x_test_mu[3], "std": bike_sharing.x_test_std[3]},  # (optional) Scale x-axis
     scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},  # (optional) Scale y-axis
@@ -122,8 +122,8 @@ pdp = effector.PDP(
     },
 )
 
-# Search for subregions of the 3rd feature (temperature); returns a Partition
-partition = pdp.find_regions(feature=3)
+# Search for subregions of the `hr` feature; returns a Partition
+partition = pdp.find_regions("hr")
 
 # Summarize the partition tree
 partition.show(

@@ -14,6 +14,18 @@ on a pandas DataFrame, **you** wrap it into a `numpy → numpy` function — and
 that wrapper is exactly where the framework-specific concerns (dtype, device,
 batching) belong, because only you know them.
 
+For the common cases you don't have to write the wrapper by hand:
+[`effector.adapters`](../api_docs/api_adapters.md) *returns* the wrapper for
+sklearn estimators, classifiers, and torch modules. It is facilitation only —
+the adapter hands you a plain callable, and **you** make the final pass into
+the constructor. Nothing is auto-detected:
+
+```python
+model = effector.adapters.from_sklearn(est)      # estimator -> plain callable
+effector.adapters.check(model, X)                # the handshake: probe on 2 rows
+effector.PDP(X, model, schema=schema)            # the final pass is yours
+```
+
 !!! tip "Why numpy?"
     A numpy array is the one format PyTorch, TensorFlow, JAX, scikit-learn,
     XGBoost, and plain Python functions all speak. Standing on numpy makes
@@ -46,8 +58,16 @@ effector.PDP(X, model, schema=schema).plot(feature=0)
 
 ## PyTorch
 
-Wrap the network in a `numpy → numpy` function. This is the entire integration —
-and the natural home for `eval()`, `no_grad`, device, and dtype:
+The adapter builds the wrapper for you — `eval()` mode, `no_grad`, device and
+dtype handled:
+
+```python
+model = effector.adapters.from_torch(net)
+effector.PDP(X, model).plot(feature=0)
+```
+
+Which is exactly this hand-written function — write it yourself whenever your
+forward pass needs anything special (a head selection, custom batching):
 
 ```python
 import torch
@@ -65,7 +85,15 @@ effector.PDP(X, model).plot(feature=0)
 
 !!! note "Bonus: exact gradients for RHALE / DerPDP"
     The Jacobian is *also* just `numpy → numpy`, so you can hand `effector` the
-    **exact** autograd gradient instead of its numerical fallback:
+    **exact** autograd gradient instead of its numerical fallback.
+    `from_torch(net, jacobian=True)` returns the pair:
+
+    ```python
+    model, model_jac = effector.adapters.from_torch(net, jacobian=True)
+    effector.RHALE(X, model, model_jac).plot(feature=0)
+    ```
+
+    or by hand:
 
     ```python
     def model_jac(X):                          # numpy (N, D) -> numpy (N, D)
@@ -73,9 +101,19 @@ effector.PDP(X, model).plot(feature=0)
                             device=device).requires_grad_(True)
         net(t).sum().backward()
         return t.grad.cpu().numpy()
-
-    effector.RHALE(X, model, model_jac).plot(feature=0)
     ```
+
+## Classifiers
+
+Class labels are not a regression surface, so `effector` explains a
+**per-class probability** instead — one explanation per class:
+
+```python
+model = effector.adapters.classifier_proba(clf, class_="yes")   # P(class="yes")
+effector.PDP(X, model, schema=schema).plot(feature=0)
+```
+
+Loop over `clf.classes_` if you want every class explained.
 
 ## TensorFlow / Keras
 

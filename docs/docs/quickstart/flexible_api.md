@@ -8,7 +8,10 @@
 `Effector` is designed to work well with its default settings, 
 but it also allows for customization if the user needs more control over the processing steps.
 This flexibility is achieved through the use of the `.fit()` routine, 
-which offers a range of options for customizing each global or regional effect method
+which offers a range of options for customizing each global or regional effect method.
+
+Everywhere a feature is named below, an index (`features=0`) and a schema name
+(`features="hr"`, or a list mixing both) are interchangeable.
 
 
 ## Dataset

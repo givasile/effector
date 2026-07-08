@@ -12,6 +12,8 @@
 - (optionally) the jacobian of the black-box model
 
 Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
+For the thinking behind the API — one engine, values, two entrances — see
+[the mental model](../mental_model.md).
 { .annotate }
 
 1.  :man_raising_hand: `effector` provides five global effect methods:
@@ -107,15 +109,14 @@ Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
 
 === "scikit-learn"
 
-     If you have a sklearn `model`, use `model.predict`.
+     The adapter wraps `model.predict` (and validates the output shape):
 
      ```python
-     # X = ... (the training data)
-     # y = ... (the training labels)
      # model = sklearn.ensemble.RandomForestRegressor().fit(X, y)
+     predict = effector.adapters.from_sklearn(model)
 
-     def predict(x):
-        return model.predict(x)
+     # classifiers: explain a per-class probability instead
+     predict = effector.adapters.classifier_proba(clf, class_=1)
      ```
 
 === "tensorflow"
@@ -133,16 +134,17 @@ Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
 
 === "pytorch"
 
-     If you have a pytorch model, use `model.forward`.
+     The adapter handles eval mode, `no_grad`, device and dtype:
 
      ```python
-     # X = ... (the training data)
-     # y = ... (the training labels)
      # model = ... (a pytorch model, e.g., torch.nn.Sequential)
-
-     def predict(x):
-        return model.forward(x).detach().numpy()
+     predict = effector.adapters.from_torch(model)
      ```
+
+Whatever produced the callable, you can probe it on two rows of your data
+before building an engine — `effector.adapters.check(predict, X)` — and get a
+precise error message if the shapes are off.
+
 ---
 ### Jacobian (optional)
 
@@ -184,15 +186,8 @@ Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
 === "pytorch"
 
     ```python
-     # X = ... (the training data)
-     # y = ... (the training labels)
      # model = ... (a pytorch model, e.g., torch.nn.Sequential)
-
-     def jacobian(x):
-        x = torch.tensor(x, requires_grad=True)
-        y = model(x)
-        y.backward(torch.eye(y.shape[0]))
-        return x.grad.numpy()
+     predict, jacobian = effector.adapters.from_torch(model, jacobian=True)
     ```
 
 ## Global Effect
@@ -210,6 +205,8 @@ Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
 ### `.plot()`
 
 `.plot()` is the most common method, as it visualizes the global effect.
+Every verb takes the feature as an **index or a name** (names come from your
+schema) — `pdp.plot(0)` and `pdp.plot("hour")` are the same call.
 For example, to plot the effect of the first feature of the synthetic dataset, use:
 
 === "PDP"

@@ -64,24 +64,28 @@ Interesting! The model has "learned" that:
 
 ---
 
-Let's focus on feature `hour`. We will compute the global effect of the `hour` feature using three different methods provided by `effector`:
+Let's focus on feature `hour`. (Every verb takes the feature by index or by
+name — `plot(feature=3)` and `plot("hr")` are the same call. To survey all
+features at once — importance against heterogeneity — use
+`effector.plot_triage(effect)`.) We will compute the global effect of the
+`hour` feature using three different methods provided by `effector`:
 
 === "PDP"
     ```python
-    effector.PDP(X, model).plot(feature=3)
+    effector.PDP(X, model, schema=schema).plot("hr")
     ```
     ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_22_0.png)
 
 === "RHALE"
     ```python
-    effector.RHALE(X, model, model_jac).plot(feature=3)
+    effector.RHALE(X, model, model_jac, schema=schema).plot("hr")
     ```
     ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_28_0.png)
 
 === "SHAP-DP"
 
     ```python
-    effector.ShapDP(X, model).plot(feature=3)
+    effector.ShapDP(X, model, schema=schema).plot("hr")
     ```
     ![Feature effect plot](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_34_489.png)
 
@@ -184,7 +188,7 @@ To print the partition tree, we call `.find_regions()` on the global effect obje
 
 === "PDP"
     ```python
-    partition = effector.PDP(X, model).find_regions(feature=3)
+    partition = effector.PDP(X, model, schema=schema).find_regions("hr")
     partition.show()
     ```
 
@@ -203,7 +207,7 @@ To print the partition tree, we call `.find_regions()` on the global effect obje
 
 === "RHALE"
     ```python
-    partition = effector.RHALE(X, model, model_jac).find_regions(feature=3)
+    partition = effector.RHALE(X, model, model_jac, schema=schema).find_regions("hr")
     partition.show()
     ```
 
@@ -220,7 +224,7 @@ To print the partition tree, we call `.find_regions()` on the global effect obje
 
 === "SHAP-DP"
     ```python
-    partition = effector.ShapDP(X, model, nof_instances=500).find_regions(feature=3)
+    partition = effector.ShapDP(X, model, schema=schema, nof_instances=500).find_regions("hr")
     partition.show()
     ```
 
@@ -333,18 +337,21 @@ To print the partition tree, we call `.find_regions()` on the global effect obje
 
 You can use the same mechanism ad hoc, with any condition you like, without
 fitting a regional object at all — every global method's `eval` and `plot`
-accept a boolean `mask` over the instances:
+accept a `rule` (a predicate string or an `effector.Rule`), or a raw boolean
+`mask`:
 
 ```python
-pdp = effector.PDP(X, model)
-pdp.fit(feature=3)
+pdp = effector.PDP(X, model, schema=schema)
+pdp.fit("hr")
 
 # the effect of `hour`, only over working days
-pdp.plot(feature=3, mask=X[:, 6] > 0.5, feature_label="hr | workingday")
+pdp.plot("hr", rule="workingday == 1")
+
+# or straight from a node of a found partition
+parts = pdp.find_regions(features="heterogeneous")   # {feature_name: Partition}
+pdp.plot("hr", rule=parts["hr"][1].rule)
 ```
 
 `partition.plot(node_idx)` does exactly this, with the node's mask
 and label. See *The design contract* (R11) and *Method semantics* for what is
 re-computed versus frozen per method.
-
-    ✔️ This makes sense—temperature matters for sightseeing, but not for commuting.
