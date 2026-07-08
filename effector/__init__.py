@@ -4,6 +4,7 @@ from effector import (
     datasets,
     ingestion,
     models,
+    proposers,
     rules,
     space_partitioning,
     theme,

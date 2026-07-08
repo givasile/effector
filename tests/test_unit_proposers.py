@@ -6,6 +6,8 @@ import pytest
 
 from effector import ordering
 from effector.proposers import (
+    CATEGORICAL_PROPOSERS,
+    CONTINUOUS_PROPOSERS,
     CandidateSplit,
     CategoricalMultiway,
     CategoricalOneVsRest,
@@ -15,6 +17,8 @@ from effector.proposers import (
     ContinuousThreshold,
     SearchContext,
     default_proposer,
+    make_proposer_factory,
+    resolve_proposer,
 )
 from effector.rules import Condition, Interval, LevelSet
 
@@ -353,3 +357,42 @@ def test_quantiles_ignores_numerical_grid_size():
 def test_quantiles_max_children_below_two_raises():
     with pytest.raises(ValueError, match="max_children"):
         ContinuousQuantiles(max_children=1)
+
+
+# ---- registry + factory (PR-D) -----------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "name,registry,cls",
+    [
+        (n, r, c)
+        for r in (CATEGORICAL_PROPOSERS, CONTINUOUS_PROPOSERS)
+        for n, c in r.items()
+    ],
+)
+def test_resolve_proposer_names(name, registry, cls):
+    assert isinstance(resolve_proposer(name, registry, "some"), cls)
+
+
+def test_resolve_proposer_instance_passes_through():
+    instance = CategoricalOrdered(order=[1.0, 0.0])
+    assert resolve_proposer(instance, CATEGORICAL_PROPOSERS, "categorical") is instance
+
+
+def test_resolve_proposer_junk_raises():
+    with pytest.raises(ValueError, match="unknown categorical proposer 'cart'"):
+        resolve_proposer("cart", CATEGORICAL_PROPOSERS, "categorical")
+    with pytest.raises(ValueError, match="propose"):
+        resolve_proposer(42, CONTINUOUS_PROPOSERS, "continuous")
+
+
+def test_make_proposer_factory_dispatches_on_taxonomy():
+    factory = make_proposer_factory()
+    assert isinstance(factory("cont"), ContinuousThreshold)
+    assert isinstance(factory("continuous"), ContinuousThreshold)
+    for ftype in ("cat", "ordinal", "nominal"):
+        assert isinstance(factory(ftype), CategoricalOneVsRest)
+
+    factory = make_proposer_factory(categorical="multiway", continuous="quantiles")
+    assert isinstance(factory("nominal"), CategoricalMultiway)
+    assert isinstance(factory("cont"), ContinuousQuantiles)

@@ -10,6 +10,7 @@ seam (a custom k-way proposer flows through search and construction).
 import numpy as np
 import pytest
 
+from effector import proposers
 from effector.proposers import CandidateSplit
 from effector.rules import Condition, Interval, LevelSet
 from effector.space_partitioning import Best, BestLevelWise
@@ -237,6 +238,102 @@ def test_find_regions_returns_partition_and_leaves_caller_clean():
     # the caller's finder instance must be untouched (compile ran on the deepcopy)
     assert finder.data is None
     assert finder.feature is None
+
+
+def _make_cat_toy(nof_levels=3, with_refinement=False):
+    """Classes fully explained by a `nof_levels`-way categorical x3 (and,
+    with `with_refinement`, a further x1 >= 5 split inside every level)."""
+    np.random.seed(0)
+    N = 600
+    X = np.stack(
+        [
+            np.random.uniform(0, 10, N),
+            np.random.uniform(0, 10, N),
+            np.random.randint(0, nof_levels, N).astype(float),
+        ],
+        axis=1,
+    )
+    y = X[:, 2].astype(int)
+    if with_refinement:
+        y = 2 * y + (X[:, 0] >= 5).astype(int)
+    return X, y
+
+
+def test_proposer_kwargs_defaults_match_current_and_junk_raises():
+    factory = Best().proposer_factory
+    assert isinstance(factory("cont"), proposers.ContinuousThreshold)
+    assert isinstance(factory("cat"), proposers.CategoricalOneVsRest)
+    with pytest.raises(ValueError, match="unknown categorical proposer"):
+        Best(categorical_proposer="cart")
+    with pytest.raises(ValueError, match="unknown continuous proposer"):
+        BestLevelWise(continuous_proposer="chi2")
+
+
+def test_multiway_kwarg_end_to_end_best():
+    X, y = _make_cat_toy()
+    part = _compile(
+        Best(max_depth=1, heter_small_enough=0.0, categorical_proposer="multiway"),
+        X,
+        _gini(y),
+        feature_types=["cont", "cont", "cat"],
+    )
+    children = _children_of(part, 0)
+    assert [c.rule[2] for c in children] == [
+        LevelSet({0.0}),
+        LevelSet({1.0}),
+        LevelSet({2.0}),
+    ]
+    counts = np.sum([c.mask for c in children], axis=0)
+    np.testing.assert_array_equal(counts, np.ones(len(X), dtype=int))
+
+
+def test_kway_through_best_level_wise_parent_major():
+    X, y = _make_cat_toy(with_refinement=True)
+    part = _compile(
+        BestLevelWise(
+            max_depth=2, heter_small_enough=0.0, categorical_proposer="multiway"
+        ),
+        X,
+        _gini(y),
+        feature_types=["cont", "cont", "cat"],
+    )
+    # level 1: the 3-way categorical candidate; level 2: one binary threshold
+    # applied to every level-1 node -> 3 * 2 children, parent-major order
+    assert len(part) == 10
+    level1 = _children_of(part, 0)
+    assert [r.idx for r in level1] == [1, 2, 3]
+    assert [r.rule[2] for r in level1] == [
+        LevelSet({0.0}),
+        LevelSet({1.0}),
+        LevelSet({2.0}),
+    ]
+    level2 = [r for r in part if r.level == 2]
+    assert [r.parent_idx for r in level2] == [1, 1, 2, 2, 3, 3]
+    for r in level2:
+        assert abs(_split_position(r, 0) - 5.0) < 0.5
+        parent = part[r.parent_idx]
+        np.testing.assert_array_equal(r.mask & parent.mask, r.mask)
+
+
+def test_proposer_instance_kwarg_end_to_end():
+    X, y = _make_cat_toy()
+    part = _compile(
+        Best(
+            max_depth=1,
+            heter_small_enough=0.0,
+            categorical_proposer=proposers.CategoricalOrdered(order=[2.0, 0.0, 1.0]),
+        ),
+        X,
+        _gini(y),
+        feature_types=["cont", "cont", "cat"],
+    )
+    children = _children_of(part, 0)
+    # whichever cut wins, it must be a contiguous prefix/suffix of the
+    # explicit order — {0, 1} vs {2} could never come out of [2, 0, 1]
+    assert [c.rule[2] for c in children] in (
+        [LevelSet({2.0}), LevelSet({0.0, 1.0})],
+        [LevelSet({2.0, 0.0}), LevelSet({1.0})],
+    )
 
 
 def test_find_regions_rejects_min_points_below_two():

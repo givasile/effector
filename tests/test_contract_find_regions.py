@@ -147,6 +147,13 @@ def test_rc5_finder_instance_not_mutated(rc5_effect):
     assert finder.feature is None
 
 
+def test_rc5_proposer_kwargs_smoke(rc5_effect):
+    finder = effector.space_partitioning.Best(
+        max_depth=1, categorical_proposer="multiway", continuous_proposer="quantiles"
+    )
+    assert isinstance(rc5_effect.find_regions(0, finder=finder), Partition)
+
+
 # ---------------------------------------------------------------------------
 # RC6 — the split search is model-free: model/jacobian calls do not grow with
 # the candidate-split count (grid size).
@@ -310,6 +317,7 @@ def test_rc10_high_cardinality_categorical_conditioning_feature():
         X, model, method="pdp", schema=schema, nof_instances="all", top_k=2
     )
     assert len(rep.features) == 2
+
 
 # ---------------------------------------------------------------------------
 # RC11 — rule= sugar: equivalent to the mask it materializes; mutually

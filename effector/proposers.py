@@ -285,3 +285,48 @@ def default_proposer(feature_type: str):
     if ingestion.is_categorical(feature_type):
         return CategoricalOneVsRest()
     return ContinuousThreshold()
+
+
+CATEGORICAL_PROPOSERS = {
+    "one_vs_rest": CategoricalOneVsRest,
+    "subsets": CategoricalSubsets,
+    "ordered": CategoricalOrdered,
+    "multiway": CategoricalMultiway,
+}
+CONTINUOUS_PROPOSERS = {
+    "threshold": ContinuousThreshold,
+    "quantiles": ContinuousQuantiles,
+}
+
+
+def resolve_proposer(spec, registry: dict, kind: str):
+    """A registry name (default-constructed) or a proposer instance (anything
+    exposing ``propose``) — everything else is a `ValueError`."""
+    if isinstance(spec, str):
+        try:
+            return registry[spec]()
+        except KeyError:
+            raise ValueError(
+                f"unknown {kind} proposer {spec!r}; expected one of "
+                f"{sorted(registry)} or a proposer instance"
+            ) from None
+    if callable(getattr(spec, "propose", None)):
+        return spec
+    raise ValueError(
+        f"a {kind} proposer must be a registry name or expose a "
+        f"propose(ctx, foc) method; got {spec!r}"
+    )
+
+
+def make_proposer_factory(categorical="one_vs_rest", continuous="threshold"):
+    """Build a finder's ``feature type -> proposer`` factory from one
+    categorical and one continuous proposer spec (names or instances)."""
+    categorical = resolve_proposer(categorical, CATEGORICAL_PROPOSERS, "categorical")
+    continuous = resolve_proposer(continuous, CONTINUOUS_PROPOSERS, "continuous")
+
+    def factory(feature_type: str):
+        if ingestion.is_categorical(feature_type):
+            return categorical
+        return continuous
+
+    return factory

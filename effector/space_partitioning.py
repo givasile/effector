@@ -34,6 +34,8 @@ class Base:
         min_samples_leaf: int = 10,
         numerical_features_grid_size: int = 20,
         search_partitions_when_categorical: bool = True,
+        categorical_proposer="one_vs_rest",
+        continuous_proposer="threshold",
     ):
         """Shared configuration of the space partitioners.
 
@@ -79,6 +81,22 @@ class Base:
                 ??? Note "Default is `False`"
                     It is difficult to compute the heterogeneity for categorical features, so by default, the algorithm will not search for partitions when the feature of interest is categorical.
 
+            categorical_proposer: How candidate splits on categorical conditioning features are enumerated
+
+                ??? Note "Options"
+                    - `"one_vs_rest"` (default): one level vs. all others, per observed level
+                    - `"subsets"`: every binary subset-vs-complement split
+                    - `"ordered"`: contiguous cuts after ordering the levels (natural for ordinal, similarity seriation for nominal)
+                    - `"multiway"`: one k-way candidate with one child per level
+                    - a proposer instance (anything exposing `propose(ctx, foc)`), e.g. `effector.proposers.CategoricalOrdered(order=[...])`
+
+            continuous_proposer: How candidate splits on continuous conditioning features are enumerated
+
+                ??? Note "Options"
+                    - `"threshold"` (default): binary splits on an interior grid of `numerical_features_grid_size` positions
+                    - `"quantiles"`: one k-way candidate per child count, split at the marginal quantiles
+                    - a proposer instance, e.g. `effector.proposers.ContinuousQuantiles(max_children=3)`
+
         """
         self.name = helpers.camel_to_snake(name)
 
@@ -106,8 +124,11 @@ class Base:
         self.candidate_conditioning_features = None  # candidate conditioning features
         self.ctx = None  # proposers.SearchContext, built by compile()
 
-        # candidate enumeration: feature type -> proposer (the PR-D extension seam)
-        self.proposer_factory = proposers.default_proposer
+        # candidate enumeration: feature type -> proposer (the extension seam;
+        # the kwargs are sugar over it, assigning a custom factory still works)
+        self.proposer_factory = proposers.make_proposer_factory(
+            categorical_proposer, continuous_proposer
+        )
 
     def compile(
         self,
@@ -321,6 +342,8 @@ class Best(Base):
         min_samples_leaf: int = 10,
         numerical_features_grid_size: int = 20,
         search_partitions_when_categorical: bool = True,
+        categorical_proposer="one_vs_rest",
+        continuous_proposer="threshold",
     ):
         super().__init__(
             "Best",
@@ -330,6 +353,8 @@ class Best(Base):
             min_samples_leaf,
             numerical_features_grid_size,
             search_partitions_when_categorical,
+            categorical_proposer,
+            continuous_proposer,
         )
 
     def fit(self) -> Partition:
@@ -429,6 +454,8 @@ class BestLevelWise(Base):
         min_samples_leaf: int = 10,
         numerical_features_grid_size: int = 20,
         search_partitions_when_categorical: bool = True,
+        categorical_proposer="one_vs_rest",
+        continuous_proposer="threshold",
     ):
         super().__init__(
             "best_level_wise",
@@ -438,6 +465,8 @@ class BestLevelWise(Base):
             min_samples_leaf,
             numerical_features_grid_size,
             search_partitions_when_categorical,
+            categorical_proposer,
+            continuous_proposer,
         )
 
         # init splits
