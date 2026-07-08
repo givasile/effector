@@ -247,10 +247,15 @@ Candidates are parent-independent (a level-wise finder applies one candidate
 to every node of a level) and k-way by construction. The defaults reproduce
 the classic search: binary thresholds on an interior grid for continuous
 features, one-vs-rest over observed levels for categorical ones (the `!=`
-complement is materialized here, as an explicit level set). Richer proposers
-(categorical subsets, ordered/multiway, change-point grids) plug in via the
-finder's `proposer_factory` without touching the search or the construction —
-finders build rule-primary `Region`s directly; there is no tree intermediate.
+complement is materialized here, as an explicit level set). The richer named
+proposers — `subsets` / `ordered` (similarity-seriated for nominal levels) /
+`multiway` for categorical conditioning features, `quantiles` (k-way marginal
+cuts) for continuous ones — are selected per feature type from the finder
+constructor (`categorical_proposer=` / `continuous_proposer=`, a name or a
+proposer instance); the finder's `proposer_factory` attribute remains the raw
+seam, so custom proposers plug in without touching the search or the
+construction — finders build rule-primary `Region`s directly; there is no
+tree intermediate.
 
 **Invisible memos are not state.** Performance caches (the summaries memo,
 R14) are allowed inside the effect because they are semantically transparent —

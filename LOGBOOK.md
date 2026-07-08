@@ -1172,3 +1172,33 @@ all-ones mask (≡ unmasked by M1) and, for PDP/DerPDP, evaluate on their cache 
 (discrete features on their levels). After `importances()` computes the local
 effects once, the report is model-free — pinned by a contract test that holds the
 model-call count fixed across top_k=1 vs 3.
+
+---
+
+## 30. 2026-07-08 — Proposers grow a named family (PR-D) (tag: code)  [proposer seam, design.md R12; branch `feat/rules-algebra`]
+
+```
+finder(categorical_proposer=, continuous_proposer=)
+        │ "one_vs_rest" | "subsets" | "ordered" | "multiway"     (categorical)
+        │ "threshold" | "quantiles"                              (continuous)
+        ▼
+proposer_factory (the raw seam, unchanged) ──► CandidateSplits ──► same search
+```
+
+**What:** the proposer seam gets its promised family: categorical `subsets`
+(every subset-vs-complement pair, capped), `ordered` (contiguous cuts after
+ordering the levels — natural for ordinal, `similarity_order` seriation for
+nominal, or an explicit order), `multiway` (one child per level), and
+continuous `quantiles` (one k-way candidate per child count, edges at the
+marginal quantiles — x-only, no effect signal threaded through). Selected per
+feature type from the finder constructor, names or instances.
+
+**Why:** the PR-C refactor made candidates *parent rule → child conditions*
+precisely so richer proposals need zero finder changes — this cashes that in.
+Defaults stay `one_vs_rest`/`threshold`, byte-identical to the goldens; the
+kwargs are sugar over the `proposer_factory` attribute, which remains the
+extension point for custom proposers.
+
+**Changes:** `effector/proposers.py` (4 classes + registry +
+`make_proposer_factory`), finder kwargs in `space_partitioning.py`, unit tests
+per proposer + a k>2 level-wise construction test + an RC5 smoke, api docs.

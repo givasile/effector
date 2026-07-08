@@ -17,6 +17,10 @@ elsewhere.
 Both built-in finders enumerate candidate splits through the
 [proposer seam](./api_proposers.md) (*parent rule → child conditions*) and
 build the rule-primary `Partition` directly — there is no tree intermediate.
+The proposers are picked per feature type from the constructor kwargs
+`categorical_proposer=` (`"one_vs_rest"` | `"subsets"` | `"ordered"` |
+`"multiway"`) and `continuous_proposer=` (`"threshold"` | `"quantiles"`),
+each also accepting a proposer instance.
 
 ## API
 
