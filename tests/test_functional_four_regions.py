@@ -118,9 +118,7 @@ class TestRegionalEffects:
     @pytest.fixture(scope="class", params=["pdp", "rhale"])
     def fitted(self, request, bench, data):
         if request.param == "pdp":
-            fx = effector.PDP(
-                data, bench.model.predict, axis_limits=bench.axis_limits
-            )
+            fx = effector.PDP(data, bench.model.predict, axis_limits=bench.axis_limits)
         else:
             fx = effector.RHALE(
                 data,
@@ -129,9 +127,7 @@ class TestRegionalEffects:
                 axis_limits=bench.axis_limits,
             )
         fx.fit(0, centering=True)
-        return fx.find_regions(
-            0, finder=effector.space_partitioning.Best(max_depth=2)
-        )
+        return fx.find_regions(0, finder=effector.space_partitioning.Best(max_depth=2))
 
     def test_two_levels_sign_gate_then_power_gate(self, fitted, bench):
         part = fitted

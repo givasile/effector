@@ -76,8 +76,14 @@ def test_container_protocol():
 def test_constructor_validates_root():
     n = 4
     bad_root = Region(
-        idx=0, name="x0", mask=np.ones(n, dtype=bool), heterogeneity=0.1,
-        nof_instances=n, weight=0.5, level=0, parent_idx=None,
+        idx=0,
+        name="x0",
+        mask=np.ones(n, dtype=bool),
+        heterogeneity=0.1,
+        nof_instances=n,
+        weight=0.5,
+        level=0,
+        parent_idx=None,
     )
     with pytest.raises(ValueError):
         Partition([bad_root], feature=0, feature_name="x0", finder_name="best")
@@ -102,10 +108,19 @@ def test_label_glyphs():
     n = 4
     for comparison, glyph in [(">=", "≥"), ("<=", "≤"), ("!=", "≠"), ("==", "=")]:
         child = Region(
-            idx=1, name="c", mask=np.array([1, 1, 0, 0], dtype=bool),
-            heterogeneity=0.1, nof_instances=2, weight=0.5, level=1, parent_idx=0,
-            foc_index=1, foc_name="x1", foc_type="numerical",
-            foc_split_position=2.0, comparison=comparison,
+            idx=1,
+            name="c",
+            mask=np.array([1, 1, 0, 0], dtype=bool),
+            heterogeneity=0.1,
+            nof_instances=2,
+            weight=0.5,
+            level=1,
+            parent_idx=0,
+            foc_index=1,
+            foc_name="x1",
+            foc_type="numerical",
+            foc_split_position=2.0,
+            comparison=comparison,
         )
         part = Partition(
             [_root(n), child], feature=0, feature_name="x0", finder_name="best"

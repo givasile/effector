@@ -81,7 +81,11 @@ def test_regional_ale_on_categorical_foi_finds_the_gate(data):
 
 def test_regional_rhale_on_ordinal_foi(data):
     fx = effector.RHALE(
-        data, gated_cat_model, model_jac=gated_cat_jac, nof_instances="all", schema=SCHEMA
+        data,
+        gated_cat_model,
+        model_jac=gated_cat_jac,
+        nof_instances="all",
+        schema=SCHEMA,
     )
     _assert_gate_found(_find(fx))
 

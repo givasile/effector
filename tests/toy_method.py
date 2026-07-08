@@ -70,9 +70,7 @@ class ToyEffect(GlobalEffectBase):
 
     # -- 4. the pure reader kernel ------------------------------------------
     def _eval_payload(self, feature, params, x, heterogeneity=False):
-        idx = np.clip(
-            np.digitize(x, params["limits"]) - 1, 0, len(params["mean"]) - 1
-        )
+        idx = np.clip(np.digitize(x, params["limits"]) - 1, 0, len(params["mean"]) - 1)
         y = params["mean"][idx]
         return (y, params["var"][idx]) if heterogeneity else y
 

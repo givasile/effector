@@ -145,13 +145,9 @@ class TestRegionalEffects:
     @pytest.fixture(scope="class", params=["pdp", "ale", "rhale"])
     def partition(self, request, bench, data):
         if request.param == "pdp":
-            fx = effector.PDP(
-                data, bench.model.predict, axis_limits=bench.axis_limits
-            )
+            fx = effector.PDP(data, bench.model.predict, axis_limits=bench.axis_limits)
         elif request.param == "ale":
-            fx = effector.ALE(
-                data, bench.model.predict, axis_limits=bench.axis_limits
-            )
+            fx = effector.ALE(data, bench.model.predict, axis_limits=bench.axis_limits)
         else:
             fx = effector.RHALE(
                 data,
@@ -168,8 +164,7 @@ class TestRegionalEffects:
         for region in children:
             assert region.foc_index == bench.regional_split_feature
             assert (
-                abs(region.foc_split_position - bench.regional_split_position)
-                <= 0.15
+                abs(region.foc_split_position - bench.regional_split_position) <= 0.15
             )
 
     def test_region_effects_are_plus_minus_x_squared(self, partition, bench):

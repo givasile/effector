@@ -196,7 +196,11 @@ class Report:
         band = np.sqrt(np.clip(fr.h, 0, None))
         ax.plot(fr.xs, fr.y, color="#4C78A8", label="mean effect")
         ax.fill_between(
-            fr.xs, fr.y - band, fr.y + band, alpha=0.2, color="#4C78A8",
+            fr.xs,
+            fr.y - band,
+            fr.y + band,
+            alpha=0.2,
+            color="#4C78A8",
             label="± std",
         )
         ax.set_xlabel(fr.name)

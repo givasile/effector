@@ -147,9 +147,7 @@ class PDPBase(GlobalEffectBase):
             return (y, params["heter"][codes]) if heterogeneity else y
         y = np.interp(x, params["grid"], params["mean"])
         return (
-            (y, np.interp(x, params["grid"], params["heter"]))
-            if heterogeneity
-            else y
+            (y, np.interp(x, params["grid"], params["heter"])) if heterogeneity else y
         )
 
     def _eval_mean(
@@ -171,7 +169,9 @@ class PDPBase(GlobalEffectBase):
         idx = np.clip(np.searchsorted(pos, x), 0, len(pos) - 1)
         if np.all(pos[idx] == x):
             return entry["ice"][idx][:, mask].mean(axis=1)
-        y_ice = self._predict(self.data[mask], x, feature, self._use_vectorized(feature))
+        y_ice = self._predict(
+            self.data[mask], x, feature, self._use_vectorized(feature)
+        )
         return np.mean(y_ice, axis=1)
 
     def _compute_norm_const(
@@ -331,9 +331,9 @@ class PDPBase(GlobalEffectBase):
                 )
             if heterogeneity is not False:
                 params = self._summary(feature, mask)
-                variances = self._eval_payload(
-                    feature, params, x, heterogeneity=True
-                )[1]
+                variances = self._eval_payload(feature, params, x, heterogeneity=True)[
+                    1
+                ]
             else:
                 variances = None
             return vis.plot_categorical_effect(

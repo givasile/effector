@@ -40,6 +40,7 @@ def _grid_std(m, feature):
     )
     return np.std(grid)
 
+
 CONT_NAMES = ["pdp", "ale", "rhale"]  # recover the exact linear effect
 
 

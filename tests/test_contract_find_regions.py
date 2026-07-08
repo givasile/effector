@@ -169,9 +169,7 @@ def _find_counted(name, data, grid):
         fx = effector.RHALE(data, model, model_jac=jac, nof_instances="all")
     elif name == "shapdp":
         shap_values = np.random.RandomState(0).normal(size=data.shape)
-        fx = effector.ShapDP(
-            data, model, shap_values=shap_values, nof_instances="all"
-        )
+        fx = effector.ShapDP(data, model, shap_values=shap_values, nof_instances="all")
     else:
         raise ValueError(name)
     fx.find_regions(0, finder=finder)  # triggers the one lazy fit + model-free search
@@ -299,13 +297,16 @@ def test_rc10_high_cardinality_categorical_conditioning_feature():
     def model(x):
         return np.where(x[:, 1] < 12, 2 * x[:, 0], -2 * x[:, 0])
 
-    schema = {"feature_names": ["x0", "hour"],
-              "feature_types": ["continuous", "nominal"]}
+    schema = {
+        "feature_names": ["x0", "hour"],
+        "feature_types": ["continuous", "nominal"],
+    }
     fx = effector.PDP(X, model, schema=schema, nof_instances="all")
     fx.fit(0)
     part = fx.find_regions(0, finder="best")  # must not raise IndexError
     assert isinstance(part, Partition)
     # end-to-end explain path (candidate_conditioning_features="all") must also survive
-    rep = effector.explain(X, model, method="pdp", schema=schema,
-                           nof_instances="all", top_k=2)
+    rep = effector.explain(
+        X, model, method="pdp", schema=schema, nof_instances="all", top_k=2
+    )
     assert len(rep.features) == 2

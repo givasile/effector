@@ -22,10 +22,8 @@ import pytest
 
 import effector
 import effector.axis_partitioning as ap
-from effector import helpers
 
 from .conftest import (
-    COEF,
     GLOBAL_NAMES,
     CountingModel,
     analytic_shap_values,
@@ -134,9 +132,7 @@ def test_l1_shapdp_trace(global_data, monkeypatch):
         calls["n"] += 1
         return analytic_shap_values(data)
 
-    monkeypatch.setattr(
-        effector.global_effect_shap, "_compute_shap_values", fake_shap
-    )
+    monkeypatch.setattr(effector.global_effect_shap, "_compute_shap_values", fake_shap)
     model = CountingModel(linear_model)
     m = effector.ShapDP(global_data, model)
 

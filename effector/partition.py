@@ -163,9 +163,7 @@ class Partition:
 
         # A future flat finder may produce non-root regions with parent_idx=None;
         # tree rendering does not apply there.
-        is_flat = any(
-            r.level > 0 and r.parent_idx is None for r in self.regions
-        )
+        is_flat = any(r.level > 0 and r.parent_idx is None for r in self.regions)
 
         print("\n")
         print("Feature {} - Full partition tree:".format(feature))
@@ -207,16 +205,16 @@ class Partition:
         max_level = max(r.level for r in self.regions)
         prev_heter = 0.0
         for lev in range(max_level + 1):
-            hk = sum(
-                r.heterogeneity * r.weight for r in self.regions if r.level == lev
-            )
+            hk = sum(r.heterogeneity * r.weight for r in self.regions if r.level == lev)
             if lev == 0:
                 print(f"Level {lev}🔹heter: {hk:.2f}")
             else:
                 indent = "    " * lev
                 drop = prev_heter - hk
                 perc = 100 * drop / prev_heter if prev_heter else 0
-                print(f"{indent}Level {lev}🔹heter: {hk:.2f} | 🔻{drop:.2f} ({perc:.2f}%)")
+                print(
+                    f"{indent}Level {lev}🔹heter: {hk:.2f} | 🔻{drop:.2f} ({perc:.2f}%)"
+                )
             prev_heter = hk
 
     # -- effect-backed sugar ---------------------------------------------------
