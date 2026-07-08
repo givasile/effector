@@ -607,3 +607,79 @@ for feature in [0, 1, 2, 3]:
 Are the RHALE effects intuitive?
 
 Yes, we could safely say that they are intuitive. All are the same as in the previous methods (which we already discussed), the only exception being $x_3$, for which the RHALE is now flat, instead of having a step at 0 like before. This can be explained, since RHALE plots work with the derivatives and all derivatives with respect to $x_3$ are zero, provided we do not evaluate them at exactly 0, which we probably do not.
+
+## Feature importance and one-click explanation
+
+Beyond the per-feature effect curves, `effector` exposes two convenience layers on top of
+the same global effects:
+
+- `fx.importances()` returns a per-feature importance score — the dispersion of the mean
+  effect (the $\mu$-twin of heterogeneity). Here $x_3$ (the stepwise feature) and $x_4$
+  (the $e^{x_4}$ term) should score highest, while $x_1$ and $x_2$ are near zero.
+- `effector.explain(...)` runs the whole pipeline and returns a serializable `Report` with a
+  self-contained HTML rendering.
+
+
+```python
+# per-feature importance = dispersion of the mean effect (mu-twin of heterogeneity)
+print("importances:", np.round(pdp.importances(), 3))
+
+# one-click auto-explanation -> Report (serializable; self-contained HTML)
+report = effector.explain(x, model.predict, method="pdp", nof_instances="all")
+report.show()
+```
+
+    importances: [0.004 0.002 0.286 0.686]
+    
+    PDP report — target: y
+    ============================================================
+    feature                   importance     heter  #regions
+    ------------------------------------------------------------
+    x_3                           0.6843    0.0000         1
+    x_2                           0.2865    0.0896         7
+    x_0                           0.0043    0.0962         7
+    x_1                           0.0015    0.0065         1
+    ============================================================
+    
+    
+    Feature 2 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x_2 🔹 [id: 0 | heter: 0.09 | inst: 1000 | w: 1.00]
+        x_0 ≤ -0.70 🔹 [id: 1 | heter: 0.04 | inst: 165 | w: 0.17]
+            x_0 ≤ -0.90 🔹 [id: 2 | heter: 0.01 | inst: 58 | w: 0.06]
+            x_0 > -0.90 🔹 [id: 3 | heter: 0.02 | inst: 107 | w: 0.11]
+        x_0 > -0.70 🔹 [id: 4 | heter: 0.07 | inst: 835 | w: 0.83]
+            x_0 ≤ 0.70 🔹 [id: 5 | heter: 0.02 | inst: 675 | w: 0.68]
+            x_0 > 0.70 🔹 [id: 6 | heter: 0.04 | inst: 160 | w: 0.16]
+    --------------------------------------------------
+    Feature 2 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.09
+        Level 1🔹heter: 0.06 | 🔻0.03 (31.28%)
+            Level 2🔹heter: 0.02 | 🔻0.04 (63.36%)
+    
+    
+    
+    
+    Feature 0 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x_0 🔹 [id: 0 | heter: 0.10 | inst: 1000 | w: 1.00]
+        x_2 ≤ -0.00 🔹 [id: 1 | heter: 0.00 | inst: 494 | w: 0.49]
+            x_1 ≤ -0.00 🔹 [id: 2 | heter: 0.00 | inst: 243 | w: 0.24]
+            x_1 > -0.00 🔹 [id: 3 | heter: 0.00 | inst: 251 | w: 0.25]
+        x_2 > -0.00 🔹 [id: 4 | heter: 0.00 | inst: 506 | w: 0.51]
+            x_1 ≤ -0.00 🔹 [id: 5 | heter: 0.00 | inst: 268 | w: 0.27]
+            x_1 > -0.00 🔹 [id: 6 | heter: 0.00 | inst: 238 | w: 0.24]
+    --------------------------------------------------
+    Feature 0 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.10
+        Level 1🔹heter: 0.00 | 🔻0.09 (97.90%)
+            Level 2🔹heter: 0.00 | 🔻0.00 (100.00%)
+    
+    
+

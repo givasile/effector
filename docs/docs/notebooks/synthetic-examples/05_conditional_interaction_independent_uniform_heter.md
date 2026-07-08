@@ -108,6 +108,78 @@ for feature in [0, 1, 2]:
     Heterogeneity of x_2: 0.000
 
 
+### Importance & one-click report (new API)
+
+`importances()` is the $\mu$-twin of the heterogeneity above: instead of the dispersion of the *local* effects, it summarises the dispersion of the *mean* effect per feature (how much signal each feature carries). We also call `effector.explain(...)`, which fits once, ranks features by importance, and returns a self-contained `Report`.
+
+
+```python
+# per-feature importance = dispersion of the mean effect (the mu-twin of the
+# heterogeneity we studied above); x_1 and x_2 should rank equally, x_3 near zero.
+print("PDP importances:", np.round(pdp.importances(), 3))
+
+# one-click auto-explanation -> Report (serializable; self-contained HTML)
+report = effector.explain(
+    x,
+    model.predict,
+    method="pdp",
+    schema={"feature_names": ["x1", "x2", "x3"]},
+    nof_instances="all",
+)
+report.show()
+```
+
+    PDP importances: [0.005 0.329 0.686]
+
+
+    
+    PDP report — target: y
+    ============================================================
+    feature                   importance     heter  #regions
+    ------------------------------------------------------------
+    x3                            0.6851    0.0000         1
+    x2                            0.3290    0.0876         7
+    x1                            0.0050    0.1011         3
+    ============================================================
+    
+    
+    Feature 1 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x2 🔹 [id: 0 | heter: 0.09 | inst: 10000 | w: 1.00]
+        x1 ≤ 0.70 🔹 [id: 1 | heter: 0.07 | inst: 8521 | w: 0.85]
+            x1 ≤ -0.60 🔹 [id: 2 | heter: 0.03 | inst: 1920 | w: 0.19]
+            x1 > -0.60 🔹 [id: 3 | heter: 0.02 | inst: 6601 | w: 0.66]
+        x1 > 0.70 🔹 [id: 4 | heter: 0.02 | inst: 1479 | w: 0.15]
+            x1 ≤ 0.90 🔹 [id: 5 | heter: 0.01 | inst: 963 | w: 0.10]
+            x1 > 0.90 🔹 [id: 6 | heter: 0.00 | inst: 516 | w: 0.05]
+    --------------------------------------------------
+    Feature 1 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.09
+        Level 1🔹heter: 0.06 | 🔻0.03 (32.22%)
+            Level 2🔹heter: 0.02 | 🔻0.04 (68.02%)
+    
+    
+    
+    
+    Feature 0 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x1 🔹 [id: 0 | heter: 0.10 | inst: 10000 | w: 1.00]
+        x2 ≤ -0.00 🔹 [id: 1 | heter: 0.00 | inst: 4922 | w: 0.49]
+        x2 > -0.00 🔹 [id: 2 | heter: 0.00 | inst: 5078 | w: 0.51]
+    --------------------------------------------------
+    Feature 0 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.10
+        Level 1🔹heter: 0.00 | 🔻0.10 (100.00%)
+    
+    
+
+
 Conclusions:
 
 * The global effect of $x_1$ arises from heterogenous local effects, as $h(x_1) > 0$ for all $x_1$. The std margins (red area of height $\pm h(x_1)$ around the global effect) musleadingly suggest that the heterogeneity is minimized at $x_1 = \pm \frac{2}{3}$. ICE provide a clearer picture; they reveal two groups of effects, $-x_1^2 + c_1$ and $x_1^2 + c_2$. The heterogeneity as a scalar value is $H_{x_1} \approx 0.9$.
@@ -194,19 +266,19 @@ for feature in [0, 1, 2]:
 
 
     
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_14_0.png)
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_16_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_14_1.png)
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_16_1.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_14_2.png)
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_16_2.png)
     
 
 
@@ -307,19 +379,19 @@ for feature in [0, 1, 2]:
 
 
     
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_22_0.png)
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_24_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_22_1.png)
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_24_1.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_22_2.png)
+![png](05_conditional_interaction_independent_uniform_heter_files/05_conditional_interaction_independent_uniform_heter_24_2.png)
     
 
 

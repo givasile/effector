@@ -126,6 +126,39 @@ $$ \text{PDP}(x_s) = \frac{1}{N} \sum_{j=1}^N f(x_s, x^{(i)}_c) $$
 
 
 
+### Feature importance and one-click explanation
+
+Every global effect now exposes a per-feature **importance** — the dispersion of the mean
+effect (the $\mu$-twin of heterogeneity). For the linear model $y = 7x_1 - 3x_2 + 4x_3$ the
+importance of each feature scales with $|a_i|$ times the spread of $x_i$, so $x_1$ ranks highest.
+
+`effector.explain(...)` runs the whole pipeline once and returns a serializable `Report`
+with a self-contained HTML view.
+
+
+```python
+# per-feature importance = dispersion of the mean effect (mu-twin of heterogeneity)
+fx = effector.PDP(data=X, model=predict, nof_instances="all")
+fx.fit("all", centering=True)
+print("importances:", np.round(fx.importances(), 3))
+
+# one-click auto-explanation -> Report (serializable; self-contained HTML)
+report = effector.explain(X, predict, method="pdp", nof_instances="all")
+report.show()
+```
+
+    importances: [2.085 1.397 1.19 ]
+    
+    PDP report — target: y
+    ============================================================
+    feature                   importance     heter  #regions
+    ------------------------------------------------------------
+    x_0                           2.0852    0.0000         1
+    x_1                           1.3967    0.0000         1
+    x_2                           1.1899    0.0000         1
+    ============================================================
+
+
 As we expected, all feature effects are linear. Looking closer, we can also confirm the gradients of the effects: 
 $7$ for $x_1$, $-3$ for $x_2$ and $4$ for $x_3$.
 
@@ -145,19 +178,19 @@ Since this is based on model derivatives, the expected effects are simply the gr
 
 
     
-![png](01_linear_model_files/01_linear_model_11_0.png)
+![png](01_linear_model_files/01_linear_model_13_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_11_1.png)
+![png](01_linear_model_files/01_linear_model_13_1.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_11_2.png)
+![png](01_linear_model_files/01_linear_model_13_2.png)
     
 
 
@@ -191,40 +224,6 @@ where $k_{x_s}$ the index of the bin such that $z_{k_{x−1}} ≤ x_s < z_{k_x}$
 
 
     
-![png](01_linear_model_files/01_linear_model_14_0.png)
-    
-
-
-
-    
-![png](01_linear_model_files/01_linear_model_14_1.png)
-    
-
-
-
-    
-![png](01_linear_model_files/01_linear_model_14_2.png)
-    
-
-
-
-
-
-    [None, None, None]
-
-
-
-## Robust and Heterogeneity-aware ALE (RHALE)
-
-Robust and Heterogeneity-aware ALE (RHALE) is a variant of ALE, proposed by [Gkolemis et. al](https://arxiv.org/abs/2309.11193), which uses an automated variable-size binning splitting, to ensure robustness. Let's see how it works in practice.
-
-
-```python
-[effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=i, y_limits=[-5,5], dy_limits=[-10, 10]) for i in range(3)]
-```
-
-
-    
 ![png](01_linear_model_files/01_linear_model_16_0.png)
     
 
@@ -248,6 +247,40 @@ Robust and Heterogeneity-aware ALE (RHALE) is a variant of ALE, proposed by [Gko
 
 
 
+## Robust and Heterogeneity-aware ALE (RHALE)
+
+Robust and Heterogeneity-aware ALE (RHALE) is a variant of ALE, proposed by [Gkolemis et. al](https://arxiv.org/abs/2309.11193), which uses an automated variable-size binning splitting, to ensure robustness. Let's see how it works in practice.
+
+
+```python
+[effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=i, y_limits=[-5,5], dy_limits=[-10, 10]) for i in range(3)]
+```
+
+
+    
+![png](01_linear_model_files/01_linear_model_18_0.png)
+    
+
+
+
+    
+![png](01_linear_model_files/01_linear_model_18_1.png)
+    
+
+
+
+    
+![png](01_linear_model_files/01_linear_model_18_2.png)
+    
+
+
+
+
+
+    [None, None, None]
+
+
+
 
 ```python
 effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, centering=True, heterogeneity="std", show_avg_output=False)
@@ -255,7 +288,7 @@ effector.RHALE(data=X, model=predict, model_jac=predict_grad).plot(feature=0, ce
 
 
     
-![png](01_linear_model_files/01_linear_model_17_0.png)
+![png](01_linear_model_files/01_linear_model_19_0.png)
     
 
 
@@ -270,19 +303,19 @@ TODO add intro
 
 
     
-![png](01_linear_model_files/01_linear_model_19_0.png)
+![png](01_linear_model_files/01_linear_model_21_0.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_19_1.png)
+![png](01_linear_model_files/01_linear_model_21_1.png)
     
 
 
 
     
-![png](01_linear_model_files/01_linear_model_19_2.png)
+![png](01_linear_model_files/01_linear_model_21_2.png)
     
 
 

@@ -175,6 +175,76 @@ Are the PDP effects intuitive?
 * For $x_2$, the effect is constant when $x_2 < 0$ or $x_2>0$ but has a positive jump of $\frac{2}{3}$ when moving from $x_2^-$ to $x_2^+$. It makes sense; when $x_2 < 0$ the active term is $-(x_1^i)^2 \mathbb{1}_{x_2 < 0} $ which adds a negative quantity to the output and when $x_2 \geq 0$ the active term is $(x_1^i)^2 \mathbb{1}_{x_2 \geq 0}$ that adds something postive. Therefore in the transmission we observe a non-linearity.
 * For $x_3$, the effect is  $e^{x_3}$, as expected, since only the this term corresponds to $x_3$ and has no interaction with other variables.
 
+### Feature importance and one-click explanation (new API)
+
+Beyond plotting each effect, `effector` can summarize *how much* each feature
+matters and produce a single auto-explanation:
+
+- `fx.importances()` returns a per-feature importance = the dispersion of the
+  mean effect (the $\mu$-twin of heterogeneity). Here $x_2$ (the jump) and
+  $x_3$ (the $e^{x_3}$ curve) should rank above the flat-on-average $x_1$.
+- `effector.explain(...)` runs the whole pipeline and returns a serializable
+  `Report` with a self-contained HTML view.
+
+
+```python
+# per-feature importance = dispersion of the mean effect (mu-twin of heterogeneity)
+print("importances:", np.round(pdp.importances(), 3))
+
+# one-click auto-explanation -> Report (serializable; self-contained HTML)
+report = effector.explain(x, model.predict, method="pdp", nof_instances="all")
+report.show()
+```
+
+    importances: [0.008 0.33  0.686]
+    
+    PDP report — target: y
+    ============================================================
+    feature                   importance     heter  #regions
+    ------------------------------------------------------------
+    x_2                           0.6851    0.0000         1
+    x_1                           0.3302    0.0852         7
+    x_0                           0.0076    0.1005         3
+    ============================================================
+    
+    
+    Feature 1 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x_1 🔹 [id: 0 | heter: 0.09 | inst: 1000 | w: 1.00]
+        x_0 ≤ -0.70 🔹 [id: 1 | heter: 0.02 | inst: 167 | w: 0.17]
+            x_0 ≤ -0.90 🔹 [id: 2 | heter: 0.00 | inst: 56 | w: 0.06]
+            x_0 > -0.90 🔹 [id: 3 | heter: 0.01 | inst: 111 | w: 0.11]
+        x_0 > -0.70 🔹 [id: 4 | heter: 0.06 | inst: 833 | w: 0.83]
+            x_0 ≤ 0.60 🔹 [id: 5 | heter: 0.02 | inst: 648 | w: 0.65]
+            x_0 > 0.60 🔹 [id: 6 | heter: 0.03 | inst: 185 | w: 0.18]
+    --------------------------------------------------
+    Feature 1 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.09
+        Level 1🔹heter: 0.05 | 🔻0.03 (36.45%)
+            Level 2🔹heter: 0.02 | 🔻0.04 (67.03%)
+    
+    
+    
+    
+    Feature 0 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x_0 🔹 [id: 0 | heter: 0.10 | inst: 1000 | w: 1.00]
+        x_1 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 488 | w: 0.49]
+        x_1 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 512 | w: 0.51]
+    --------------------------------------------------
+    Feature 0 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.10
+        Level 1🔹heter: 0.00 | 🔻0.10 (100.00%)
+    
+    
+
+
 ## ALE
 
 ### Effector
@@ -192,19 +262,19 @@ for feature in [0, 1, 2]:
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_18_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_20_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_18_1.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_20_1.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_18_2.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_20_2.png)
     
 
 
@@ -290,7 +360,7 @@ plt.show()
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_26_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_28_0.png)
     
 
 
@@ -335,19 +405,19 @@ for feature in [0, 1, 2]:
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_30_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_32_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_30_1.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_32_1.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_30_2.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_32_2.png)
     
 
 
@@ -424,7 +494,7 @@ plt.show()
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_38_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_40_0.png)
     
 
 

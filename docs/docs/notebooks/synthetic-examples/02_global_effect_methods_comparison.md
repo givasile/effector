@@ -530,6 +530,87 @@ shap_dp.plot(feature=0, centering=True, heterogeneity="shap_values", y_limits=[-
     
 
 
+## Feature importance and one-click explanation
+
+Every global effect exposes a per-feature **importance** — the dispersion of the
+mean effect (the $\mu$-twin of heterogeneity) — so features can be ranked without
+reading every plot. On top of that, `effector.explain(...)` runs the whole
+pipeline once and returns a serializable `Report` with a self-contained HTML view.
+
+For PDP, importance is the spread of the mean effect. $x_2$ enters through the
+near-linear term $(x_1{+}1)\,x_2$ over a wide $\mathcal{N}(0, 2^2)$ range, so its
+mean effect spans the largest amplitude and ranks highest; $x_1$ carries the
+non-linear $\sin$ signal but over the narrow $[-0.5, 0.5]$ support, and $x_3$
+(nearly collinear with $x_1$) ranks lowest.
+
+
+```python
+schema = {"feature_names": ["x1", "x2", "x3"]}
+
+# per-feature importance = dispersion of the mean effect (mu-twin of heterogeneity)
+fx = effector.PDP(data=x, model=f, axis_limits=axis_limits, schema=schema, nof_instances="all")
+fx.fit("all", centering=True)
+print("importances:", np.round(fx.importances(), 3))
+
+# one-click auto-explanation -> Report (serializable; self-contained HTML)
+report = effector.explain(x, f, method="pdp", schema=schema, nof_instances="all")
+report.show()
+```
+
+    importances: [0.835 2.491 0.423]
+    
+    PDP report — target: y
+    ============================================================
+    feature                   importance     heter  #regions
+    ------------------------------------------------------------
+    x2                            2.3408    0.4213         7
+    x1                            0.8407    0.6356         7
+    x3                            0.4184    0.2985         1
+    ============================================================
+    
+    
+    Feature 1 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x2 🔹 [id: 0 | heter: 0.42 | inst: 170 | w: 1.00]
+        x1 ≤ -0.10 🔹 [id: 1 | heter: 0.12 | inst: 115 | w: 0.68]
+            x1 ≤ -0.30 🔹 [id: 2 | heter: 0.03 | inst: 54 | w: 0.32]
+            x1 > -0.30 🔹 [id: 3 | heter: 0.02 | inst: 61 | w: 0.36]
+        x1 > -0.10 🔹 [id: 4 | heter: 0.25 | inst: 55 | w: 0.32]
+            x1 ≤ 0.20 🔹 [id: 5 | heter: 0.05 | inst: 41 | w: 0.24]
+            x1 > 0.20 🔹 [id: 6 | heter: 0.07 | inst: 14 | w: 0.08]
+    --------------------------------------------------
+    Feature 1 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.42
+        Level 1🔹heter: 0.16 | 🔻0.26 (61.18%)
+            Level 2🔹heter: 0.04 | 🔻0.13 (78.17%)
+    
+    
+    
+    
+    Feature 0 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x1 🔹 [id: 0 | heter: 0.64 | inst: 170 | w: 1.00]
+        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.33 | inst: 142 | w: 0.84]
+            x2 ≤ -0.25 🔹 [id: 2 | heter: 0.12 | inst: 69 | w: 0.41]
+            x2 > -0.25 🔹 [id: 3 | heter: 0.18 | inst: 73 | w: 0.43]
+        x3 > 0.00 🔹 [id: 4 | heter: 0.24 | inst: 28 | w: 0.16]
+            x2 ≤ -0.25 🔹 [id: 5 | heter: 0.04 | inst: 10 | w: 0.06]
+            x2 > -0.25 🔹 [id: 6 | heter: 0.07 | inst: 18 | w: 0.11]
+    --------------------------------------------------
+    Feature 0 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.64
+        Level 1🔹heter: 0.31 | 🔻0.32 (50.60%)
+            Level 2🔹heter: 0.13 | 🔻0.18 (57.75%)
+    
+    
+
+
 ## Tests
 
 The asserts below mirror `tests/test_functional_correlated_features.py` — the

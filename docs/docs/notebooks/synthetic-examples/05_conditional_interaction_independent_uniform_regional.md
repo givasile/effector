@@ -67,20 +67,96 @@ $x_1 \in [-1, 1]$ (the mean of $x_1^2$ is $1/3$), the closed forms are
 $\mp x_1^2 \pm 1/3$. Every regional method below must recover: the split
 feature ($x_2$), the split position ($\approx 0$), and the per-region curves.
 
+## New-API: importance and one-click explain
+
+Before drilling into the regional splits, the new API offers two shortcuts on
+top of the global effect. `importances()` ranks features by the **dispersion of
+their mean effect** (the μ-twin of heterogeneity): here $x_3$ (the monotone
+$e^{x_3}$) carries a large mean effect, while $x_1$'s mean effect washes out to
+$\approx 0$ (its signal lives entirely in the *heterogeneity* that the regional
+split below explains). `effector.explain(...)` runs the whole pipeline once and
+returns a serializable `Report`.
+
+
+```python
+# per-feature importance = dispersion of the mean effect (mu-twin of heterogeneity)
+fx = effector.PDP(
+    data=x, model=model.predict,
+    axis_limits=dataset.axis_limits,
+    nof_instances="all",
+)
+print("importances:", np.round(fx.importances(), 3))
+
+# one-click auto-explanation -> Report (serializable; self-contained HTML)
+report = effector.explain(x, model.predict, method="pdp", nof_instances="all")
+report.show()
+```
+
+    importances: [0.008 0.33  0.686]
+    
+    PDP report — target: y
+    ============================================================
+    feature                   importance     heter  #regions
+    ------------------------------------------------------------
+    x_2                           0.6851    0.0000         1
+    x_1                           0.3302    0.0852         7
+    x_0                           0.0076    0.1005         3
+    ============================================================
+    
+    
+    Feature 1 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x_1 🔹 [id: 0 | heter: 0.09 | inst: 1000 | w: 1.00]
+        x_0 ≤ -0.70 🔹 [id: 1 | heter: 0.02 | inst: 167 | w: 0.17]
+            x_0 ≤ -0.90 🔹 [id: 2 | heter: 0.00 | inst: 56 | w: 0.06]
+            x_0 > -0.90 🔹 [id: 3 | heter: 0.01 | inst: 111 | w: 0.11]
+        x_0 > -0.70 🔹 [id: 4 | heter: 0.06 | inst: 833 | w: 0.83]
+            x_0 ≤ 0.60 🔹 [id: 5 | heter: 0.02 | inst: 648 | w: 0.65]
+            x_0 > 0.60 🔹 [id: 6 | heter: 0.03 | inst: 185 | w: 0.18]
+    --------------------------------------------------
+    Feature 1 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.09
+        Level 1🔹heter: 0.05 | 🔻0.03 (36.45%)
+            Level 2🔹heter: 0.02 | 🔻0.04 (67.03%)
+    
+    
+    
+    
+    Feature 0 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x_0 🔹 [id: 0 | heter: 0.10 | inst: 1000 | w: 1.00]
+        x_1 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 488 | w: 0.49]
+        x_1 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 512 | w: 0.51]
+    --------------------------------------------------
+    Feature 0 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.10
+        Level 1🔹heter: 0.00 | 🔻0.10 (100.00%)
+    
+    
+
+
 ## Regional PDP
 
 ### Effector
 
 
 ```python
-r_pdp = effector.RegionalPDP(x, model.predict, axis_limits=dataset.axis_limits)
-r_pdp.fit(0)
-r_pdp.summary(0)
+pdp = effector.PDP(
+    data=x, model=model.predict,
+    axis_limits=dataset.axis_limits,
+    nof_instances="all",
+)
+pdp.fit("all", centering=True)
+finder = effector.space_partitioning.Best()
+partitions_pdp = {feat: pdp.find_regions(feat, finder=finder) for feat in range(3)}
+partitions_pdp[0].show()
 ```
-
-      0%|          | 0/1 [00:00<?, ?it/s]
-
-    100%|██████████| 1/1 [00:00<00:00, 88.31it/s]
 
     
     
@@ -100,24 +176,21 @@ r_pdp.summary(0)
     
 
 
-    
-
-
 
 ```python
-for node_idx in [1, 2]:
-    r_pdp.plot(feature=0, node_idx=node_idx, heterogeneity="ice", centering=True, y_limits=[-1.5, 1.5])
+for region_idx in [1, 2]:
+    partitions_pdp[0].plot(region_idx, heterogeneity="ice", centering=True, y_limits=[-1.5, 1.5])
 ```
 
 
     
-![png](05_conditional_interaction_independent_uniform_regional_files/05_conditional_interaction_independent_uniform_regional_6_0.png)
+![png](05_conditional_interaction_independent_uniform_regional_files/05_conditional_interaction_independent_uniform_regional_8_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_regional_files/05_conditional_interaction_independent_uniform_regional_6_1.png)
+![png](05_conditional_interaction_independent_uniform_regional_files/05_conditional_interaction_independent_uniform_regional_8_1.png)
     
 
 
@@ -130,22 +203,22 @@ for node_idx in [1, 2]:
 xx = np.linspace(-1, 1, 100)
 
 
-def check_regions(reg):
-    tree = reg.tree["feature_0"]
-    children = [n for n in tree.nodes if n.info["level"] == 1]
+def check_regions(partition):
+    children = [r for r in partition if r.level == 1]
     assert len(children) == 2
-    for node in children:
+    for r in children:
         # the split must be on x2 at ~0
-        assert node.info["foc_index"] == bench.regional_split_feature
-        assert abs(node.info["foc_split_position"] - bench.regional_split_position) <= 0.15
+        assert r.foc_index == bench.regional_split_feature
+        assert abs(r.foc_split_position - bench.regional_split_position) <= 0.15
         # inside each region: -+x1^2 (centered), with ~zero heterogeneity
-        side = "left" if node.info["comparison"] == "<=" else "right"
-        y, heter = reg.eval(0, node.idx, xx, heterogeneity=True, centering=True)
+        side = "left" if r.comparison == "<=" else "right"
+        y = partition.eval(r.idx, xx, centering=True)
+        heter = partition.eval_heter(r.idx, xx)
         np.testing.assert_allclose(y, bench.regional_effect_gt(side, xx), atol=1e-1)
         np.testing.assert_allclose(heter, np.zeros_like(xx), atol=1e-1)
 
 
-check_regions(r_pdp)
+check_regions(partitions_pdp[0])
 ```
 
 ## Regional ALE
@@ -154,14 +227,16 @@ check_regions(r_pdp)
 
 
 ```python
-r_ale = effector.RegionalALE(x, model.predict, axis_limits=dataset.axis_limits)
-r_ale.fit(0)
-r_ale.summary(0)
+ale = effector.ALE(
+    data=x, model=model.predict,
+    axis_limits=dataset.axis_limits,
+    nof_instances="all",
+)
+ale.fit("all", centering=True)
+finder = effector.space_partitioning.Best()
+partitions_ale = {feat: ale.find_regions(feat, finder=finder) for feat in range(3)}
+partitions_ale[0].show()
 ```
-
-      0%|          | 0/1 [00:00<?, ?it/s]
-
-    100%|██████████| 1/1 [00:00<00:00, 57.06it/s]
 
     
     
@@ -181,24 +256,21 @@ r_ale.summary(0)
     
 
 
-    
-
-
 
 ```python
-for node_idx in [1, 2]:
-    r_ale.plot(feature=0, node_idx=node_idx, centering=True, y_limits=[-1.5, 1.5])
+for region_idx in [1, 2]:
+    partitions_ale[0].plot(region_idx, centering=True, y_limits=[-1.5, 1.5])
 ```
 
 
     
-![png](05_conditional_interaction_independent_uniform_regional_files/05_conditional_interaction_independent_uniform_regional_11_0.png)
+![png](05_conditional_interaction_independent_uniform_regional_files/05_conditional_interaction_independent_uniform_regional_13_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_regional_files/05_conditional_interaction_independent_uniform_regional_11_1.png)
+![png](05_conditional_interaction_independent_uniform_regional_files/05_conditional_interaction_independent_uniform_regional_13_1.png)
     
 
 
@@ -206,7 +278,7 @@ for node_idx in [1, 2]:
 
 
 ```python
-check_regions(r_ale)
+check_regions(partitions_ale[0])
 ```
 
 ## Regional RHALE
@@ -215,53 +287,50 @@ check_regions(r_ale)
 
 
 ```python
-r_rhale = effector.RegionalRHALE(x, model.predict, model.jacobian, axis_limits=dataset.axis_limits)
-r_rhale.fit(0)
-r_rhale.summary(0)
+rhale = effector.RHALE(
+    data=x, model=model.predict, model_jac=model.jacobian,
+    axis_limits=dataset.axis_limits,
+    nof_instances="all",
+)
+rhale.fit("all", centering=True)
+finder = effector.space_partitioning.Best()
+partitions_rhale = {feat: rhale.find_regions(feat, finder=finder) for feat in range(3)}
+partitions_rhale[0].show()
 ```
-
-      0%|          | 0/1 [00:00<?, ?it/s]
-
-    100%|██████████| 1/1 [00:00<00:00,  3.09it/s]
-
-    100%|██████████| 1/1 [00:00<00:00,  3.08it/s]
 
     
     
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x_0 🔹 [id: 0 | heter: 1.39 | inst: 1000 | w: 1.00]
+    x_0 🔹 [id: 0 | heter: 1.32 | inst: 1000 | w: 1.00]
         x_1 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 488 | w: 0.49]
         x_1 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 512 | w: 0.51]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.39
-        Level 1🔹heter: 0.00 | 🔻1.39 (99.77%)
+    Level 0🔹heter: 1.32
+        Level 1🔹heter: 0.00 | 🔻1.32 (99.75%)
     
-    
-
-
     
 
 
 
 ```python
-for node_idx in [1, 2]:
-    r_rhale.plot(feature=0, node_idx=node_idx, centering=True, y_limits=[-1.5, 1.5])
+for region_idx in [1, 2]:
+    partitions_rhale[0].plot(region_idx, centering=True, y_limits=[-1.5, 1.5])
 ```
 
 
     
-![png](05_conditional_interaction_independent_uniform_regional_files/05_conditional_interaction_independent_uniform_regional_16_0.png)
+![png](05_conditional_interaction_independent_uniform_regional_files/05_conditional_interaction_independent_uniform_regional_18_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_regional_files/05_conditional_interaction_independent_uniform_regional_16_1.png)
+![png](05_conditional_interaction_independent_uniform_regional_files/05_conditional_interaction_independent_uniform_regional_18_1.png)
     
 
 
@@ -269,7 +338,7 @@ for node_idx in [1, 2]:
 
 
 ```python
-check_regions(r_rhale)
+check_regions(partitions_rhale[0])
 ```
 
 ## Conclusions

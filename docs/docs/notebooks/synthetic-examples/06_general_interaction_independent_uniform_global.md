@@ -577,3 +577,80 @@ $x_2$ is the textbook case for why heterogeneity matters: its mean effect is
 exactly zero, yet the ICE curves fan out with variance $(x_2^2 - 1/3)^2 / 3$ —
 an interaction that a mean-only reading would miss entirely. This is also the
 signal that regional methods exploit to find meaningful subspaces.
+
+## Importance & one-click explanation
+
+Two conveniences on top of the global effects above:
+
+- `importances()` ranks features by the **dispersion of the mean effect** — the
+  $\mu$-twin of heterogeneity. Here $x_3$ (the $e^{x_3}$ term) and $x_1$ (the
+  $\tfrac{1}{3}x_1$ slope) carry the visible mean effect, while $x_2$ has a mean
+  effect of ~0 and so scores near zero — even though it is the most *heterogeneous*
+  feature.
+- `effector.explain(...)` runs the whole pipeline once (fit → rank → per-feature
+  mean/heterogeneity curves → region search) and returns a serializable `Report`
+  with a self-contained HTML view.
+
+
+```python
+# per-feature importance = dispersion of the mean effect (mu-twin of heterogeneity)
+print("importances:", np.round(pdp.importances(), 3))
+
+# one-click auto-explanation -> Report (serializable; self-contained HTML)
+report = effector.explain(x, model.predict, method="pdp", nof_instances="all")
+report.show()
+```
+
+    importances: [0.197 0.009 0.686]
+    
+    PDP report — target: y
+    ============================================================
+    feature                   importance     heter  #regions
+    ------------------------------------------------------------
+    x_2                           0.6851    0.0000         1
+    x_0                           0.1970    0.0315         7
+    x_1                           0.0092    0.0331         7
+    ============================================================
+    
+    
+    Feature 0 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x_0 🔹 [id: 0 | heter: 0.03 | inst: 1000 | w: 1.00]
+        x_1 ≤ 0.70 🔹 [id: 1 | heter: 0.02 | inst: 835 | w: 0.83]
+            x_1 ≤ -0.60 🔹 [id: 2 | heter: 0.01 | inst: 188 | w: 0.19]
+            x_1 > -0.60 🔹 [id: 3 | heter: 0.01 | inst: 647 | w: 0.65]
+        x_1 > 0.70 🔹 [id: 4 | heter: 0.01 | inst: 165 | w: 0.17]
+            x_1 ≤ 0.90 🔹 [id: 5 | heter: 0.00 | inst: 104 | w: 0.10]
+            x_1 > 0.90 🔹 [id: 6 | heter: 0.00 | inst: 61 | w: 0.06]
+    --------------------------------------------------
+    Feature 0 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.03
+        Level 1🔹heter: 0.02 | 🔻0.01 (35.42%)
+            Level 2🔹heter: 0.01 | 🔻0.01 (67.25%)
+    
+    
+    
+    
+    Feature 1 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x_1 🔹 [id: 0 | heter: 0.03 | inst: 1000 | w: 1.00]
+        x_0 ≤ -0.00 🔹 [id: 1 | heter: 0.01 | inst: 510 | w: 0.51]
+            x_0 ≤ -0.50 🔹 [id: 2 | heter: 0.00 | inst: 268 | w: 0.27]
+            x_0 > -0.50 🔹 [id: 3 | heter: 0.00 | inst: 242 | w: 0.24]
+        x_0 > -0.00 🔹 [id: 4 | heter: 0.01 | inst: 490 | w: 0.49]
+            x_0 ≤ 0.50 🔹 [id: 5 | heter: 0.00 | inst: 254 | w: 0.25]
+            x_0 > 0.50 🔹 [id: 6 | heter: 0.00 | inst: 236 | w: 0.24]
+    --------------------------------------------------
+    Feature 1 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.03
+        Level 1🔹heter: 0.01 | 🔻0.02 (75.14%)
+            Level 2🔹heter: 0.00 | 🔻0.01 (73.80%)
+    
+    
+

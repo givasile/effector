@@ -703,97 +703,57 @@ pdp.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y, show_avg_o
     
 
 
+### Importance and one-click explanation
+
+Beyond the per-feature effect curves, the fitted global effect exposes an `importances()`
+vector (the dispersion of each feature's mean effect — the $\mu$-twin of heterogeneity), and
+`effector.explain(...)` runs the whole pipeline once and returns a serializable `Report`.
+
+
+```python
+# per-feature importance = dispersion of the mean effect (mu-twin of heterogeneity)
+print("importances:", np.round(pdp.importances(), 3))
+
+# one-click auto-explanation -> Report (serializable; self-contained HTML).
+# We let the auto-search condition on the categorical drivers (season, yr, holiday,
+# weekday, workingday, weathersit) -- exactly the low-cardinality features the
+# regional analysis below splits on.
+report = effector.explain(
+    X_train.to_numpy(),
+    model_forward,
+    method="pdp",
+    schema=schema,
+    nof_instances=2000,
+    candidate_conditioning_features=[0, 1, 4, 5, 6, 7],
+)
+report.show()
+```
+
 ### PDP - regional
 
 
 ```python
-regional_pdp = effector.RegionalPDP(data=X_train.to_numpy(), model=model_forward, schema=schema, nof_instances=5_000)
-regional_pdp.summary(features=3, scale_x_list=scale_x_list)
+pdp_reg = effector.PDP(data=X_train.to_numpy(), model=model_forward, schema=schema, nof_instances=5_000)
+pdp_reg.fit(3, centering=True)
+part_pdp = pdp_reg.find_regions(3, finder="best")
+part_pdp.show(scale_x_list=scale_x_list)
 ```
-
-      0%|          | 0/1 [00:00<?, ?it/s]
-
-    100%|██████████| 1/1 [00:02<00:00,  2.02s/it]
-
-    100%|██████████| 1/1 [00:02<00:00,  2.02s/it]
-
-    
-    
-    Feature 3 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    hr 🔹 [id: 0 | heter: 0.23 | inst: 5000 | w: 1.00]
-        workingday = 0.00 🔹 [id: 1 | heter: 0.14 | inst: 1563 | w: 0.31]
-            temp ≤ 6.81 🔹 [id: 2 | heter: 0.07 | inst: 778 | w: 0.16]
-            temp > 6.81 🔹 [id: 3 | heter: 0.10 | inst: 785 | w: 0.16]
-        workingday ≠ 0.00 🔹 [id: 4 | heter: 0.12 | inst: 3437 | w: 0.69]
-            yr = 0.00 🔹 [id: 5 | heter: 0.06 | inst: 1762 | w: 0.35]
-            yr ≠ 0.00 🔹 [id: 6 | heter: 0.10 | inst: 1675 | w: 0.34]
-    --------------------------------------------------
-    Feature 3 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.23
-        Level 1🔹heter: 0.12 | 🔻0.11 (46.21%)
-            Level 2🔹heter: 0.08 | 🔻0.04 (32.50%)
-    
-    
-
-
-    
-
 
 
 ```python
-# plot the level-1 subregions (node ids depend on the fitted tree)
-for node in regional_pdp.tree["feature_3"].nodes:
-    if node.info["level"] == 1:
-        regional_pdp.plot(feature=3, node_idx=node.idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+# plot the level-1 subregions (region idx == old node_idx)
+for r in part_pdp:
+    if r.level == 1:
+        part_pdp.plot(r.idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
 ```
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_25_0.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_25_1.png)
-    
-
 
 
 ```python
 # and the level-2 subregions, where the tree splits further
-for node in regional_pdp.tree["feature_3"].nodes:
-    if node.info["level"] == 2:
-        regional_pdp.plot(feature=3, node_idx=node.idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+for r in part_pdp:
+    if r.level == 2:
+        part_pdp.plot(r.idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
 ```
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_0.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_1.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_2.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_26_3.png)
-    
-
 
 ### RHALE - global
 
@@ -805,7 +765,7 @@ rhale.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scal
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_28_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_30_0.png)
     
 
 
@@ -813,91 +773,25 @@ rhale.plot(feature=3, heterogeneity="std", centering=True, scale_x=scale_x, scal
 
 
 ```python
-regional_rhale = effector.RegionalRHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, schema=schema)
-regional_rhale.summary(features=3, scale_x_list=scale_x_list)
+rhale_reg = effector.RHALE(data=X_train.to_numpy(), model=model_forward, model_jac=model_jac, schema=schema)
+rhale_reg.fit(3, centering=True)
+part_rhale = rhale_reg.find_regions(3, finder="best")
+part_rhale.show(scale_x_list=scale_x_list)
 ```
-
-      0%|          | 0/1 [00:00<?, ?it/s]
-
-    100%|██████████| 1/1 [02:48<00:00, 168.84s/it]
-
-    100%|██████████| 1/1 [02:48<00:00, 168.84s/it]
-
-    
-    
-    Feature 3 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    hr 🔹 [id: 0 | heter: 0.11 | inst: 10000 | w: 1.00]
-        workingday = 0.00 🔹 [id: 1 | heter: 0.01 | inst: 3148 | w: 0.31]
-            temp ≤ 6.81 🔹 [id: 2 | heter: 0.01 | inst: 1577 | w: 0.16]
-            temp > 6.81 🔹 [id: 3 | heter: 0.01 | inst: 1571 | w: 0.16]
-        workingday ≠ 0.00 🔹 [id: 4 | heter: 0.06 | inst: 6852 | w: 0.69]
-            yr = 0.00 🔹 [id: 5 | heter: 0.03 | inst: 3463 | w: 0.35]
-            yr ≠ 0.00 🔹 [id: 6 | heter: 0.05 | inst: 3389 | w: 0.34]
-    --------------------------------------------------
-    Feature 3 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.11
-        Level 1🔹heter: 0.04 | 🔻0.06 (59.56%)
-            Level 2🔹heter: 0.03 | 🔻0.01 (32.60%)
-    
-    
-
-
-    
-
 
 
 ```python
-for node in regional_rhale.tree["feature_3"].nodes:
-    if node.info["level"] == 1:
-        regional_rhale.plot(feature=3, node_idx=node.idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y)
+for r in part_rhale:
+    if r.level == 1:
+        part_rhale.plot(r.idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y)
 ```
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_31_0.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_31_1.png)
-    
-
 
 
 ```python
-for node in regional_rhale.tree["feature_3"].nodes:
-    if node.info["level"] == 2:
-        regional_rhale.plot(feature=3, node_idx=node.idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+for r in part_rhale:
+    if r.level == 2:
+        part_rhale.plot(r.idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
 ```
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_0.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_1.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_2.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_3.png)
-    
-
 
 ### SHAPDP - global
 
@@ -1888,7 +1782,7 @@ shap_dp.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y, show_a
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_34_489.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_36_489.png)
     
 
 
@@ -1896,3395 +1790,25 @@ shap_dp.plot(feature=3, centering=True, scale_x=scale_x, scale_y=scale_y, show_a
 
 
 ```python
-regional_shap_dp = effector.RegionalShapDP(data=X_train.to_numpy(), model=model_forward, schema=schema, nof_instances=500)
-regional_shap_dp.summary(features=3, scale_x_list=scale_x_list)
+shap_dp_reg = effector.ShapDP(data=X_train.to_numpy(), model=model_forward, schema=schema, nof_instances=500)
+shap_dp_reg.fit(3, centering=True)
+part_shap = shap_dp_reg.find_regions(3, finder="best")
+part_shap.show(scale_x_list=scale_x_list)
 ```
-
-      0%|          | 0/1 [00:00<?, ?it/s]
-
-    
-
-
-    PermutationExplainer explainer:   6%|▌         | 30/500 [00:00<?, ?it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   6%|▋         | 32/500 [00:10<01:23,  5.64it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   7%|▋         | 33/500 [00:10<01:55,  4.04it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   7%|▋         | 34/500 [00:11<02:12,  3.51it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   7%|▋         | 35/500 [00:11<02:21,  3.28it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   7%|▋         | 36/500 [00:11<02:36,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   7%|▋         | 37/500 [00:12<02:36,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   8%|▊         | 38/500 [00:12<02:36,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   8%|▊         | 39/500 [00:12<02:34,  2.98it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   8%|▊         | 40/500 [00:13<02:35,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   8%|▊         | 41/500 [00:13<02:37,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   8%|▊         | 42/500 [00:14<02:39,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   9%|▊         | 43/500 [00:14<02:37,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   9%|▉         | 44/500 [00:14<02:36,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   9%|▉         | 45/500 [00:15<02:34,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   9%|▉         | 46/500 [00:15<02:35,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:   9%|▉         | 47/500 [00:15<02:34,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  10%|▉         | 48/500 [00:16<02:32,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  10%|▉         | 49/500 [00:16<02:31,  2.98it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  10%|█         | 50/500 [00:16<02:31,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  10%|█         | 51/500 [00:17<02:32,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  10%|█         | 52/500 [00:17<02:31,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  11%|█         | 53/500 [00:17<02:30,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  11%|█         | 54/500 [00:18<02:30,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  11%|█         | 55/500 [00:18<02:29,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  11%|█         | 56/500 [00:18<02:27,  3.01it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  11%|█▏        | 57/500 [00:19<02:30,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  12%|█▏        | 58/500 [00:19<02:29,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  12%|█▏        | 59/500 [00:19<02:27,  2.98it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  12%|█▏        | 60/500 [00:20<02:30,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  12%|█▏        | 61/500 [00:20<02:30,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  12%|█▏        | 62/500 [00:20<02:28,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  13%|█▎        | 63/500 [00:21<02:30,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  13%|█▎        | 64/500 [00:21<02:29,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  13%|█▎        | 65/500 [00:21<02:28,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  13%|█▎        | 66/500 [00:22<02:30,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  13%|█▎        | 67/500 [00:22<02:29,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  14%|█▎        | 68/500 [00:22<02:28,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  14%|█▍        | 69/500 [00:23<02:27,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  14%|█▍        | 70/500 [00:23<02:27,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  14%|█▍        | 71/500 [00:23<02:26,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  14%|█▍        | 72/500 [00:24<02:27,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  15%|█▍        | 73/500 [00:24<02:25,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  15%|█▍        | 74/500 [00:24<02:28,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  15%|█▌        | 75/500 [00:25<02:27,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  15%|█▌        | 76/500 [00:25<02:25,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  15%|█▌        | 77/500 [00:25<02:24,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  16%|█▌        | 78/500 [00:26<02:24,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  16%|█▌        | 79/500 [00:26<02:23,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  16%|█▌        | 80/500 [00:26<02:22,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  16%|█▌        | 81/500 [00:27<02:23,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  16%|█▋        | 82/500 [00:27<02:23,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  17%|█▋        | 83/500 [00:28<02:23,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  17%|█▋        | 84/500 [00:28<02:23,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  17%|█▋        | 85/500 [00:28<02:21,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  17%|█▋        | 86/500 [00:29<02:34,  2.68it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  17%|█▋        | 87/500 [00:29<03:03,  2.25it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  18%|█▊        | 88/500 [00:30<02:53,  2.37it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  18%|█▊        | 89/500 [00:30<02:43,  2.52it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  18%|█▊        | 90/500 [00:30<02:39,  2.57it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  18%|█▊        | 91/500 [00:31<02:32,  2.69it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  18%|█▊        | 92/500 [00:31<02:27,  2.76it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  19%|█▊        | 93/500 [00:31<02:23,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  19%|█▉        | 94/500 [00:32<02:21,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  19%|█▉        | 95/500 [00:32<02:19,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  19%|█▉        | 96/500 [00:32<02:18,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  19%|█▉        | 97/500 [00:33<02:18,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  20%|█▉        | 98/500 [00:33<02:17,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  20%|█▉        | 99/500 [00:33<02:20,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  20%|██        | 100/500 [00:34<02:19,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  20%|██        | 101/500 [00:34<02:17,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  20%|██        | 102/500 [00:34<02:19,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  21%|██        | 103/500 [00:35<02:18,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  21%|██        | 104/500 [00:35<02:19,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  21%|██        | 105/500 [00:36<02:21,  2.78it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  21%|██        | 106/500 [00:36<02:24,  2.72it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  21%|██▏       | 107/500 [00:36<02:25,  2.70it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  22%|██▏       | 108/500 [00:37<02:24,  2.72it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  22%|██▏       | 109/500 [00:37<02:22,  2.74it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  22%|██▏       | 110/500 [00:37<02:19,  2.80it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  22%|██▏       | 111/500 [00:38<02:18,  2.81it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  22%|██▏       | 112/500 [00:38<02:18,  2.80it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  23%|██▎       | 113/500 [00:38<02:17,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  23%|██▎       | 114/500 [00:39<02:16,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  23%|██▎       | 115/500 [00:39<02:13,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  23%|██▎       | 116/500 [00:39<02:12,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  23%|██▎       | 117/500 [00:40<02:12,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  24%|██▎       | 118/500 [00:40<02:12,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  24%|██▍       | 119/500 [00:40<02:13,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  24%|██▍       | 120/500 [00:41<02:12,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  24%|██▍       | 121/500 [00:41<02:11,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  24%|██▍       | 122/500 [00:42<02:12,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  25%|██▍       | 123/500 [00:42<02:10,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  25%|██▍       | 124/500 [00:42<02:08,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  25%|██▌       | 125/500 [00:43<02:08,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  25%|██▌       | 126/500 [00:43<02:09,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  25%|██▌       | 127/500 [00:43<02:15,  2.75it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  26%|██▌       | 128/500 [00:44<02:19,  2.67it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  26%|██▌       | 129/500 [00:44<02:20,  2.64it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  26%|██▌       | 130/500 [00:44<02:19,  2.64it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  26%|██▌       | 131/500 [00:45<02:17,  2.69it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  26%|██▋       | 132/500 [00:45<02:18,  2.67it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  27%|██▋       | 133/500 [00:46<02:13,  2.75it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  27%|██▋       | 134/500 [00:46<02:14,  2.73it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  27%|██▋       | 135/500 [00:46<02:10,  2.80it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  27%|██▋       | 136/500 [00:47<02:08,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  27%|██▋       | 137/500 [00:47<02:07,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  28%|██▊       | 138/500 [00:47<02:05,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  28%|██▊       | 139/500 [00:48<02:06,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  28%|██▊       | 140/500 [00:48<02:06,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  28%|██▊       | 141/500 [00:48<02:05,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  28%|██▊       | 142/500 [00:49<02:05,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  29%|██▊       | 143/500 [00:49<02:03,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  29%|██▉       | 144/500 [00:49<02:02,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  29%|██▉       | 145/500 [00:50<02:01,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  29%|██▉       | 146/500 [00:50<02:01,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  29%|██▉       | 147/500 [00:50<02:03,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  30%|██▉       | 148/500 [00:51<02:01,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  30%|██▉       | 149/500 [00:51<02:03,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  30%|███       | 150/500 [00:51<02:01,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  30%|███       | 151/500 [00:52<01:59,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  30%|███       | 152/500 [00:52<02:00,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  31%|███       | 153/500 [00:53<02:01,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  31%|███       | 154/500 [00:53<01:59,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  31%|███       | 155/500 [00:53<01:57,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  31%|███       | 156/500 [00:53<01:55,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  31%|███▏      | 157/500 [00:54<01:57,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  32%|███▏      | 158/500 [00:54<01:58,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  32%|███▏      | 159/500 [00:55<01:56,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  32%|███▏      | 160/500 [00:55<01:56,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  32%|███▏      | 161/500 [00:55<01:58,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  32%|███▏      | 162/500 [00:56<01:55,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  33%|███▎      | 163/500 [00:56<01:55,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  33%|███▎      | 164/500 [00:56<01:54,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  33%|███▎      | 165/500 [00:57<01:52,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  33%|███▎      | 166/500 [00:57<01:53,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  33%|███▎      | 167/500 [00:57<01:53,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  34%|███▎      | 168/500 [00:58<01:55,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  34%|███▍      | 169/500 [00:58<01:54,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  34%|███▍      | 170/500 [00:58<01:54,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  34%|███▍      | 171/500 [00:59<01:54,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  34%|███▍      | 172/500 [00:59<01:52,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  35%|███▍      | 173/500 [00:59<01:51,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  35%|███▍      | 174/500 [01:00<01:50,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  35%|███▌      | 175/500 [01:00<01:49,  2.98it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  35%|███▌      | 176/500 [01:00<01:49,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  35%|███▌      | 177/500 [01:01<01:49,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  36%|███▌      | 178/500 [01:01<01:47,  2.98it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  36%|███▌      | 179/500 [01:01<01:48,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  36%|███▌      | 180/500 [01:02<01:48,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  36%|███▌      | 181/500 [01:02<01:47,  2.98it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  36%|███▋      | 182/500 [01:02<01:50,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  37%|███▋      | 183/500 [01:03<01:50,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  37%|███▋      | 184/500 [01:03<01:50,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  37%|███▋      | 185/500 [01:03<01:48,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  37%|███▋      | 186/500 [01:04<01:47,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  37%|███▋      | 187/500 [01:04<01:50,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  38%|███▊      | 188/500 [01:05<01:48,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  38%|███▊      | 189/500 [01:05<01:48,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  38%|███▊      | 190/500 [01:05<01:49,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  38%|███▊      | 191/500 [01:06<01:49,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  38%|███▊      | 192/500 [01:06<01:47,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  39%|███▊      | 193/500 [01:06<01:46,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  39%|███▉      | 194/500 [01:07<01:45,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  39%|███▉      | 195/500 [01:07<01:44,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  39%|███▉      | 196/500 [01:07<01:43,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  39%|███▉      | 197/500 [01:08<01:42,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  40%|███▉      | 198/500 [01:08<01:46,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  40%|███▉      | 199/500 [01:08<01:44,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  40%|████      | 200/500 [01:09<01:43,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  40%|████      | 201/500 [01:09<01:43,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  40%|████      | 202/500 [01:09<01:43,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  41%|████      | 203/500 [01:10<01:41,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  41%|████      | 204/500 [01:10<01:40,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  41%|████      | 205/500 [01:10<01:39,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  41%|████      | 206/500 [01:11<01:40,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  41%|████▏     | 207/500 [01:11<01:40,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  42%|████▏     | 208/500 [01:11<01:41,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  42%|████▏     | 209/500 [01:12<01:43,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  42%|████▏     | 210/500 [01:12<01:42,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  42%|████▏     | 211/500 [01:12<01:41,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  42%|████▏     | 212/500 [01:13<01:40,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  43%|████▎     | 213/500 [01:13<01:39,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  43%|████▎     | 214/500 [01:13<01:38,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  43%|████▎     | 215/500 [01:14<01:37,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  43%|████▎     | 216/500 [01:14<01:36,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  43%|████▎     | 217/500 [01:15<01:36,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  44%|████▎     | 218/500 [01:15<01:37,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  44%|████▍     | 219/500 [01:15<01:37,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  44%|████▍     | 220/500 [01:16<01:38,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  44%|████▍     | 221/500 [01:16<01:36,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  44%|████▍     | 222/500 [01:16<01:35,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  45%|████▍     | 223/500 [01:17<01:34,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  45%|████▍     | 224/500 [01:17<01:35,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  45%|████▌     | 225/500 [01:17<01:36,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  45%|████▌     | 226/500 [01:18<01:34,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  45%|████▌     | 227/500 [01:18<01:33,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  46%|████▌     | 228/500 [01:18<01:33,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  46%|████▌     | 229/500 [01:19<01:33,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  46%|████▌     | 230/500 [01:19<01:32,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  46%|████▌     | 231/500 [01:19<01:33,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  46%|████▋     | 232/500 [01:20<01:34,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  47%|████▋     | 233/500 [01:20<01:33,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  47%|████▋     | 234/500 [01:20<01:33,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  47%|████▋     | 235/500 [01:21<01:31,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  47%|████▋     | 236/500 [01:21<01:31,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  47%|████▋     | 237/500 [01:21<01:30,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  48%|████▊     | 238/500 [01:22<01:29,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  48%|████▊     | 239/500 [01:22<01:28,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  48%|████▊     | 240/500 [01:22<01:29,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  48%|████▊     | 241/500 [01:23<01:29,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  48%|████▊     | 242/500 [01:23<01:28,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  49%|████▊     | 243/500 [01:23<01:27,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  49%|████▉     | 244/500 [01:24<01:27,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  49%|████▉     | 245/500 [01:24<01:26,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  49%|████▉     | 246/500 [01:25<01:26,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  49%|████▉     | 247/500 [01:25<01:26,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  50%|████▉     | 248/500 [01:25<01:26,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  50%|████▉     | 249/500 [01:26<01:27,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  50%|█████     | 250/500 [01:26<01:26,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  50%|█████     | 251/500 [01:26<01:27,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  50%|█████     | 252/500 [01:27<01:26,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  51%|█████     | 253/500 [01:27<01:26,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  51%|█████     | 254/500 [01:27<01:27,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  51%|█████     | 255/500 [01:28<01:25,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  51%|█████     | 256/500 [01:28<01:23,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  51%|█████▏    | 257/500 [01:28<01:23,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  52%|█████▏    | 258/500 [01:29<01:22,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  52%|█████▏    | 259/500 [01:29<01:23,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  52%|█████▏    | 260/500 [01:29<01:25,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  52%|█████▏    | 261/500 [01:30<01:26,  2.76it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  52%|█████▏    | 262/500 [01:30<01:30,  2.63it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  53%|█████▎    | 263/500 [01:31<01:30,  2.62it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  53%|█████▎    | 264/500 [01:31<01:28,  2.68it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  53%|█████▎    | 265/500 [01:31<01:26,  2.72it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  53%|█████▎    | 266/500 [01:32<01:24,  2.78it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  53%|█████▎    | 267/500 [01:32<01:22,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  54%|█████▎    | 268/500 [01:32<01:21,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  54%|█████▍    | 269/500 [01:33<01:22,  2.81it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  54%|█████▍    | 270/500 [01:33<01:20,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  54%|█████▍    | 271/500 [01:33<01:19,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  54%|█████▍    | 272/500 [01:34<01:17,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  55%|█████▍    | 273/500 [01:34<01:17,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  55%|█████▍    | 274/500 [01:34<01:18,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  55%|█████▌    | 275/500 [01:35<01:17,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  55%|█████▌    | 276/500 [01:35<01:17,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  55%|█████▌    | 277/500 [01:35<01:18,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  56%|█████▌    | 278/500 [01:36<01:17,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  56%|█████▌    | 279/500 [01:36<01:17,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  56%|█████▌    | 280/500 [01:36<01:16,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  56%|█████▌    | 281/500 [01:37<01:14,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  56%|█████▋    | 282/500 [01:37<01:15,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  57%|█████▋    | 283/500 [01:38<01:14,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  57%|█████▋    | 284/500 [01:38<01:15,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  57%|█████▋    | 285/500 [01:38<01:14,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  57%|█████▋    | 286/500 [01:39<01:13,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  57%|█████▋    | 287/500 [01:39<01:12,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  58%|█████▊    | 288/500 [01:39<01:13,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  58%|█████▊    | 289/500 [01:40<01:12,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  58%|█████▊    | 290/500 [01:40<01:11,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  58%|█████▊    | 291/500 [01:40<01:11,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  58%|█████▊    | 292/500 [01:41<01:12,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  59%|█████▊    | 293/500 [01:41<01:11,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  59%|█████▉    | 294/500 [01:41<01:10,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  59%|█████▉    | 295/500 [01:42<01:10,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  59%|█████▉    | 296/500 [01:42<01:09,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  59%|█████▉    | 297/500 [01:42<01:08,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  60%|█████▉    | 298/500 [01:43<01:08,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  60%|█████▉    | 299/500 [01:43<01:08,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  60%|██████    | 300/500 [01:43<01:08,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  60%|██████    | 301/500 [01:44<01:08,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  60%|██████    | 302/500 [01:44<01:06,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  61%|██████    | 303/500 [01:44<01:06,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  61%|██████    | 304/500 [01:45<01:06,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  61%|██████    | 305/500 [01:45<01:05,  3.00it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  61%|██████    | 306/500 [01:45<01:05,  2.98it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  61%|██████▏   | 307/500 [01:46<01:05,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  62%|██████▏   | 308/500 [01:46<01:05,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  62%|██████▏   | 309/500 [01:46<01:04,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  62%|██████▏   | 310/500 [01:47<01:04,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  62%|██████▏   | 311/500 [01:47<01:03,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  62%|██████▏   | 312/500 [01:47<01:03,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  63%|██████▎   | 313/500 [01:48<01:03,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  63%|██████▎   | 314/500 [01:48<01:03,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  63%|██████▎   | 315/500 [01:48<01:02,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  63%|██████▎   | 316/500 [01:49<01:02,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  63%|██████▎   | 317/500 [01:49<01:02,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  64%|██████▎   | 318/500 [01:49<01:03,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  64%|██████▍   | 319/500 [01:50<01:02,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  64%|██████▍   | 320/500 [01:50<01:01,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  64%|██████▍   | 321/500 [01:50<01:00,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  64%|██████▍   | 322/500 [01:51<01:00,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  65%|██████▍   | 323/500 [01:51<00:59,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  65%|██████▍   | 324/500 [01:51<00:58,  3.00it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  65%|██████▌   | 325/500 [01:52<00:58,  2.98it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  65%|██████▌   | 326/500 [01:52<00:57,  3.00it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  65%|██████▌   | 327/500 [01:52<00:58,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  66%|██████▌   | 328/500 [01:53<00:58,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  66%|██████▌   | 329/500 [01:53<00:57,  2.98it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  66%|██████▌   | 330/500 [01:53<00:56,  3.00it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  66%|██████▌   | 331/500 [01:54<00:56,  2.98it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  66%|██████▋   | 332/500 [01:54<00:56,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  67%|██████▋   | 333/500 [01:54<00:55,  2.99it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  67%|██████▋   | 334/500 [01:55<00:55,  3.00it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  67%|██████▋   | 335/500 [01:55<00:54,  3.00it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  67%|██████▋   | 336/500 [01:55<00:54,  3.00it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  67%|██████▋   | 337/500 [01:56<00:54,  3.00it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  68%|██████▊   | 338/500 [01:56<00:54,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  68%|██████▊   | 339/500 [01:56<00:54,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  68%|██████▊   | 340/500 [01:57<00:54,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  68%|██████▊   | 341/500 [01:57<00:53,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  68%|██████▊   | 342/500 [01:58<00:53,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  69%|██████▊   | 343/500 [01:58<00:58,  2.69it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  69%|██████▉   | 344/500 [01:58<01:01,  2.55it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  69%|██████▉   | 345/500 [01:59<00:58,  2.66it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  69%|██████▉   | 346/500 [01:59<00:55,  2.78it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  69%|██████▉   | 347/500 [01:59<00:53,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  70%|██████▉   | 348/500 [02:00<00:53,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  70%|██████▉   | 349/500 [02:00<00:53,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  70%|███████   | 350/500 [02:00<00:52,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  70%|███████   | 351/500 [02:01<00:51,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  70%|███████   | 352/500 [02:01<00:51,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  71%|███████   | 353/500 [02:02<00:51,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  71%|███████   | 354/500 [02:02<00:51,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  71%|███████   | 355/500 [02:02<00:50,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  71%|███████   | 356/500 [02:03<00:53,  2.70it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  71%|███████▏  | 357/500 [02:03<00:53,  2.65it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  72%|███████▏  | 358/500 [02:03<00:52,  2.68it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  72%|███████▏  | 359/500 [02:04<00:51,  2.74it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  72%|███████▏  | 360/500 [02:04<00:50,  2.75it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  72%|███████▏  | 361/500 [02:04<00:49,  2.80it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  72%|███████▏  | 362/500 [02:05<00:48,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  73%|███████▎  | 363/500 [02:05<00:47,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  73%|███████▎  | 364/500 [02:05<00:47,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  73%|███████▎  | 365/500 [02:06<00:47,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  73%|███████▎  | 366/500 [02:06<00:46,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  73%|███████▎  | 367/500 [02:06<00:45,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  74%|███████▎  | 368/500 [02:07<00:44,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  74%|███████▍  | 369/500 [02:07<00:44,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  74%|███████▍  | 370/500 [02:07<00:44,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  74%|███████▍  | 371/500 [02:08<00:44,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  74%|███████▍  | 372/500 [02:08<00:43,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  75%|███████▍  | 373/500 [02:09<00:43,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  75%|███████▍  | 374/500 [02:09<00:42,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  75%|███████▌  | 375/500 [02:09<00:42,  2.95it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  75%|███████▌  | 376/500 [02:10<00:41,  2.98it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  75%|███████▌  | 377/500 [02:10<00:40,  3.00it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  76%|███████▌  | 378/500 [02:10<00:40,  3.02it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  76%|███████▌  | 379/500 [02:10<00:39,  3.03it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  76%|███████▌  | 380/500 [02:11<00:39,  3.02it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  76%|███████▌  | 381/500 [02:11<00:39,  3.00it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  76%|███████▋  | 382/500 [02:12<00:39,  2.98it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  77%|███████▋  | 383/500 [02:12<00:39,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  77%|███████▋  | 384/500 [02:12<00:39,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  77%|███████▋  | 385/500 [02:13<00:39,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  77%|███████▋  | 386/500 [02:13<00:39,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  77%|███████▋  | 387/500 [02:13<00:38,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  78%|███████▊  | 388/500 [02:14<00:38,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  78%|███████▊  | 389/500 [02:14<00:37,  2.93it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  78%|███████▊  | 390/500 [02:14<00:37,  2.97it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  78%|███████▊  | 391/500 [02:15<00:36,  2.96it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  78%|███████▊  | 392/500 [02:15<00:37,  2.92it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  79%|███████▊  | 393/500 [02:15<00:37,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  79%|███████▉  | 394/500 [02:16<00:37,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  79%|███████▉  | 395/500 [02:16<00:36,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  79%|███████▉  | 396/500 [02:16<00:36,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  79%|███████▉  | 397/500 [02:17<00:36,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  80%|███████▉  | 398/500 [02:17<00:35,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  80%|███████▉  | 399/500 [02:17<00:35,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  80%|████████  | 400/500 [02:18<00:34,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  80%|████████  | 401/500 [02:18<00:34,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  80%|████████  | 402/500 [02:18<00:34,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  81%|████████  | 403/500 [02:19<00:34,  2.80it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  81%|████████  | 404/500 [02:19<00:34,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  81%|████████  | 405/500 [02:20<00:33,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  81%|████████  | 406/500 [02:20<00:32,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  81%|████████▏ | 407/500 [02:20<00:32,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  82%|████████▏ | 408/500 [02:21<00:31,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  82%|████████▏ | 409/500 [02:21<00:31,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  82%|████████▏ | 410/500 [02:21<00:31,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  82%|████████▏ | 411/500 [02:22<00:31,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  82%|████████▏ | 412/500 [02:22<00:31,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  83%|████████▎ | 413/500 [02:22<00:31,  2.75it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  83%|████████▎ | 414/500 [02:23<00:30,  2.81it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  83%|████████▎ | 415/500 [02:23<00:29,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  83%|████████▎ | 416/500 [02:23<00:29,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  83%|████████▎ | 417/500 [02:24<00:28,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  84%|████████▎ | 418/500 [02:24<00:28,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  84%|████████▍ | 419/500 [02:24<00:28,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  84%|████████▍ | 420/500 [02:25<00:28,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  84%|████████▍ | 421/500 [02:25<00:27,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  84%|████████▍ | 422/500 [02:25<00:26,  2.91it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  85%|████████▍ | 423/500 [02:26<00:26,  2.94it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  85%|████████▍ | 424/500 [02:26<00:26,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  85%|████████▌ | 425/500 [02:26<00:25,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  85%|████████▌ | 426/500 [02:27<00:25,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  85%|████████▌ | 427/500 [02:27<00:25,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  86%|████████▌ | 428/500 [02:28<00:24,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  86%|████████▌ | 429/500 [02:28<00:24,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  86%|████████▌ | 430/500 [02:28<00:24,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  86%|████████▌ | 431/500 [02:29<00:24,  2.80it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  86%|████████▋ | 432/500 [02:29<00:24,  2.81it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  87%|████████▋ | 433/500 [02:29<00:23,  2.79it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  87%|████████▋ | 434/500 [02:30<00:23,  2.81it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  87%|████████▋ | 435/500 [02:30<00:23,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  87%|████████▋ | 436/500 [02:30<00:22,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  87%|████████▋ | 437/500 [02:31<00:23,  2.73it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  88%|████████▊ | 438/500 [02:31<00:22,  2.78it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  88%|████████▊ | 439/500 [02:31<00:22,  2.76it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  88%|████████▊ | 440/500 [02:32<00:22,  2.66it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  88%|████████▊ | 441/500 [02:32<00:21,  2.70it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  88%|████████▊ | 442/500 [02:33<00:21,  2.73it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  89%|████████▊ | 443/500 [02:33<00:20,  2.75it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  89%|████████▉ | 444/500 [02:33<00:20,  2.76it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  89%|████████▉ | 445/500 [02:34<00:19,  2.79it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  89%|████████▉ | 446/500 [02:34<00:19,  2.80it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  89%|████████▉ | 447/500 [02:34<00:18,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  90%|████████▉ | 448/500 [02:35<00:18,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  90%|████████▉ | 449/500 [02:35<00:17,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  90%|█████████ | 450/500 [02:35<00:17,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  90%|█████████ | 451/500 [02:36<00:17,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  90%|█████████ | 452/500 [02:36<00:16,  2.88it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  91%|█████████ | 453/500 [02:36<00:16,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  91%|█████████ | 454/500 [02:37<00:15,  2.90it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  91%|█████████ | 455/500 [02:37<00:15,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  91%|█████████ | 456/500 [02:38<00:15,  2.81it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  91%|█████████▏| 457/500 [02:38<00:15,  2.79it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  92%|█████████▏| 458/500 [02:38<00:15,  2.74it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  92%|█████████▏| 459/500 [02:39<00:14,  2.78it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  92%|█████████▏| 460/500 [02:39<00:14,  2.81it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  92%|█████████▏| 461/500 [02:39<00:13,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  92%|█████████▏| 462/500 [02:40<00:13,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  93%|█████████▎| 463/500 [02:40<00:12,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  93%|█████████▎| 464/500 [02:40<00:12,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  93%|█████████▎| 465/500 [02:41<00:12,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  93%|█████████▎| 466/500 [02:41<00:11,  2.89it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  93%|█████████▎| 467/500 [02:41<00:11,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  94%|█████████▎| 468/500 [02:42<00:11,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  94%|█████████▍| 469/500 [02:42<00:11,  2.81it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  94%|█████████▍| 470/500 [02:42<00:10,  2.76it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  94%|█████████▍| 471/500 [02:43<00:10,  2.77it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  94%|█████████▍| 472/500 [02:43<00:09,  2.80it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  95%|█████████▍| 473/500 [02:44<00:09,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  95%|█████████▍| 474/500 [02:44<00:09,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  95%|█████████▌| 475/500 [02:44<00:08,  2.79it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  95%|█████████▌| 476/500 [02:45<00:08,  2.76it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  95%|█████████▌| 477/500 [02:45<00:08,  2.81it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  96%|█████████▌| 478/500 [02:45<00:07,  2.81it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  96%|█████████▌| 479/500 [02:46<00:07,  2.77it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  96%|█████████▌| 480/500 [02:46<00:07,  2.76it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  96%|█████████▌| 481/500 [02:46<00:06,  2.75it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  96%|█████████▋| 482/500 [02:47<00:06,  2.73it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  97%|█████████▋| 483/500 [02:47<00:06,  2.75it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  97%|█████████▋| 484/500 [02:48<00:05,  2.79it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  97%|█████████▋| 485/500 [02:48<00:05,  2.80it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  97%|█████████▋| 486/500 [02:48<00:04,  2.80it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  97%|█████████▋| 487/500 [02:49<00:04,  2.82it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  98%|█████████▊| 488/500 [02:49<00:04,  2.77it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  98%|█████████▊| 489/500 [02:49<00:03,  2.75it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  98%|█████████▊| 490/500 [02:50<00:03,  2.80it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  98%|█████████▊| 491/500 [02:50<00:03,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  98%|█████████▊| 492/500 [02:50<00:02,  2.81it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  99%|█████████▊| 493/500 [02:51<00:02,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  99%|█████████▉| 494/500 [02:51<00:02,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  99%|█████████▉| 495/500 [02:51<00:01,  2.86it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  99%|█████████▉| 496/500 [02:52<00:01,  2.87it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer:  99%|█████████▉| 497/500 [02:52<00:01,  2.85it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer: 100%|█████████▉| 498/500 [02:52<00:00,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer: 100%|█████████▉| 499/500 [02:53<00:00,  2.83it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer: 100%|██████████| 500/500 [02:53<00:00,  2.84it/s]
-
-    [A
-
-    
-
-
-    PermutationExplainer explainer: 501it [02:54,  2.82it/s]                         
-
-    [A
-
-    PermutationExplainer explainer: 501it [02:54,  2.71it/s]
-
-    
-    /home/givasile/github/packages/effector/effector/regional_effect_shap.py:145: UserWarning: RegionalShapDP: at a candidate split, some bins had at most one point; the split is rejected. Error: Input array contains only NaN values. This is probably because in all bins there is at most one point, which is not enough to compute the bin variance. Please consider decreasing the number of bins or changing the bin splitting strategy.
-      warnings.warn(
-
-
-    100%|██████████| 1/1 [02:54<00:00, 174.34s/it]
-
-    100%|██████████| 1/1 [02:54<00:00, 174.34s/it]
-
-    
-    
-    Feature 3 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    hr 🔹 [id: 0 | heter: 0.05 | inst: 500 | w: 1.00]
-        workingday = 0.00 🔹 [id: 1 | heter: 0.02 | inst: 155 | w: 0.31]
-            temp ≤ 2.20 🔹 [id: 2 | heter: 0.01 | inst: 59 | w: 0.12]
-            temp > 2.20 🔹 [id: 3 | heter: 0.01 | inst: 96 | w: 0.19]
-        workingday ≠ 0.00 🔹 [id: 4 | heter: 0.02 | inst: 345 | w: 0.69]
-            yr = 0.00 🔹 [id: 5 | heter: 0.01 | inst: 173 | w: 0.35]
-            yr ≠ 0.00 🔹 [id: 6 | heter: 0.01 | inst: 172 | w: 0.34]
-    --------------------------------------------------
-    Feature 3 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.05
-        Level 1🔹heter: 0.02 | 🔻0.03 (56.97%)
-            Level 2🔹heter: 0.01 | 🔻0.01 (46.29%)
-    
-    
-
-
-    
-
 
 
 ```python
-for node in regional_shap_dp.tree["feature_3"].nodes:
-    if node.info["level"] == 1:
-        regional_shap_dp.plot(feature=3, node_idx=node.idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y)
+for r in part_shap:
+    if r.level == 1:
+        part_shap.plot(r.idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y)
 ```
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_37_0.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_37_1.png)
-    
-
 
 
 ```python
-for node in regional_shap_dp.tree["feature_3"].nodes:
-    if node.info["level"] == 2:
-        regional_shap_dp.plot(feature=3, node_idx=node.idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
+for r in part_shap:
+    if r.level == 2:
+        part_shap.plot(r.idx, centering=True, scale_x_list=scale_x_list, scale_y=scale_y, y_limits=y_limits)
 ```
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_38_0.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_38_1.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_38_2.png)
-    
-
-
-
-    
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_38_3.png)
-    
-
 
 ## Conclusion
 

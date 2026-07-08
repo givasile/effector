@@ -140,6 +140,74 @@ except ValueError as e:
     ValueError: d-pdp does not support ordinal features (feature 0 'level' is ordinal). A derivative needs a continuous axis; use PDP instead — adjacent differences of the per-level PDP bars carry the same information.
 
 
+## Importance and one-click explanation
+
+Every global effect exposes `importances()` — the per-feature dispersion of the *mean* effect (the μ-twin of heterogeneity), a scalar summary of how much each feature moves the prediction. `effector.explain(...)` wraps the whole tour into a serializable `Report` with a self-contained HTML view.
+
+
+```python
+# per-feature importance = dispersion of the mean effect (the mu-twin of heterogeneity)
+print("importances:", np.round(pdp.importances(), 3))
+
+# one-click auto-explanation -> Report (serializable; self-contained HTML)
+report = effector.explain(data, model.predict, method="pdp", schema=schema, nof_instances="all")
+report.show()
+```
+
+    importances: [1.103 0.04  0.007]
+    
+    PDP report — target: y
+    ============================================================
+    feature                   importance     heter  #regions
+    ------------------------------------------------------------
+    level                         1.1028    0.1301         7
+    x1                            0.0398    0.1394         7
+    x2                            0.0070    0.0694         1
+    ============================================================
+    
+    
+    Feature 0 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    level 🔹 [id: 0 | heter: 0.13 | inst: 1000 | w: 1.00]
+        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.08 | inst: 503 | w: 0.50]
+            x2 ≤ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 267 | w: 0.27]
+            x2 > 0.00 🔹 [id: 3 | heter: 0.07 | inst: 236 | w: 0.24]
+        x1 > 0.00 🔹 [id: 4 | heter: 0.09 | inst: 497 | w: 0.50]
+            x2 ≤ 0.00 🔹 [id: 5 | heter: 0.00 | inst: 231 | w: 0.23]
+            x2 > 0.00 🔹 [id: 6 | heter: 0.07 | inst: 266 | w: 0.27]
+    --------------------------------------------------
+    Feature 0 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.13
+        Level 1🔹heter: 0.08 | 🔻0.05 (37.42%)
+            Level 2🔹heter: 0.03 | 🔻0.05 (59.18%)
+    
+    
+    
+    
+    Feature 1 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x1 🔹 [id: 0 | heter: 0.14 | inst: 1000 | w: 1.00]
+        level = 1.00 🔹 [id: 1 | heter: 0.09 | inst: 320 | w: 0.32]
+            x2 ≤ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 154 | w: 0.15]
+            x2 > 0.00 🔹 [id: 3 | heter: 0.00 | inst: 166 | w: 0.17]
+        level ≠ 1.00 🔹 [id: 4 | heter: 0.08 | inst: 680 | w: 0.68]
+            x2 ≤ 0.00 🔹 [id: 5 | heter: 0.00 | inst: 344 | w: 0.34]
+            x2 > 0.00 🔹 [id: 6 | heter: 0.08 | inst: 336 | w: 0.34]
+    --------------------------------------------------
+    Feature 1 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.14
+        Level 1🔹heter: 0.08 | 🔻0.06 (40.93%)
+            Level 2🔹heter: 0.03 | 🔻0.06 (69.35%)
+    
+    
+
+
 ## Regional effects on a categorical feature
 
 *For which subgroups is the per-level effect stable?* We use $f(x) = a_{x_0} + b_{x_0}\,\mathbb{1}_{x_2>0}$: the level effect is unstable globally, but perfectly stable once you condition on the $x_2$ gate.
@@ -152,14 +220,12 @@ def gated_model(x):
     codes = x[:, 0].astype(int)
     return A[codes] + B[codes] * (x[:, 2] > 0)
 
-reg = effector.RegionalPDP(data, gated_model, schema=schema)
-reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=1))
-reg.summary(0)
+pdp_reg = effector.PDP(data, gated_model, schema=schema, nof_instances="all")
+pdp_reg.fit(0, centering=True)
+finder = effector.space_partitioning.Best(max_depth=1)
+partitions = {0: pdp_reg.find_regions(0, finder=finder)}
+partitions[0].show()
 ```
-
-      0%|          | 0/1 [00:00<?, ?it/s]
-
-    100%|██████████| 1/1 [00:00<00:00, 67.41it/s]
 
     
     
@@ -179,34 +245,31 @@ reg.summary(0)
     
 
 
+
+```python
+partitions[0].plot(1, heterogeneity="ice", centering=True)
+```
+
+
+    
+![png](08_categorical_features_files/08_categorical_features_19_0.png)
     
 
 
 
 ```python
-reg.plot(0, node_idx=1, heterogeneity="ice", centering=True)
+partitions[0].plot(2, heterogeneity="ice", centering=True)
 ```
 
 
     
-![png](08_categorical_features_files/08_categorical_features_17_0.png)
-    
-
-
-
-```python
-reg.plot(0, node_idx=2, heterogeneity="ice", centering=True)
-```
-
-
-    
-![png](08_categorical_features_files/08_categorical_features_18_0.png)
+![png](08_categorical_features_files/08_categorical_features_20_0.png)
     
 
 
 ## Nominal features from a pandas DataFrame
 
-With a DataFrame, string/`category` columns are encoded at the door and your model is always called with a reconstructed DataFrame (original dtypes). Plots translate the codes back to the category labels.
+effector is numpy-only, so a DataFrame is converted at the door with `effector.from_dataframe(df)`, which returns `(X, schema)`: `X` is the encoded `(N, D)` numpy matrix and `schema` carries the feature types and the category labels. Your model stays a plain numpy→numpy callable (it receives the encoded codes). Plots translate the codes back to the category labels via the schema.
 
 
 ```python
@@ -217,19 +280,26 @@ df = pd.DataFrame({
     "x1": rng.uniform(-1, 1, N2),
 })
 
+# effector is numpy-only: convert the DataFrame to (X, schema) at the door.
+X, schema_nominal = effector.from_dataframe(df)
+levels = schema_nominal.category_names[0]  # e.g. ['blue', 'green', 'red']
+
+# the model is numpy->numpy; it receives the encoded codes in column 0.
 color_effect = {"red": 2.0, "green": 1.5, "blue": -1.0}
+effect_by_code = np.array([color_effect[name] for name in levels])
+green_code = levels.index("green")
 
-def df_model(d):
-    base = d["color"].map(color_effect).to_numpy(dtype=float)
-    return base + 0.5 * d["x1"].to_numpy() * (d["color"] == "green").to_numpy()
+def np_model(x):
+    codes = x[:, 0].astype(int)
+    return effect_by_code[codes] + 0.5 * x[:, 1] * (codes == green_code)
 
-pdp_nominal = effector.PDP(df, df_model)
+pdp_nominal = effector.PDP(X, np_model, schema=schema_nominal)
 pdp_nominal.plot(0, heterogeneity="ice", centering=True)
 ```
 
 
     
-![png](08_categorical_features_files/08_categorical_features_20_0.png)
+![png](08_categorical_features_files/08_categorical_features_22_0.png)
     
 
 
@@ -239,14 +309,14 @@ ALE accumulates along an order that nominal features do not have. By default eff
 
 
 ```python
-ale_nominal = effector.ALE(df, df_model)
+ale_nominal = effector.ALE(X, np_model, schema=schema_nominal)
 ale_nominal.fit(0, centering="zero_start", order="similarity")
 ale_nominal.plot(0, centering="zero_start")
 ```
 
 
     
-![png](08_categorical_features_files/08_categorical_features_22_0.png)
+![png](08_categorical_features_files/08_categorical_features_24_0.png)
     
 
 
