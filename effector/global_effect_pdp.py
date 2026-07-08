@@ -47,41 +47,71 @@ class PDPBase(GlobalEffectBase):
             y = method(self.model, self.model_jac, data, xx, feature, True)
         return y
 
-    def _fit_feature(self, feature: int, use_vectorized: bool = True) -> dict:
-        # the (d-)PDP stores no per-feature payload beyond the normalization
-        # constant (which the base fit loop appends); ICE curves are computed
-        # by the evaluation kernel
-        if self._is_cat(feature):
-            return {"levels": self._levels(feature), "is_cat": True}
-        return {}
+    def _use_vectorized(self, feature: int) -> bool:
+        return self._config(feature).get("use_vectorized", True)
 
-    def _compute_local_effects(self, feature: int) -> None:
-        """Step 2 (model-touching): the (d-)ICE table on the heterogeneity grid
-        — one row per grid point, one column per instance `(T, N)`. This is the
-        (d-)PDP's per-instance local effect; the split search re-scores column
-        subsets of it without re-querying the model."""
-        use_vectorized = self.fit_args.get("feature_" + str(feature), {}).get(
-            "use_vectorized", True
+    def _canonical_grid(self, feature: int) -> np.ndarray:
+        """The frozen summary frame: the observed levels for a discrete
+        feature, else the uniform `NOF_INTERNAL_POINTS` grid on the global
+        interval. Every (b)-stage quantity (payload, heterogeneity, centering
+        constants) is a function of these rows only, so position-store growth
+        never changes a summary."""
+        if self._is_cat(feature):
+            return self._levels(feature)
+        return np.linspace(
+            self.axis_limits[0, feature],
+            self.axis_limits[1, feature],
+            helpers.NOF_INTERNAL_POINTS,
         )
-        if self._is_cat(feature):
-            grid = self._levels(feature)
-        else:
-            grid = np.linspace(
-                self.axis_limits[0, feature],
-                self.axis_limits[1, feature],
-                helpers.NOF_INTERNAL_POINTS,
-            )
-        ice = self._predict(self.data, grid, feature, use_vectorized)  # (T, N)
-        self.local_effects["feature_" + str(feature)] = {"grid": grid, "ice": ice}
 
+    # ------------------------------------------------------------------
+    # cache (a): the growing position store
+    # ------------------------------------------------------------------
+    def _compute_local(self, feature: int, frame: tuple) -> dict:
+        """Cache-(a) kernel: the (d-)ICE table on the canonical grid — one row
+        per position, one column per instance `(T, N)`. The store then grows
+        as `eval` asks for never-before-seen positions (missing-only)."""
+        grid = self._canonical_grid(feature)
+        ice = self._predict(self.data, grid, feature, self._use_vectorized(feature))
+        return {"frame": frame, "pos": grid, "ice": ice}
+
+    def _ensure_positions(self, feature: int, xs: np.ndarray) -> dict:
+        """Grow the position store to cover `xs`: compute ICE columns for the
+        missing positions only (the one model touch of the global eval path)
+        and append them. Growth is additive — no epoch bump, no summary is
+        invalidated (they read the canonical rows only)."""
+        entry = self._ensure_local(feature)
+        xs = np.unique(np.asarray(xs, dtype=float))
+        pos = entry["pos"]
+        idx = np.clip(np.searchsorted(pos, xs), 0, len(pos) - 1)
+        missing = xs[pos[idx] != xs]
+        if missing.size:
+            new_ice = self._predict(
+                self.data, missing, feature, self._use_vectorized(feature)
+            )
+            pos = np.concatenate([pos, missing])
+            order = np.argsort(pos, kind="mergesort")
+            entry["pos"] = pos[order]
+            entry["ice"] = np.concatenate([entry["ice"], new_ice], axis=0)[order]
+        return entry
+
+    def _grid_rows(self, feature: int, entry: dict):
+        """(grid, ice-rows) restricted to the canonical grid — the frame every
+        summary is computed on, regardless of how far the store has grown."""
+        grid = self._canonical_grid(feature)
+        rows = np.searchsorted(entry["pos"], grid)
+        return grid, entry["ice"][rows]
+
+    # ------------------------------------------------------------------
+    # the pure kernels
+    # ------------------------------------------------------------------
     def _summarize(self, feature: int, mask=None, use_vectorized: bool = True) -> dict:
-        """Step 3 (pure numpy): from the cached (d-)ICE table restricted to the
-        subregion `mask` (None = all), the mean curve and the heterogeneity curve
-        on the grid — cross-instance variance of the per-instance-centered ICE
-        curves (PDP) or of the raw d-ICE curves (DerPDP)."""
-        self._ensure_local_effects(feature)
-        prim = self.local_effects["feature_" + str(feature)]
-        grid, ice = prim["grid"], prim["ice"]  # ice (T, N)
+        """Summary kernel (pure numpy): from the canonical-grid rows of the
+        cached (d-)ICE table restricted to the subregion `mask` (None = all),
+        the mean curve and the heterogeneity curve — cross-instance variance of
+        the per-instance-centered ICE curves (PDP) or of the raw d-ICE curves
+        (DerPDP)."""
+        grid, ice = self._grid_rows(feature, self._local[feature])
         if mask is not None:
             ice = ice[:, mask]
 
@@ -103,175 +133,111 @@ class PDPBase(GlobalEffectBase):
             out["levels"] = grid
         return out
 
+    def _eval_payload(
+        self, feature: int, params: dict, x: np.ndarray, heterogeneity: bool = False
+    ):
+        """Reader kernel: mean/heterogeneity off the canonical grid — exact at
+        grid positions (levels are always on it), linear interpolation between
+        them."""
+        if params.get("is_cat"):
+            codes = utils.codes_from_levels(
+                x, params["levels"], feature, self.feature_names[feature]
+            )
+            y = params["mean"][codes]
+            return (y, params["heter"][codes]) if heterogeneity else y
+        y = np.interp(x, params["grid"], params["mean"])
+        return (
+            (y, np.interp(x, params["grid"], params["heter"]))
+            if heterogeneity
+            else y
+        )
+
+    def _eval_mean(
+        self, feature: int, x: np.ndarray, params: dict, mask: Optional[np.ndarray]
+    ) -> np.ndarray:
+        """The (d-)PDP mean effect is *exact*, not interpolated: global calls
+        read (and grow) the position store; masked calls read cached columns
+        when every position is present, else recompute ICE on `data[mask]`
+        transiently — the one documented model-touching exception (R14)."""
+        if self._is_cat(feature):
+            return self._eval_payload(feature, params, x)  # levels validated inside
+        x = np.asarray(x, dtype=float)
+        if mask is None:
+            entry = self._ensure_positions(feature, x)
+            rows = np.searchsorted(entry["pos"], x)
+            return entry["ice"][rows].mean(axis=1)
+        entry = self._local[feature]
+        pos = entry["pos"]
+        idx = np.clip(np.searchsorted(pos, x), 0, len(pos) - 1)
+        if np.all(pos[idx] == x):
+            return entry["ice"][idx][:, mask].mean(axis=1)
+        y_ice = self._predict(self.data[mask], x, feature, self._use_vectorized(feature))
+        return np.mean(y_ice, axis=1)
+
     def _compute_norm_const(
         self,
         feature: int,
-        method: str = "zero_integral",
-        nof_points: int = helpers.NOF_INTERNAL_POINTS,
-        params: Optional[dict] = None,
+        method: str,
+        params: dict,
         mask: Optional[np.ndarray] = None,
     ):
-        """(d-)PDP overrides the base: its normalization constant is
-        *per-instance* — each ICE curve is centered on its own — so an
-        `(N,)` array is stored instead of a scalar.
-
-        The masked path is model-free: the constants come from the cached ICE
-        table's masked columns, integrated over the subregion's effective
-        interval (linear interpolation between grid rows)."""
+        """(d-)PDP overrides the base: its centering constant is *per-instance*
+        — each ICE curve is centered on its own — so an array is returned
+        instead of a scalar, derived from the canonical-grid columns (masked
+        columns for a masked call), zero model calls (R14)."""
         assert method in ["zero_integral", "zero_start"]
+        grid, ice = self._grid_rows(feature, self._local[feature])
         if mask is not None:
-            prim = self.local_effects["feature_" + str(feature)]
-            grid, ice = prim["grid"], prim["ice"][:, mask]
-            if self._is_cat(feature):
-                # weights of the levels *within* the mask, aligned to the grid
-                # (= the globally observed levels); absent levels weigh zero
-                levels, weights = self._level_weights(feature, mask)
-                if method == "zero_integral":
-                    w = np.zeros(len(grid))
-                    w[np.searchsorted(grid, levels)] = weights
-                    return np.average(ice, axis=0, weights=w)
-                return ice[np.searchsorted(grid, levels[0])]
-            lo, hi = self._effective_limits(feature, mask)
-            if method == "zero_integral":
-                xs = np.linspace(lo, hi, nof_points)
-                return np.mean(_interp_columns(grid, ice, xs), axis=0)
-            return _interp_columns(grid, ice, np.array([lo]))[0]
-        use_vectorized = self.fit_args.get("feature_" + str(feature), {}).get(
-            "use_vectorized", True
-        )
+            ice = ice[:, mask]
         if self._is_cat(feature):
-            levels, weights = self._level_weights(feature)
+            # weights of the levels *within* the mask, aligned to the grid
+            # (= the globally observed levels); absent levels weigh zero
+            levels, weights = self._level_weights(feature, mask)
             if method == "zero_integral":
-                y = self._predict(self.data, levels, feature, use_vectorized)
-                return np.average(y, axis=0, weights=weights)
-            y = self._predict(self.data, levels[:1], feature, use_vectorized)
-            return y[0]
+                w = np.zeros(len(grid))
+                w[np.searchsorted(grid, levels)] = weights
+                return np.average(ice, axis=0, weights=w)
+            return ice[np.searchsorted(grid, levels[0])]
+        lo, hi = self._effective_limits(feature, mask)
         if method == "zero_integral":
-            xx = np.linspace(
-                self.axis_limits[0, feature],
-                self.axis_limits[1, feature],
-                nof_points,
-            )
-            y = self._predict(self.data, xx, feature, use_vectorized)
-            return np.mean(y, axis=0)
-        xx = self.axis_limits[0, feature, np.newaxis]
-        y = self._predict(self.data, xx, feature, use_vectorized)
-        return y[0]
+            xs = np.linspace(lo, hi, helpers.NOF_INTERNAL_POINTS)
+            return np.mean(_interp_columns(grid, ice, xs), axis=0)
+        return _interp_columns(grid, ice, np.array([lo]))[0]
 
     def _mean_norm_const(self, norm_const):
-        # PDP's norm_const is per-instance (each ICE centers on its own); the
+        # PDP's constant is per-instance (each ICE centers on its own); the
         # mean-effect shift is their average
         return np.mean(norm_const)
-
-    def _eval_unnorm(
-        self, feature: int, x: np.ndarray, heterogeneity: bool = False, params=None
-    ):
-        """Kernel: uncentered mean (d-)ICE at `x`; with `heterogeneity`, also
-        h(x) — the variance across the *per-instance centered* ICE curves for
-        the PDP (levels are only comparable after centering) and across the raw
-        d-ICE curves for the DerPDP (slopes are directly comparable).
-
-        When `params` (from `_summarize`) is given, read the mean/heterogeneity
-        off the cached grid — the model-free masked path used by the regional
-        split search — instead of re-querying the model at `x`."""
-        if params is not None:
-            if params.get("is_cat"):
-                codes = utils.codes_from_levels(
-                    x, params["levels"], feature, self.feature_names[feature]
-                )
-                y = params["mean"][codes]
-                return (y, params["heter"][codes]) if heterogeneity else y
-            y = np.interp(x, params["grid"], params["mean"])
-            return (
-                (y, np.interp(x, params["grid"], params["heter"]))
-                if heterogeneity
-                else y
-            )
-
-        if self._is_cat(feature):
-            # discrete features are evaluated only at levels (R10)
-            utils.codes_from_levels(
-                x, self._levels(feature), feature, self.feature_names[feature]
-            )
-        y_ice = self._predict(self.data, x, feature, use_vectorized=True)
-        y_mean = np.mean(y_ice, axis=1)
-        if not heterogeneity:
-            return y_mean
-
-        if self.method_name == "pdp":
-            if self._is_cat(feature):
-                levels, weights = self._level_weights(feature)
-                per_instance_norm = np.average(
-                    self._predict(self.data, levels, feature, use_vectorized=True),
-                    axis=0,
-                    weights=weights,
-                )
-            else:
-                xx = np.linspace(
-                    self.axis_limits[0, feature],
-                    self.axis_limits[1, feature],
-                    helpers.NOF_INTERNAL_POINTS,
-                )
-                per_instance_norm = np.mean(
-                    self._predict(self.data, xx, feature, use_vectorized=True), axis=0
-                )
-            y_var = np.var(y_ice - per_instance_norm[np.newaxis, :], axis=1)
-        else:
-            y_var = np.var(y_ice, axis=1)
-        return y_mean, y_var
-
-    def _eval_masked_mean(
-        self, feature: int, x: np.ndarray, params: dict, mask: np.ndarray
-    ) -> np.ndarray:
-        """Masked mean (d-)ICE: read the cached-grid payload when `x` lies on
-        it (levels are always on it), otherwise recompute ICE on `data[mask]`
-        at `x` — the exact-evaluation retouch, symmetric with the global
-        (d-)PDP `eval` (the one model-touching exception of the masked path)."""
-        if params.get("is_cat"):
-            return self._eval_unnorm(feature, x, params=params)
-        grid = params["grid"]
-        on_grid = np.isclose(x[:, None], grid[None, :]).any(axis=1).all()
-        if on_grid:
-            return self._eval_unnorm(feature, x, params=params)
-        use_vectorized = self.fit_args.get("feature_" + str(feature), {}).get(
-            "use_vectorized", True
-        )
-        y_ice = self._predict(self.data[mask], x, feature, use_vectorized)
-        return np.mean(y_ice, axis=1)
 
     def fit(
         self,
         features: Union[int, str, list] = "all",
         *,
         centering: Union[bool, str] = False,
-        points_for_centering: int = helpers.NOF_INTERNAL_POINTS,
         use_vectorized: bool = True,
     ):
         """
         Fit the Feature effect to the data.
 
         Notes:
-            You can use `.eval` or `.plot` without calling `.fit` explicitly.
-            The only thing that `.fit` does is to compute the normalization constant for centering the PDP and ICE plots.
-            This will be automatically done when calling `eval` or `plot`, so there is no need to call `fit` explicitly.
+            You can use `.eval` or `.plot` without calling `.fit` explicitly:
+            any query computes what it needs lazily with these defaults. `fit`
+            declares the config and warms the caches (R14).
 
         Args:
             features: the features to fit.
                 - If set to "all", all the features will be fitted.
 
-            centering: whether to center the plot:
+            centering: the default centering mode for this feature's queries:
 
                 - `False` means no centering
                 - `True` or `zero_integral` centers around the `y` axis.
                 - `zero_start` starts the plot from `y=0`.
 
-            points_for_centering: number of linspaced points along the feature axis used for centering.
             use_vectorized: whether to use vectorized operations for the PDP and ICE curves
 
         """
-        self._fit_loop(
-            features, centering, points_for_centering, use_vectorized=use_vectorized
-        )
+        self._fit_loop(features, centering, use_vectorized=use_vectorized)
 
     def _plot(
         self,
@@ -302,34 +268,28 @@ class PDPBase(GlobalEffectBase):
 
         is_cat = self._is_cat(feature)
         if mask is None:
-            x = (
-                self._levels(feature)
-                if is_cat
-                else np.linspace(
+            # the display grid joins the position store (grown missing-only),
+            # so a repeated plot costs zero model calls
+            if is_cat:
+                entry = self._ensure_local(feature)
+                x = entry["pos"]
+                yy = entry["ice"]
+            else:
+                x = np.linspace(
                     self.axis_limits[0, feature],
                     self.axis_limits[1, feature],
                     nof_points,
                 )
-            )
-
-            # the ICE table is the method's own object: computed by the kernel
-            # and centered with the stored per-instance norms (payload state)
-            if self.requires_refit(feature, centering):
-                self._refit(feature, centering)
-            yy = self._predict(self.data, x, feature, use_vectorized)
-            if centering is not False:
-                norm_consts = self.feature_effect["feature_" + str(feature)][
-                    "norm_const"
-                ]
-                yy = yy - norm_consts[np.newaxis, :]
+                entry = self._ensure_positions(feature, x)
+                rows = np.searchsorted(entry["pos"], x)
+                yy = entry["ice"][rows]
         else:
-            # masked branch: the cached ICE table's masked columns at grid
-            # resolution — no model calls; `nof_points` does not apply. The x
-            # arrays are cropped to the subregion's effective interval, so the
-            # figure windows itself to the region.
-            self._ensure_local_effects(feature)
-            prim = self.local_effects["feature_" + str(feature)]
-            grid, ice_m = prim["grid"], prim["ice"][:, mask]
+            # masked branch: the canonical-grid rows' masked columns — no model
+            # calls; `nof_points` does not apply. The x array is cropped to the
+            # subregion's effective interval, so the figure windows itself.
+            entry = self._ensure_local(feature)
+            grid, ice = self._grid_rows(feature, entry)
+            ice_m = ice[:, mask]
             if is_cat:
                 x = grid
                 yy = ice_m
@@ -337,17 +297,11 @@ class PDPBase(GlobalEffectBase):
                 lo, hi = self._effective_limits(feature, mask)
                 x = np.concatenate([[lo], grid[(grid > lo) & (grid < hi)], [hi]])
                 yy = _interp_columns(grid, ice_m, x)
-            if centering is not False:
-                norm_consts = self._compute_norm_const(
-                    feature, method=centering, mask=mask
-                )
-                yy = yy - norm_consts[np.newaxis, :]
+        if centering is not False:
+            norm_consts = self._centering_const(feature, mask, centering)
+            yy = yy - norm_consts[np.newaxis, :]
 
-        if show_avg_output:
-            data = self.data if mask is None else self.data[mask]
-            avg_output = helpers.prep_avg_output(data, self.model, None, scale_y)
-        else:
-            avg_output = None
+        avg_output = self._avg_output(mask, scale_y) if show_avg_output else None
 
         title = (
             "Partial Dependence Plot (PDP)"
@@ -376,11 +330,9 @@ class PDPBase(GlobalEffectBase):
                     random_state=self.random_state,
                 )
             if heterogeneity is not False:
-                params = (
-                    self._masked_params(feature, mask) if mask is not None else None
-                )
-                variances = self._eval_unnorm(
-                    feature, x, heterogeneity=True, params=params
+                params = self._summary(feature, mask)
+                variances = self._eval_payload(
+                    feature, params, x, heterogeneity=True
                 )[1]
             else:
                 variances = None
@@ -401,9 +353,9 @@ class PDPBase(GlobalEffectBase):
                 show_plot=show_plot,
             )
         # R1: the method owns the compute. Derive the mean line and the
-        # std/std_err band here (from the ICE table we already have — one model
-        # pass, no re-eval); the plot layer only draws. The raw table is handed
-        # over only for the "ice" cloud, which genuinely needs every curve.
+        # std/std_err band here (from the ICE table we already have — cached
+        # columns, no re-eval); the plot layer only draws. The raw table is
+        # handed over only for the "ice" cloud, which genuinely needs every curve.
         y_mean = yy.mean(axis=1)
         band = None
         if heterogeneity == "std":
@@ -839,22 +791,6 @@ def ice_non_vectorized(
 
     Notes:
         The non-vectorized version is slower than the vectorized one, but it requires less memory.
-
-    Examples:
-        >>> # check the gradient of the PDP of a linear model
-        >>> import numpy as np
-        >>> model = lambda x: np.sum(x, axis=1)
-        >>> data = np.random.rand(100, 10)
-        >>> x = np.linspace(0.1, 1, 10)
-        >>> feature = 0
-        >>> y = ice_non_vectorized(model, data, x, feature, heterogeneity=False, model_returns_jac=False)
-        >>> (y[1:] - y[:-1]) / (x[1:] - x[:-1])
-        array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
-        >>> # the derivative-ICE mean of a linear model
-        >>> d_ice = ice_non_vectorized(model, model_jac, data, x, feature, return_d_ice=True)
-        >>> d_ice.mean(axis=1)
-        array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.])
-
 
     Args:
         model: The black-box function (N, D) -> (N) or the Jacobian wrt the input (N, D) -> (N, D)

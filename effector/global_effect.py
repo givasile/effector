@@ -1,4 +1,25 @@
-import logging
+"""The global-effect engine: the two-block lifecycle (design contract R14).
+
+Every effect object holds exactly two caches and one config, all owned here:
+
+- **Cache (a) — local effects** (`self._local`): the model-touching material,
+  one frame-carrying entry per feature. Recomputed iff absent or the stored
+  frame differs from the frame derived from the current config; a frame change
+  replaces the entry and bumps the feature's epoch.
+- **Cache (b) — summaries** (`self._summaries`): everything derived from (a)
+  in pure numpy — payloads and centering constants — memoized by
+  `(feature, epoch, mask_key[, mode])`. Stale entries become unreachable when
+  the epoch bumps (frame or config change); they are never served.
+- **Config** (`self.fit_args`): the method settings `fit()` declares (binning,
+  order, scope, default centering) — the kwargs `eval`/`plot` deliberately do
+  not accept.
+
+Subclasses implement a frame declaration (`_frame_from_config`) and three pure
+kernels — `_compute_local` (the only kernel that may touch the model),
+`_summarize` (numpy in, payload dict out), `_eval_payload` (payload + xs in,
+numbers out) — and contain no cache, retrigger, or mask logic.
+"""
+
 import warnings
 from abc import ABC, abstractmethod
 from collections import OrderedDict
@@ -16,6 +37,10 @@ HINT_RHALE_NOMINAL = (
     " No derivative exists for nominal features and grouping over an "
     "arbitrary order is not meaningful; use ALE or PDP instead."
 )
+
+# the shared mask-key sentinel: `mask=None` and an all-ones mask are the same
+# summary (rule M1) — that equivalence lives in `_mask_key` and nowhere else
+_ALL = b"ALL"
 
 
 def check_feature_type_supported(
@@ -50,8 +75,7 @@ def check_binning_scope(binning_scope: str) -> None:
 
 
 class GlobalEffectBase(ABC):
-    # the class-level centering default (R3): each subclass declares it once;
-    # fit/eval/plot signatures converge on it during the homogenization
+    # the class-level centering default (R3): each subclass declares it once
     DEFAULT_CENTERING: Union[bool, str] = False
 
     # capability contract per feature type (method_semantics.md): which of
@@ -62,6 +86,8 @@ class GlobalEffectBase(ABC):
     )
     CAT_STRATEGY: Optional[str] = None
 
+    _SUMMARIES_MAX = 512
+
     def __init__(
         self,
         method_name: str,
@@ -70,15 +96,12 @@ class GlobalEffectBase(ABC):
         model_jac: Optional[Callable] = None,
         *,
         data_effect: Optional[np.ndarray] = None,
-        local_effects: Optional[dict] = None,
         nof_instances: Union[int, str] = 10_000,
         axis_limits: Optional[np.ndarray] = None,
         schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ) -> None:
-        """
-        Constructor for the FeatureEffectBase class.
-        """
+        """Constructor: ingest and nothing else (R1) — no model calls happen here."""
         self.method_name = method_name.lower()
         self.random_state = random_state
 
@@ -113,176 +136,181 @@ class GlobalEffectBase(ABC):
         self.scale_x_list: Optional[list] = ing.meta.scale_x_list
         self.scale_y: Optional[dict] = ing.meta.scale_y
 
-        # state variable
+        # state flag mirror (kept for introspection; the caches are the truth)
         self.is_fitted: np.ndarray = np.ones([self.dim]) < 0
 
-        # parameters used when fitting the feature effect
+        # the declared config (R14): set by fit(), read by the summary gate
         self.fit_args: dict = {}
 
-        # dict, like {"feature_i": {"quantity_1": value_1, "quantity_2": value_2, ...}} for the i-th
-        self.feature_effect: dict = {}
+        # cache (a) — local effects: {feature: {"frame": tuple, ...arrays}}
+        self._local: dict = {}
+        # per-feature epoch: bumped on frame replacement or config change
+        self._epoch: dict = {}
+        # cache (b) — summaries: payloads (f, epoch, mask_key) and centering
+        # constants (f, epoch, mask_key, mode), LRU-bounded
+        self._summaries: "OrderedDict" = OrderedDict()
+        # model(data) predictions, computed once, first time an average output
+        # is needed (global or masked)
+        self._y_pred: Optional[np.ndarray] = None
 
-        # step 2 output cache: {"feature_i": <per-instance local effect>} —
-        # computed once (model-touching, `_compute_local_effects`) or injected
-        # here at construction; steps 3-4 (summarize/eval/plot/heter) read it and
-        # never re-touch the model (R: single-model-touch constitution)
-        self.local_effects: dict = dict(local_effects) if local_effects else {}
-        # feature keys whose local effects are cached, so a later model touch on
-        # the cached path can be flagged by the (silent) diagnostic
-        self._sealed: set = set()
-
-        # Invisible performance memo (R12): masked summaries are pure functions
-        # of (feature, fitted state, mask). Keyed by (feature, fit_epoch,
-        # mask.tobytes()) so a refit — which bumps the epoch — invalidates it.
-        # A cache is not API state; the partition it accelerates is the value.
-        self._masked_cache: "OrderedDict" = OrderedDict()
-        self._fit_epoch: dict = {}  # "feature_i" -> int, bumped on (re)fit/recompute
-        self._MASKED_CACHE_MAX = 512
-
-    @abstractmethod
-    def fit(
-        self,
-        features: Union[int, str, list] = "all",
-        centering: Union[bool, str] = False,
-        **kwargs,
-    ) -> None:
-        """Fit, i.e., compute the quantities that are necessary for evaluating and plotting the feature effect, for the given features.
-
-        Args:
-            features: the features to fit. If set to "all", all the features will be fitted.
-            centering: whether to center the feature effect plot
-
-                    - If `centering` is `False`, the plot is not centered
-                    - If `centering` is `True` or `zero_integral`, the plot is centered around the `y` axis.
-                    - If `centering` is `zero_start`, the plot starts from zero.
-        """
-        raise NotImplementedError
+    # ------------------------------------------------------------------
+    # the three subclass kernels + the frame declaration (R14)
+    # ------------------------------------------------------------------
+    def _frame_from_config(self, feature: int) -> tuple:
+        """The frame tuple this feature's local effects depend on, derived from
+        the declared config. `()` means the local effects are instance-anchored
+        (never invalidated; PDP's position store only grows)."""
+        return ()
 
     @abstractmethod
-    def plot(
-        self,
-        feature: int,
-        heterogeneity: Union[bool, str] = False,
-        centering: Union[bool, str] = False,
-        **kwargs,
-    ) -> None:
-        """
-
-        Parameters
-        ----------
-        feature: index of the feature to plot
-        heterogeneity: whether to plot the heterogeneity measures
-
-            - If `heterogeneity=False`, the plot shows only the mean effect
-            - If `heterogeneity=True`, the plot additionally shows the heterogeneity with the default visualization, e.g., ICE plots for PDPs
-            - If `heterogeneity=<str>`, the plot shows the heterogeneity using the specified method
-
-        centering: whether to center the PDP
-
-                - If `centering` is `False`, the PDP not centered
-                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the PDP starts from `y=0`.
-        **kwargs: all other plot-specific arguments
-        """
+    def _compute_local(self, feature: int, frame: tuple) -> dict:
+        """The one model-touching kernel: compute the per-instance local
+        effects of `feature` under `frame` and return the cache-(a) entry —
+        a dict that includes `"frame": frame` plus instance-aligned arrays."""
         raise NotImplementedError
-
-    @abstractmethod
-    def _fit_feature(self, feature: int, **kwargs) -> dict:
-        """Compute and return the method-specific payload for one feature
-        (everything `eval`/`plot` need, except the normalization constant)."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def _eval_unnorm(
-        self,
-        feature: int,
-        x: np.ndarray,
-        heterogeneity: bool = False,
-        params: Optional[dict] = None,
-    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
-        """The method-specific evaluation kernel: the *uncentered* mean effect
-        at `x`, and — if `heterogeneity` — also the heterogeneity curve h(x) (a
-        variance-like quantity in the method's own units, independent of any
-        centering).
-
-        `params` selects the payload to evaluate against: `None` reads the
-        stored fitted state (`feature_effect["feature_i"]`); a passed dict (the
-        output of `_summarize`) lets the masked heterogeneity path evaluate a
-        *transient* subregion payload without disturbing the stored one."""
-        raise NotImplementedError
-
-    def _eval_masked_mean(
-        self, feature: int, x: np.ndarray, params: dict, mask: np.ndarray
-    ) -> np.ndarray:
-        """The uncentered masked mean effect at `x` — default reads the
-        transient payload (pure numpy). PDP overrides it: on the cached grid it
-        reads the payload, off-grid it recomputes ICE on `data[mask]` (the
-        exact-evaluation retouch, symmetric with the global PDP `eval`)."""
-        return self._eval_unnorm(feature, x, heterogeneity=False, params=params)
-
-    def _compute_local_effects(self, feature: int) -> None:
-        """Step 2 (model-touching): compute the per-instance local effect for
-        `feature` and store it in `self.local_effects["feature_i"]`. The single
-        place the model is queried for the effect. Overridden per method."""
-        raise NotImplementedError
-
-    def _ensure_local_effects(self, feature: int) -> None:
-        """Populate the local-effects cache for `feature` if absent — skipped
-        when the effects were injected at construction. Seals the feature; a
-        later recompute on a sealed feature (a parameter incompatible with the
-        cache) is flagged by the silent diagnostic below."""
-        key = "feature_" + str(feature)
-        if key not in self.local_effects:
-            if key in self._sealed:
-                logging.getLogger("effector").debug(
-                    "%s: recomputing local effects for feature %d after it was "
-                    "sealed — a parameter is incompatible with the cache",
-                    self.method_name,
-                    feature,
-                )
-            self._compute_local_effects(feature)
-            # local effects changed -> stale masked summaries must not be served
-            self._fit_epoch[key] = self._fit_epoch.get(key, 0) + 1
-        self._sealed.add(key)
 
     def _summarize(
-        self, feature: int, mask: Optional[np.ndarray] = None, **fit_kwargs
+        self, feature: int, mask: Optional[np.ndarray] = None, **config
     ) -> dict:
-        """Step 3 (pure numpy): derive the effect payload for `feature` from the
-        cached local effects restricted to `mask` (`None` = all instances),
-        returning the same shape as the stored `feature_effect["feature_i"]`.
-        Overridden per method."""
+        """Pure-numpy kernel: derive the payload for `feature` from the cached
+        local effects restricted to `mask` (`None` = all instances), under the
+        declared `config`. Overridden per method; must not touch the model."""
         raise NotImplementedError
 
-    def _replay_fit_kwargs(self, feature: int) -> dict:
-        """The method-specific fit kwargs recorded at the last `fit` (e.g.
-        `binning_method`, `order`, `use_vectorized`), minus centering — what a
-        transient `_summarize` must replay to match the fitted state."""
-        prev = self.fit_args.get("feature_" + str(feature), {})
-        return {
-            k: v
-            for k, v in prev.items()
-            if k not in ("centering", "points_for_centering")
-        }
+    @abstractmethod
+    def _eval_payload(
+        self,
+        feature: int,
+        params: dict,
+        x: np.ndarray,
+        heterogeneity: bool = False,
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+        """Pure reader kernel: the *uncentered* mean effect at `x` read off the
+        payload `params`, and — if `heterogeneity` — also the heterogeneity
+        curve h(x). Same payload + same x → same answer; no model, no state."""
+        raise NotImplementedError
 
-    def _masked_params(self, feature: int, mask: np.ndarray) -> dict:
-        """Bounded-LRU memo around the masked `_summarize` (with replayed fit
-        kwargs). Semantically transparent: same (feature, fitted state, mask) ->
-        same payload as calling `_summarize` directly, only faster on repeats
-        (the split search re-proposes identical candidate masks; a plot after a
-        search hits the exact node masks). The `_fit_epoch` term in the key means
-        a refit invalidates stale entries. Callers must have ensured local
-        effects first. Treat the return value as read-only."""
-        key = (feature, self._fit_epoch.get(f"feature_{feature}", 0), mask.tobytes())
-        cached = self._masked_cache.get(key)
-        if cached is not None:
-            self._masked_cache.move_to_end(key)
-            return cached
-        params = self._summarize(feature, mask, **self._replay_fit_kwargs(feature))
-        self._masked_cache[key] = params
-        if len(self._masked_cache) > self._MASKED_CACHE_MAX:
-            self._masked_cache.popitem(last=False)
-        return params
+    # ------------------------------------------------------------------
+    # the two gates (all queries go through these; nothing else checks caches)
+    # ------------------------------------------------------------------
+    def _config(self, feature: int) -> dict:
+        """The declared method config for `feature` (fit_args minus centering)."""
+        prev = self.fit_args.get("feature_" + str(feature), {})
+        return {k: v for k, v in prev.items() if k != "centering"}
+
+    def _bump_epoch(self, feature: int) -> None:
+        self._epoch[feature] = self._epoch.get(feature, 0) + 1
+
+    def _ensure_local(self, feature: int) -> dict:
+        """Gate to cache (a). The one retrigger rule (R14): recompute iff the
+        entry is absent or its stored frame differs from the frame derived from
+        the current config. A replacement bumps the epoch. Every query passes
+        through here, so the capability matrix is enforced once, for all of
+        them."""
+        self._check_feature_type_supported(feature)
+        want = self._frame_from_config(feature)
+        entry = self._local.get(feature)
+        if entry is None or entry["frame"] != want:
+            self._local[feature] = self._compute_local(feature, want)
+            self._bump_epoch(feature)
+        return self._local[feature]
+
+    @staticmethod
+    def _mask_key(mask: Optional[np.ndarray]) -> bytes:
+        """`None` and all-ones normalize to one key (M1) — the single place
+        that equivalence lives. `mask` must already be prepped."""
+        if mask is None or mask.all():
+            return _ALL
+        return mask.tobytes()
+
+    def _memo(self, key, builder):
+        hit = self._summaries.get(key)
+        if hit is not None:
+            self._summaries.move_to_end(key)
+            return hit
+        val = builder()
+        self._summaries[key] = val
+        if len(self._summaries) > self._SUMMARIES_MAX:
+            self._summaries.popitem(last=False)
+        return val
+
+    def _summary(self, feature: int, mask: Optional[np.ndarray] = None) -> dict:
+        """Gate to cache (b): the payload of (feature, mask) under the current
+        epoch — memoized, recomputed from (a) on a miss. Treat as read-only."""
+        self._ensure_local(feature)
+        key = (feature, self._epoch.get(feature, 0), self._mask_key(mask))
+        return self._memo(
+            key, lambda: self._summarize(feature, mask, **self._config(feature))
+        )
+
+    def _centering_const(self, feature: int, mask: Optional[np.ndarray], mode: str):
+        """The centering constant of (feature, mask, mode) — a summary like any
+        other (R14): derived from the payload, memoized, zero model calls."""
+        params = self._summary(feature, mask)
+        key = (feature, self._epoch.get(feature, 0), self._mask_key(mask), mode)
+        return self._memo(
+            key, lambda: self._compute_norm_const(feature, mode, params, mask)
+        )
+
+    # ------------------------------------------------------------------
+    # shared derivations (pure numpy on top of the gates)
+    # ------------------------------------------------------------------
+    def _eval_mean(
+        self, feature: int, x: np.ndarray, params: dict, mask: Optional[np.ndarray]
+    ) -> np.ndarray:
+        """The uncentered mean effect at `x` — default reads the payload.
+        (d-)PDP overrides it: exact ICE columns from the growing position store
+        (global), or the transient `data[mask]` retouch off the cached
+        positions (masked) — the one documented model-touching exception."""
+        return self._eval_payload(feature, params, x)
+
+    def _compute_norm_const(
+        self,
+        feature: int,
+        method: str,
+        params: dict,
+        mask: Optional[np.ndarray] = None,
+    ) -> float:
+        """Derive the centering constant from the payload: `zero_integral` =
+        the mean over the (effective) feature interval, `zero_start` = the
+        value at its left limit. Pure numpy; (d-)PDP overrides it with the
+        per-instance variant read off the cached ICE columns."""
+        assert method in ["zero_integral", "zero_start"]
+
+        def partial_eval(x):
+            return self._eval_payload(feature, params, x)
+
+        if self._is_cat(feature):
+            # discrete centering (method_semantics.md): zero_integral is the
+            # frequency-weighted level mean (order-invariant); zero_start
+            # zeroes the first level *in fit order* (a custom `order` makes
+            # its first entry the reference level)
+            levels, weights = self._level_weights(feature, mask)
+            if method == "zero_integral":
+                return float(np.average(partial_eval(levels), weights=weights))
+            fit_levels = params.get("levels", levels)
+            return partial_eval(np.asarray(fit_levels[:1])).item()
+
+        start, stop = self._effective_limits(feature, mask)
+        if method == "zero_integral":
+            return utils.mean_1d_linspace(
+                partial_eval, start, stop, helpers.NOF_INTERNAL_POINTS
+            )
+        return partial_eval(np.array([start])).item()
+
+    def _mean_norm_const(self, norm_const):
+        """The scalar amount the centered mean effect subtracts. It is a scalar
+        for most methods (ALE/RHALE/ShapDP), so the value is returned as is;
+        PDP overrides this because its constant is a per-instance array."""
+        return norm_const
+
+    def _avg_output(self, mask: Optional[np.ndarray], scale_y: Optional[dict]) -> float:
+        """The (masked) average model output for plots — from the `_y_pred`
+        cache, computed once per object (the plot layer never calls the model)."""
+        if self._y_pred is None:
+            self._y_pred = np.asarray(self.model(self.data))
+        y = self._y_pred if mask is None else self._y_pred[mask]
+        return helpers.prep_avg_output(None, None, float(np.mean(y)), scale_y)
 
     def _prep_mask(self, mask) -> Optional[np.ndarray]:
         """Normalize a user `mask` to a boolean `(N,)` array (`None` passes
@@ -394,79 +422,117 @@ class GlobalEffectBase(ABC):
             self.feature_names[feature],
         )
 
+    # ------------------------------------------------------------------
+    # fit: declare the config + warm the caches (R1/R14)
+    # ------------------------------------------------------------------
+    @abstractmethod
+    def fit(
+        self,
+        features: Union[int, str, list] = "all",
+        centering: Union[bool, str] = False,
+        **kwargs,
+    ) -> None:
+        """Declare the method configuration for the given features and warm the
+        caches. Nothing fit does is unavailable lazily: any `eval`/`plot` on an
+        unfitted feature silently computes what it needs with the defaults.
+
+        Args:
+            features: the features to fit. If set to "all", all the features will be fitted.
+            centering: the default centering mode this feature is queried with
+
+                    - If `centering` is `False`, effects are not centered
+                    - If `centering` is `True` or `zero_integral`, the effect is centered around the `y` axis.
+                    - If `centering` is `zero_start`, the effect starts from zero.
+        """
+        raise NotImplementedError
+
     def _fit_loop(
         self,
         features: Union[int, str, list],
         centering: Union[bool, str],
-        points_for_centering: int = helpers.NOF_INTERNAL_POINTS,
         **fit_feature_kwargs,
     ) -> None:
-        """The one fit skeleton every method shares (R1): normalize inputs,
-        compute the per-feature payload, then the normalization constant."""
+        """The one fit skeleton every method shares (R1): record the declared
+        config, bump the epoch (the config may have changed — old summaries
+        must become unreachable), then warm cache (a) and the all-ones payload
+        (plus the centering constant, if a mode was declared)."""
         features = helpers.prep_features(features, self.dim)
         centering = helpers.prep_centering(centering)
         for s in features:
             self._check_feature_type_supported(s)
-            key = "feature_" + str(s)
-            self.fit_args[key] = {
+            self.fit_args["feature_" + str(s)] = {
                 "centering": centering,
-                "points_for_centering": points_for_centering,
                 **fit_feature_kwargs,
             }
-            self.feature_effect[key] = self._fit_feature(s, **fit_feature_kwargs)
-            self.feature_effect[key]["norm_const"] = (
-                self._compute_norm_const(
-                    s, method=centering, nof_points=points_for_centering
-                )
-                if centering is not False
-                else None
-            )
+            self._bump_epoch(s)
+            self._ensure_local(s)
+            self._summary(s, None)
+            if centering is not False:
+                self._centering_const(s, None, centering)
             self.is_fitted[s] = True
-            # fitted state (fit_args/payload) changed -> invalidate masked memo
-            self._fit_epoch[key] = self._fit_epoch.get(key, 0) + 1
 
-    def _compute_norm_const(
+    # ------------------------------------------------------------------
+    # public queries (R1/R2/R11/R13) — thin wrappers over the two gates
+    # ------------------------------------------------------------------
+    def eval(
         self,
         feature: int,
-        method: str = "zero_integral",
-        nof_points: int = helpers.NOF_INTERNAL_POINTS,
-        params: Optional[dict] = None,
+        xs: np.ndarray,
+        centering: Union[None, bool, str] = None,
         mask: Optional[np.ndarray] = None,
-    ) -> float:
-        """Compute the normalization constant from the evaluation kernel:
-        `zero_integral` = the mean over the feature interval, `zero_start` =
-        the value at its left limit.
+    ) -> np.ndarray:
+        """Evaluate the mean effect of the `feature`-th feature at positions `xs`.
 
-        With `params`/`mask` (the masked path), the constant belongs to a
-        *transient* subregion payload: the integral runs over the subregion's
-        effective interval (its own `[min, max]`, not the global frame) and the
-        level weights are those within the mask. Nothing is stored."""
-        assert method in ["zero_integral", "zero_start"]
+        Notes:
+            This is the one evaluation method of every effect class (R1): it
+            always returns the mean effect as a single `(T,)` array.
+            Heterogeneity lives on its own surface — `eval_heter(feature, xs)`
+            for the curve, `heter_score(feature)` for the scalar, and
+            `payload(feature)` for the method's raw object.
 
-        def partial_eval(x):
-            return self._eval_unnorm(feature, x, heterogeneity=False, params=params)
+        Args:
+            feature: index of feature of interest
+            xs: the points along the s-th axis to evaluate the effect at
 
-        if self._is_cat(feature):
-            # discrete centering (method_semantics.md): zero_integral is the
-            # frequency-weighted level mean (order-invariant); zero_start
-            # zeroes the first level *in fit order* (a custom `order` makes
-            # its first entry the reference level)
-            levels, weights = self._level_weights(feature, mask)
-            if method == "zero_integral":
-                return float(np.average(partial_eval(levels), weights=weights))
-            source = (
-                params
-                if params is not None
-                else self.feature_effect.get("feature_" + str(feature), {})
+              - `np.ndarray` of shape `(T, )`
+
+            centering: whether to center the effect
+
+                - `None` (default) uses the class default (`DEFAULT_CENTERING`)
+                - `False`: no centering
+                - `True` or `"zero_integral"`: center around the `y` axis
+                - `"zero_start"`: the effect starts from `y=0`
+
+            mask: optional boolean `(N,)` selecting a subregion. `None`
+                (default) evaluates over all instances; a mask summarizes that
+                subset of the cached local effects on the fly — the effect
+                *within* the subregion, on the global frame, without model
+                calls. Centering is then computed over the subregion's own
+                interval. Nothing is stored.
+
+        Returns:
+            the mean effect `y` at the given `xs`, `(T,)`
+        """
+        centering = self.DEFAULT_CENTERING if centering is None else centering
+        centering = helpers.prep_centering(centering)
+        mask = self._prep_mask(mask)
+
+        if not self._is_cat(feature):
+            if mask is not None:
+                self._effective_limits(feature, mask)  # degeneracy guard
+            elif not self.axis_limits[0, feature] < self.axis_limits[1, feature]:
+                raise ValueError(
+                    f"Feature {feature} has a degenerate axis interval "
+                    f"[{self.axis_limits[0, feature]}, {self.axis_limits[1, feature]}]"
+                )
+
+        params = self._summary(feature, mask)
+        y = self._eval_mean(feature, xs, params, mask)
+        if centering is not False:
+            y = y - self._mean_norm_const(
+                self._centering_const(feature, mask, centering)
             )
-            fit_levels = source.get("levels", levels)
-            return partial_eval(np.asarray(fit_levels[:1])).item()
-
-        start, stop = self._effective_limits(feature, mask)
-
-        if method == "zero_integral":
-            return utils.mean_1d_linspace(partial_eval, start, stop, nof_points)
-        return partial_eval(np.array([start])).item()
+        return y
 
     def eval_heter(
         self, feature: int, xs: np.ndarray, mask: Optional[np.ndarray] = None
@@ -487,7 +553,7 @@ class GlobalEffectBase(ABC):
             feature: index of feature of interest
             xs: the points to evaluate the heterogeneity at, `(T,)`
             mask: optional boolean `(N,)` selecting a subregion. `None` (default)
-                evaluates over the fitted state; a mask summarizes that subset of
+                evaluates over all instances; a mask summarizes that subset of
                 the cached local effects on the fly (the regional split search) —
                 pure numpy, no model calls.
 
@@ -495,22 +561,15 @@ class GlobalEffectBase(ABC):
             the heterogeneity curve h(xs), `(T,)`, non-negative
         """
         mask = self._prep_mask(mask)
-        if mask is None:
-            if self.requires_refit(feature, centering=False):
-                self._refit(feature)
-            return self._eval_unnorm(feature, xs, heterogeneity=True)[1]
-        self._ensure_local_effects(feature)
-        params = self._masked_params(feature, mask)
-        return self._eval_unnorm(feature, xs, heterogeneity=True, params=params)[1]
+        params = self._summary(feature, mask)
+        return self._eval_payload(feature, params, xs, heterogeneity=True)[1]
 
     def payload(self, feature: int) -> dict:
         """The method's raw fitted object for the `feature`-th feature — the
         honest method-specific state behind `eval`/`eval_heter` (bin effects
         and variances for (RH)ALE, splines and shap values for ShapDP, the
-        normalization constants for PDP)."""
-        if self.requires_refit(feature, centering=False):
-            self._refit(feature)
-        return dict(self.feature_effect["feature_" + str(feature)])
+        grid summaries for (d-)PDP): the all-ones summary (R14)."""
+        return dict(self._summary(feature, None))
 
     def heter_score(self, feature: int, mask: Optional[np.ndarray] = None) -> float:
         """The method-agnostic heterogeneity scalar of the `feature`-th
@@ -525,7 +584,8 @@ class GlobalEffectBase(ABC):
         if self._is_cat(feature):
             # frequency-weighted over levels (method_semantics.md); with a mask
             # the levels/frequencies are those within the subregion
-            levels, weights = self._level_weights(feature, mask)
+            mask_p = self._prep_mask(mask)
+            levels, weights = self._level_weights(feature, mask_p)
             return float(
                 np.average(self.eval_heter(feature, levels, mask), weights=weights)
             )
@@ -565,9 +625,7 @@ class GlobalEffectBase(ABC):
         from effector import space_partitioning  # lazy: one-way dep guard
 
         self._check_feature_type_supported(feature)
-        if self.requires_refit(feature, centering=False):
-            self._refit(feature)
-        self._ensure_local_effects(feature)
+        self._ensure_local(feature)
 
         if isinstance(finder, str):
             finder = space_partitioning.return_default(finder)
@@ -606,10 +664,10 @@ class GlobalEffectBase(ABC):
         self._check_feature_type_supported(feature)
         mask = self._prep_mask(mask)
         if mask is None:
-            # route through the masked (cached) path so PDP/DerPDP read the
-            # cached ICE instead of re-predicting; all-ones ≡ None (M1)
+            # all-ones ≡ None (M1); the concrete array makes the per-method
+            # `_importance` implementations mask-index without a null check
             mask = np.ones(self.data.shape[0], dtype=bool)
-        self._ensure_local_effects(feature)
+        self._ensure_local(feature)
         return float(self._importance(feature, mask))
 
     def _importance(self, feature: int, mask: np.ndarray) -> float:
@@ -617,7 +675,7 @@ class GlobalEffectBase(ABC):
         the μ-twin of `heter_score`, evaluated the same way it is. Continuous
         features use the uniform grid `heter_score` averages over; discrete
         features weight by level frequency. `centering=False` keeps it a pure
-        query — the std is invariant to centering and triggers no refit."""
+        query — the std is invariant to centering."""
         if self._is_cat(feature):
             levels, weights = self._level_weights(feature, mask)
             mu = self.eval(feature, levels, centering=False, mask=mask)
@@ -651,126 +709,30 @@ class GlobalEffectBase(ABC):
             )
         return out
 
-    def requires_refit(self, feature, centering):
-        """Check if refitting is needed."""
-        feature_key = f"feature_{feature}"
-
-        # if the state variable is not set, refit
-        if not self.is_fitted[feature]:
-            return True
-
-        # if the feature info does not exist, refit
-        if self.feature_effect.get(feature_key) is None:
-            return True
-
-        # if the above are ok and centering is False, no need to refit
-        if not centering:
-            return False
-
-        # if centering is not None and the norm_const is not set, refit
-        norm_const = self.feature_effect.get(feature_key, {}).get("norm_const")
-        if norm_const is None:
-            return True
-
-        # if centering is not None and is different from the centering when fitting, refit
-        if self.fit_args.get(feature_key, {}).get("centering") != centering:
-            return True
-
-        return False
-
-    def _mean_norm_const(self, norm_const):
-        """The scalar amount the centered mean effect subtracts. It is a scalar
-        for most methods (ALE/RHALE/ShapDP), so the stored value is returned as
-        is; PDP overrides this because its norm_const is a per-instance array."""
-        return norm_const
-
-    def _refit(self, feature: int, centering=None) -> None:
-        """Auto-refit for `feature`, replaying the kwargs of the user's last
-        explicit `fit` and overriding **only** `centering`. This keeps a
-        method-specific fit config (`order`, `binning_method`, …) intact when a
-        later `eval`/`plot` forces a refit because centering changed; without
-        it the refit would silently fall back to the method defaults.
-
-        Falls back to a plain default fit when the feature was never fitted
-        (nothing recorded to replay)."""
-        prev = self.fit_args.get("feature_" + str(feature))
-        if prev is None:
-            if centering is None:
-                self.fit(features=feature)
-            else:
-                self.fit(features=feature, centering=centering)
-            return
-        replay = {k: v for k, v in prev.items() if k != "centering"}
-        eff_centering = prev["centering"] if centering is None else centering
-        self._fit_loop(feature, eff_centering, **replay)
-
-    def eval(
+    @abstractmethod
+    def plot(
         self,
         feature: int,
-        xs: np.ndarray,
-        centering: Union[None, bool, str] = None,
-        mask: Optional[np.ndarray] = None,
-    ) -> np.ndarray:
-        """Evaluate the mean effect of the `feature`-th feature at positions `xs`.
-
-        Notes:
-            This is the one evaluation method of every effect class (R1): it
-            always returns the mean effect as a single `(T,)` array.
-            Heterogeneity lives on its own surface — `eval_heter(feature, xs)`
-            for the curve, `heter_score(feature)` for the scalar, and
-            `payload(feature)` for the method's raw object.
-
-        Args:
-            feature: index of feature of interest
-            xs: the points along the s-th axis to evaluate the effect at
-
-              - `np.ndarray` of shape `(T, )`
-
-            centering: whether to center the effect
-
-                - `None` (default) uses the class default (`DEFAULT_CENTERING`)
-                - `False`: no centering
-                - `True` or `"zero_integral"`: center around the `y` axis
-                - `"zero_start"`: the effect starts from `y=0`
-
-            mask: optional boolean `(N,)` selecting a subregion. `None`
-                (default) evaluates the fitted state; a mask summarizes that
-                subset of the cached local effects on the fly — the effect
-                *within* the subregion, on the global frame, without model
-                calls. Centering is then computed over the subregion's own
-                interval. Nothing is stored.
-
-        Returns:
-            the mean effect `y` at the given `xs`, `(T,)`
+        heterogeneity: Union[bool, str] = False,
+        centering: Union[bool, str] = False,
+        **kwargs,
+    ) -> None:
         """
-        centering = self.DEFAULT_CENTERING if centering is None else centering
-        centering = helpers.prep_centering(centering)
-        mask = self._prep_mask(mask)
 
-        if mask is not None:
-            if not self._is_cat(feature):
-                self._effective_limits(feature, mask)  # degeneracy guard
-            self._ensure_local_effects(feature)
-            params = self._masked_params(feature, mask)
-            y = self._eval_masked_mean(feature, xs, params, mask)
-            if centering is not False:
-                norm_const = self._compute_norm_const(
-                    feature, method=centering, params=params, mask=mask
-                )
-                y = y - self._mean_norm_const(norm_const)
-            return y
+        Parameters
+        ----------
+        feature: index of the feature to plot
+        heterogeneity: whether to plot the heterogeneity measures
 
-        if self.requires_refit(feature, centering):
-            self._refit(feature, centering)
+            - If `heterogeneity=False`, the plot shows only the mean effect
+            - If `heterogeneity=True`, the plot additionally shows the heterogeneity with the default visualization, e.g., ICE plots for PDPs
+            - If `heterogeneity=<str>`, the plot shows the heterogeneity using the specified method
 
-        if not self.axis_limits[0, feature] < self.axis_limits[1, feature]:
-            raise ValueError(
-                f"Feature {feature} has a degenerate axis interval "
-                f"[{self.axis_limits[0, feature]}, {self.axis_limits[1, feature]}]"
-            )
+        centering: whether to center the PDP
 
-        y = self._eval_unnorm(feature, xs)
-        if centering is not False:
-            norm_const = self.feature_effect["feature_" + str(feature)]["norm_const"]
-            y = y - self._mean_norm_const(norm_const)
-        return y
+                - If `centering` is `False`, the PDP not centered
+                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
+                - If `centering` is `zero_start`, the PDP starts from `y=0`.
+        **kwargs: all other plot-specific arguments
+        """
+        raise NotImplementedError

@@ -195,7 +195,7 @@ def test_rhale_greedy_groups_levels_and_stays_exact(data, model):
         data, model.predict, model.jacobian, nof_instances="all", schema=SCHEMA
     )
     rhale.fit(0, binning_method="greedy", centering="zero_start")
-    limits = rhale.feature_effect["feature_0"]["limits"]
+    limits = rhale.payload(0)["limits"]
     # candidate edges are exactly the integer level codes
     np.testing.assert_allclose(limits, np.round(limits), atol=1e-12)
     # accumulated values at the levels stay exact whatever the grouping,
@@ -309,7 +309,7 @@ def test_ale_refit_on_centering_change_preserves_order(data, model):
     y = ale.eval(0, np.array(order), centering="zero_integral")
 
     # the custom order must survive the centering-triggered refit
-    np.testing.assert_array_equal(ale.feature_effect["feature_0"]["levels"], order)
+    np.testing.assert_array_equal(ale.payload(0)["levels"], order)
 
     # and the centered answer must equal fitting centered with that order upfront
     ref = effector.ALE(data, model.predict, nof_instances="all", schema=SCHEMA)
@@ -337,8 +337,8 @@ def test_ale_similarity_order_runs_and_is_deterministic(data, model):
     a2 = effector.ALE(data, model.predict, schema={"feature_types": types})
     a2.fit(0, order="similarity")
     np.testing.assert_array_equal(
-        a1.feature_effect["feature_0"]["levels"],
-        a2.feature_effect["feature_0"]["levels"],
+        a1.payload(0)["levels"],
+        a2.payload(0)["levels"],
     )
 
 

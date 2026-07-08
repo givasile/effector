@@ -112,7 +112,7 @@ class TestHeterogeneity:
             features=feature,
             binning_method=effector.axis_partitioning.Fixed(nof_bins=NOF_BINS),
         )
-        bin_var = ale.feature_effect[f"feature_{feature}"]["bin_variance"]
+        bin_var = ale.payload(feature)["bin_variance"]
         gt_var = bench.ale_bin_variance_gt(feature, nof_bins=NOF_BINS)
         mask = ~np.isnan(gt_var)  # the jump bin's variance is an artifact
         np.testing.assert_allclose(bin_var[mask], gt_var[mask], atol=ATOL)
@@ -129,7 +129,7 @@ class TestHeterogeneity:
             features=feature,
             binning_method=effector.axis_partitioning.Fixed(nof_bins=NOF_BINS),
         )
-        bin_var = rhale.feature_effect[f"feature_{feature}"]["bin_variance"]
+        bin_var = rhale.payload(feature)["bin_variance"]
         gt_var = bench.rhale_bin_variance_gt(feature, nof_bins=NOF_BINS)
         np.testing.assert_allclose(bin_var, gt_var, atol=ATOL)
 

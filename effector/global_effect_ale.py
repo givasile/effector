@@ -1,5 +1,4 @@
 import typing
-from abc import abstractmethod
 from typing import List, Optional, Union
 
 import numpy as np
@@ -40,17 +39,21 @@ class ALEBase(GlobalEffectBase):
             random_state=random_state,
         )
 
-    @abstractmethod
-    def fit(self, features: typing.Union[int, str, list] = "all", **kwargs) -> None:
-        raise NotImplementedError
+    def _cat_frame(self, feature: int) -> tuple:
+        """The categorical frame (R14): the *declared* level order — the
+        resolution ("similarity" seriation, ascending default) is deterministic
+        given data + random_state, so comparing declarations equals comparing
+        resolutions without paying the resolution on every access."""
+        order = self._config(feature).get("order")
+        if order is None:
+            return ("order", "asc")
+        if isinstance(order, str):
+            return ("order", order)
+        return ("order", tuple(float(v) for v in np.asarray(order, dtype=float)))
 
-    def _eval_unnorm(
-        self, feature: int, x: np.ndarray, heterogeneity: bool = False, params=None
+    def _eval_payload(
+        self, feature: int, params: dict, x: np.ndarray, heterogeneity: bool = False
     ):
-        # `params` (from `_summarize`) lets the masked heterogeneity path evaluate
-        # a transient subregion payload without disturbing the stored fitted one
-        if params is None:
-            params = self.feature_effect["feature_" + str(feature)]
         if params.get("is_cat"):
             # discrete kernel (method_semantics.md): accumulate in code space —
             # exact at levels, and h(v_j) is the variance of the step *into*
@@ -81,8 +84,7 @@ class ALEBase(GlobalEffectBase):
                 x=x, bin_limits=params["limits"], bin_value=params["bin_variance"]
             )
             return y, var
-        else:
-            return y
+        return y
 
     def _validate_order_arg(self, features, order):
         if order is None or isinstance(order, str):
@@ -95,39 +97,40 @@ class ALEBase(GlobalEffectBase):
                 "feature — call fit per feature"
             )
 
-    def _compute_local_effects_cat(self, feature: int, order=None) -> dict:
-        """Step 2 (categorical): two-sided adjacent-level differences in code
-        space — the discrete derivative (method_semantics.md). The levels (and
-        their order) are frozen from the full data, so a subregion re-bins the
-        same per-instance differences without re-querying the model."""
+    def _compute_local_cat(self, feature: int, frame: tuple) -> dict:
+        """Cache-(a) kernel (categorical): two-sided adjacent-level differences
+        in code space — the discrete derivative (method_semantics.md). The
+        levels (and their order) are frozen from the full data, so a subregion
+        re-bins the same per-instance differences without re-querying the
+        model."""
         levels = self._levels(feature)
         if len(levels) < 2:
             raise ValueError(
                 f"feature {feature} {self.feature_names[feature]!r} has a "
                 f"single level — no effect to compute"
             )
+        order = self._config(feature).get("order")
         if order is not None:
             levels = self._resolve_level_order(feature, levels, order)
         positions, effects, instance_idx = utils.compute_local_effects_categorical(
             self.data, self.model, levels, feature
         )
-        prim = {
+        return {
+            "frame": frame,
             "positions": positions,
             "effects": effects,
             "instance_idx": instance_idx,
             "levels": levels,
         }
-        self.local_effects["feature_" + str(feature)] = prim
-        return prim
 
     def _summarize_cat(
         self, feature: int, mask=None, binning_method=None
     ) -> typing.Dict:
-        """Step 3 (categorical): bin the cached adjacent-level differences over
-        the subregion `mask` (None = all). ALE keeps one bin per transition;
-        RHALE merges adjacent transitions with Greedy/DP (adaptive grouping)."""
-        self._ensure_local_effects(feature)
-        prim = self.local_effects["feature_" + str(feature)]
+        """Summary kernel (categorical): bin the cached adjacent-level
+        differences over the subregion `mask` (None = all). ALE keeps one bin
+        per transition; RHALE merges adjacent transitions with Greedy/DP
+        (adaptive grouping)."""
+        prim = self._local[feature]
         positions = prim["positions"]
         effects = prim["effects"]
         levels = prim["levels"]
@@ -152,14 +155,6 @@ class ALEBase(GlobalEffectBase):
         params["levels"] = levels
         params["is_cat"] = True
         return params
-
-    def _fit_feature_cat(
-        self, feature: int, binning_method=None, order=None
-    ) -> typing.Dict:
-        """The discrete (RH)ALE kernel (compute + summarize), used by the global
-        fit; `_summarize_cat` alone powers the masked split search."""
-        self._compute_local_effects_cat(feature, order)
-        return self._summarize_cat(feature, None, binning_method)
 
     def plot(
         self,
@@ -234,30 +229,18 @@ class ALEBase(GlobalEffectBase):
         if feature_label is not None:
             feature_names[feature] = feature_label
 
-        if mask is None:
-            # fit the feature if needed (the eval below reuses the stored state)
-            self.eval(
-                feature, np.array([self.axis_limits[0, feature]]), centering=centering
-            )
-            params = self.feature_effect["feature_" + str(feature)]
-            x_window = None
-        else:
-            # transient subregion payload from the cached local effects —
-            # pure numpy, nothing stored (the masked-plot path)
-            self._ensure_local_effects(feature)
-            params = self._masked_params(feature, mask)
-            x_window = (
-                None if params.get("is_cat") else self._effective_limits(feature, mask)
-            )
+        # one path for global and masked alike (R14): pick the payload, read it
+        params = self._summary(feature, mask)
+        x_window = (
+            self._effective_limits(feature, mask)
+            if mask is not None and not params.get("is_cat")
+            else None
+        )
 
         def centered_eval(xs):
-            if mask is None:
-                return self.eval(feature, xs, centering=centering)
-            y = self._eval_unnorm(feature, xs, params=params)
+            y = self._eval_payload(feature, params, xs)
             if centering is not False:
-                y = y - self._compute_norm_const(
-                    feature, method=centering, params=params, mask=mask
-                )
+                y = y - self._centering_const(feature, mask, centering)
             return y
 
         # the accumulated curve is piecewise linear between bin limits, so
@@ -269,11 +252,7 @@ class ALEBase(GlobalEffectBase):
             x = np.asarray(params["limits"], dtype=float)
             y = centered_eval(x)
 
-        if show_avg_output:
-            data = self.data if mask is None else self.data[mask]
-            avg_output = helpers.prep_avg_output(data, self.model, None, scale_y)
-        else:
-            avg_output = None
+        avg_output = self._avg_output(mask, scale_y) if show_avg_output else None
 
         title = (
             "Accumulated Local Effects (ALE)"
@@ -286,7 +265,7 @@ class ALEBase(GlobalEffectBase):
             levels, labels = self._level_display(feature, params["levels"])
             y_levels = centered_eval(levels)
             variances = (
-                self._eval_unnorm(feature, levels, heterogeneity=True, params=params)[1]
+                self._eval_payload(feature, params, levels, heterogeneity=True)[1]
                 if heterogeneity is not False
                 else None
             )
@@ -432,40 +411,52 @@ class ALE(ALEBase):
             method_name="ALE",
         )
 
-    def _compute_local_effects(self, feature: int) -> None:
-        """Step 2: ALE's local effect is the secant of the model across each
-        fixed bin — *edge-bound* (it depends on the bin limits), so the bins are
-        frozen at the global Fixed grid and a subregion re-bins these same
-        secants rather than re-querying the model."""
+    @staticmethod
+    def _check_binning_is_fixed(binning_method) -> None:
+        if not (binning_method == "fixed" or isinstance(binning_method, ap.Fixed)):
+            raise ValueError(
+                f"Invalid binning_method: {binning_method!r}; ALE works only with "
+                "the fixed binning method ('fixed' or an ap.Fixed instance)"
+            )
+
+    def _frame_from_config(self, feature: int) -> tuple:
+        """ALE's local effect is *edge-bound* (the secant depends on the bin
+        limits), so the fixed grid IS the frame: changing it invalidates the
+        cached secants."""
         if self._is_cat(feature):
-            order = self.fit_args.get("feature_" + str(feature), {}).get("order")
-            self._compute_local_effects_cat(feature, order)
-            return
-        binning_method = self.fit_args.get("feature_" + str(feature), {}).get(
-            "binning_method", "fixed"
+            return self._cat_frame(feature)
+        binning_method = self._config(feature).get("binning_method", "fixed")
+        binning = ap.Fixed() if isinstance(binning_method, str) else binning_method
+        return (
+            "fixed",
+            binning.params["nof_bins"],
+            binning.constraints.min_points_per_bin,
         )
-        if isinstance(binning_method, str):
-            binning_method = ap.Fixed()
-        limits = binning_method.find_limits(
+
+    def _compute_local(self, feature: int, frame: tuple) -> dict:
+        """Cache-(a) kernel: the secant of the model across each fixed bin —
+        computed on the frame's grid, one model query pair for all instances."""
+        if self._is_cat(feature):
+            return self._compute_local_cat(feature, frame)
+        binning_method = self._config(feature).get("binning_method", "fixed")
+        binning = ap.Fixed() if isinstance(binning_method, str) else binning_method
+        limits = binning.find_limits(
             self.data[:, feature], None, self.axis_limits[:, feature]
         )
-        utils.raise_if_no_binning(limits, feature, binning_method)
+        utils.raise_if_no_binning(limits, feature, binning)
         secants = utils.compute_local_effects(self.data, self.model, limits, feature)
-        self.local_effects["feature_" + str(feature)] = {
-            "effects": secants,
-            "limits": limits,
-        }
+        return {"frame": frame, "effects": secants, "limits": limits}
 
     def _summarize(
         self, feature: int, mask=None, binning_method="fixed", order=None
     ) -> typing.Dict:
-        """Step 3 (pure numpy): re-bin the cached secants over the subregion
-        `mask` (None = all) on the frozen global bins → bin effects/variances."""
+        """Summary kernel (pure numpy): re-bin the cached secants over the
+        subregion `mask` (None = all) on the frozen frame bins → bin
+        effects/variances."""
         if self._is_cat(feature):
             # ALE keeps one bin per transition (binning_method=None)
             return self._summarize_cat(feature, mask, None)
-        self._ensure_local_effects(feature)
-        prim = self.local_effects["feature_" + str(feature)]
+        prim = self._local[feature]
         secants, limits = prim["effects"], prim["limits"]
         col = self.data[:, feature]
         if mask is not None:
@@ -475,26 +466,11 @@ class ALE(ALEBase):
         dale_params["alg_params"] = "fixed"
         return dale_params
 
-    def _fit_feature(
-        self, feature: int, binning_method="fixed", order=None
-    ) -> typing.Dict:
-        if self._is_cat(feature):
-            return self._fit_feature_cat(feature, order=order)
-        if not (binning_method == "fixed" or isinstance(binning_method, ap.Fixed)):
-            raise ValueError(
-                f"Invalid binning_method: {binning_method!r}; ALE works only with "
-                "the fixed binning method ('fixed' or an ap.Fixed instance)"
-            )
-        return self._summarize(
-            feature, None, binning_method=binning_method, order=order
-        )
-
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
         *,
         centering: typing.Union[bool, str] = True,
-        points_for_centering: int = helpers.NOF_INTERNAL_POINTS,
         binning_method: typing.Union[str, ap.Fixed] = "fixed",
         order: typing.Union[None, str, list] = None,
     ) -> None:
@@ -512,13 +488,11 @@ class ALE(ALEBase):
                 class `effector.axis_partitioning.Fixed` with the desired parameters.
                 For example: `Fixed(nof_bins=20, min_points_per_bin=0)`
 
-            centering: whether to compute the normalization constant for centering the plot:
+            centering: the default centering mode for this feature's queries:
 
                 - `False` means no centering
                 - `True` or `zero_integral` centers around the `y` axis.
                 - `zero_start` starts the plot from `y=0`.
-
-            points_for_centering: the number of points to use for centering the plot. Default is 30.
 
             order: level order for a *categorical* feature of interest
 
@@ -532,20 +506,16 @@ class ALE(ALEBase):
                 - a list of the levels: declare it explicitly (applies to
                   exactly one categorical feature)
 
-                Changing `order` requires calling `fit` again; `eval`/`plot`
-                reuse the fitted order.
+                Changing `order` changes the frame (R14): the next query
+                recomputes the local effects; the same `order` re-fitted is
+                a cache hit.
         """
-        if not (binning_method == "fixed" or isinstance(binning_method, ap.Fixed)):
-            raise ValueError(
-                f"Invalid binning_method: {binning_method!r}; ALE works only with "
-                "the fixed binning method ('fixed' or an ap.Fixed instance)"
-            )
+        self._check_binning_is_fixed(binning_method)
         self._validate_order_arg(features, order)
 
         self._fit_loop(
             features,
             centering,
-            points_for_centering,
             binning_method=binning_method,
             order=order,
         )
@@ -661,25 +631,29 @@ class RHALE(ALEBase):
         )
 
     def _fill_jacobian(self):
-        """Compute the model Jacobian on the data (step 2 raw material): exact
-        via `model_jac`, else numerically. Runs at most once."""
+        """Compute the model Jacobian on the data (shared cache-(a) raw
+        material): exact via `model_jac`, else numerically. Runs at most once
+        per object — every feature's local effect is a column view of it."""
         if self.data_effect is None and self.model_jac is not None:
             self.data_effect = self.model_jac(self.data)
         elif self.data_effect is None and self.model_jac is None:
             self.data_effect = utils.compute_jacobian_numerically(self.model, self.data)
 
-    def _compute_local_effects(self, feature: int) -> None:
-        """Step 2: RHALE's local effect is the pointwise derivative — a column
-        of the model Jacobian, independent of the binning (so re-binning a
-        subregion needs no model calls)."""
+    def _frame_from_config(self, feature: int) -> tuple:
+        """RHALE's continuous local effect is the pointwise derivative —
+        instance-anchored, no frame (binning is a summary-stage parameter).
+        Categorical features share the (RH)ALE order frame."""
+        if self._is_cat(feature):
+            return self._cat_frame(feature)
+        return ()
+
+    def _compute_local(self, feature: int, frame: tuple) -> dict:
         if self._is_cat(feature):
             # ordinal kernel: adjacent-level differences are the discrete
             # derivative; the jacobian (if any) is ignored for this feature
-            order = self.fit_args.get("feature_" + str(feature), {}).get("order")
-            self._compute_local_effects_cat(feature, order)
-            return
+            return self._compute_local_cat(feature, frame)
         self._fill_jacobian()
-        self.local_effects["feature_" + str(feature)] = self.data_effect[:, feature]
+        return {"frame": frame, "effects": self.data_effect[:, feature]}
 
     def _summarize(
         self,
@@ -691,8 +665,9 @@ class RHALE(ALEBase):
         order=None,
         binning_scope: str = "global",
     ) -> typing.Dict:
-        """Step 3 (pure numpy): bin the cached per-instance jacobian over the
-        subregion `mask` (None = all) and derive the bin effects/variances.
+        """Summary kernel (pure numpy): bin the cached per-instance jacobian
+        over the subregion `mask` (None = all) and derive the bin
+        effects/variances.
 
         `binning_scope` (masked only): the x-range handed to the binner —
         `"global"` keeps the frozen global frame (one frame for the split
@@ -702,8 +677,7 @@ class RHALE(ALEBase):
             # ordinal: merge adjacent transitions with the chosen binning
             # (code-space bins — binning_scope does not apply)
             return self._summarize_cat(feature, mask, binning_method)
-        self._ensure_local_effects(feature)
-        eff = self.local_effects["feature_" + str(feature)]
+        eff = self._local[feature]["effects"]
         col = self.data[:, feature]
         if mask is not None:
             eff = eff[mask]
@@ -725,33 +699,11 @@ class RHALE(ALEBase):
         dale_params["alg_params"] = binning
         return dale_params
 
-    def _fit_feature(
-        self,
-        feature: int,
-        binning_method: Union[
-            str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
-        ] = "dp",
-        order=None,
-        binning_scope: str = "global",
-    ) -> typing.Dict:
-        if self._is_cat(feature):
-            # ordinal kernel: adjacent-level differences are the discrete
-            # derivative; the jacobian (if any) is ignored for this feature
-            return self._fit_feature_cat(feature, binning_method, order=order)
-        return self._summarize(
-            feature,
-            None,
-            binning_method=binning_method,
-            order=order,
-            binning_scope=binning_scope,
-        )
-
     def fit(
         self,
         features: typing.Union[int, str, list] = "all",
         *,
         centering: typing.Union[bool, str] = True,
-        points_for_centering: int = helpers.NOF_INTERNAL_POINTS,
         binning_method: typing.Union[
             str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
         ] = "dp",
@@ -774,13 +726,11 @@ class RHALE(ALEBase):
                 - Use `"fixed"` for using a Fixed binning solution with the default parameters.
                   For custom parameters initialize a `axis_partitioning.Fixed` object
 
-            centering: whether to compute the normalization constant for centering the plot:
+            centering: the default centering mode for this feature's queries:
 
                 - `False` means no centering
                 - `True` or `zero_integral` centers around the `y` axis
                 - `zero_start` starts the plot from `y=0`
-
-            points_for_centering: the number of points to use for centering the plot. Default is 30.
 
             order: level order for a *categorical* feature of interest
 
@@ -794,8 +744,9 @@ class RHALE(ALEBase):
                 - a list of the levels: declare it explicitly (applies to
                   exactly one categorical feature)
 
-                Changing `order` requires calling `fit` again; `eval`/`plot`
-                reuse the fitted order.
+                Changing `order` changes the frame (R14): the next query
+                recomputes the local effects; the same `order` re-fitted is
+                a cache hit.
 
             binning_scope: the x-range the binner covers when a *masked*
                 summary re-bins a subregion (`eval`/`eval_heter`/`plot`/
@@ -818,7 +769,6 @@ class RHALE(ALEBase):
         self._fit_loop(
             features,
             centering,
-            points_for_centering,
             binning_method=binning_method,
             order=order,
             binning_scope=binning_scope,

@@ -300,11 +300,11 @@ def test_m5_binning_scope_controls_masked_bins(name, global_data):
 
     m_eff = make_global(name, global_data)
     m_eff.fit(features=0, binning_scope="effective")
-    p_eff = m_eff._summarize(0, mask, **m_eff._replay_fit_kwargs(0))
+    p_eff = m_eff._summary(0, mask)
 
     m_glob = make_global(name, global_data)
     m_glob.fit(features=0)  # default: "global"
-    p_glob = m_glob._summarize(0, mask, **m_glob._replay_fit_kwargs(0))
+    p_glob = m_glob._summary(0, mask)
 
     def limits_of(p):
         if "limits" in p:
