@@ -1202,3 +1202,48 @@ extension point for custom proposers.
 **Changes:** `effector/proposers.py` (4 classes + registry +
 `make_proposer_factory`), finder kwargs in `space_partitioning.py`, unit tests
 per proposer + a k>2 level-wise construction test + an RC5 smoke, api docs.
+
+---
+
+## 31. 2026-07-09 — One engine, no chauffeur (tag: theory)  [api shell; design.md R1/R12/R14; branch `feat/api-shell`]
+
+```
+                ┌── effector.explain(X, model, schema)      ← one-liner entrance
+                │       (a session nobody interrupted)
+X, schema ──────┤
+predict ────────┤
+(via adapters,  │   pdp = PDP(X, predict, schema)           ← workbench entrance
+ user's pass)   └─► ONE stateful engine, pytorch-style:
+                    data + model + two caches, everything
+                    else on the fly
+                        │
+                        ├─ importances / heter_score ──► plot_triage(pdp)
+                        ├─ plot(f, rule=str|Rule)                          (b)(c)
+                        ├─ find_regions(features=...) ──► {name: Partition} (d)
+                        └─ ...                        ──► plot_triage(pdp, parts) (e)
+                    compare(pdp, rhale, feature=...)        ← stands above, stateless
+```
+
+**Verdict: there will be no Explainer class.** We flirted with a "session"
+facade and killed it. The engine object already *is* the session — like a
+pytorch model, it's the one object you live with in the notebook: constructed
+once, holding only what's expensive (data, model, the two R14 caches),
+producing everything else on demand. The user's variables hold the decisions
+(`parts = ...`); the library never remembers anything behind your back. Two
+APIs is how packages rot (matplotlib pyplot vs OO) — we keep one.
+
+**What we build instead** — five stateless things: **adapters** (facilitation
+functions; the final pass is always the user's, `adapters.check` is the
+handshake), **feature names** on every verb, **plot_triage** (the importance ×
+heterogeneity plane; with partitions → before/after arrows — the figure this
+package exists for), **plural find_regions** (`features=` → `{name:
+Partition}`), **compare** (a free function standing over fitted engines).
+`rule=` stays `str | Rule`; a node is plotted via `parts[i].rule` — already
+works, gets documented. `explain()` stays the separate one-shot entrance — a
+step *beside* the pipeline, not in it.
+
+**The canonical workflow** (bike-sharing notebook, cell by cell): (a) select →
+(b) triage → (c) global effect plots → (d) find_regions on the heterogeneous →
+leaf plots → (e) triage again with arrows: importance shifted right,
+heterogeneity shifted down. Classification = per-class proba wrapper.
+Interactions v0 = the Dx1 heter vector we already have.
