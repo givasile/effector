@@ -307,14 +307,11 @@ def test_m5_binning_scope_controls_masked_bins(name, global_data):
     p_glob = m_glob._summary(0, mask)
 
     def limits_of(p):
-        if "limits" in p:
-            return np.asarray(p["limits"], dtype=float)
-        # ShapDP keeps the spline, not the limits: read the spline knots' span
-        return np.asarray(p["spline_mean"].x, dtype=float)
+        return np.asarray(p["limits"], dtype=float)
 
     # the mask (x0 < 0.3) shares the global LEFT edge, so the scopes separate
     # on the right: effective bins stop at the masked max, global bins keep
-    # covering the full axis (ShapDP knots are bin centers — compare vs hi)
+    # covering the full axis
     eff = limits_of(p_eff)
     glob = limits_of(p_glob)
     assert eff[0] >= lo - 1e-12 and eff[-1] <= hi + 1e-12

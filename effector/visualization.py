@@ -308,7 +308,7 @@ def plot_shap(
     only_shap_values: bool = False,
     show_plot: bool = True,
 ):
-    """Draw the SHAP-DP spline `x`/`y` plus the requested heterogeneity: a std
+    """Draw the SHAP-DP curve `x`/`y` plus the requested heterogeneity: a std
     band (`y_std`) or the shap-value cloud `xx`/`yy`."""
     fig, ax = plt.subplots()
     t = theme.active()

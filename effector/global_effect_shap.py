@@ -18,8 +18,6 @@ try:
 except ImportError:
     shapiq = None
 
-from scipy.interpolate import interp1d
-
 import effector.axis_partitioning as ap
 import effector.utils as utils
 
@@ -132,7 +130,7 @@ class ShapDP(GlobalEffectBase):
 
             where $w_{S, j}$ assures that the contribution of feature $j$ is the same for all coalitions of the same size. For example, there are $D-1$ ways for $x_j$ to enter a coalition of $|S| = 1$ feature, so $w_{S, j} = {1 \over D (D-1)}$ for each of them. In contrast, there is only one way for $x_j$ to enter a coaltion of $|S|=0$ (to be the first specified feature), so $w_{S, j} = {1 \over D}$.
 
-            The SHAP Dependence Plot (SHAP-DP) is a spline $\hat{f}^{SDP}_j(x_j)$ fit to the dataset $\{(x_j^i, \hat{\phi}_j(x_j^i))\}_{i=1}^N$ using the `UnivariateSpline` function from `scipy.interpolate`.
+            The SHAP Dependence Plot (SHAP-DP) is a curve $\hat{f}^{SDP}_j(x_j)$ fit to the dataset $\{(x_j^i, \hat{\phi}_j(x_j^i))\}_{i=1}^N$: the axis is split into bins, and the curve is the piecewise-linear interpolation of the per-bin SHAP means (linear extrapolation beyond the outer bin centers).
 
         ??? note "Notes"
 
@@ -272,44 +270,9 @@ class ShapDP(GlobalEffectBase):
         frame, `"effective"` packs the bins into the masked column's own
         `[min, max]` (see `fit`)."""
         xx, yy = self._masked_phi(feature, mask)
-        feature_effect_dict = self._bin_local_effects(
+        return self._bin_local_effects(
             feature, xx, yy, mask, binning_method, binning_scope
         )
-
-        # Compute bin edges and bin centers, then piecewise-linear interpolation
-        limits = feature_effect_dict["limits"]
-        bin_centers = (limits[:-1] + limits[1:]) / 2
-        if len(bin_centers) == 1:
-            # a single bin (e.g. an unstructured φ that the adaptive binning
-            # rightly refuses to split): interp1d on one knot divides by a
-            # zero span and returns nan everywhere — use the constant instead
-            mean_val = float(feature_effect_dict["bin_effect"][0])
-            var_val = float(feature_effect_dict["bin_variance"][0])
-
-            def mean_spline(x, _v=mean_val):
-                return np.full(np.shape(x), _v)
-
-            def var_spline(x, _v=var_val):
-                return np.full(np.shape(x), _v)
-        else:
-            mean_spline = interp1d(
-                bin_centers,
-                feature_effect_dict["bin_effect"],
-                kind="linear",
-                fill_value="extrapolate",
-            )
-            var_spline = interp1d(
-                bin_centers,
-                feature_effect_dict["bin_variance"],
-                kind="linear",
-                fill_value="extrapolate",
-            )
-        return {
-            "spline_mean": mean_spline,
-            "spline_var": var_spline,
-            "xx": xx,
-            "yy": yy,
-        }
 
     def _summarize_cat(
         self,
@@ -333,19 +296,22 @@ class ShapDP(GlobalEffectBase):
             "bin_effect": feature_effect_dict["bin_effect"],
             "bin_variance": feature_effect_dict["bin_variance"],
             "levels": levels,
-            "xx": xx,
-            "yy": yy,
         }
 
     def _eval_payload_cont(
         self, feature: int, params: dict, x: np.ndarray, heterogeneity: bool = False
     ):
-        y = params["spline_mean"](x)
+        # piecewise-linear between the bin centers, linear extrapolation
+        # beyond the outer ones (a single bin reads as a constant)
+        centers = (params["limits"][:-1] + params["limits"][1:]) / 2
+        y = utils.interp_linear_extrap(x, centers, params["bin_effect"])
         if heterogeneity:
-            # variance is non-negative by definition; linear extrapolation of the
-            # per-bin variance beyond the outer bin centers (fill_value=
-            # "extrapolate") can dip below 0, so clamp it.
-            return y, np.maximum(params["spline_var"](x), 0.0)
+            # variance is non-negative by definition; the linear extrapolation
+            # beyond the outer bin centers can dip below 0, so clamp it
+            var = np.maximum(
+                utils.interp_linear_extrap(x, centers, params["bin_variance"]), 0.0
+            )
+            return y, var
         return y
 
     def _eval_payload_cat(
@@ -372,11 +338,14 @@ class ShapDP(GlobalEffectBase):
         r"""Fit the SHAP Dependence Plot to the data.
 
         Notes:
-            The SHAP Dependence Plot (SDP) $\hat{f}^{SDP}_j(x_j)$ is a spline fit to
-            the dataset $\{(x_j^i, \hat{\phi}_j(x_j^i))\}_{i=1}^N$
-            using the `UnivariateSpline` function from `scipy.interpolate`.
+            The SHAP Dependence Plot (SDP) $\hat{f}^{SDP}_j(x_j)$ is fit to the
+            dataset $\{(x_j^i, \hat{\phi}_j(x_j^i))\}_{i=1}^N$: the axis is
+            split with `binning_method`, and the curve is the piecewise-linear
+            interpolation of the per-bin SHAP means, with linear extrapolation
+            beyond the outer bin centers.
 
-            The SHAP standard deviation, $\hat{\sigma}^{SDP}_j(x_j)$, is a spline fit            to the absolute value of the residuals, i.e., to the dataset $\{(x_j^i, |\hat{\phi}_j(x_j^i) - \hat{f}^{SDP}_j(x_j^i)|)\}_{i=1}^N$, using the `UnivariateSpline` function from `scipy.interpolate`.
+            The SHAP heterogeneity $\hat{\sigma}^{2,SDP}_j(x_j)$ is the same
+            interpolation of the per-bin SHAP *variances* (clamped at zero).
 
         Args:
             features: the features to fit.
@@ -455,7 +424,7 @@ class ShapDP(GlobalEffectBase):
             only_shap_values: whether to plot only the shap values
             show_plot: whether to show the plot
             mask: optional boolean `(N,)` selecting a subregion — plot the
-                SHAP-DP *within* it (the masked φ re-binned/re-splined from the
+                SHAP-DP *within* it (the masked φ re-binned from the
                 cached attributions, no model calls), with the x-axis windowed
                 to the subregion's own interval
             rule: sugar over `mask` — an `effector.Rule` or a rule string,
@@ -492,11 +461,14 @@ class ShapDP(GlobalEffectBase):
             y_levels = self._eval_payload(feature, params, levels) - norm
             title = "SHAP Dependence Plot (SHAP-DP)"
             if heterogeneity == "shap_values":
-                yy = params["yy"] - norm
+                # the scatter cloud comes from cache (a) — the same (masked)
+                # φ the payload was summarized from, by construction
+                xx, phi = self._masked_phi(feature, mask)
+                yy = phi - norm
                 return vis.plot_shap_categorical(
                     levels,
                     y_levels,
-                    params["xx"],
+                    xx,
                     yy,
                     feature,
                     title=title,
@@ -534,20 +506,22 @@ class ShapDP(GlobalEffectBase):
             )
 
         # continuous: the x-axis spans the (effective) interval; the cloud is
-        # the (masked) φ, already filtered by _summarize — model-free
+        # the (masked) φ from cache (a) — the same instances the payload was
+        # summarized from, model-free
         lo, hi = self._effective_limits(feature, mask)
         x = np.linspace(lo, hi, nof_points)
         y = self._eval_payload(feature, params, x) - norm
         y_std = (
-            np.sqrt(np.maximum(params["spline_var"](x), 0.0))
+            np.sqrt(self._eval_payload(feature, params, x, heterogeneity=True)[1])
             if heterogeneity == "std"
             else None
         )
+        col, phi = self._masked_phi(feature, mask)
         _, ind = helpers.prep_nof_instances(
-            nof_shap_values, len(params["yy"]), self.random_state
+            nof_shap_values, len(phi), self.random_state
         )
-        yy = params["yy"][ind] - norm if heterogeneity == "shap_values" else None
-        xx = params["xx"][ind] if heterogeneity == "shap_values" else None
+        yy = phi[ind] - norm if heterogeneity == "shap_values" else None
+        xx = col[ind] if heterogeneity == "shap_values" else None
 
         ret = vis.plot_shap(
             x,

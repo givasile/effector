@@ -691,9 +691,9 @@ class GlobalEffectBase(ABC):
         Notes:
             The values are *method-specific* (R2): the variance of the centered
             ICE curves (PDP), of the d-ICE curves (DerPDP), the per-bin variance
-            of the local effects as a step function (ALE/RHALE), or the residual
-            spline around the SHAP curve (ShapDP). They are variances — take a
-            square root for a std-like band.
+            of the local effects as a step function (ALE/RHALE), or the
+            interpolated per-bin variance of the SHAP values (ShapDP). They are
+            variances — take a square root for a std-like band.
 
             There is deliberately no `centering` argument: heterogeneity is
             invariant to centering.
