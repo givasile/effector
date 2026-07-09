@@ -60,7 +60,9 @@ def test_to_html_is_self_contained(tmp_path):
     data = make_global_data(n=800)
     rep = effector.explain(data, linear_model, method="pdp", nof_instances="all")
     out = tmp_path / "report.html"
-    rep.to_html(out)
+    # with a path the file is the deliverable — return None, so interactive
+    # shells don't echo a megabyte of markup
+    assert rep.to_html(out) is None
     html = out.read_text()
     assert "data:image/png;base64" in html  # inlined figures
     assert "http://" not in html and "https://" not in html  # no external assets

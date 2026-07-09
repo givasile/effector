@@ -18,10 +18,6 @@ import numpy as np
 import effector
 ```
 
-    /home/givasile/github/packages/effector/.venv/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
-      from .autonotebook import tqdm as notebook_tqdm
-
-
 ## A known black-box model
 
 We use a gated interaction on $D=3$ features, $x_0,x_1\sim\mathcal{U}(-1,1)$ and
@@ -192,21 +188,21 @@ report.plot_importance()
 
 `to_html` renders the whole thing to a **single self-contained page** — every figure is inlined
 as a base64 PNG, so there are no external assets. This is the artefact you would share with a
-stakeholder.
+stakeholder. With a `path` it writes the file and returns `None` (so your shell isn't flooded
+with a megabyte of markup); call it with no arguments to get the HTML string instead.
 
 
 ```python
-html = report.to_html("explain_report.html")
-print("wrote explain_report.html")
+report.to_html("explain_report.html")        # writes the file, returns None
+html = open("explain_report.html").read()    # the raw markup, if you want to poke at it
 print("inlined figures:", "data:image/png;base64" in html)
 print("no external assets:", "http://" not in html and "https://" not in html)
 print("length (chars):", len(html))
 ```
 
-    wrote explain_report.html
     inlined figures: True
     no external assets: True
-    length (chars): 350374
+    length (chars): 592679
 
 
 ### The `Report` is a value: it round-trips without the model
@@ -400,7 +396,7 @@ for method in ["pdp", "ale", "rhale", "shapdp"]:
     rhale   -> [('x1', 0.239), ('x0', 0.021)]
 
 
-    /home/givasile/github/packages/effector/effector/report.py:302: UserWarning: importance is undefined for feature(s) ['x2'] — this method does not support their feature type; returned NaN.
+    /home/givasile/github/packages/effector/effector/report.py:828: UserWarning: importance is undefined for feature(s) ['x2'] — this method does not support their feature type; returned NaN.
       imp = effect.importances()
 
 

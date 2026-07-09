@@ -303,10 +303,12 @@ class Report:
             in a table instead.
 
         Args:
-            path: optional file path to also write the page to.
+            path: optional file path to write the page to.
 
         Returns:
-            the HTML string.
+            the HTML string when `path` is `None`; `None` after writing to
+            `path` — so an interactive shell doesn't echo a megabyte of
+            markup.
         """
         esc = _htmlmod.escape
         title = method_registry.resolve(self.method_name).display_name
@@ -552,6 +554,7 @@ class Report:
         if path is not None:
             with open(path, "w") as fh:
                 fh.write(html)
+            return None
         return html
 
     @staticmethod
