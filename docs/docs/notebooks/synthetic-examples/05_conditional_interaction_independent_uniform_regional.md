@@ -207,11 +207,14 @@ def check_regions(partition):
     children = [r for r in partition if r.level == 1]
     assert len(children) == 2
     for r in children:
-        # the split must be on x2 at ~0
-        assert r.foc_index == bench.regional_split_feature
-        assert abs(r.foc_split_position - bench.regional_split_position) <= 0.15
-        # inside each region: -+x1^2 (centered), with ~zero heterogeneity
-        side = "left" if r.comparison == "<=" else "right"
+        # the split must be on x2 at ~0 (the region's Rule is its identity)
+        assert r.rule.features == (bench.regional_split_feature,)
+        interval = r.rule[bench.regional_split_feature]
+        pos = interval.hi if np.isfinite(interval.hi) else interval.lo
+        assert abs(pos - bench.regional_split_position) <= 0.15
+        # inside each region: -+x1^2 (centered), with ~zero heterogeneity;
+        # x < t (upper-bounded interval) is the left child, x >= t the right
+        side = "left" if not np.isfinite(interval.lo) else "right"
         y = partition.eval(r.idx, xx, centering=True)
         heter = partition.eval_heter(r.idx, xx)
         np.testing.assert_allclose(y, bench.regional_effect_gt(side, xx), atol=1e-1)
