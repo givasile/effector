@@ -5,11 +5,11 @@ the dispersion of the mean effect over the (masked) data. Model-free,
 centering-invariant, data-weighted. `importances()` is the per-feature vector,
 warning once on unsupported feature types.
 
-Closed-form oracle: for a linear model with independent features the mean effect
-is `a_j*(x_j - E[x_j])`, evaluated over the uniform grid, so the std of
-PDP/ALE/RHALE is exactly `|a_j| * std(grid_j)` (the μ-twin uses heter_score's
-grid); ShapDP's `mean(|phi|)` is `|a_j| * mean(|x_j - mean|)`; d-PDP's mean
-|derivative| is `|a_j|`.
+Closed-form oracle (units contract): for a linear model with independent
+features the mean effect is `a_j*(x_j - E[x_j])`, evaluated at the data values,
+so the data-weighted std of PDP/ALE/RHALE is exactly `|a_j| * std(x_j)`;
+d-PDP's `mean(|derivative|) * std(x_j)` recovers the same; ShapDP's
+`mean(|phi|)` is `|a_j| * mean(|x_j - mean|)`. All in output units.
 """
 
 import warnings
@@ -18,7 +18,6 @@ import numpy as np
 import pytest
 
 import effector
-from effector import helpers
 from tests.conftest import (
     COEF,
     GLOBAL_NAMES,
@@ -31,14 +30,9 @@ from tests.conftest import (
 )
 
 
-def _grid_std(m, feature):
-    """std of the uniform grid heter_score / importance evaluate over."""
-    grid = np.linspace(
-        m.axis_limits[0, feature],
-        m.axis_limits[1, feature],
-        helpers.NOF_INTERNAL_POINTS,
-    )
-    return np.std(grid)
+def _data_std(m, feature):
+    """std of the data column importance is data-weighted over."""
+    return np.std(m.data[:, feature])
 
 
 CONT_NAMES = ["pdp", "ale", "rhale"]  # recover the exact linear effect
@@ -160,7 +154,7 @@ def test_i5_closed_form_pdp_ale_rhale(name):
     data = make_global_data(n=2000)
     m = _fit(name, data)
     for f in range(3):
-        expected = abs(COEF[f]) * _grid_std(m, f)  # |a_j| * std(grid_j)
+        expected = abs(COEF[f]) * _data_std(m, f)  # |a_j| * std(x_j)
         np.testing.assert_allclose(m.importance(f), expected, rtol=1e-6)
 
 
@@ -178,7 +172,10 @@ def test_i5_closed_form_derpdp():
     data = make_global_data(n=2000)
     m = _fit("derpdp", data)
     for f in range(3):
-        np.testing.assert_allclose(m.importance(f), abs(COEF[f]), rtol=1e-6)
+        # mean(|derivative|) * std(x) — the bridge lands d-PDP on the same
+        # closed form as the other methods
+        expected = abs(COEF[f]) * _data_std(m, f)
+        np.testing.assert_allclose(m.importance(f), expected, rtol=1e-6)
 
 
 def test_i5_importance_ratio_matches_coefficients():

@@ -595,15 +595,15 @@ class DerPDP(PDPBase):
     def _importance(self, feature, mask):
         """R13 for d-PDP: the mean effect is already the derivative, whose
         *dispersion* is ~0 for a locally-linear model — a poor importance. Use
-        the mean **magnitude** of the derivative over the grid instead (for a
-        linear model this recovers `|coefficient|`)."""
-        xs = np.linspace(
-            self.axis_limits[0, feature],
-            self.axis_limits[1, feature],
-            helpers.NOF_INTERNAL_POINTS,
-        )
-        mu = self.eval(feature, xs, centering=False, mask=mask)
-        return float(np.mean(np.abs(mu)))
+        the mean **magnitude** of the derivative over the (masked) data values
+        instead, bridged into output units by the feature's dispersion
+        (slope × typical excursion = output movement): for a linear model this
+        recovers `|coefficient| * std(x)`, same as the other methods. The
+        bridge reads the FULL column — frozen under masks, like the frame."""
+        params = self._summary(feature, mask)
+        xs = self.data[mask, feature]
+        mu = self._eval_payload(feature, params, xs)
+        return float(np.mean(np.abs(mu)) * np.std(self.data[:, feature]))
 
     def __init__(
         self,

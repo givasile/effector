@@ -943,10 +943,13 @@ class GlobalEffectBase(ABC):
         pdp.importance("temp", rule="workingday == 1")   # within a subregion
         ```
 
-        The dispersion of the **mean** effect — the μ-twin of `heter_score`
-        (which measures per-instance spread). A flat curve scores ~0; a
-        swinging curve scores high. Per method: std of the mean effect
-        (PDP/ALE/RHALE), `mean(|φ|)` (ShapDP), `mean(|derivative|)` (DerPDP).
+        The dispersion of the **mean** effect in output units — the μ-twin of
+        `heter_score` (which measures per-instance spread on the same scale).
+        A flat curve scores ~0; a swinging curve scores high. Per method: std
+        of the mean effect over the (masked) data values (PDP/ALE/RHALE; for
+        a linear model this is `|coefficient| * std(x)`), `mean(|φ|)`
+        (ShapDP), `mean(|derivative|) * std(x)` (DerPDP). Comparable across
+        feature types and, in magnitude, across methods.
 
         !!! note "No `y`, ever"
             effector never sees ground-truth labels — this is a property of
@@ -971,22 +974,20 @@ class GlobalEffectBase(ABC):
         return float(self._importance(feature, mask))
 
     def _importance(self, feature: int, mask: np.ndarray) -> float:
-        """Default (PDP/ALE/RHALE): the standard deviation of the mean effect —
-        the μ-twin of `heter_score`, evaluated the same way it is. Continuous
-        features use the uniform grid `heter_score` averages over; discrete
-        features weight by level frequency. `centering=False` keeps it a pure
-        query — the std is invariant to centering."""
+        """Default (PDP/ALE/RHALE): the standard deviation of the mean effect
+        over the data distribution — the μ-twin of `heter_score`, in output
+        units. Continuous features evaluate at the (masked) data values of the
+        feature (data-weighted std); discrete features weight by level
+        frequency. Reads the summary payload directly (never `self.eval`) so
+        it stays model-free and store-safe for every method (P1)."""
+        params = self._summary(feature, mask)
         if self._is_cat(feature):
             levels, weights = self._level_weights(feature, mask)
-            mu = self.eval(feature, levels, centering=False, mask=mask)
+            mu = self._eval_payload(feature, params, levels)
             mu_bar = float(np.average(mu, weights=weights))
             return float(np.sqrt(np.average((mu - mu_bar) ** 2, weights=weights)))
-        xs = np.linspace(
-            self.axis_limits[0, feature],
-            self.axis_limits[1, feature],
-            helpers.NOF_INTERNAL_POINTS,
-        )
-        mu = self.eval(feature, xs, centering=False, mask=mask)
+        xs = self.data[mask, feature]
+        mu = self._eval_payload(feature, params, xs)
         return float(np.std(mu))
 
     def importances(
