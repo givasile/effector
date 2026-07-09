@@ -189,7 +189,7 @@ Both calls draw the same axes, so you can flip between them:
 
 === "First call"
 
-    ![Feature triage, before partitioning](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_16_0.png)
+    ![Feature triage, before partitioning](../static/real-examples/01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_0.png)
 
     `hr` sits alone in the top-right: the most important feature, and the most
     heterogeneous. `mnth`, `windspeed` and `hum` fall below the threshold line —
