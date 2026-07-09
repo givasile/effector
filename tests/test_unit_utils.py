@@ -250,3 +250,61 @@ def test_mean_1d_linspace():
     np.testing.assert_allclose(
         utils.mean_1d_linspace(lambda x: x**2, 0.0, 1.0), 1 / 3, atol=1e-3
     )
+
+
+# ---------------------------------------------------------------------------
+# compute_local_effects_level_pairs — the order-free nominal raw material
+# ---------------------------------------------------------------------------
+
+
+def _pairs_toy():
+    # 3 levels, 2 instances per level; f = level + 0.1 * x1
+    data = np.array(
+        [[0.0, 1.0], [0.0, 2.0], [1.0, 3.0], [1.0, 4.0], [2.0, 5.0], [2.0, 6.0]]
+    )
+    model = lambda x: x[:, 0] + 0.1 * x[:, 1]
+    levels = np.array([0.0, 1.0, 2.0])
+    return data, model, levels
+
+
+def test_level_pairs_covers_all_pairs_with_both_side_contributors():
+    data, model, levels = _pairs_toy()
+    lo, hi, eff, idx = utils.compute_local_effects_level_pairs(data, model, levels, 0)
+    # 3 pairs x 4 contributors (2 per side) each
+    assert len(eff) == 12
+    assert sorted(set(zip(lo.tolist(), hi.tolist()))) == [(0, 1), (0, 2), (1, 2)]
+    for a, b in [(0, 1), (0, 2), (1, 2)]:
+        sel = (lo == a) & (hi == b)
+        # contributors are exactly the instances at either level
+        expected_rows = np.where(
+            np.isclose(data[:, 0], levels[a]) | np.isclose(data[:, 0], levels[b])
+        )[0]
+        np.testing.assert_array_equal(np.sort(idx[sel]), expected_rows)
+        # additive model: the raw difference is exactly b - a for everyone
+        np.testing.assert_allclose(eff[sel], levels[b] - levels[a], atol=1e-12)
+
+
+def test_level_pairs_chain_transitions_are_the_adjacent_subset():
+    data, model, levels = _pairs_toy()
+    lo, hi, eff, idx = utils.compute_local_effects_level_pairs(data, model, levels, 0)
+    pos_c, eff_c, idx_c = utils.compute_local_effects_categorical(
+        data, model, levels, 0
+    )
+    for t in range(1, len(levels)):
+        sel = (lo == t - 1) & (hi == t)
+        sel_c = np.isclose(pos_c, t - 0.5)
+        np.testing.assert_array_equal(idx[sel], idx_c[sel_c])
+        np.testing.assert_allclose(eff[sel], eff_c[sel_c], atol=1e-12)
+
+
+def test_level_pairs_antisymmetry_via_interaction():
+    # f = level * x1: the pairwise difference is (v_b - v_a) * x1 per instance,
+    # so swapping the pair direction flips the sign instance-by-instance
+    data, _, levels = _pairs_toy()
+    model = lambda x: x[:, 0] * x[:, 1]
+    lo, hi, eff, idx = utils.compute_local_effects_level_pairs(data, model, levels, 0)
+    for a, b in [(0, 1), (0, 2), (1, 2)]:
+        sel = (lo == a) & (hi == b)
+        np.testing.assert_allclose(
+            eff[sel], (levels[b] - levels[a]) * data[idx[sel], 1], atol=1e-12
+        )
