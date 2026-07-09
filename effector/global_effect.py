@@ -41,10 +41,6 @@ HINT_DERPDP = (
     " A derivative needs a continuous axis; use PDP instead — adjacent "
     "differences of the per-level PDP bars carry the same information."
 )
-HINT_RHALE_NOMINAL = (
-    " No derivative exists for nominal features and grouping over an "
-    "arbitrary order is not meaningful; use ALE or PDP instead."
-)
 
 # the shared mask-key sentinel: `mask=None` and an all-ones mask are the same
 # summary (rule M1) — that equivalence lives in `_mask_key` and nowhere else
@@ -61,7 +57,6 @@ def check_feature_type_supported(
     hints = {
         ("d-pdp", ingestion.ORDINAL): HINT_DERPDP,
         ("d-pdp", ingestion.NOMINAL): HINT_DERPDP,
-        ("rhale", ingestion.NOMINAL): HINT_RHALE_NOMINAL,
     }
     hint = hints.get((method_name, ftype), "")
     raise ValueError(
@@ -1007,8 +1002,8 @@ class GlobalEffectBase(ABC):
         ```
 
         !!! warning "NaN means unsupported, not unimportant"
-            Feature types this method cannot explain (e.g. RHALE on a nominal
-            feature) return `NaN`, with one `UserWarning` naming them.
+            Feature types this method cannot explain (e.g. DerPDP on a
+            nominal feature) return `NaN`, with one `UserWarning` naming them.
 
         Args:
             mask: optional boolean `(N,)` subregion.

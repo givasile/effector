@@ -109,12 +109,29 @@ CAT_SCHEMA = {
 }
 
 
-def test_facade_categorical_skips_unsupported_and_labels():
+def test_facade_categorical_keeps_all_methods_and_labels():
+    # nominal FOI: RHALE falls back to ALE's per-transition bins, so every
+    # pool method draws — no skip warning
+    fe = effector.FeatureEffect(_cat_dataset(), _cat_predict, schema=CAT_SCHEMA)
+    fig, ax = fe.plot(0, methods=["PDP", "ALE", "RHALE"], show_plot=False)
+    assert len(ax.get_lines()) == 3
+    assert [t.get_text() for t in ax.get_xticklabels()] == ["a", "b", "c"]
+
+
+def test_facade_skip_machinery_warns_and_drops(monkeypatch):
+    # every pool method now supports every feature type, so narrow RHALE's
+    # capabilities to keep the skip/warn path pinned
+    from effector import ingestion
+
+    monkeypatch.setattr(
+        effector.RHALE,
+        "SUPPORTED_FEATURE_TYPES",
+        frozenset({ingestion.CONTINUOUS, ingestion.ORDINAL}),
+    )
     fe = effector.FeatureEffect(_cat_dataset(), _cat_predict, schema=CAT_SCHEMA)
     with pytest.warns(UserWarning, match="Skipping.*RHALE"):
         fig, ax = fe.plot(0, methods=["PDP", "ALE", "RHALE"], show_plot=False)
-    assert len(ax.get_lines()) == 2  # RHALE dropped for nominal -> PDP + ALE
-    assert [t.get_text() for t in ax.get_xticklabels()] == ["a", "b", "c"]
+    assert len(ax.get_lines()) == 2  # RHALE dropped -> PDP + ALE
 
 
 def test_facade_categorical_eval_at_levels():
@@ -125,7 +142,14 @@ def test_facade_categorical_eval_at_levels():
         assert y.shape == (3,)
 
 
-def test_facade_categorical_all_unsupported_raises():
+def test_facade_all_unsupported_raises(monkeypatch):
+    from effector import ingestion
+
+    monkeypatch.setattr(
+        effector.RHALE,
+        "SUPPORTED_FEATURE_TYPES",
+        frozenset({ingestion.CONTINUOUS, ingestion.ORDINAL}),
+    )
     fe = effector.FeatureEffect(_cat_dataset(), _cat_predict, schema=CAT_SCHEMA)
     with pytest.raises(ValueError, match="No requested method supports"):
         fe.plot(0, methods=["RHALE"], show_plot=False)

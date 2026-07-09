@@ -133,21 +133,21 @@ def test_i3_model_free(name):
 def test_i4_unsupported_type_warns_once():
     rng = np.random.default_rng(0)
     data = np.column_stack([rng.uniform(-1, 1, 500), rng.integers(0, 3, 500)])
-    rhale = effector.RHALE(
+    derpdp = effector.DerPDP(
         data,
         lambda x: 2 * x[:, 0],
         model_jac=lambda x: np.column_stack([2 * np.ones(len(x)), np.zeros(len(x))]),
         schema={"feature_types": ["continuous", "nominal"]},
         nof_instances="all",
     )
-    rhale.fit(features=0, centering=False)
+    derpdp.fit(features=0, centering=False)
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        imps = rhale.importances()
+        imps = derpdp.importances()
     user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
     assert len(user_warnings) == 1
     assert np.isfinite(imps[0])
-    assert np.isnan(imps[1])  # nominal feature unsupported by RHALE
+    assert np.isnan(imps[1])  # nominal feature unsupported by DerPDP
 
 
 # ---------------------------------------------------------------------------

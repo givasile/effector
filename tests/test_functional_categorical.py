@@ -175,7 +175,7 @@ def test_ale_eval_at_non_level_raises(data, model):
 
 
 # ---------------------------------------------------------------------------
-# RHALE — ordinal via discrete derivative + level grouping; nominal rejected
+# RHALE — ordinal via discrete derivative + level grouping; nominal = ALE
 # ---------------------------------------------------------------------------
 
 
@@ -208,13 +208,24 @@ def test_rhale_greedy_groups_levels_and_stays_exact(data, model):
         np.testing.assert_allclose(y, [0.0, mus[0], mus[0] + mus[1]], atol=1e-10)
 
 
-def test_rhale_nominal_raises(data, model):
+def test_rhale_nominal_equals_ale_nominal(data, model):
+    # nominal FOI: RHALE is ALE exactly — one bin per transition, no grouping,
+    # whatever binning_method the config declares (it is a continuous/ordinal
+    # knob); heterogeneity matches too
     types = [NOMINAL, CONTINUOUS, CONTINUOUS]
+    schema = {"feature_types": types}
+    ale = effector.ALE(data, model.predict, nof_instances="all", schema=schema)
     rhale = effector.RHALE(
-        data, model.predict, model.jacobian, schema={"feature_types": types}
+        data, model.predict, model.jacobian, nof_instances="all", schema=schema
     )
-    with pytest.raises(ValueError, match="does not support nominal.*use ALE or PDP"):
-        rhale.fit(0)
+    rhale.fit(0, binning_method="dp", centering="zero_start")
+    y_ale = ale.eval(0, LEVELS, centering="zero_start")
+    y_rhale = rhale.eval(0, LEVELS, centering="zero_start")
+    np.testing.assert_allclose(y_rhale, y_ale, atol=1e-10)
+    np.testing.assert_allclose(
+        rhale.eval_heter(0, LEVELS), ale.eval_heter(0, LEVELS), atol=1e-10
+    )
+    np.testing.assert_allclose(rhale.heter_score(0), ale.heter_score(0), atol=1e-10)
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +281,7 @@ def test_registry_capability_matrix_agreement():
         "pdp": {CONTINUOUS, ORDINAL, NOMINAL},
         "derpdp": {CONTINUOUS},
         "ale": {CONTINUOUS, ORDINAL, NOMINAL},
-        "rhale": {CONTINUOUS, ORDINAL},
+        "rhale": {CONTINUOUS, ORDINAL, NOMINAL},
         "shapdp": {CONTINUOUS, ORDINAL, NOMINAL},
     }
     for name, expected in matrix.items():

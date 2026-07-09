@@ -129,8 +129,8 @@ class FeatureEffect:
         return np.unique(self.data[:, feature])
 
     def _supported_methods(self, feature: int, methods: List[str]) -> List[str]:
-        """Drop methods whose capability matrix excludes this feature type (e.g.
-        RHALE on a nominal feature), warning about what was skipped."""
+        """Drop methods whose capability matrix excludes this feature type,
+        warning about what was skipped."""
         ftype = self.feature_types[feature]
         kept, dropped = [], []
         for name in methods:

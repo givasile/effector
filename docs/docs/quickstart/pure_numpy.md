@@ -193,5 +193,5 @@ The one-line fix is `X, schema = effector.from_dataframe(df)`.
 ---
 
 **See also:** the [API overview](./simple_api.md) for the full constructor
-signature, and the [design contract](../design.md) (R8 constructor contract,
+signature, and the [design contract](../guides/design.md) (R8 constructor contract,
 R10 input contract) for the authoritative spec.

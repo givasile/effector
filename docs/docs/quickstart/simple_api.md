@@ -13,7 +13,7 @@
 
 Then pick a global (1) or regional (2) Effect Method, to explain the ML model.
 For the thinking behind the API — one engine, values, two entrances — see
-[the mental model](../mental_model.md).
+[the mental model](./mental_model.md).
 { .annotate }
 
 1.  :man_raising_hand: `effector` provides five global effect methods:

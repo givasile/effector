@@ -4,7 +4,7 @@ This page is the long-form reference for effector's architecture and API: what
 each object is, what it stores, and the mental model behind every verb. It is
 the deep companion to [the mental model](./mental_model.md) (the short
 version) and is governed by the same written constitution —
-[the design contract](./design.md), rules **R1–R14** — most of which is
+[the design contract](../guides/design.md), rules **R1–R14** — most of which is
 mechanically enforced by the contract-test layer (`tests/test_contract_*.py`).
 When this page cites "R7", that is a pointer into that document.
 
@@ -676,7 +676,7 @@ on the global effect:
 | R13 | `importance` = dispersion of the mean effect, the μ-twin of `heter_score`; effector never sees `y` |
 | R14 | two-block lifecycle: frame-gated local effects + epoch-keyed summaries memo; three model-touch situations |
 
-**Where to look next:** [the design contract](./design.md) (normative),
-[method semantics](./method_semantics.md) (per-method exactness formulas by
+**Where to look next:** [the design contract](../guides/design.md) (normative),
+[method semantics](../guides/method_semantics.md) (per-method exactness formulas by
 feature type, including masked semantics), and `tests/test_contract_*.py`
 (the enforcement).

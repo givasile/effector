@@ -19,6 +19,7 @@ per feature — global effect, then regional — and the before/after triage las
 from __future__ import annotations
 
 import base64
+import contextlib
 import html as _htmlmod
 import io
 from dataclasses import dataclass, field
@@ -29,9 +30,29 @@ import numpy as np
 from effector import helpers, method_registry
 from effector.partition import Partition
 
-# report figures show the richest honest heterogeneity view per method:
-# the ICE cloud where the method has one, the std band otherwise
-_ICE_METHODS = {"pdp", "derpdp"}
+
+@contextlib.contextmanager
+def _offscreen_figures():
+    """Build figures without ever putting them on screen.
+
+    `show_plot=False` only suppresses the explicit `plt.show()`. Under
+    `plt.ion()` (any GUI session, and what `scripts/api_playground.py` sets up)
+    pyplot paints a figure the moment it is created, so a report that builds
+    dozens of intermediate figures would flash dozens of windows before
+    `_img` base64-encodes and closes them. Interactive mode off for the
+    duration; the caller's setting is restored, so their own `plot()` calls
+    keep popping up as before.
+    """
+    import matplotlib
+    import matplotlib.pyplot as plt
+
+    was_interactive = matplotlib.is_interactive()
+    plt.ioff()
+    try:
+        yield
+    finally:
+        if was_interactive:
+            plt.ion()
 
 
 @dataclass
@@ -279,7 +300,7 @@ class Report:
         return fig, ax
 
     # -- self-contained HTML page ---------------------------------------------
-    def to_html(self, path=None):
+    def to_html(self, path=None, share_y="across"):
         """Render the report as one self-contained HTML page — the pipeline in reading order.
 
         The page mirrors the line-by-line analysis: **overview first** (the
@@ -291,10 +312,14 @@ class Report:
         base64 PNG; navigation, click-to-zoom, and collapsing are inline
         vanilla JS/CSS — no external assets, one file, one click.
 
-        For at-a-glance comparison, the effect plots share **one y range
-        across the whole report** and one x range per feature (global +
-        leaves); pdp-based methods show the ICE cloud as their heterogeneity
-        view.
+        For at-a-glance comparison, every panel of every effect plot — the
+        effect axis, and (RH)ALE's `dy/dx` axis below it — shares a y range
+        with the same panel of the other plots, either across all features
+        (`share_y="across"`) or within each one (`"within"`). The x range is
+        always shared per feature (its global plot and its leaves). Every
+        figure is drawn with the method's own default heterogeneity view — the
+        `dy/dx` bars for the (RH)ALE family, the (d-)ICE cloud for the PDP
+        family, the SHAP scatter for SHAP-DP.
 
         !!! note "Unbound reports"
             A report rebuilt with `from_dict` renders everything from stored
@@ -304,12 +329,30 @@ class Report:
 
         Args:
             path: optional file path to write the page to.
+            share_y: scope of the shared y (and `dy/dx`) range —
+                `"across"` (default) unions it over all features, `"within"`
+                over each feature's own global plot and leaves.
+
+        !!! note "No windows"
+            The figures are built off-screen and closed once encoded, so
+            rendering a report never pops up a plot — even in an interactive
+            session where `plot()` normally does.
 
         Returns:
             the HTML string when `path` is `None`; `None` after writing to
             `path` — so an interactive shell doesn't echo a megabyte of
             markup.
         """
+        with _offscreen_figures():
+            html = self._render_html(share_y)
+        if path is not None:
+            with open(path, "w") as fh:
+                fh.write(html)
+            return None
+        return html
+
+    def _render_html(self, share_y="across"):
+        """Build the page — every figure created here is closed by `_img`."""
         esc = _htmlmod.escape
         title = method_registry.resolve(self.method_name).display_name
         bound = self._effect is not None
@@ -461,11 +504,7 @@ class Report:
                 if bound:
                     out.append("<div class='grid'>")
                     for leaf in part.leaves:
-                        fig = part.plot(
-                            leaf.idx,
-                            heterogeneity=self._heter_view(),
-                            show_plot=False,
-                        )
+                        fig = part.plot(leaf.idx, show_plot=False)
                         drop = (
                             f" · −{(1 - leaf.heterogeneity / root_h) * 100:.0f}% "
                             "vs global"
@@ -544,61 +583,62 @@ class Report:
             "</footer></main>"
         )
         out.append(_TAIL)
-        self._harmonize_axes(deferred)
-        html = "".join(
+        self._harmonize_axes(deferred, share_y)
+        return "".join(
             self._img(deferred[item[1]][0], alt=deferred[item[1]][1])
             if isinstance(item, tuple)
             else item
             for item in out
         )
-        if path is not None:
-            with open(path, "w") as fh:
-                fh.write(html)
-            return None
-        return html
 
     @staticmethod
-    def _harmonize_axes(entries):
+    def _harmonize_axes(entries, share_y="across"):
         """Unify the drawn axis ranges of effect figures for at-a-glance
-        comparison: one shared y across ALL entries, one shared x per
-        `section` (a feature — its global plot and its leaves; x across
-        features would be meaningless). Post-hoc on `axes[0]` (the effect
-        panel), so it works for every method — ICE clouds, categorical bars,
-        two-panel (RH)ALE — without touching their plot internals.
+        comparison. Panels are matched by position, so a figure's n-th panel
+        shares its y with every other figure's n-th panel — the effect curve
+        with the effect curves, (RH)ALE's `dy/dx` bars with the `dy/dx` bars.
+        `share_y="across"` unions over all entries; `"within"` only over a
+        `section` (a feature — its global plot and its leaves). x is always
+        shared per `section`; across features it would be meaningless.
+
+        Post-hoc on the drawn axes, so one layer covers every method — ICE
+        clouds, categorical bars, two-panel (RH)ALE — without touching their
+        plot internals, and without the `dy_limits` kwarg that only the ALE
+        family accepts.
 
         Args:
             entries: list of `(fig_ax, alt, section)` — `fig_ax` a figure or
                 `(fig, ax)` tuple, `section` any hashable group key.
+            share_y: `"across"` features (default) or `"within"` each.
         """
-        figs = [(e[0][0] if isinstance(e[0], tuple) else e[0]) for e in entries]
-        if not figs:
-            return
-        ylims = [f.axes[0].get_ylim() for f in figs]
-        lo, hi = min(y[0] for y in ylims), max(y[1] for y in ylims)
-        for f in figs:
-            f.axes[0].set_ylim(lo, hi)
-        sections = {}
-        for e, f in zip(entries, figs):
-            sections.setdefault(e[2], []).append(f)
-        for group in sections.values():
-            xlims = [f.axes[0].get_xlim() for f in group]
-            xlo, xhi = min(x[0] for x in xlims), max(x[1] for x in xlims)
-            for f in group:
-                f.axes[0].set_xlim(xlo, xhi)
+        if share_y not in ("across", "within"):
+            raise ValueError("share_y must be 'across' or 'within'")
 
-    def _heter_view(self):
-        """The heterogeneity view report figures use: `"ice"` for pdp-based
-        methods, the method's default band otherwise."""
-        return "ice" if self.method_name in _ICE_METHODS else True
+        def _unify(groups, get, set_):
+            for axs in groups.values():
+                lims = [get(a) for a in axs]
+                lo, hi = min(l[0] for l in lims), max(l[1] for l in lims)
+                for a in axs:
+                    set_(a, lo, hi)
+
+        ygroups, xgroups = {}, {}
+        for fig_ax, _, section in entries:
+            fig = fig_ax[0] if isinstance(fig_ax, tuple) else fig_ax
+            key = section if share_y == "within" else None
+            for panel, ax in enumerate(fig.axes):
+                ygroups.setdefault((panel, key), []).append(ax)
+            # (RH)ALE's panels are created with sharex, so axes[0] carries both
+            xgroups.setdefault(section, []).append(fig.axes[0])
+
+        _unify(ygroups, lambda a: a.get_ylim(), lambda a, lo, hi: a.set_ylim(lo, hi))
+        _unify(xgroups, lambda a: a.get_xlim(), lambda a, lo, hi: a.set_xlim(lo, hi))
 
     def _global_fig(self, fr):
         """The feature's global-effect figure — the live `effect.plot` (exactly
-        what the analyst runs, with the method's own band and categorical
-        handling) when bound, the stored curves otherwise."""
+        what the analyst runs, with the method's own heterogeneity view and
+        categorical handling) when bound, the stored curves otherwise."""
         if self._effect is not None:
-            return self._effect.plot(
-                fr.feature, heterogeneity=self._heter_view(), show_plot=False
-            )
+            return self._effect.plot(fr.feature, show_plot=False)
         return self._effect_fig(fr)
 
     def _effect_fig(self, fr):
@@ -623,8 +663,6 @@ class Report:
 
     @staticmethod
     def _partition_text(part):
-        import contextlib
-
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             part.show()

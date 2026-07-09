@@ -68,6 +68,7 @@ dev = [
     {include-group = "test"},
     {include-group = "docs"},
     "ruff",
+    "pyqt5",  # GUI backend for matplotlib, so scripts/api_playground.py pops up windows
 ]
 
 [tool.pytest.ini_options]

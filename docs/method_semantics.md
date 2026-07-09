@@ -130,8 +130,11 @@ over its pooled contributors; accumulation as in ALE over merged bins.
 $h(v_j) = \sigma^2_{B(v_j)}$ (the merged bin containing level $j$'s transition);
 $H = \sum_k w_k\, h(v_k)$ (frequency-weighted).
 
-**Nominal** → `ValueError`: no derivative exists and grouping over an arbitrary order is
-not meaningful — use ALE or PDP.
+**Nominal** — identical to ALE-nominal: one bin per transition, no grouping. The
+Jacobian is irrelevant on a discrete axis, and merging *adjacent* transitions presumes
+the adjacency is real — under an arbitrary or induced order it is our artifact, so
+grouping would launder it into the statistics. The ALE-nominal order caveat applies
+unchanged.
 
 ## ShapDP
 
@@ -155,7 +158,7 @@ Plot: bars + jittered per-level $\phi$ dots (continuous: curve + scatter, as now
 | PDP / ICE | ✓ (as now) | ✓ levels, bars | ✓ levels, bars |
 | DerPDP | ✓ (as now) | error | error |
 | ALE | ✓ (as now) | ✓ exact, value-edged bins | ✓ with order caveat |
-| RHALE | ✓ (as now) | ✓ discrete derivative + level grouping | error |
+| RHALE | ✓ (as now) | ✓ discrete derivative + level grouping | ✓ as ALE (no grouping) |
 | ShapDP | ✓ (as now) | ✓ per-level, step lookup | ✓ per-level, step lookup |
 
 ## Importance (R13)

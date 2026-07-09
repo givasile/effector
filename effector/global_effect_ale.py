@@ -535,11 +535,12 @@ class RHALE(ALEBase):
     !!! warning "Needs derivatives"
         Pass `model_jac` (or a precomputed `data_effect`); otherwise the
         Jacobian is estimated with slower, less exact numerical
-        differentiation. Nominal features raise an error — use `ALE` or
-        `PDP` for those; ordinal features use discrete differences.
+        differentiation. The Jacobian only serves the *continuous* features:
+        ordinal ones use discrete differences with adaptive level grouping,
+        and nominal ones fall back to ALE exactly (one bin per transition,
+        no grouping — "adjacent" is not real under an arbitrary order).
     """
 
-    SUPPORTED_FEATURE_TYPES = frozenset({ingestion.CONTINUOUS, ingestion.ORDINAL})
     CAT_STRATEGY = "level_diffs_grouped"
 
     def __init__(
@@ -665,7 +666,11 @@ class RHALE(ALEBase):
         binning_scope: str = "global",
     ) -> typing.Dict:
         # ordinal: merge adjacent transitions with the chosen binning
-        # (code-space bins — binning_scope does not apply)
+        # (code-space bins — binning_scope does not apply); nominal: ALE
+        # exactly — one bin per transition, since grouping presumes the
+        # adjacency is real
+        if self.feature_types[feature] == ingestion.NOMINAL:
+            return self._summarize_levels(feature, mask, None)
         return self._summarize_levels(feature, mask, binning_method)
 
     def fit(

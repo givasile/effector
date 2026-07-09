@@ -18,6 +18,47 @@
 # =============================================================================
 
 import numpy as np
+
+# -----------------------------------------------------------------------------
+# Interactive plotting — do this BEFORE importing effector
+# -----------------------------------------------------------------------------
+# effector's plot verbs end in `plt.show(block=False)`: figures are drawn but
+# never block. Two consequences when you run this file as a plain script:
+#   * under the default headless "agg" backend nothing is drawn at all;
+#   * even with a GUI backend the process would exit before you saw a window.
+# So: switch to a GUI backend up front (matplotlib must be configured before
+# effector imports pyplot), and park on a blocking show() at the very bottom.
+# Under IPython/VS Code cells with `%matplotlib` already set, we leave it alone.
+import matplotlib
+import matplotlib.pyplot as plt
+
+# NB: get_backend() reports a lowercased name ("qtagg") while the registry
+# holds the canonical spelling ("QtAgg") — compare case-insensitively, or the
+# test silently never matches.
+try:  # matplotlib >= 3.9
+    from matplotlib.backends import BackendFilter, backend_registry
+
+    _GUI = {b.lower() for b in backend_registry.list_builtin(BackendFilter.INTERACTIVE)}
+except ImportError:
+    _GUI = {b.lower() for b in matplotlib.rcsetup.interactive_bk}
+
+if matplotlib.get_backend().lower() not in _GUI:
+    for _backend in ("QtAgg", "TkAgg", "GTK3Agg"):
+        try:
+            plt.switch_backend(_backend)
+            break
+        except Exception:
+            continue
+
+if matplotlib.get_backend().lower() in _GUI:
+    plt.ion()  # draw each figure as it is created, don't wait for show()
+else:
+    print(
+        "!! No GUI backend for matplotlib — figures will not pop up.\n"
+        "!! Install one into the venv, e.g.:  uv pip install pyqt5\n"
+        f"!! (current backend: {matplotlib.get_backend()})\n"
+    )
+
 import effector
 
 # -----------------------------------------------------------------------------
@@ -46,6 +87,17 @@ schema = effector.Schema(
     category_names=[None, ["no", "yes"], None, ["winter", "spring", "summer", "fall"]],
     target_name="rentals",
 )
+
+# The one-liner analyst
+for method in ["pdp", "ale", "rhale", "shapdp", "derpdp"]:
+    report = effector.explain(
+        data=X,
+        model=predict,
+        model_jac=None,
+        schema=schema,
+        method=method,
+    )
+    report.to_html(f"report_{method}.html")   # open in browser to see the interactive pl
 
 pdp = effector.PDP(X, predict, schema=schema)
 
@@ -203,3 +255,8 @@ restored.show()                               # "season ∈ {winter, spring}" ag
 restored.plot(1)
 
 print("\n=== playground loaded — poke at any object above ===")
+
+# Keep the windows alive and make them responsive (pan/zoom/save). Run as a
+# plain script this blocks until you close them; under IPython it returns at
+# once, because the shell's event loop is already spinning the figures.
+plt.show(block=True)

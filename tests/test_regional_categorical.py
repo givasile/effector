@@ -175,8 +175,8 @@ def test_nominal_plot_uses_level_labels():
 def test_regional_capability_matrix_enforced_at_fit():
     # regression: the capability matrix must be enforced on the unsupported FOI,
     # not only later at plot — otherwise fit/summary run on an unsupported FOI
-    # and only plot raises (RHALE on nominal was inconsistent this way). For the
-    # methods that reject a nominal FOI the guard fires already at fit.
+    # and only plot raises. For the methods that reject a nominal FOI the guard
+    # fires already at fit.
     rng = np.random.default_rng(0)
     X = np.column_stack(
         [rng.integers(0, 3, 800).astype(float), rng.uniform(-1, 1, 800)]
@@ -186,8 +186,6 @@ def test_regional_capability_matrix_enforced_at_fit():
     schema = {"feature_types": ["nominal", "continuous"]}
     finder = effector.space_partitioning.Best(max_depth=2)
 
-    with pytest.raises(ValueError, match="rhale does not support nominal"):
-        effector.RHALE(X, f, model_jac=jac, schema=schema).fit(0)
     with pytest.raises(ValueError, match="d-pdp does not support nominal"):
         effector.DerPDP(X, f, model_jac=jac, schema=schema).fit(0)
 
@@ -196,5 +194,8 @@ def test_regional_capability_matrix_enforced_at_fit():
     fx.fit(0)
     fx.find_regions(0, finder=finder)
     fx = effector.ALE(X, f, nof_instances="all", schema=schema)
+    fx.fit(0)
+    fx.find_regions(0, finder=finder)
+    fx = effector.RHALE(X, f, model_jac=jac, nof_instances="all", schema=schema)
     fx.fit(0)
     fx.find_regions(0, finder=finder)

@@ -5,7 +5,7 @@ draw the effect curves, and search for subregions on the heterogeneous features 
 and hands you back a single `Report` value you can print, plot, save as a
 self-contained HTML page, or serialize.
 
-It is one of [two entrances](../mental_model.md) into the same machinery: use
+It is one of [two entrances](./mental_model.md) into the same machinery: use
 `explain` when you want *the answer* in one line; drive an engine yourself
 (`plot_triage` → `plot` → `find_regions` → `plot_triage` with arrows) when you
 want *the analysis*, step by step, with room to intervene.

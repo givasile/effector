@@ -1,6 +1,6 @@
 # Categorical features
 
-`effector` distinguishes three feature types (see `docs/method_semantics.md` for the exact formulas):
+`effector` distinguishes three feature types (see `docs/guides/method_semantics.md` for the exact formulas):
 
 | type | meaning | example |
 |---|---|---|
@@ -17,7 +17,7 @@ The capability matrix:
 | PDP / ICE | ✓ | ✓ levels, bars | ✓ levels, bars |
 | DerPDP | ✓ | error | error |
 | ALE | ✓ | ✓ exact | ✓ + order caveat |
-| RHALE | ✓ | ✓ + level grouping | error |
+| RHALE | ✓ | ✓ + level grouping | ✓ as ALE (no grouping) |
 | ShapDP | ✓ | ✓ per level | ✓ per level |
 
 
@@ -328,6 +328,6 @@ ale_nominal.plot(0, centering="zero_start")
 ## Takeaways
 
 - Declare `feature_types` in the `schema` whenever you know them — inference is a fallback, not an oracle.
-- PDP/ShapDP treat ordinal and nominal identically (order-free math); ALE needs an order and RHALE additionally needs a *real* one (ordinal only).
+- PDP/ShapDP treat ordinal and nominal identically (order-free math); ALE needs an order; RHALE groups adjacent levels only when the order is *real* (ordinal) and falls back to plain ALE on nominal.
 - Regional effects answer stability questions per level — heterogeneity is frequency-weighted over the levels.
-- The exact formulas per method and feature type live in `docs/method_semantics.md`.
+- The exact formulas per method and feature type live in `docs/guides/method_semantics.md`.

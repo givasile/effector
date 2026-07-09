@@ -140,16 +140,124 @@ def test_harmonize_axes_shares_y_globally_and_x_per_section():
         plt.close(fig)
 
 
-def test_report_heterogeneity_view_is_ice_for_pdp_based():
-    data = make_global_data(n=600)
-    rep_pdp = effector.explain(
-        data, linear_model, method="pdp", top_k=1, nof_instances="all"
+def _two_panel(xlim, ylim, dylim):
+    """A two-axes (RH)ALE-shaped figure: effect panel over a dy/dx panel."""
+    import matplotlib.pyplot as plt
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+    ax1.set_xlim(*xlim)
+    ax1.set_ylim(*ylim)
+    ax2.set_ylim(*dylim)
+    return fig, (ax1, ax2)
+
+
+def test_harmonize_axes_shares_the_dy_panel_of_two_panel_figures():
+    import matplotlib.pyplot as plt
+
+    a = _two_panel((0, 1), (-1, 1), (-2, 2))  # section "f0"
+    b = _two_panel((0.2, 0.8), (-5, 0.5), (-0.5, 8))  # section "f0" (a leaf)
+    c = _two_panel((10, 20), (0, 3), (0, 1))  # section "f1"
+    entries = [(a, "", "f0"), (b, "", "f0"), (c, "", "f1")]
+    Report._harmonize_axes(entries)
+    for fig, _ in (a, b, c):
+        assert fig.axes[0].get_ylim() == (-5.0, 3.0)  # effect panel, as before
+        assert fig.axes[1].get_ylim() == (-2.0, 8.0)  # dy/dx panel, now too
+    for fig, _ in (a, b, c):
+        plt.close(fig)
+
+
+def test_harmonize_axes_share_y_within_scopes_every_panel_to_its_section():
+    import matplotlib.pyplot as plt
+
+    a = _two_panel((0, 1), (-1, 1), (-2, 2))  # section "f0"
+    b = _two_panel((0.2, 0.8), (-5, 0.5), (-0.5, 8))  # section "f0" (a leaf)
+    c = _two_panel((10, 20), (0, 3), (0, 1))  # section "f1"
+    entries = [(a, "", "f0"), (b, "", "f0"), (c, "", "f1")]
+    Report._harmonize_axes(entries, share_y="within")
+    # each panel shares a range inside a section...
+    for fig, _ in (a, b):
+        assert fig.axes[0].get_ylim() == (-5.0, 1.0)
+        assert fig.axes[1].get_ylim() == (-2.0, 8.0)
+    # ...and keeps its own between sections
+    assert c[0].axes[0].get_ylim() == (0.0, 3.0)
+    assert c[0].axes[1].get_ylim() == (0.0, 1.0)
+    # x is per-section either way
+    assert a[0].axes[0].get_xlim() == b[0].axes[0].get_xlim() == (0.0, 1.0)
+    assert c[0].axes[0].get_xlim() == (10.0, 20.0)
+    for fig, _ in (a, b, c):
+        plt.close(fig)
+
+
+def test_harmonize_axes_rejects_an_unknown_share_y():
+    with pytest.raises(ValueError, match="share_y"):
+        Report._harmonize_axes([], share_y="everywhere")
+
+
+def test_to_html_pops_up_no_figures_in_an_interactive_session(monkeypatch):
+    """`show_plot=False` is not enough: under `plt.ion()` pyplot paints a figure
+    the moment it is created. to_html must build its figures off-screen, leak
+    none, and leave the caller's interactive mode as it found it."""
+    import matplotlib
+    import matplotlib.pyplot as plt
+    from matplotlib.backend_bases import FigureCanvasBase
+
+    painted = []
+    orig = FigureCanvasBase.draw_idle
+    monkeypatch.setattr(
+        FigureCanvasBase,
+        "draw_idle",
+        lambda self, *a, **k: (painted.append(id(self.figure)), orig(self, *a, **k))[1],
     )
-    rep_ale = effector.explain(
-        data, linear_model, method="ale", top_k=1, nof_instances="all"
-    )
-    assert rep_pdp._heter_view() == "ice"
-    assert rep_ale._heter_view() is True
+    plt.ion()
+    try:
+        data = make_global_data(n=200)
+        rep = effector.explain(
+            data, gated_model, method="pdp", top_k=2, nof_instances="all"
+        )
+        painted.clear()
+        rep.to_html()
+        assert not painted, f"{len(set(painted))} figures were drawn on screen"
+        assert not plt.get_fignums(), "to_html leaked open figures"
+        assert matplotlib.is_interactive(), "interactive mode was not restored"
+
+        # ...while a direct plot() in the same session still shows, as ever
+        painted.clear()
+        rep._effect.plot(0)
+        assert painted
+    finally:
+        plt.ioff()
+        plt.close("all")
+
+
+@pytest.mark.parametrize("method", ["pdp", "derpdp", "ale", "rhale", "shapdp"])
+def test_report_figures_use_the_methods_default_heterogeneity_view(method):
+    """Report figures are the plain `effect.plot(feature)` — no override — so
+    each family draws its own view: ICE for pdp-based, dy/dx bars for the
+    (RH)ALE family, the SHAP scatter for SHAP-DP."""
+    import matplotlib.pyplot as plt
+
+    data = make_global_data(n=200)
+    kw = {"nof_instances": 100} if method == "shapdp" else {"nof_instances": "all"}
+    rep = effector.explain(data, linear_model, method=method, top_k=1, **kw)
+    fig, _ = rep._global_fig(rep.features[0])
+    effect_ax = fig.axes[0]
+
+    labels = {ln.get_label() for ln in effect_ax.lines}
+    if method in ("pdp", "derpdp"):
+        # the ICE cloud: one line per instance, far more than the mean curve
+        assert len(effect_ax.lines) > 10
+        assert ("ICE" if method == "pdp" else "d-ICE") in labels
+    elif method == "shapdp":
+        assert "SHAP values" in labels
+    else:
+        # (RH)ALE: mean effect alone on top, dy/dx bars (± std) below
+        assert len(fig.axes) == 2
+        assert not effect_ax.collections, "no band on the (RH)ALE effect panel"
+        bars = fig.axes[1].containers
+        assert any(getattr(c, "has_yerr", False) for c in bars), (
+            "the dy/dx bars carry the std whiskers"
+        )
+    plt.close(fig)
 
 
 def test_explain_finds_regions_on_heterogeneous_feature():
