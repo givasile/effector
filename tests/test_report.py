@@ -114,6 +114,42 @@ def test_to_html_reads_like_the_pipeline():
     assert "http://" not in html and "https://" not in html
 
 
+def test_harmonize_axes_shares_y_globally_and_x_per_section():
+    import matplotlib.pyplot as plt
+
+    def fig_with(xlim, ylim):
+        fig, ax = plt.subplots()
+        ax.set_xlim(*xlim)
+        ax.set_ylim(*ylim)
+        return fig, ax
+
+    a = fig_with((0, 1), (-1, 1))  # section "f0"
+    b = fig_with((0.2, 0.8), (-5, 0.5))  # section "f0" (a leaf, windowed x)
+    c = fig_with((10, 20), (0, 3))  # section "f1"
+    Report._harmonize_axes([(a, "", "f0"), (b, "", "f0"), (c, "", "f1")])
+    # y is shared across the WHOLE report
+    for fig, _ in (a, b, c):
+        assert fig.axes[0].get_ylim() == (-5.0, 3.0)
+    # x is shared only within a section
+    assert a[0].axes[0].get_xlim() == (0.0, 1.0)
+    assert b[0].axes[0].get_xlim() == (0.0, 1.0)
+    assert c[0].axes[0].get_xlim() == (10.0, 20.0)
+    for fig, _ in (a, b, c):
+        plt.close(fig)
+
+
+def test_report_heterogeneity_view_is_ice_for_pdp_based():
+    data = make_global_data(n=600)
+    rep_pdp = effector.explain(
+        data, linear_model, method="pdp", top_k=1, nof_instances="all"
+    )
+    rep_ale = effector.explain(
+        data, linear_model, method="ale", top_k=1, nof_instances="all"
+    )
+    assert rep_pdp._heter_view() == "ice"
+    assert rep_ale._heter_view() is True
+
+
 def test_explain_finds_regions_on_heterogeneous_feature():
     # gated model: features 0 and 1 have high heterogeneity -> find_regions fires
     data = make_regional_data(n=800)

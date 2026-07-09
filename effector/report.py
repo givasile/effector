@@ -29,6 +29,10 @@ import numpy as np
 from effector import helpers, method_registry
 from effector.partition import Partition
 
+# report figures show the richest honest heterogeneity view per method:
+# the ICE cloud where the method has one, the std band otherwise
+_ICE_METHODS = {"pdp", "derpdp"}
+
 
 @dataclass
 class FeatureReport:
@@ -287,6 +291,11 @@ class Report:
         base64 PNG; navigation, click-to-zoom, and collapsing are inline
         vanilla JS/CSS — no external assets, one file, one click.
 
+        For at-a-glance comparison, the effect plots share **one y range
+        across the whole report** and one x range per feature (global +
+        leaves); pdp-based methods show the ICE cloud as their heterogeneity
+        view.
+
         !!! note "Unbound reports"
             A report rebuilt with `from_dict` renders everything from stored
             values; the per-leaf regional plots and the triage arrows are
@@ -302,6 +311,16 @@ class Report:
         esc = _htmlmod.escape
         title = method_registry.resolve(self.method_name).display_name
         bound = self._effect is not None
+
+        # effect figures (global + leaves) are encoded LAST, after their axes
+        # are harmonized — shared y across the report, shared x per feature —
+        # so every effect plot compares at a glance. Triage/bar figures keep
+        # their own scales (their y means something else) and encode inline.
+        deferred = []  # (fig_ax, alt, section_key)
+
+        def _defer(fig_ax, alt, section):
+            deferred.append((fig_ax, alt, section))
+            return ("__FIG__", len(deferred) - 1)
 
         # rebuild each multi-region partition once (bound when possible)
         parts = {}
@@ -411,7 +430,13 @@ class Report:
                 "</span></div>"
             )
             out.append("<h3>Global effect</h3>")
-            out.append(self._img(self._global_fig(fr), alt=f"{fr.name} global effect"))
+            out.append(
+                _defer(
+                    self._global_fig(fr),
+                    alt=f"{fr.name} global effect",
+                    section=fr.feature,
+                )
+            )
             out.append("<h3>Regional effects</h3>")
             if fr.partition is None:
                 out.append(
@@ -434,15 +459,22 @@ class Report:
                 if bound:
                     out.append("<div class='grid'>")
                     for leaf in part.leaves:
-                        fig = part.plot(leaf.idx, heterogeneity=True, show_plot=False)
+                        fig = part.plot(
+                            leaf.idx,
+                            heterogeneity=self._heter_view(),
+                            show_plot=False,
+                        )
                         drop = (
                             f" · −{(1 - leaf.heterogeneity / root_h) * 100:.0f}% "
                             "vs global"
                             if root_h
                             else ""
                         )
+                        out.append("<figure>")
                         out.append(
-                            f"<figure>{self._img(fig, alt=part.label(leaf.idx))}"
+                            _defer(fig, alt=part.label(leaf.idx), section=fr.feature)
+                        )
+                        out.append(
                             f"<figcaption>{esc(part.label(leaf.idx))} · "
                             f"heterogeneity {leaf.heterogeneity:.4f}{drop} · "
                             f"n={leaf.nof_instances:,}</figcaption></figure>"
@@ -510,18 +542,60 @@ class Report:
             "</footer></main>"
         )
         out.append(_TAIL)
-        html = "".join(out)
+        self._harmonize_axes(deferred)
+        html = "".join(
+            self._img(deferred[item[1]][0], alt=deferred[item[1]][1])
+            if isinstance(item, tuple)
+            else item
+            for item in out
+        )
         if path is not None:
             with open(path, "w") as fh:
                 fh.write(html)
         return html
+
+    @staticmethod
+    def _harmonize_axes(entries):
+        """Unify the drawn axis ranges of effect figures for at-a-glance
+        comparison: one shared y across ALL entries, one shared x per
+        `section` (a feature — its global plot and its leaves; x across
+        features would be meaningless). Post-hoc on `axes[0]` (the effect
+        panel), so it works for every method — ICE clouds, categorical bars,
+        two-panel (RH)ALE — without touching their plot internals.
+
+        Args:
+            entries: list of `(fig_ax, alt, section)` — `fig_ax` a figure or
+                `(fig, ax)` tuple, `section` any hashable group key.
+        """
+        figs = [(e[0][0] if isinstance(e[0], tuple) else e[0]) for e in entries]
+        if not figs:
+            return
+        ylims = [f.axes[0].get_ylim() for f in figs]
+        lo, hi = min(y[0] for y in ylims), max(y[1] for y in ylims)
+        for f in figs:
+            f.axes[0].set_ylim(lo, hi)
+        sections = {}
+        for e, f in zip(entries, figs):
+            sections.setdefault(e[2], []).append(f)
+        for group in sections.values():
+            xlims = [f.axes[0].get_xlim() for f in group]
+            xlo, xhi = min(x[0] for x in xlims), max(x[1] for x in xlims)
+            for f in group:
+                f.axes[0].set_xlim(xlo, xhi)
+
+    def _heter_view(self):
+        """The heterogeneity view report figures use: `"ice"` for pdp-based
+        methods, the method's default band otherwise."""
+        return "ice" if self.method_name in _ICE_METHODS else True
 
     def _global_fig(self, fr):
         """The feature's global-effect figure — the live `effect.plot` (exactly
         what the analyst runs, with the method's own band and categorical
         handling) when bound, the stored curves otherwise."""
         if self._effect is not None:
-            return self._effect.plot(fr.feature, heterogeneity=True, show_plot=False)
+            return self._effect.plot(
+                fr.feature, heterogeneity=self._heter_view(), show_plot=False
+            )
         return self._effect_fig(fr)
 
     def _effect_fig(self, fr):
