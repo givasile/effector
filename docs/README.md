@@ -1,7 +1,6 @@
 # Documentation
 
-The docs build follows one explicit model with four buckets (see
-`DOCS_PIPELINE_PLAN.md` for the full rationale):
+The docs build follows one explicit model with four buckets:
 
 | Bucket | What | Where | How to update |
 |---|---|---|---|
@@ -43,4 +42,4 @@ cp CONTRIBUTING.md docs/docs/contributing.md
 - `docs/docs/index.md` → images from `docs/docs/static/quickstart/readme_example_files/` (source: `notebooks/quickstart/readme_example.ipynb`)
 - `docs/docs/quickstart/simple_api.md` / `flexible_api.md` → images from `docs/docs/static/quickstart/{simple_api,flexible_api}_files/`
 - `docs/docs/quickstart/global_and_regional_effects.md` → images from `docs/docs/static/real-examples/01_bike_sharing_dataset_files/`
-- `docs/docs/api_docs/api_global.md` / `api_regional.md` → images from `docs/docs/static/quickstart/simple_api_files/`
+- `docs/docs/api_docs/api_global.md` → images from `docs/docs/static/quickstart/simple_api_files/`

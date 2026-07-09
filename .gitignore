@@ -150,3 +150,5 @@ docs/site/
 docs/docs/Tutorials/
 
 .venv-*
+# generated one-click reports
+notebooks/**/explain_report.html
