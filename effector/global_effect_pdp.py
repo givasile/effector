@@ -592,6 +592,13 @@ class DerPDP(PDPBase):
     DEFAULT_CENTERING: Union[bool, str] = False
     IS_DERIVATIVE: bool = True
 
+    def _heter(self, feature, mask=None):
+        """d-PDP heterogeneity in output units: the d-ICE dispersion is a
+        slope disagreement, bridged by the feature's dispersion (frozen FULL
+        column) — slope disagreement × typical excursion = output-level
+        disagreement."""
+        return super()._heter(feature, mask) * float(np.std(self.data[:, feature]))
+
     def _importance(self, feature, mask):
         """R13 for d-PDP: the mean effect is already the derivative, whose
         *dispersion* is ~0 for a locally-linear model — a poor importance. Use

@@ -184,5 +184,8 @@ def test_inactive_leaves_are_flat(kind, opts, data):
             # bin-based methods (ale/rhale) spike in the 1-2 bins holding the
             # sliver of active points between the empirical split position
             # (~0.003) and the true gate at 0 — boundary noise, not a flatness
-            # violation, so their heterogeneity is not asserted here
-            np.testing.assert_allclose(heter, np.zeros_like(XS), atol=1e-1)
+            # violation, so their heterogeneity is not asserted here. The
+            # std-scale split search orders the tree x2-then-x1, which
+            # concentrates that same sliver in the {x2=0, x1<split} leaf
+            # instead of diluting it across x2 — hence the looser tolerance.
+            np.testing.assert_allclose(heter, np.zeros_like(XS), atol=2e-1)

@@ -760,15 +760,20 @@ class GlobalEffectBase(ABC):
         pdp.heter_score("hr", rule="workingday == 0")    # within a subregion
         ```
 
-        The mean of `eval_heter` over a uniform grid on the feature's interval
-        (frequency-weighted over levels for categorical features).
-        Method-agnostic and comparable across features of the same effect.
+        In **output units** (units contract, method_semantics.md): the RMS of
+        `eval_heter` over the feature's own (masked) data values
+        (frequency-weighted over levels for categorical features), bridged by
+        the feature's dispersion for the derivative-based methods
+        (ALE/RHALE/DerPDP) so every feature type and every method lands on the
+        same y-unit scale — "a typical instance's effect deviates from the
+        mean effect by about this much". `eval_heter` itself stays a variance
+        curve in the method's native units.
 
         !!! tip "Pair it with `importance`"
             `importance` measures the *mean* effect's strength; `heter_score`
-            measures the spread around it. High importance + high
-            heterogeneity = the top-right corner of `effector.plot_triage` —
-            where `find_regions` should look.
+            measures the spread around it — same units, mean/spread twins.
+            High importance + high heterogeneity = the top-right corner of
+            `effector.plot_triage` — where `find_regions` should look.
 
         Args:
             feature: index or name of the feature of interest.
@@ -776,23 +781,31 @@ class GlobalEffectBase(ABC):
             rule: sugar over `mask`; mutually exclusive with it.
 
         Returns:
-            a non-negative scalar.
+            a non-negative scalar, in output units.
         """
         feature = self._resolve_feature(feature)
+        self._check_feature_type_supported(feature)
         mask = self._resolve_mask(mask, rule)
+        return float(self._heter(feature, mask))
+
+    def _heter(self, feature: int, mask: Optional[np.ndarray]) -> float:
+        """Default (PDP/ShapDP — native y-unit variances): the RMS of the
+        heterogeneity curve over the data distribution — sqrt of the mean of
+        `eval_heter` at the (masked) data values, frequency-weighted over
+        levels for categorical features. Reads the summary payload directly
+        (never `self.eval*`) so it stays model-free and store-safe (P1).
+        Derivative-based methods override to multiply by the feature's frozen
+        dispersion (the derivative→output unit bridge)."""
+        params = self._summary(feature, mask)
         if self._is_cat(feature):
             # frequency-weighted over levels (method_semantics.md); with a mask
             # the levels/frequencies are those within the subregion
             levels, weights = self._level_weights(feature, mask)
-            return float(
-                np.average(self.eval_heter(feature, levels, mask), weights=weights)
-            )
-        xs = np.linspace(
-            self.axis_limits[0, feature],
-            self.axis_limits[1, feature],
-            helpers.NOF_INTERNAL_POINTS,
-        )
-        return float(np.mean(self.eval_heter(feature, xs, mask)))
+            h = self._eval_payload(feature, params, levels, heterogeneity=True)[1]
+            return float(np.sqrt(np.average(h, weights=weights)))
+        xs = self.data[:, feature] if mask is None else self.data[mask, feature]
+        h = self._eval_payload(feature, params, xs, heterogeneity=True)[1]
+        return float(np.sqrt(np.mean(h)))
 
     def find_regions(
         self,

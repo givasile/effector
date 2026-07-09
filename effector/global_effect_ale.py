@@ -89,6 +89,24 @@ class ALEBase(GlobalEffectBase):
             return y, var
         return y
 
+    def _heter(self, feature: int, mask=None) -> float:
+        """(RH)ALE heterogeneity in output units: the local effects are
+        slopes (secants/derivatives per unit x — continuous — or per unit
+        code gap — ordinal), so the base RMS is bridged into output units by
+        the feature's dispersion: slope disagreement × typical excursion =
+        output-level disagreement. The bridge reads the FULL column (codes in
+        fit order for ordinal) — frozen under masks, like the frame, so
+        regional heterogeneity drops measure dispersion reduction, not range
+        shrinkage."""
+        base = super()._heter(feature, mask)
+        if not self._is_cat(feature):
+            return base * float(np.std(self.data[:, feature]))
+        levels = self._summary(feature, mask)["levels"]
+        codes = utils.codes_from_levels(
+            self.data[:, feature], levels, feature, self.feature_names[feature]
+        )
+        return base * float(np.std(codes))
+
     def _validate_order_arg(self, features, order):
         if order is None or isinstance(order, str):
             return

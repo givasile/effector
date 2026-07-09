@@ -57,8 +57,8 @@ class Base:
     def __init__(
         self,
         name: str,
-        min_heterogeneity_decrease_pcg: float = 0.1,
-        heter_small_enough: float = 0.001,
+        min_heterogeneity_decrease_pcg: float = 0.05,
+        heter_small_enough: float = 0.03,
         max_depth: int = 2,
         min_samples_leaf: int = 10,
         numerical_features_grid_size: int = 20,
@@ -71,9 +71,16 @@ class Base:
         Not rendered in the docs — see `Best.__init__` for the full
         parameter documentation shared by both built-in finders.
 
+        `heter_score` is a std-type quantity in output units, so both
+        thresholds live on that scale: the default drop 0.05 ≈ 1 − √0.9
+        accepts the same splits the historical 0.1 accepted on the variance
+        scale (up to concavity: the weighted mean of child stds is ≤ the √ of
+        the weighted mean of variances, so the converted default is
+        marginally more permissive), and the floor 0.03 ≈ √0.001.
+
         Args:
             min_heterogeneity_decrease_pcg: Minimum relative heterogeneity drop to accept a split.
-            heter_small_enough: Stop splitting below this heterogeneity.
+            heter_small_enough: Stop splitting below this heterogeneity (output units).
             max_depth: Maximum number of split levels.
             min_samples_leaf: Minimum number of instances per subregion.
             numerical_features_grid_size: Threshold-grid resolution for continuous conditioning features.
@@ -330,8 +337,8 @@ class Best(Base):
 
     def __init__(
         self,
-        min_heterogeneity_decrease_pcg: float = 0.1,
-        heter_small_enough: float = 0.001,
+        min_heterogeneity_decrease_pcg: float = 0.05,
+        heter_small_enough: float = 0.03,
         max_depth: int = 2,
         min_samples_leaf: int = 10,
         numerical_features_grid_size: int = 20,
@@ -345,18 +352,21 @@ class Best(Base):
             min_heterogeneity_decrease_pcg: Minimum relative heterogeneity drop
                 to accept a split, as a fraction of the pre-split value.
 
-                ??? example "Default is `0.1`"
+                ??? example "Default is `0.05`"
                     With heterogeneity 1.0 at a node, the weighted
-                    heterogeneity of the children must be at most 0.9 —
-                    otherwise the node stays unsplit.
+                    heterogeneity of the children must be at most 0.95 —
+                    otherwise the node stays unsplit. `heter_score` is a
+                    std-type quantity (output units), where drops read
+                    smaller than on a variance scale: 0.05 ≈ 1 − √0.9, the
+                    equivalent of the historical variance-scale 0.1.
 
             heter_small_enough: A node with heterogeneity below this value is
                 considered homogeneous and is not split further.
 
-                ??? note "Default is `0.001`"
-                    Small enough for most cases. If you know a priori what
-                    "homogeneous enough" means for your effect scores, raise it
-                    to stop earlier.
+                ??? note "Default is `0.03`"
+                    In output units (std scale). Small enough for most cases.
+                    If you know a priori what "homogeneous enough" means for
+                    your effect scores, raise it to stop earlier.
 
             max_depth: Maximum number of split levels.
 
@@ -513,8 +523,8 @@ class BestLevelWise(Base):
 
     def __init__(
         self,
-        min_heterogeneity_decrease_pcg: float = 0.1,
-        heter_small_enough: float = 0.001,
+        min_heterogeneity_decrease_pcg: float = 0.05,
+        heter_small_enough: float = 0.03,
         max_depth: int = 2,
         min_samples_leaf: int = 10,
         numerical_features_grid_size: int = 20,

@@ -171,4 +171,6 @@ class TestRegionalEffects:
         part = fitted
         root = part[0]
         for region in (r for r in part if r.level == 2):
-            assert region.heterogeneity < 0.05 * root.heterogeneity
+            # heter_score is std-scale (output units): the historical 5%
+            # variance bound reads as sqrt(0.05) ~ 22% on the std scale
+            assert region.heterogeneity < np.sqrt(0.05) * root.heterogeneity

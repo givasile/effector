@@ -323,7 +323,7 @@ EXPECTED_GATED_PDP = {
             "idx": 0,
             "name": "x_0",
             "rule": {"conditions": []},
-            "heterogeneity": 1.647567775707207,
+            "heterogeneity": 1.2391190727630477,
             "nof_instances": 500,
             "weight": 1.0,
             "level": 0,
@@ -333,7 +333,7 @@ EXPECTED_GATED_PDP = {
             "idx": 1,
             "name": "x_0 | x_2 = 0.00",
             "rule": {"conditions": [{"feature": 2, "kind": "levels", "levels": [0.0]}]},
-            "heterogeneity": 2.2204840873374354,
+            "heterogeneity": 1.384029449043207,
             "nof_instances": 244,
             "weight": 0.488,
             "level": 1,
@@ -377,7 +377,7 @@ EXPECTED_GATED_PDP = {
                     },
                 ]
             },
-            "heterogeneity": 2.4327961871510686e-29,
+            "heterogeneity": 4.308359250361119e-15,
             "nof_instances": 123,
             "weight": 0.246,
             "level": 2,
@@ -404,8 +404,8 @@ EXPECTED_GATED_PDP_SHOW = (
     "Feature 0 - Full partition tree:\n"
     "🌳 Full Tree Structure:\n"
     "───────────────────────\n"
-    "x_0 🔹 [id: 0 | heter: 1.65 | inst: 500 | w: 1.00]\n"
-    "    x_2 = 0.00 🔹 [id: 1 | heter: 2.22 | inst: 244 | w: 0.49]\n"
+    "x_0 🔹 [id: 0 | heter: 1.24 | inst: 500 | w: 1.00]\n"
+    "    x_2 = 0.00 🔹 [id: 1 | heter: 1.38 | inst: 244 | w: 0.49]\n"
     "        x_1 < -0.00 🔹 [id: 2 | heter: 0.00 | inst: 121 | w: 0.24]\n"
     "        x_1 ≥ -0.00 🔹 [id: 3 | heter: 0.00 | inst: 123 | w: 0.25]\n"
     "    x_2 = 1.00 🔹 [id: 4 | heter: 0.00 | inst: 256 | w: 0.51]\n"
@@ -413,9 +413,9 @@ EXPECTED_GATED_PDP_SHOW = (
     "Feature 0 - Statistics per tree level:\n"
     "🌳 Tree Summary:\n"
     "─────────────────\n"
-    "Level 0🔹heter: 1.65\n"
-    "    Level 1🔹heter: 1.08 | 🔻0.56 (34.23%)\n"
-    "        Level 2🔹heter: 0.00 | 🔻1.08 (100.00%)\n"
+    "Level 0🔹heter: 1.24\n"
+    "    Level 1🔹heter: 0.68 | 🔻0.56 (45.49%)\n"
+    "        Level 2🔹heter: 0.00 | 🔻0.68 (100.00%)\n"
     "\n"
     "\n"
 )

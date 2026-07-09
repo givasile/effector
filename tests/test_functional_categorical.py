@@ -88,9 +88,9 @@ def test_pdp_heterogeneity_closed_form(data, model):
     h = pdp.eval_heter(0, LEVELS)
     np.testing.assert_allclose(h, expected, atol=1e-10)
 
-    # heter_score = freq-weighted mean of h over levels
+    # heter_score = RMS: sqrt of the freq-weighted mean of h over levels
     np.testing.assert_allclose(
-        pdp.heter_score(0), np.average(expected, weights=w), atol=1e-10
+        pdp.heter_score(0), np.sqrt(np.average(expected, weights=w)), atol=1e-10
     )
 
 
@@ -159,6 +159,17 @@ def test_ale_heterogeneity_step_into_level(data, model):
     np.testing.assert_allclose(
         h, [variances[0], variances[0], variances[1]], atol=1e-10
     )
+
+
+def test_ale_ordinal_heter_score_bridged(data, model):
+    # units contract: H = sqrt(freq-weighted mean of step variances) * std(codes)
+    # (per-gap slope dispersion x typical code-space excursion = output units)
+    ale = effector.ALE(data, model.predict, nof_instances="all", schema=SCHEMA)
+    _, variances = transition_stats(data, model)
+    w = level_weights(data)
+    h = np.array([variances[0], variances[0], variances[1]])
+    expected = np.sqrt(np.average(h, weights=w)) * np.std(data[:, 0])
+    np.testing.assert_allclose(ale.heter_score(0), expected, atol=1e-10)
 
 
 def test_ale_freq_weighted_centering(data, model):
