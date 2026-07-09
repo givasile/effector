@@ -15,7 +15,7 @@ The capability matrix:
 | method | continuous | ordinal | nominal |
 |---|---|---|---|
 | PDP / ICE | ✓ | ✓ levels, bars | ✓ levels, bars |
-| DerPDP | ✓ | error | error |
+| DerPDP | ✓ | ✓ ICE differences, transition bars | ✓ transition bars + all-pairs scalars |
 | ALE | ✓ | ✓ exact | ✓ + order caveat |
 | RHALE | ✓ | ✓ + level grouping | ✓ as ALE (no grouping) |
 | ShapDP | ✓ | ✓ per level | ✓ per level |
@@ -29,10 +29,6 @@ from effector import models
 
 np.random.seed(21)
 ```
-
-    /home/givasile/github/packages/effector/.venv/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
-      from .autonotebook import tqdm as notebook_tqdm
-
 
 ## A model with a categorical feature of interest
 
@@ -129,20 +125,27 @@ rhale.plot("level", centering="zero_start")
     
 
 
-## DerPDP refuses — by design
+## DerPDP differentiates discretely
 
-A derivative needs a continuous axis; the adjacent differences of the PDP bars carry the same information.
+On a discrete axis the derivative becomes the finite difference: for every instance, the change in prediction when the level switches to the next one. The jacobian is never used there — the bars below are per-transition means (± std) of the plain ICE differences, labeled `v→w`.
+
 
 
 ```python
 derpdp = effector.DerPDP(data, model.predict, model.jacobian, schema=schema)
-try:
-    derpdp.fit(0)
-except ValueError as e:
-    print("ValueError:", e)
+derpdp.plot("level", heterogeneity="std")
+print("heter_score:", round(derpdp.heter_score(0), 3))
+print("importance :", round(derpdp.importance(0), 3))
 ```
 
-    ValueError: d-pdp does not support ordinal features (feature 0 'level' is ordinal). A derivative needs a continuous axis; use PDP instead — adjacent differences of the per-level PDP bars carry the same information.
+
+    
+![png](08_categorical_features_files/08_categorical_features_14_0.png)
+    
+
+
+    heter_score: 0.58
+    importance : 0.891
 
 
 ## Importance and one-click explanation
@@ -159,35 +162,33 @@ report = effector.explain(data, model.predict, method="pdp", schema=schema, nof_
 report.show()
 ```
 
-    importances: [1.103 0.04  0.007]
+    importances: [1.103 0.039 0.007]
     
     PDP report — target: y
     ============================================================
     feature                   importance     heter  #regions
     ------------------------------------------------------------
-    level                         1.1028    0.1301         7
-    x1                            0.0398    0.1394         7
-    x2                            0.0070    0.0694         1
+    level                         1.1028    0.3607         5
+    x1                            0.0394    0.3701         5
+    x2                            0.0069    0.2635         1
     ============================================================
     
     
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    level 🔹 [id: 0 | heter: 0.13 | inst: 1000 | w: 1.00]
-        x1 < 0.00 🔹 [id: 1 | heter: 0.08 | inst: 503 | w: 0.50]
-            x2 < 0.00 🔹 [id: 2 | heter: 0.00 | inst: 267 | w: 0.27]
-            x2 ≥ 0.00 🔹 [id: 3 | heter: 0.07 | inst: 236 | w: 0.24]
-        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.09 | inst: 497 | w: 0.50]
-            x2 < 0.00 🔹 [id: 5 | heter: 0.00 | inst: 231 | w: 0.23]
-            x2 ≥ 0.00 🔹 [id: 6 | heter: 0.07 | inst: 266 | w: 0.27]
+    level 🔹 [id: 0 | heter: 0.36 | inst: 1000 | w: 1.00]
+        x2 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 498 | w: 0.50]
+        x2 ≥ 0.00 🔹 [id: 2 | heter: 0.51 | inst: 502 | w: 0.50]
+            x1 < 0.00 🔹 [id: 3 | heter: 0.26 | inst: 236 | w: 0.24]
+            x1 ≥ 0.00 🔹 [id: 4 | heter: 0.26 | inst: 266 | w: 0.27]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.13
-        Level 1🔹heter: 0.08 | 🔻0.05 (37.42%)
-            Level 2🔹heter: 0.03 | 🔻0.05 (59.18%)
+    Level 0🔹heter: 0.36
+        Level 1🔹heter: 0.25 | 🔻0.11 (29.38%)
+            Level 2🔹heter: 0.13 | 🔻0.13 (49.29%)
     
     
     
@@ -195,20 +196,18 @@ report.show()
     Feature 1 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 0.14 | inst: 1000 | w: 1.00]
-        level = 1.00 🔹 [id: 1 | heter: 0.09 | inst: 320 | w: 0.32]
-            x2 < 0.00 🔹 [id: 2 | heter: 0.00 | inst: 154 | w: 0.15]
-            x2 ≥ 0.00 🔹 [id: 3 | heter: 0.00 | inst: 166 | w: 0.17]
-        level ∈ {0.00, 2.00} 🔹 [id: 4 | heter: 0.08 | inst: 680 | w: 0.68]
-            x2 < 0.00 🔹 [id: 5 | heter: 0.00 | inst: 344 | w: 0.34]
-            x2 ≥ 0.00 🔹 [id: 6 | heter: 0.08 | inst: 336 | w: 0.34]
+    x1 🔹 [id: 0 | heter: 0.37 | inst: 1000 | w: 1.00]
+        x2 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 498 | w: 0.50]
+        x2 ≥ 0.00 🔹 [id: 2 | heter: 0.51 | inst: 502 | w: 0.50]
+            level = 0.00 🔹 [id: 3 | heter: 0.00 | inst: 233 | w: 0.23]
+            level ∈ {1.00, 2.00} 🔹 [id: 4 | heter: 0.28 | inst: 269 | w: 0.27]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.14
-        Level 1🔹heter: 0.08 | 🔻0.06 (40.93%)
-            Level 2🔹heter: 0.03 | 🔻0.06 (69.35%)
+    Level 0🔹heter: 0.37
+        Level 1🔹heter: 0.26 | 🔻0.11 (31.02%)
+            Level 2🔹heter: 0.08 | 🔻0.18 (70.34%)
     
     
 
@@ -237,15 +236,15 @@ partitions[0].show()
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    level 🔹 [id: 0 | heter: 0.20 | inst: 1000 | w: 1.00]
+    level 🔹 [id: 0 | heter: 0.44 | inst: 1000 | w: 1.00]
         x2 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 498 | w: 0.50]
         x2 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 502 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.20
-        Level 1🔹heter: 0.00 | 🔻0.20 (100.00%)
+    Level 0🔹heter: 0.44
+        Level 1🔹heter: 0.00 | 🔻0.44 (100.00%)
     
     
 
@@ -329,5 +328,7 @@ ale_nominal.plot(0, centering="zero_start")
 
 - Declare `feature_types` in the `schema` whenever you know them — inference is a fallback, not an oracle.
 - PDP/ShapDP treat ordinal and nominal identically (order-free math); ALE needs an order; RHALE groups adjacent levels only when the order is *real* (ordinal) and falls back to plain ALE on nominal.
+- DerPDP differentiates discretely: per-transition ICE differences, never the jacobian.
+- `heter_score`/`importance` are std-type scalars in output units (the units contract) — comparable across feature types and, in magnitude, across methods; for nominal features they are order-free (all level pairs).
 - Regional effects answer stability questions per level — heterogeneity is frequency-weighted over the levels.
 - The exact formulas per method and feature type live in `docs/guides/method_semantics.md`.

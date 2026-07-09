@@ -201,14 +201,14 @@ for name in names:
     --------------------------------------
 
 
-    PDP                0.22s         0.12s
+    PDP                0.28s         0.19s
 
 
-    d-PDP              0.20s         0.03s
-    ALE                0.14s         0.03s
+    d-PDP              0.26s         0.04s
+    ALE                0.15s         0.04s
 
 
-    RHALE              0.09s         0.01s
+    RHALE              0.08s         0.02s
 
 
 
@@ -279,9 +279,9 @@ print(f"second plot (cache):                  {t2:6.2f}s")
 print(f"first plot of ANOTHER feature:        {t3:6.2f}s  (the table is shared)")
 ```
 
-    first plot (computes the SHAP table):   5.62s
+    first plot (computes the SHAP table):   9.56s
     second plot (cache):                    0.01s
-    first plot of ANOTHER feature:          0.01s  (the table is shared)
+    first plot of ANOTHER feature:          0.02s  (the table is shared)
 
 
 

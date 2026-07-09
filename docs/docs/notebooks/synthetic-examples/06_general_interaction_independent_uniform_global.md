@@ -601,35 +601,37 @@ report = effector.explain(x, model.predict, method="pdp", nof_instances="all")
 report.show()
 ```
 
-    importances: [0.197 0.009 0.686]
+    importances: [0.19  0.009 0.668]
+
+
     
     PDP report — target: y
     ============================================================
     feature                   importance     heter  #regions
     ------------------------------------------------------------
-    x_2                           0.6851    0.0000         1
-    x_0                           0.1970    0.0315         7
-    x_1                           0.0092    0.0331         7
+    x_2                           0.6679    0.0000         1
+    x_0                           0.1897    0.1713         7
+    x_1                           0.0087    0.1724         7
     ============================================================
     
     
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x_0 🔹 [id: 0 | heter: 0.03 | inst: 1000 | w: 1.00]
-        x_1 ≤ 0.70 🔹 [id: 1 | heter: 0.02 | inst: 835 | w: 0.83]
-            x_1 ≤ -0.60 🔹 [id: 2 | heter: 0.01 | inst: 188 | w: 0.19]
-            x_1 > -0.60 🔹 [id: 3 | heter: 0.01 | inst: 647 | w: 0.65]
-        x_1 > 0.70 🔹 [id: 4 | heter: 0.01 | inst: 165 | w: 0.17]
-            x_1 ≤ 0.90 🔹 [id: 5 | heter: 0.00 | inst: 104 | w: 0.10]
-            x_1 > 0.90 🔹 [id: 6 | heter: 0.00 | inst: 61 | w: 0.06]
+    x_0 🔹 [id: 0 | heter: 0.17 | inst: 1000 | w: 1.00]
+        x_1 < 0.70 🔹 [id: 1 | heter: 0.15 | inst: 835 | w: 0.83]
+            x_1 < -0.60 🔹 [id: 2 | heter: 0.11 | inst: 188 | w: 0.19]
+            -0.60 ≤ x_1 < 0.70 🔹 [id: 3 | heter: 0.08 | inst: 647 | w: 0.65]
+        x_1 ≥ 0.70 🔹 [id: 4 | heter: 0.09 | inst: 165 | w: 0.17]
+            0.70 ≤ x_1 < 0.90 🔹 [id: 5 | heter: 0.05 | inst: 104 | w: 0.10]
+            x_1 ≥ 0.90 🔹 [id: 6 | heter: 0.03 | inst: 61 | w: 0.06]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.03
-        Level 1🔹heter: 0.02 | 🔻0.01 (35.42%)
-            Level 2🔹heter: 0.01 | 🔻0.01 (67.25%)
+    Level 0🔹heter: 0.17
+        Level 1🔹heter: 0.14 | 🔻0.04 (20.52%)
+            Level 2🔹heter: 0.08 | 🔻0.06 (43.89%)
     
     
     
@@ -637,20 +639,20 @@ report.show()
     Feature 1 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x_1 🔹 [id: 0 | heter: 0.03 | inst: 1000 | w: 1.00]
-        x_0 ≤ -0.00 🔹 [id: 1 | heter: 0.01 | inst: 510 | w: 0.51]
-            x_0 ≤ -0.50 🔹 [id: 2 | heter: 0.00 | inst: 268 | w: 0.27]
-            x_0 > -0.50 🔹 [id: 3 | heter: 0.00 | inst: 242 | w: 0.24]
-        x_0 > -0.00 🔹 [id: 4 | heter: 0.01 | inst: 490 | w: 0.49]
-            x_0 ≤ 0.50 🔹 [id: 5 | heter: 0.00 | inst: 254 | w: 0.25]
-            x_0 > 0.50 🔹 [id: 6 | heter: 0.00 | inst: 236 | w: 0.24]
+    x_1 🔹 [id: 0 | heter: 0.17 | inst: 1000 | w: 1.00]
+        x_0 < -0.00 🔹 [id: 1 | heter: 0.09 | inst: 510 | w: 0.51]
+            x_0 < -0.50 🔹 [id: 2 | heter: 0.04 | inst: 268 | w: 0.27]
+            -0.50 ≤ x_0 < -0.00 🔹 [id: 3 | heter: 0.05 | inst: 242 | w: 0.24]
+        x_0 ≥ -0.00 🔹 [id: 4 | heter: 0.09 | inst: 490 | w: 0.49]
+            -0.00 ≤ x_0 < 0.50 🔹 [id: 5 | heter: 0.04 | inst: 254 | w: 0.25]
+            x_0 ≥ 0.50 🔹 [id: 6 | heter: 0.04 | inst: 236 | w: 0.24]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.03
-        Level 1🔹heter: 0.01 | 🔻0.02 (75.14%)
-            Level 2🔹heter: 0.00 | 🔻0.01 (73.80%)
+    Level 0🔹heter: 0.17
+        Level 1🔹heter: 0.09 | 🔻0.09 (50.14%)
+            Level 2🔹heter: 0.04 | 🔻0.04 (48.85%)
     
     
 

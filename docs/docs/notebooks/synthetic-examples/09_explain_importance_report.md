@@ -77,11 +77,11 @@ for f, name in enumerate(schema["feature_names"]):
 print("\nimportances() vector:", np.round(pdp.importances(), 3))
 ```
 
-    x0:  importance=0.021   heter_score=1.622
-    x1:  importance=0.222   heter_score=1.529
-    x2:  importance=0.024   heter_score=0.752
+    x0:  importance=0.021   heter_score=1.236
+    x1:  importance=0.214   heter_score=1.237
+    x2:  importance=0.024   heter_score=0.867
     
-    importances() vector: [0.021 0.222 0.024]
+    importances() vector: [0.021 0.214 0.024]
 
 
 **Importance and heterogeneity are orthogonal axes.** Note that $x_0$ scores *low* importance
@@ -124,29 +124,27 @@ report.show()
     ============================================================
     feature                   importance     heter  #regions
     ------------------------------------------------------------
-    x1                            0.2220    1.5290         7
-    x2                            0.0236    0.7521         1
-    x0                            0.0215    1.6223         7
+    x1                            0.2141    1.2365         5
+    x2                            0.0236    0.8672         1
+    x0                            0.0208    1.2365         7
     ============================================================
     
     
     Feature 1 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 1.53 | inst: 3000 | w: 1.00]
-        x0 < -0.00 🔹 [id: 1 | heter: 0.95 | inst: 1524 | w: 0.51]
-            x2 = 0.00 🔹 [id: 2 | heter: 0.77 | inst: 788 | w: 0.26]
-            x2 = 1.00 🔹 [id: 3 | heter: 0.00 | inst: 736 | w: 0.25]
-        x0 ≥ -0.00 🔹 [id: 4 | heter: 0.95 | inst: 1476 | w: 0.49]
-            x2 = 0.00 🔹 [id: 5 | heter: 0.74 | inst: 732 | w: 0.24]
-            x2 = 1.00 🔹 [id: 6 | heter: 0.00 | inst: 744 | w: 0.25]
+    x1 🔹 [id: 0 | heter: 1.24 | inst: 3000 | w: 1.00]
+        x2 = 0.00 🔹 [id: 1 | heter: 1.74 | inst: 1520 | w: 0.51]
+            x0 < -0.00 🔹 [id: 2 | heter: 0.88 | inst: 788 | w: 0.26]
+            x0 ≥ -0.00 🔹 [id: 3 | heter: 0.86 | inst: 732 | w: 0.24]
+        x2 = 1.00 🔹 [id: 4 | heter: 0.00 | inst: 1480 | w: 0.49]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.53
-        Level 1🔹heter: 0.95 | 🔻0.58 (37.92%)
-            Level 2🔹heter: 0.38 | 🔻0.56 (59.51%)
+    Level 0🔹heter: 1.24
+        Level 1🔹heter: 0.88 | 🔻0.36 (28.83%)
+            Level 2🔹heter: 0.44 | 🔻0.44 (49.86%)
     
     
     
@@ -154,20 +152,20 @@ report.show()
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x0 🔹 [id: 0 | heter: 1.62 | inst: 3000 | w: 1.00]
-        x1 < 0.00 🔹 [id: 1 | heter: 0.80 | inst: 1480 | w: 0.49]
+    x0 🔹 [id: 0 | heter: 1.24 | inst: 3000 | w: 1.00]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.89 | inst: 1480 | w: 0.49]
             x2 = 0.00 🔹 [id: 2 | heter: 0.00 | inst: 742 | w: 0.25]
             x2 = 1.00 🔹 [id: 3 | heter: 0.00 | inst: 738 | w: 0.25]
-        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.80 | inst: 1520 | w: 0.51]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.85 | inst: 1520 | w: 0.51]
             x2 = 0.00 🔹 [id: 5 | heter: 0.00 | inst: 778 | w: 0.26]
             x2 = 1.00 🔹 [id: 6 | heter: 0.00 | inst: 742 | w: 0.25]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.62
-        Level 1🔹heter: 0.80 | 🔻0.82 (50.66%)
-            Level 2🔹heter: 0.00 | 🔻0.80 (100.00%)
+    Level 0🔹heter: 1.24
+        Level 1🔹heter: 0.87 | 🔻0.37 (29.77%)
+            Level 2🔹heter: 0.00 | 🔻0.87 (100.00%)
     
     
 
@@ -202,7 +200,7 @@ print("length (chars):", len(html))
 
     inlined figures: True
     no external assets: True
-    length (chars): 592679
+    length (chars): 582190
 
 
 ### The `Report` is a value: it round-trips without the model
@@ -225,29 +223,27 @@ reloaded.show()
     ============================================================
     feature                   importance     heter  #regions
     ------------------------------------------------------------
-    x1                            0.2220    1.5290         7
-    x2                            0.0236    0.7521         1
-    x0                            0.0215    1.6223         7
+    x1                            0.2141    1.2365         5
+    x2                            0.0236    0.8672         1
+    x0                            0.0208    1.2365         7
     ============================================================
     
     
     Feature 1 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 1.53 | inst: 3000 | w: 1.00]
-        x0 < -0.00 🔹 [id: 1 | heter: 0.95 | inst: 1524 | w: 0.51]
-            x2 = 0.00 🔹 [id: 2 | heter: 0.77 | inst: 788 | w: 0.26]
-            x2 = 1.00 🔹 [id: 3 | heter: 0.00 | inst: 736 | w: 0.25]
-        x0 ≥ -0.00 🔹 [id: 4 | heter: 0.95 | inst: 1476 | w: 0.49]
-            x2 = 0.00 🔹 [id: 5 | heter: 0.74 | inst: 732 | w: 0.24]
-            x2 = 1.00 🔹 [id: 6 | heter: 0.00 | inst: 744 | w: 0.25]
+    x1 🔹 [id: 0 | heter: 1.24 | inst: 3000 | w: 1.00]
+        x2 = 0.00 🔹 [id: 1 | heter: 1.74 | inst: 1520 | w: 0.51]
+            x0 < -0.00 🔹 [id: 2 | heter: 0.88 | inst: 788 | w: 0.26]
+            x0 ≥ -0.00 🔹 [id: 3 | heter: 0.86 | inst: 732 | w: 0.24]
+        x2 = 1.00 🔹 [id: 4 | heter: 0.00 | inst: 1480 | w: 0.49]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.53
-        Level 1🔹heter: 0.95 | 🔻0.58 (37.92%)
-            Level 2🔹heter: 0.38 | 🔻0.56 (59.51%)
+    Level 0🔹heter: 1.24
+        Level 1🔹heter: 0.88 | 🔻0.36 (28.83%)
+            Level 2🔹heter: 0.44 | 🔻0.44 (49.86%)
     
     
     
@@ -255,20 +251,20 @@ reloaded.show()
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x0 🔹 [id: 0 | heter: 1.62 | inst: 3000 | w: 1.00]
-        x1 < 0.00 🔹 [id: 1 | heter: 0.80 | inst: 1480 | w: 0.49]
+    x0 🔹 [id: 0 | heter: 1.24 | inst: 3000 | w: 1.00]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.89 | inst: 1480 | w: 0.49]
             x2 = 0.00 🔹 [id: 2 | heter: 0.00 | inst: 742 | w: 0.25]
             x2 = 1.00 🔹 [id: 3 | heter: 0.00 | inst: 738 | w: 0.25]
-        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.80 | inst: 1520 | w: 0.51]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.85 | inst: 1520 | w: 0.51]
             x2 = 0.00 🔹 [id: 5 | heter: 0.00 | inst: 778 | w: 0.26]
             x2 = 1.00 🔹 [id: 6 | heter: 0.00 | inst: 742 | w: 0.25]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.62
-        Level 1🔹heter: 0.80 | 🔻0.82 (50.66%)
-            Level 2🔹heter: 0.00 | 🔻0.80 (100.00%)
+    Level 0🔹heter: 1.24
+        Level 1🔹heter: 0.87 | 🔻0.37 (29.77%)
+            Level 2🔹heter: 0.00 | 🔻0.87 (100.00%)
     
     
 
@@ -290,20 +286,20 @@ part.show()
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x0 🔹 [id: 0 | heter: 1.62 | inst: 3000 | w: 1.00]
-        x1 < 0.00 🔹 [id: 1 | heter: 0.80 | inst: 1480 | w: 0.49]
+    x0 🔹 [id: 0 | heter: 1.24 | inst: 3000 | w: 1.00]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.89 | inst: 1480 | w: 0.49]
             x2 = 0.00 🔹 [id: 2 | heter: 0.00 | inst: 742 | w: 0.25]
             x2 = 1.00 🔹 [id: 3 | heter: 0.00 | inst: 738 | w: 0.25]
-        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.80 | inst: 1520 | w: 0.51]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.85 | inst: 1520 | w: 0.51]
             x2 = 0.00 🔹 [id: 5 | heter: 0.00 | inst: 778 | w: 0.26]
             x2 = 1.00 🔹 [id: 6 | heter: 0.00 | inst: 742 | w: 0.25]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.62
-        Level 1🔹heter: 0.80 | 🔻0.82 (50.66%)
-            Level 2🔹heter: 0.00 | 🔻0.80 (100.00%)
+    Level 0🔹heter: 1.24
+        Level 1🔹heter: 0.87 | 🔻0.37 (29.77%)
+            Level 2🔹heter: 0.00 | 🔻0.87 (100.00%)
     
     
 
@@ -319,11 +315,11 @@ for r in part:
 
     number of regions: 7
     leaves: [2, 3, 5, 6]
-      region 0: level=0  inst=3000  heter=1.622
-      region 1: level=1  inst=1480  heter=0.801
+      region 0: level=0  inst=3000  heter=1.236
+      region 1: level=1  inst=1480  heter=0.888
       region 2: level=2  inst=742  heter=0.000
       region 3: level=2  inst=738  heter=0.000
-      region 4: level=1  inst=1520  heter=0.800
+      region 4: level=1  inst=1520  heter=0.849
       region 5: level=2  inst=778  heter=0.000
       region 6: level=2  inst=742  heter=0.000
 
@@ -391,13 +387,22 @@ for method in ["pdp", "ale", "rhale", "shapdp"]:
     print(f"{method:7s} -> {ranked}")
 ```
 
-    pdp     -> [('x1', 0.222), ('x2', 0.024), ('x0', 0.021)]
-    ale     -> [('x1', 0.236), ('x0', 0.056), ('x2', 0.024)]
-    rhale   -> [('x1', 0.239), ('x0', 0.021)]
+    pdp     -> [('x1', 0.214), ('x2', 0.024), ('x0', 0.021)]
+    ale     -> [('x1', 0.228), ('x0', 0.057), ('x2', 0.024)]
 
 
-    /home/givasile/github/packages/effector/effector/report.py:828: UserWarning: importance is undefined for feature(s) ['x2'] — this method does not support their feature type; returned NaN.
-      imp = effect.importances()
+    rhale   -> [('x1', 0.231), ('x2', 0.024), ('x0', 0.021)]
+
+
+    ExactExplainer explainer:   0%|          | 1/500 [00:00<?, ?it/s]
+
+    ExactExplainer explainer:  39%|███▉      | 195/500 [00:10<00:00, 1936.45it/s]
+
+    ExactExplainer explainer:  78%|███████▊  | 389/500 [00:10<00:00, 1836.16it/s]
+
+    ExactExplainer explainer: 501it [00:10, 48.08it/s]                           
+
+    
 
 
     shapdp  -> [('x1', 0.405), ('x0', 0.376), ('x2', 0.247)]

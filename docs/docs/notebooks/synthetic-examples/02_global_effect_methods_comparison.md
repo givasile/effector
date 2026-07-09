@@ -20,10 +20,6 @@ import effector
 import matplotlib.pyplot as plt
 ```
 
-    /home/givasile/github/packages/effector/.venv/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
-      from .autonotebook import tqdm as notebook_tqdm
-
-
 ## Problem setup
 
 We will generate $N=170$ examples with $D=3$ features. The setup — data
@@ -579,56 +575,56 @@ report = effector.explain(x, f, method="pdp", schema=schema, nof_instances="all"
 report.show()
 ```
 
-    importances: [0.835 2.491 0.423]
+    importances: [0.595 1.414 0.311]
     
     PDP report — target: y
     ============================================================
     feature                   importance     heter  #regions
     ------------------------------------------------------------
-    x2                            2.3408    0.4213         7
-    x1                            0.8407    0.6356         7
-    x3                            0.4184    0.2985         1
+    x2                            1.4458    0.4223         1
+    x1                            0.5926    0.7754         7
+    x3                            0.3063    0.5464         7
     ============================================================
-    
-    
-    Feature 1 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x2 🔹 [id: 0 | heter: 0.42 | inst: 170 | w: 1.00]
-        x1 < -0.10 🔹 [id: 1 | heter: 0.12 | inst: 115 | w: 0.68]
-            x1 < -0.30 🔹 [id: 2 | heter: 0.03 | inst: 54 | w: 0.32]
-            -0.30 ≤ x1 < -0.10 🔹 [id: 3 | heter: 0.02 | inst: 61 | w: 0.36]
-        x1 ≥ -0.10 🔹 [id: 4 | heter: 0.25 | inst: 55 | w: 0.32]
-            -0.10 ≤ x1 < 0.20 🔹 [id: 5 | heter: 0.05 | inst: 41 | w: 0.24]
-            x1 ≥ 0.20 🔹 [id: 6 | heter: 0.07 | inst: 14 | w: 0.08]
-    --------------------------------------------------
-    Feature 1 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.42
-        Level 1🔹heter: 0.16 | 🔻0.26 (61.18%)
-            Level 2🔹heter: 0.04 | 🔻0.13 (78.17%)
-    
-    
     
     
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 0.64 | inst: 170 | w: 1.00]
-        x3 < 0.00 🔹 [id: 1 | heter: 0.33 | inst: 142 | w: 0.84]
-            x2 < -0.25 🔹 [id: 2 | heter: 0.12 | inst: 69 | w: 0.41]
-            x2 ≥ -0.25 🔹 [id: 3 | heter: 0.18 | inst: 73 | w: 0.43]
-        x3 ≥ 0.00 🔹 [id: 4 | heter: 0.24 | inst: 28 | w: 0.16]
-            x2 < -0.25 🔹 [id: 5 | heter: 0.04 | inst: 10 | w: 0.06]
-            x2 ≥ -0.25 🔹 [id: 6 | heter: 0.07 | inst: 18 | w: 0.11]
+    x1 🔹 [id: 0 | heter: 0.78 | inst: 170 | w: 1.00]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.55 | inst: 142 | w: 0.84]
+            x2 < -0.25 🔹 [id: 2 | heter: 0.33 | inst: 69 | w: 0.41]
+            x2 ≥ -0.25 🔹 [id: 3 | heter: 0.41 | inst: 73 | w: 0.43]
+        x3 ≥ 0.00 🔹 [id: 4 | heter: 0.46 | inst: 28 | w: 0.16]
+            x2 < 0.22 🔹 [id: 5 | heter: 0.19 | inst: 12 | w: 0.07]
+            x2 ≥ 0.22 🔹 [id: 6 | heter: 0.25 | inst: 16 | w: 0.09]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.64
-        Level 1🔹heter: 0.31 | 🔻0.32 (50.60%)
-            Level 2🔹heter: 0.13 | 🔻0.18 (57.75%)
+    Level 0🔹heter: 0.78
+        Level 1🔹heter: 0.54 | 🔻0.24 (30.67%)
+            Level 2🔹heter: 0.35 | 🔻0.19 (35.32%)
+    
+    
+    
+    
+    Feature 2 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x3 🔹 [id: 0 | heter: 0.55 | inst: 170 | w: 1.00]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.32 | inst: 141 | w: 0.83]
+            x1 < -0.45 🔹 [id: 2 | heter: 0.10 | inst: 17 | w: 0.10]
+            -0.45 ≤ x1 < 0.00 🔹 [id: 3 | heter: 0.27 | inst: 124 | w: 0.73]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.35 | inst: 29 | w: 0.17]
+            0.00 ≤ x1 < 0.15 🔹 [id: 5 | heter: 0.31 | inst: 13 | w: 0.08]
+            x1 ≥ 0.15 🔹 [id: 6 | heter: 0.35 | inst: 16 | w: 0.09]
+    --------------------------------------------------
+    Feature 2 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.55
+        Level 1🔹heter: 0.33 | 🔻0.22 (40.09%)
+            Level 2🔹heter: 0.27 | 🔻0.06 (18.35%)
     
     
 

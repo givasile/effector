@@ -232,7 +232,7 @@ For example, to plot the effect of the first feature of the synthetic dataset, u
     shap_dp = effector.ShapDP(data=X, model=predict)
     shap_dp.plot(0)
     ```
-    ![Global-ShapDP](./../static/quickstart/simple_api_files/simple_api_13_8.png){ align=center }
+    ![Global-ShapDP](./../static/quickstart/simple_api_files/simple_api_13_0.png){ align=center }
 
 === "ALE"
 

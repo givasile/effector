@@ -87,18 +87,18 @@ partition.show()
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x_0 🔹 [id: 0 | heter: 4.71 | inst: 10000 | w: 1.00]
-        x_2 = 0.00 🔹 [id: 1 | heter: 6.25 | inst: 4971 | w: 0.50]
-            x_1 ≤ -0.00 🔹 [id: 2 | heter: 0.00 | inst: 2452 | w: 0.25]
-            x_1 > -0.00 🔹 [id: 3 | heter: 0.00 | inst: 2519 | w: 0.25]
-        x_2 ≠ 0.00 🔹 [id: 4 | heter: 0.00 | inst: 5029 | w: 0.50]
+    x_0 🔹 [id: 0 | heter: 1.25 | inst: 10000 | w: 1.00]
+        x_2 = 0.00 🔹 [id: 1 | heter: 1.44 | inst: 4971 | w: 0.50]
+            x_1 < -0.00 🔹 [id: 2 | heter: 0.00 | inst: 2452 | w: 0.25]
+            x_1 ≥ -0.00 🔹 [id: 3 | heter: 0.00 | inst: 2519 | w: 0.25]
+        x_2 = 1.00 🔹 [id: 4 | heter: 0.00 | inst: 5029 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 4.71
-        Level 1🔹heter: 3.11 | 🔻1.60 (34.06%)
-            Level 2🔹heter: 0.00 | 🔻3.11 (100.00%)
+    Level 0🔹heter: 1.25
+        Level 1🔹heter: 0.72 | 🔻0.53 (42.75%)
+            Level 2🔹heter: 0.00 | 🔻0.72 (100.00%)
     
     
 
@@ -154,9 +154,9 @@ for depth in [1, 2, 3]:
 
      max_depth   find_regions time
     ------------------------------
-             1              0.03s
-             2              0.03s
-             3              0.01s
+             1              0.07s
+             2              0.08s
+             3              0.04s
 
 
 
@@ -170,7 +170,7 @@ rhale.find_regions(0, candidate_conditioning_features=[1])
 print(f"conditioning on x1 only: {time.time() - tic:.2f}s")
 ```
 
-    conditioning on x1 only: 0.04s
+    conditioning on x1 only: 0.09s
 
 
 ## One-shot reports
@@ -188,13 +188,14 @@ print(f"explain(): {time.time() - tic:.2f}s, {model.n_calls} model call(s)")
 report.show()
 ```
 
-    explain(): 0.07s, 6 model call(s)
+    explain(): 0.22s, 10 model call(s)
     
     RHALE report — target: y
     ============================================================
     feature                   importance     heter  #regions
     ------------------------------------------------------------
-    x_0                           0.7516    4.7112         5
+    x_0                           0.7262    1.2514         5
+    x_2                           0.0091    1.0174         5
     x_1                           0.0000    0.0000         1
     ============================================================
     
@@ -202,24 +203,39 @@ report.show()
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x_0 🔹 [id: 0 | heter: 4.71 | inst: 10000 | w: 1.00]
-        x_2 = 0.00 🔹 [id: 1 | heter: 6.25 | inst: 4971 | w: 0.50]
-            x_1 ≤ -0.00 🔹 [id: 2 | heter: 0.00 | inst: 2452 | w: 0.25]
-            x_1 > -0.00 🔹 [id: 3 | heter: 0.00 | inst: 2519 | w: 0.25]
-        x_2 ≠ 0.00 🔹 [id: 4 | heter: 0.00 | inst: 5029 | w: 0.50]
+    x_0 🔹 [id: 0 | heter: 1.25 | inst: 10000 | w: 1.00]
+        x_2 = 0.00 🔹 [id: 1 | heter: 1.44 | inst: 4971 | w: 0.50]
+            x_1 < -0.00 🔹 [id: 2 | heter: 0.00 | inst: 2452 | w: 0.25]
+            x_1 ≥ -0.00 🔹 [id: 3 | heter: 0.00 | inst: 2519 | w: 0.25]
+        x_2 = 1.00 🔹 [id: 4 | heter: 0.00 | inst: 5029 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 4.71
-        Level 1🔹heter: 3.11 | 🔻1.60 (34.06%)
-            Level 2🔹heter: 0.00 | 🔻3.11 (100.00%)
+    Level 0🔹heter: 1.25
+        Level 1🔹heter: 0.72 | 🔻0.53 (42.75%)
+            Level 2🔹heter: 0.00 | 🔻0.72 (100.00%)
     
     
-
-
-    /home/givasile/github/packages/effector/effector/report.py:300: UserWarning: importance is undefined for feature(s) ['x_2'] — this method does not support their feature type; returned NaN.
-      imp = effect.importances()
+    
+    
+    Feature 2 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x_2 🔹 [id: 0 | heter: 1.02 | inst: 10000 | w: 1.00]
+        x_1 < -0.00 🔹 [id: 1 | heter: 0.00 | inst: 4971 | w: 0.50]
+        x_1 ≥ -0.00 🔹 [id: 2 | heter: 1.43 | inst: 5029 | w: 0.50]
+            x_0 < 0.00 🔹 [id: 3 | heter: 0.72 | inst: 2558 | w: 0.26]
+            x_0 ≥ 0.00 🔹 [id: 4 | heter: 0.72 | inst: 2471 | w: 0.25]
+    --------------------------------------------------
+    Feature 2 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 1.02
+        Level 1🔹heter: 0.72 | 🔻0.30 (29.09%)
+            Level 2🔹heter: 0.36 | 🔻0.36 (49.69%)
+    
+    
 
 
 ## Summary
