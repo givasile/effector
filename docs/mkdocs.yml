@@ -4,9 +4,10 @@ nav:
   - effector: index.md
   - Quickstart: quickstart.md
   - The mental model: mental_model.md
+  - The package manual: manual.md
   - API Docs: api_docs.md
   - Design:
-      - The design contract (R1-R13): design.md
+      - The design contract (R1-R14): design.md
       - Method semantics by feature type: method_semantics.md
   - Guides: guides.md
   - Examples: examples.md
