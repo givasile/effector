@@ -327,7 +327,12 @@ class PDPBase(GlobalEffectBase):
                 lo, hi = self._effective_limits(feature, mask)
                 x = np.concatenate([[lo], grid[(grid > lo) & (grid < hi)], [hi]])
                 yy = _interp_columns(grid, ice_m, x)
-        if centering is not False:
+        if is_cat and self.IS_DERIVATIVE:
+            # the discrete d-ICE view: one per-instance difference per
+            # adjacent-level transition. Differences are shift-invariant, so
+            # centering (a per-instance constant) never applies here.
+            yy = np.diff(yy, axis=0)
+        elif centering is not False:
             norm_consts = self._centering_const(feature, mask, centering)
             yy = yy - norm_consts[np.newaxis, :]
 
@@ -340,6 +345,15 @@ class PDPBase(GlobalEffectBase):
         )
         if is_cat:
             levels, labels = self._level_display(feature)
+            if self.IS_DERIVATIVE:
+                # transition positions: K-1 bars labeled v_{t-1} -> v_t
+                lab = (
+                    labels
+                    if labels is not None
+                    else [f"{v:g}" for v in np.asarray(levels, dtype=float)]
+                )
+                labels = [f"{a}→{b}" for a, b in zip(lab[:-1], lab[1:])]
+                levels = np.arange(len(lab) - 1, dtype=float)
             if heterogeneity == "ice":
                 return vis.plot_pdp_ice_categorical(
                     levels,
@@ -361,9 +375,12 @@ class PDPBase(GlobalEffectBase):
                 )
             if heterogeneity is not False:
                 params = self._summary(feature, mask)
-                variances = self._eval_payload(feature, params, x, heterogeneity=True)[
-                    1
-                ]
+                if self.IS_DERIVATIVE:
+                    variances = params["step_var"]
+                else:
+                    variances = self._eval_payload(
+                        feature, params, x, heterogeneity=True
+                    )[1]
             else:
                 variances = None
             return vis.plot_categorical_effect(
@@ -581,23 +598,115 @@ class DerPDP(PDPBase):
     Flat at zero means no effect; constant non-zero means a linear effect.
     The heterogeneity is the variance of the d-ICE curves.
 
-    !!! warning "Continuous features only, derivative units"
+    !!! warning "Derivative units"
         The y axis is in $\partial y / \partial x_s$ units, not output
-        units. Categorical features raise an error — a derivative needs a
-        continuous axis. Without `model_jac`, derivatives fall back to
-        slower, less exact numerical differentiation.
+        units. Without `model_jac`, derivatives fall back to slower, less
+        exact numerical differentiation.
+
+    On a discrete axis the derivative becomes the finite difference: ordinal
+    features show one bar per adjacent-level transition (the per-instance
+    difference of the plain ICE values at the two levels — the jacobian is
+    never used there); nominal features additionally get order-free scalars
+    from all level pairs (method_semantics.md).
     """
 
-    SUPPORTED_FEATURE_TYPES = frozenset({ingestion.CONTINUOUS})
     DEFAULT_CENTERING: Union[bool, str] = False
     IS_DERIVATIVE: bool = True
+    CAT_STRATEGY = "ice_level_diffs"
+
+    def _compute_local_cat(self, feature: int, frame: tuple) -> dict:
+        """Cache-(a) kernel (categorical): the *plain* ICE table at the
+        observed levels — the discrete derivative is the adjacent difference
+        of predictions, so the jacobian (the continuous kernel's tool) is
+        deliberately not used."""
+        grid = self._canonical_grid(feature)
+        method = (
+            ice_vectorized if self._use_vectorized(feature) else ice_non_vectorized
+        )
+        ice = method(self.model, None, self.data, grid, feature, False)
+        return {"frame": frame, "pos": grid, "ice": ice}
+
+    def _summarize_cat(
+        self, feature: int, mask=None, use_vectorized: bool = True
+    ) -> dict:
+        """Summary kernel (pure numpy): per-transition mean/variance of the
+        adjacent-level ICE differences (ascending level order), exposed at
+        the levels with ALE's step-into convention — `mean[j]`/`heter[j]` is
+        the step *into* level j, with level 0 carrying the first transition."""
+        grid, ice = self._grid_ice(feature, mask)
+        d = np.diff(ice, axis=0)  # (K-1, N) per-instance transition diffs
+        step_mu = d.mean(axis=1)
+        step_var = d.var(axis=1)
+        return {
+            "grid": grid,
+            "mean": np.concatenate([step_mu[:1], step_mu]),
+            "heter": np.concatenate([step_var[:1], step_var]),
+            "levels": grid,
+            "step_mu": step_mu,
+            "step_var": step_var,
+        }
+
+    def _compute_norm_const_cat(self, feature, method, params, mask=None):
+        # per-instance constants on the *step* scale (the payload's scale):
+        # zero_integral = the frequency-weighted mean step-into value,
+        # zero_start = the first level's step-into value
+        grid, ice = self._grid_ice(feature, mask)
+        d = np.diff(ice, axis=0)
+        steps = np.concatenate([d[:1], d], axis=0)
+        levels, weights = self._level_weights(feature, mask)
+        if method == "zero_integral":
+            w = np.zeros(len(grid))
+            w[np.searchsorted(grid, levels)] = weights
+            return np.average(steps, axis=0, weights=w)
+        return steps[np.searchsorted(grid, levels[0])]
+
+    def _pair_stats_from_ice(self, feature: int, mask=None):
+        """All-pairs per-instance level differences off the cached plain-ICE
+        matrix (marginal distribution: every instance contributes to every
+        pair) — the order-free raw material of the nominal scalars, zero
+        extra model cost."""
+        grid, ice = self._grid_ice(feature, mask)
+        col = self.data[:, feature] if mask is None else self.data[mask, feature]
+        counts = np.array([np.isclose(col, lv).sum() for lv in grid], dtype=float)
+        total = counts.sum()
+        if total == 0:
+            raise ValueError(
+                f"feature {feature}: no instances at any level within the mask"
+            )
+        w = counts / total
+        K = len(grid)
+        H2, I2 = 0.0, 0.0
+        for a in range(K):
+            for b in range(a + 1, K):
+                wprod = w[a] * w[b]
+                if wprod > 0:
+                    d = ice[b] - ice[a]
+                    H2 += wprod * d.var()
+                    I2 += wprod * d.mean() ** 2
+        return float(np.sqrt(H2)), float(np.sqrt(I2))
+
+    def _ordinal_code_std(self, feature: int) -> float:
+        codes = utils.codes_from_levels(
+            self.data[:, feature],
+            self._levels(feature),
+            feature,
+            self.feature_names[feature],
+        )
+        return float(np.std(codes))
 
     def _heter(self, feature, mask=None):
         """d-PDP heterogeneity in output units: the d-ICE dispersion is a
         slope disagreement, bridged by the feature's dispersion (frozen FULL
-        column) — slope disagreement × typical excursion = output-level
-        disagreement."""
-        return super()._heter(feature, mask) * float(np.std(self.data[:, feature]))
+        column; code space for ordinal) — slope disagreement × typical
+        excursion = output-level disagreement. Nominal features are order-free
+        instead: all-pairs ICE differences, already in output units."""
+        if self.feature_types[feature] == ingestion.NOMINAL:
+            self._summary(feature, mask)  # capability + cache warmup
+            return self._pair_stats_from_ice(feature, mask)[0]
+        base = super()._heter(feature, mask)
+        if self._is_cat(feature):
+            return base * self._ordinal_code_std(feature)
+        return base * float(np.std(self.data[:, feature]))
 
     def _importance(self, feature, mask):
         """R13 for d-PDP: the mean effect is already the derivative, whose
@@ -606,8 +715,19 @@ class DerPDP(PDPBase):
         instead, bridged into output units by the feature's dispersion
         (slope × typical excursion = output movement): for a linear model this
         recovers `|coefficient| * std(x)`, same as the other methods. The
-        bridge reads the FULL column — frozen under masks, like the frame."""
+        bridge reads the FULL column — frozen under masks, like the frame.
+        Ordinal features weight the |step-into-level| means by level frequency
+        (code-space bridge); nominal ones are order-free via all pairs."""
+        if self.feature_types[feature] == ingestion.NOMINAL:
+            self._summary(feature, mask)
+            return self._pair_stats_from_ice(feature, mask)[1]
         params = self._summary(feature, mask)
+        if self._is_cat(feature):
+            levels, weights = self._level_weights(feature, mask)
+            mu = self._eval_payload(feature, params, levels)
+            return float(
+                np.average(np.abs(mu), weights=weights) * self._ordinal_code_std(feature)
+            )
         xs = self.data[mask, feature]
         mu = self._eval_payload(feature, params, xs)
         return float(np.mean(np.abs(mu)) * np.std(self.data[:, feature]))

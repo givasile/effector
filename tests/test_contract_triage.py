@@ -105,7 +105,12 @@ def test_features_subset_and_names(pdp):
     plt.close(fig)
 
 
-def test_unsupported_features_skipped_with_warning():
+def test_unsupported_features_skipped_with_warning(monkeypatch):
+    from effector import ingestion
+
+    monkeypatch.setattr(
+        effector.DerPDP, "SUPPORTED_FEATURE_TYPES", frozenset({ingestion.CONTINUOUS})
+    )
     data = make_regional_data(n=300)
     fx = effector.DerPDP(
         data,

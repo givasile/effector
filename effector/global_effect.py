@@ -43,10 +43,6 @@ import effector.axis_partitioning as ap
 from effector import helpers, ingestion, utils
 from effector.rules import Rule
 
-HINT_DERPDP = (
-    " A derivative needs a continuous axis; use PDP instead — adjacent "
-    "differences of the per-level PDP bars carry the same information."
-)
 
 # the shared mask-key sentinel: `mask=None` and an all-ones mask are the same
 # summary (rule M1) — that equivalence lives in `_mask_key` and nowhere else
@@ -60,15 +56,9 @@ def check_feature_type_supported(
     the regional path can enforce the same contract as the global fit loop."""
     if ftype in supported:
         return
-    hints = {
-        ("d-pdp", ingestion.ORDINAL): HINT_DERPDP,
-        ("d-pdp", ingestion.NOMINAL): HINT_DERPDP,
-    }
-    hint = hints.get((method_name, ftype), "")
     raise ValueError(
         f"{method_name} does not support {ftype} features "
         f"(feature {feature} {feature_name!r} is {ftype})."
-        f"{hint}"
     )
 
 

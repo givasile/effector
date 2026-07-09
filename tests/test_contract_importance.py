@@ -124,7 +124,16 @@ def test_i3_model_free(name):
 # ---------------------------------------------------------------------------
 
 
-def test_i4_unsupported_type_warns_once():
+def test_i4_unsupported_type_warns_once(monkeypatch):
+    # every method supports every feature type now — narrow d-PDP's
+    # capabilities for the test to keep the warn-once/NaN machinery pinned
+    from effector import ingestion
+
+    monkeypatch.setattr(
+        effector.DerPDP,
+        "SUPPORTED_FEATURE_TYPES",
+        frozenset({ingestion.CONTINUOUS}),
+    )
     rng = np.random.default_rng(0)
     data = np.column_stack([rng.uniform(-1, 1, 500), rng.integers(0, 3, 500)])
     derpdp = effector.DerPDP(
@@ -141,7 +150,7 @@ def test_i4_unsupported_type_warns_once():
     user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
     assert len(user_warnings) == 1
     assert np.isfinite(imps[0])
-    assert np.isnan(imps[1])  # nominal feature unsupported by DerPDP
+    assert np.isnan(imps[1])  # nominal feature unsupported under the narrowing
 
 
 # ---------------------------------------------------------------------------

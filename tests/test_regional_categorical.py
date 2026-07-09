@@ -90,11 +90,14 @@ def test_regional_rhale_on_ordinal_foi(data):
     _assert_gate_found(_find(fx))
 
 
-def test_regional_derpdp_on_categorical_foi_raises(data, model):
-    # the capability matrix rejects an ordinal FOI for d-PDP at fit time
-    fx = effector.DerPDP(data, model.predict, model_jac=model.jacobian, schema=SCHEMA)
-    with pytest.raises(ValueError, match="does not support ordinal"):
-        fx.fit(0)
+def test_regional_derpdp_on_categorical_foi(data):
+    # d-PDP supports an ordinal FOI via ICE level differences (the jacobian is
+    # never touched): fit AND find_regions run, and the gate is isolated
+    fx = effector.DerPDP(
+        data, gated_cat_model, model_jac=gated_cat_jac, schema=SCHEMA
+    )
+    fx.fit(0)
+    _assert_gate_found(_find(fx))
 
 
 def test_regional_summary_and_plot_smoke(data, model):
@@ -172,11 +175,11 @@ def test_nominal_plot_uses_level_labels():
     assert labels == ["b", "g", "r"]  # pandas sorts categories alphabetically
 
 
-def test_regional_capability_matrix_enforced_at_fit():
+def test_regional_capability_matrix_enforced_at_fit(monkeypatch):
     # regression: the capability matrix must be enforced on the unsupported FOI,
     # not only later at plot — otherwise fit/summary run on an unsupported FOI
-    # and only plot raises. For the methods that reject a nominal FOI the guard
-    # fires already at fit.
+    # and only plot raises. Every method supports every feature type now, so
+    # narrow d-PDP's capabilities for the test to keep the fit-time guard pinned.
     rng = np.random.default_rng(0)
     X = np.column_stack(
         [rng.integers(0, 3, 800).astype(float), rng.uniform(-1, 1, 800)]
@@ -186,10 +189,18 @@ def test_regional_capability_matrix_enforced_at_fit():
     schema = {"feature_types": ["nominal", "continuous"]}
     finder = effector.space_partitioning.Best(max_depth=2)
 
+    from effector import ingestion
+
+    monkeypatch.setattr(
+        effector.DerPDP,
+        "SUPPORTED_FEATURE_TYPES",
+        frozenset({ingestion.CONTINUOUS}),
+    )
     with pytest.raises(ValueError, match="d-pdp does not support nominal"):
         effector.DerPDP(X, f, model_jac=jac, schema=schema).fit(0)
+    monkeypatch.undo()
 
-    # supported methods still fit AND find regions on the same nominal FOI
+    # every method fits AND finds regions on the same nominal FOI
     fx = effector.PDP(X, f, nof_instances="all", schema=schema)
     fx.fit(0)
     fx.find_regions(0, finder=finder)
@@ -197,5 +208,8 @@ def test_regional_capability_matrix_enforced_at_fit():
     fx.fit(0)
     fx.find_regions(0, finder=finder)
     fx = effector.RHALE(X, f, model_jac=jac, nof_instances="all", schema=schema)
+    fx.fit(0)
+    fx.find_regions(0, finder=finder)
+    fx = effector.DerPDP(X, f, model_jac=jac, nof_instances="all", schema=schema)
     fx.fit(0)
     fx.find_regions(0, finder=finder)

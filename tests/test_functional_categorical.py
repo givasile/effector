@@ -112,18 +112,80 @@ def test_pdp_nominal_same_math_as_ordinal(data, model):
 
 
 # ---------------------------------------------------------------------------
-# DerPDP — continuous only
+# DerPDP — discrete derivative of the ICE curves (marginal distribution)
 # ---------------------------------------------------------------------------
 
 
-def test_derpdp_categorical_raises(data, model):
-    der = effector.DerPDP(data, model.predict, model.jacobian, schema=SCHEMA)
-    with pytest.raises(ValueError, match="does not support ordinal.*use PDP"):
-        der.fit(0)
-    with pytest.raises(ValueError, match="does not support ordinal"):
-        der.eval(0, LEVELS)
-    # continuous features still work
-    der.fit(1)
+def derpdp_transition_stats(data):
+    """Closed-form marginal transition stats: unlike ALE's conditional S_t,
+    EVERY instance contributes to every transition."""
+    g = gate_values(data)
+    mus = np.array([(A[t] - A[t - 1]) + (B[t] - B[t - 1]) * g.mean() for t in (1, 2)])
+    variances = np.array([(B[t] - B[t - 1]) ** 2 * g.var() for t in (1, 2)])
+    return mus, variances
+
+
+def test_derpdp_ordinal_step_into_level(data, model):
+    der = effector.DerPDP(
+        data, model.predict, model.jacobian, nof_instances="all", schema=SCHEMA
+    )
+    mus, variances = derpdp_transition_stats(data)
+    # eval at levels follows ALE's step-into convention (v_0 = first transition)
+    np.testing.assert_allclose(
+        der.eval(0, LEVELS, centering=False), [mus[0], mus[0], mus[1]], atol=1e-10
+    )
+    np.testing.assert_allclose(
+        der.eval_heter(0, LEVELS),
+        [variances[0], variances[0], variances[1]],
+        atol=1e-10,
+    )
+
+
+def test_derpdp_ordinal_scalars_bridged(data, model):
+    der = effector.DerPDP(
+        data, model.predict, model.jacobian, nof_instances="all", schema=SCHEMA
+    )
+    mus, variances = derpdp_transition_stats(data)
+    w = level_weights(data)
+    h = np.array([variances[0], variances[0], variances[1]])
+    m = np.array([mus[0], mus[0], mus[1]])
+    code_std = np.std(data[:, 0])  # levels are the codes here
+    np.testing.assert_allclose(
+        der.heter_score(0), np.sqrt(np.average(h, weights=w)) * code_std, atol=1e-10
+    )
+    np.testing.assert_allclose(
+        der.importance(0), np.average(np.abs(m), weights=w) * code_std, atol=1e-10
+    )
+
+
+def test_derpdp_nominal_all_pairs_scalars(data, model):
+    der = effector.DerPDP(
+        data, model.predict, model.jacobian, nof_instances="all", schema=NOMINAL_SCHEMA
+    )
+    g = gate_values(data)
+    H2, I2 = 0.0, 0.0
+    w = level_weights(data)
+    for a in range(3):
+        for b in range(a + 1, 3):
+            d = (A[b] - A[a]) + (B[b] - B[a]) * g  # marginal: ALL instances
+            H2 += w[a] * w[b] * d.var()
+            I2 += w[a] * w[b] * d.mean() ** 2
+    np.testing.assert_allclose(der.heter_score(0), np.sqrt(H2), atol=1e-10)
+    np.testing.assert_allclose(der.importance(0), np.sqrt(I2), atol=1e-10)
+
+
+def test_derpdp_categorical_never_touches_the_jacobian(data, model):
+    from tests.conftest import CountingModel
+
+    jac = CountingModel(model.jacobian)
+    der = effector.DerPDP(
+        data, model.predict, jac, nof_instances="all", schema=SCHEMA
+    )
+    der.fit(0)
+    der.eval(0, LEVELS)
+    der.heter_score(0)
+    der.importance(0)
+    assert jac.n_calls == 0  # discrete derivative = ICE differences, no jac
 
 
 # ---------------------------------------------------------------------------
@@ -367,7 +429,7 @@ def test_registry_capability_matrix_agreement():
 
     matrix = {
         "pdp": {CONTINUOUS, ORDINAL, NOMINAL},
-        "derpdp": {CONTINUOUS},
+        "derpdp": {CONTINUOUS, ORDINAL, NOMINAL},
         "ale": {CONTINUOUS, ORDINAL, NOMINAL},
         "rhale": {CONTINUOUS, ORDINAL, NOMINAL},
         "shapdp": {CONTINUOUS, ORDINAL, NOMINAL},

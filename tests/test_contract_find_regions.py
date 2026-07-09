@@ -421,8 +421,14 @@ def test_rc13_junk_features_string_raises(rc5_effect):
         rc5_effect.find_regions(features="some")
 
 
-def test_rc13_all_covers_supported_and_warns_on_skipped():
-    # DerPDP is continuous-only; x_2 is categorical -> skipped with one warning
+def test_rc13_all_covers_supported_and_warns_on_skipped(monkeypatch):
+    # every method supports every feature type now; narrow d-PDP to
+    # continuous-only for the test so the skip/warn machinery stays pinned
+    from effector import ingestion
+
+    monkeypatch.setattr(
+        effector.DerPDP, "SUPPORTED_FEATURE_TYPES", frozenset({ingestion.CONTINUOUS})
+    )
     data = make_regional_data(n=300)
     fx = effector.DerPDP(data, gated_model, model_jac=gated_model_jac, nof_instances="all")
     with pytest.warns(UserWarning, match="x_2"):
@@ -430,7 +436,12 @@ def test_rc13_all_covers_supported_and_warns_on_skipped():
     assert set(parts) == {"x_0", "x_1"}
 
 
-def test_rc13_explicit_unsupported_feature_raises():
+def test_rc13_explicit_unsupported_feature_raises(monkeypatch):
+    from effector import ingestion
+
+    monkeypatch.setattr(
+        effector.DerPDP, "SUPPORTED_FEATURE_TYPES", frozenset({ingestion.CONTINUOUS})
+    )
     data = make_regional_data(n=300)
     fx = effector.DerPDP(data, gated_model, model_jac=gated_model_jac, nof_instances="all")
     with pytest.raises(ValueError):
