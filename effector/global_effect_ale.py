@@ -38,6 +38,12 @@ class ALEBase(GlobalEffectBase):
             schema=schema,
             random_state=random_state,
         )
+        # cache (a′): all-pairs level differences for nominal features — the
+        # order-free raw material of the nominal scalars. Model-touching like
+        # cache (a), but its frame is the ascending level set (immutable per
+        # object), so an `order=` refit never invalidates it and it never
+        # bumps the epoch (chain summaries are unaffected).
+        self._local_pairs: dict = {}
 
     def _cat_frame(self, feature: int) -> tuple:
         """The categorical frame (R14): the *declared* level order — the
@@ -97,7 +103,10 @@ class ALEBase(GlobalEffectBase):
         output-level disagreement. The bridge reads the FULL column (codes in
         fit order for ordinal) — frozen under masks, like the frame, so
         regional heterogeneity drops measure dispersion reduction, not range
-        shrinkage."""
+        shrinkage. Nominal features are order-free instead: all-pairs raw
+        differences, already in output units (no bridge)."""
+        if self.feature_types[feature] == ingestion.NOMINAL:
+            return self._heter_nominal_pairs(feature, mask)
         base = super()._heter(feature, mask)
         if not self._is_cat(feature):
             return base * float(np.std(self.data[:, feature]))
@@ -106,6 +115,121 @@ class ALEBase(GlobalEffectBase):
             self.data[:, feature], levels, feature, self.feature_names[feature]
         )
         return base * float(np.std(codes))
+
+    def _importance(self, feature: int, mask) -> float:
+        """R13: nominal features go through the all-pairs means (the chain's
+        accumulated values are path-dependent under an arbitrary order); every
+        other type uses the shared data-weighted std of the mean effect."""
+        if self.feature_types[feature] == ingestion.NOMINAL:
+            return self._importance_nominal_pairs(feature, mask)
+        return super()._importance(feature, mask)
+
+    # ------------------------------------------------------------------
+    # nominal scalars: all-pairs level differences (order-free)
+    # ------------------------------------------------------------------
+    def _ensure_local_pairs(self, feature: int) -> dict:
+        """Gate to cache (a′): computed at most once per feature — the frame
+        (the ascending level set) cannot change within an object's life."""
+        entry = self._local_pairs.get(feature)
+        if entry is None:
+            levels = self._levels(feature)
+            if len(levels) < 2:
+                raise ValueError(
+                    f"feature {feature} {self.feature_names[feature]!r} has a "
+                    f"single level — no effect to compute"
+                )
+            pair_lo, pair_hi, effects, instance_idx = (
+                utils.compute_local_effects_level_pairs(
+                    self.data, self.model, levels, feature
+                )
+            )
+            entry = {
+                "levels": levels,
+                "pair_lo": pair_lo,
+                "pair_hi": pair_hi,
+                "effects": effects,
+                "instance_idx": instance_idx,
+            }
+            self._local_pairs[feature] = entry
+        return entry
+
+    def _pair_stats(self, feature: int, mask=None):
+        """Masked per-pair mean/variance of the raw level differences — pure
+        numpy over cache (a′), memoized like any summary (the `"pairs"` key
+        suffix disambiguates; an epoch bump only re-runs the numpy)."""
+        prim = self._ensure_local_pairs(feature)
+
+        def build():
+            K = len(prim["levels"])
+            lo, hi, eff = prim["pair_lo"], prim["pair_hi"], prim["effects"]
+            if mask is not None:
+                keep = mask[prim["instance_idx"]]
+                lo, hi, eff = lo[keep], hi[keep], eff[keep]
+            mu = np.full((K, K), np.nan)
+            var = np.full((K, K), np.nan)
+            for a in range(K):
+                for b in range(a + 1, K):
+                    d = eff[(lo == a) & (hi == b)]
+                    if len(d):
+                        mu[a, b] = d.mean()
+                        var[a, b] = d.var()
+            return {"mu": mu, "var": var}
+
+        key = (feature, self._epoch.get(feature, 0), self._mask_key(mask), "pairs")
+        return self._memo(key, build)
+
+    def _pair_weights(self, feature: int, mask=None) -> np.ndarray:
+        """Level frequencies over the FULL ascending level set — zeros for
+        levels absent under the mask (any pair with a zero-weight side drops
+        out of the weighted sums, which also guards its NaN stats)."""
+        levels = self._ensure_local_pairs(feature)["levels"]
+        col = self.data[:, feature] if mask is None else self.data[mask, feature]
+        counts = np.array([np.isclose(col, lv).sum() for lv in levels], dtype=float)
+        total = counts.sum()
+        if total == 0:
+            raise ValueError(
+                f"feature {feature}: no instances at any level within the mask"
+            )
+        return counts / total
+
+    def _heter_nominal_pairs(self, feature: int, mask=None) -> float:
+        """H² = ½ Σ_k Σ_a w_k w_a Var_i[d_{a→k}] — the ½ makes the all-pairs
+        dispersion equal the level-value variance (E[(X−X′)²] = 2 Var), so a
+        nominal H lands exactly where PDP's per-level H lands on the canaries.
+        Output units, no order anywhere."""
+        stats = self._pair_stats(feature, mask)
+        w = self._pair_weights(feature, mask)
+        acc = 0.0
+        K = len(w)
+        for a in range(K):
+            for b in range(a + 1, K):
+                wprod = w[a] * w[b]
+                if wprod > 0:
+                    acc += wprod * stats["var"][a, b]
+        return float(np.sqrt(acc))
+
+    def _importance_nominal_pairs(self, feature: int, mask=None) -> float:
+        """I² = ½ Σ_k Σ_a w_k w_a μ_{ak}² — the μ-twin of the all-pairs H:
+        the dispersion of the mean level effects, order-free."""
+        stats = self._pair_stats(feature, mask)
+        w = self._pair_weights(feature, mask)
+        acc = 0.0
+        K = len(w)
+        for a in range(K):
+            for b in range(a + 1, K):
+                wprod = w[a] * w[b]
+                if wprod > 0:
+                    acc += wprod * stats["mu"][a, b] ** 2
+        return float(np.sqrt(acc))
+
+    def _fit_loop(self, features, centering, **fit_feature_kwargs) -> None:
+        """(RH)ALE fit also warms cache (a′) for nominal features, keeping the
+        model-free-after-fit contract for the scalars."""
+        super()._fit_loop(features, centering, **fit_feature_kwargs)
+        feats = helpers.prep_features(features, self.dim, self.feature_names)
+        for s in feats:
+            if self.feature_types[s] == ingestion.NOMINAL:
+                self._ensure_local_pairs(s)
 
     def _validate_order_arg(self, features, order):
         if order is None or isinstance(order, str):

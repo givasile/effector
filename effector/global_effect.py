@@ -1,6 +1,7 @@
 """The global-effect engine: the two-block lifecycle (design contract R14).
 
-Every effect object holds exactly two caches and one config, all owned here:
+Every effect object holds two caches and one config, all owned here (the
+ALE family adds a third, cache (a′) — see below):
 
 - **Cache (a) — local effects** (`self._local`): the model-touching material,
   one frame-carrying entry per feature. Recomputed iff absent or the stored
@@ -13,6 +14,11 @@ Every effect object holds exactly two caches and one config, all owned here:
 - **Config** (`self.fit_args`): the method settings `fit()` declares (binning,
   order, scope, default centering) — the kwargs `eval`/`plot` deliberately do
   not accept.
+- **Cache (a′) — pairwise level effects** (`ALEBase._local_pairs` only): the
+  all-pairs raw level differences feeding the order-free nominal scalars.
+  Model-touching like (a), but framed by the ascending level set (immutable
+  per object): an `order=` refit replaces (a) without touching (a′), and (a′)
+  never bumps the epoch. Its summaries memoize into (b) under a `"pairs"` key.
 
 Subclasses implement a frame declaration (`_frame_from_config`) and three pure
 kernels, each split into a continuous and a categorical variant —

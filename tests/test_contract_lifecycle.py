@@ -170,14 +170,21 @@ def test_l2_categorical_order_frame():
     model = CountingModel(linear_model)
     m = effector.ALE(data, model, schema=CAT_SCHEMA)
     L = 3
+    n_pairs = L * (L - 1) // 2
 
-    with budget(model, expected=2 * (L - 1)):  # 2 calls per transition
+    # nominal fit warms cache (a) — 2 calls per chain transition — AND
+    # cache (a′) — 2 calls per level pair (the order-free scalar material)
+    with budget(model, expected=2 * (L - 1) + 2 * n_pairs):
         m.fit(features=2)
     with budget(model, expected=0):  # same order = same frame (was: recompute)
         m.fit(features=2)
-    with budget(model, expected=2 * (L - 1)):  # new order = new frame
+    # new order = new chain frame; the pairwise cache is order-free and stays
+    with budget(model, expected=2 * (L - 1)):
         m.fit(features=2, order=[2.0, 0.0, 1.0])
     np.testing.assert_array_equal(m.payload(2)["levels"], [2.0, 0.0, 1.0])
+    with budget(model, expected=0):  # scalars re-summarize (a′), no model
+        m.heter_score(2)
+        m.importance(2)
 
 
 # ---------------------------------------------------------------------------

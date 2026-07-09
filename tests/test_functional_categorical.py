@@ -219,6 +219,83 @@ def test_rhale_greedy_groups_levels_and_stays_exact(data, model):
         np.testing.assert_allclose(y, [0.0, mus[0], mus[0] + mus[1]], atol=1e-10)
 
 
+# ---------------------------------------------------------------------------
+# nominal scalars — all-pairs, order-free (units contract)
+# ---------------------------------------------------------------------------
+
+NOMINAL_SCHEMA = {"feature_types": [NOMINAL, CONTINUOUS, CONTINUOUS]}
+
+
+def pairwise_scalar_gt(data):
+    """Closed-form all-pairs scalars: H² = ½ΣΣ w_a w_b Var[d_ab] (as a<b sum),
+    I² likewise over the squared pair means."""
+    g = gate_values(data)
+    w = level_weights(data)
+    H2, I2 = 0.0, 0.0
+    for a in range(3):
+        for b in range(a + 1, 3):
+            sel = np.isin(data[:, 0], [a, b])
+            d = (A[b] - A[a]) + (B[b] - B[a]) * g[sel]
+            H2 += w[a] * w[b] * d.var()
+            I2 += w[a] * w[b] * d.mean() ** 2
+    return np.sqrt(H2), np.sqrt(I2)
+
+
+def test_ale_nominal_all_pairs_closed_form(data, model):
+    ale = effector.ALE(data, model.predict, nof_instances="all", schema=NOMINAL_SCHEMA)
+    H_gt, I_gt = pairwise_scalar_gt(data)
+    np.testing.assert_allclose(ale.heter_score(0), H_gt, atol=1e-10)
+    np.testing.assert_allclose(ale.importance(0), I_gt, atol=1e-10)
+
+
+def test_ale_nominal_scalars_order_invariant(data, model):
+    base = effector.ALE(
+        data, model.predict, nof_instances="all", schema=NOMINAL_SCHEMA
+    )
+    h0, i0 = base.heter_score(0), base.importance(0)
+    for order in ("similarity", [2.0, 0.0, 1.0]):
+        ale = effector.ALE(
+            data, model.predict, nof_instances="all", schema=NOMINAL_SCHEMA
+        )
+        ale.fit(0, order=order)
+        np.testing.assert_allclose(ale.heter_score(0), h0, atol=1e-12)
+        np.testing.assert_allclose(ale.importance(0), i0, atol=1e-12)
+
+
+def test_ale_nominal_scalars_masked(data, model):
+    # mask away level 2: the only surviving pair is (0, 1), weights renormalized
+    mask = ~np.isclose(data[:, 0], 2.0)
+    ale = effector.ALE(data, model.predict, nof_instances="all", schema=NOMINAL_SCHEMA)
+    g = gate_values(data)
+    sel = np.isin(data[:, 0], [0, 1])
+    d = (A[1] - A[0]) + (B[1] - B[0]) * g[sel]
+    counts = np.array([(data[mask, 0] == k).sum() for k in (0, 1)], dtype=float)
+    w = counts / counts.sum()
+    np.testing.assert_allclose(
+        ale.heter_score(0, mask=mask), np.sqrt(w[0] * w[1] * d.var()), atol=1e-10
+    )
+    np.testing.assert_allclose(
+        ale.importance(0, mask=mask),
+        np.sqrt(w[0] * w[1] * d.mean() ** 2),
+        atol=1e-10,
+    )
+
+
+def test_ale_nominal_scalars_model_free_after_fit(data, model):
+    from tests.conftest import CountingModel
+
+    counting = CountingModel(model.predict)
+    ale = effector.ALE(data, counting, nof_instances="all", schema=NOMINAL_SCHEMA)
+    ale.fit(0)
+    n0 = counting.n_calls
+    mask = np.isin(data[:, 0], [0, 1])
+    ale.heter_score(0)
+    ale.importance(0)
+    ale.heter_score(0, mask=mask)
+    ale.importance(0, mask=mask)
+    assert counting.n_calls == n0  # scalars re-summarize cache (a'), no model
+
+
 def test_rhale_nominal_equals_ale_nominal(data, model):
     # nominal FOI: RHALE is ALE exactly — one bin per transition, no grouping,
     # whatever binning_method the config declares (it is a continuous/ordinal
