@@ -74,6 +74,44 @@ def test_to_html_works_unbound(tmp_path):
     rep2 = Report.from_dict(rep.to_dict())  # unbound
     html = rep2.to_html()  # draws curves from stored xs/y/h, skips region plots
     assert "data:image/png;base64" in html
+    # the full page structure renders from stored values alone
+    assert "id='overview'" in html and "id='after'" in html
+
+
+def test_explain_overview_covers_all_supported_features():
+    data = make_global_data(n=800)
+    rep = effector.explain(
+        data, linear_model, method="pdp", top_k=1, nof_instances="all"
+    )
+    # top_k truncates `features`, never the overview
+    assert len(rep.features) == 1
+    assert len(rep.overview) == data.shape[1]
+    assert sum(o["reported"] for o in rep.overview) == 1
+    imps = [o["importance"] for o in rep.overview]
+    assert imps == sorted(imps, reverse=True)  # importance-descending
+    # round-trips through the serialization boundary
+    rep2 = Report.from_dict(rep.to_dict())
+    assert rep2.overview == rep.overview
+
+
+def test_to_html_reads_like_the_pipeline():
+    data = make_regional_data(n=800)
+    rep = effector.explain(data, gated_model, method="pdp", nof_instances="all")
+    html = rep.to_html()
+    # section order mirrors the analyst pipeline:
+    # overview triage -> per-feature (global + regional) -> closing triage
+    assert (
+        html.index("id='overview'")
+        < html.index("id='feat-")
+        < html.index("id='after'")
+    )
+    for fr in rep.features:
+        assert f"id='feat-{fr.feature}'" in html
+    # opening + closing triage plus one global figure per feature, all zoomable
+    assert html.count("class='zoomable'") >= len(rep.features) + 2
+    # inline chrome only — nav, lightbox, script — no external assets
+    assert "<nav>" in html and "lightbox" in html and "<script>" in html
+    assert "http://" not in html and "https://" not in html
 
 
 def test_explain_finds_regions_on_heterogeneous_feature():

@@ -10,11 +10,16 @@ model-free afterwards.
 `Report` binds a reference to its producing effect only for the lazy re-plot
 sugar (mirrors `Partition._bind`); `to_dict()`/`from_dict()` are the
 serialization boundary and round-trip without an effect.
+
+`to_html()` renders the report as the analyst pipeline reads, in one
+self-contained file: the triage plane first (where to look), then one section
+per feature — global effect, then regional — and the before/after triage last.
 """
 
 from __future__ import annotations
 
 import base64
+import html as _htmlmod
 import io
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -88,9 +93,12 @@ class Report:
     ```
 
     `features` holds one `FeatureReport` per reported feature, importance
-    descending. A report produced by `explain` is bound to its fitted effect,
-    which `to_html` uses for per-leaf regional plots; everything else works
-    from the stored values alone.
+    descending. `overview` holds the cheap scalars — importance and
+    heterogeneity — for **every** supported feature (superset of `features`),
+    so the triage plane renders even on unbound reports. A report produced by
+    `explain` is bound to its fitted effect, which `to_html` uses for the
+    per-leaf regional plots and the before/after triage arrows; everything
+    else works from the stored values alone.
     """
 
     method_name: str
@@ -98,9 +106,22 @@ class Report:
     target_name: str
     features: List[FeatureReport]
     config: dict = field(default_factory=dict)
+    overview: List[dict] = field(default_factory=list)
 
     def __post_init__(self):
         self._effect = None
+        if not self.overview:
+            # old dicts / hand-built reports: the reported features stand in
+            self.overview = [
+                {
+                    "feature": fr.feature,
+                    "name": fr.name,
+                    "importance": fr.importance,
+                    "heter_score": fr.heter_score,
+                    "reported": True,
+                }
+                for fr in self.features
+            ]
 
     def _bind(self, effect):
         self._effect = effect
@@ -138,9 +159,36 @@ class Report:
             if fr.partition is not None and len(fr.partition["regions"]) > 1:
                 Partition.from_dict(fr.partition).show()
 
-    # -- importance bar chart (R7 return rule) ---------------------------------
+    # -- overview figures (R7 return rule) --------------------------------------
+    def _barh(self, names, vals, xlabel, title, threshold=None):
+        from effector import theme
+        import matplotlib.pyplot as plt
+
+        t = theme.active()
+        fig, ax = plt.subplots(figsize=(7, 0.5 * len(names) + 1.5))
+        ax.barh(range(len(names)), vals, color=t.BAR_FACE)
+        ax.set_yticks(range(len(names)))
+        ax.set_yticklabels(names)
+        ax.invert_yaxis()  # most important on top
+        ax.set_xlabel(xlabel)
+        ax.set_title(title)
+        if threshold is not None:
+            ax.axvline(
+                threshold,
+                color=t.AVG,
+                linestyle="--",
+                linewidth=1.0,
+                label="heterogeneity threshold",
+            )
+            ax.legend()
+        fig.tight_layout()
+        return fig, ax
+
     def plot_importance(self, show_plot=True):
         """Horizontal bar chart of feature importance, most important on top.
+
+        Covers every feature in `overview` (all supported features), not just
+        the reported top-k.
 
         Args:
             show_plot: `True` (default) displays the figure and returns
@@ -151,37 +199,99 @@ class Report:
         """
         import matplotlib.pyplot as plt
 
-        names = [fr.name for fr in self.features]
-        vals = [fr.importance for fr in self.features]
-        fig, ax = plt.subplots(figsize=(7, 0.5 * len(names) + 1.5))
-        ax.barh(range(len(names)), vals, color="#4C78A8")
-        ax.set_yticks(range(len(names)))
-        ax.set_yticklabels(names)
-        ax.invert_yaxis()  # most important on top
-        ax.set_xlabel("importance")
-        ax.set_title(
-            f"{method_registry.resolve(self.method_name).display_name} — "
-            f"feature importance"
+        fig, ax = self._barh(
+            [o["name"] for o in self.overview],
+            [o["importance"] for o in self.overview],
+            xlabel="importance",
+            title=(
+                f"{method_registry.resolve(self.method_name).display_name} — "
+                f"feature importance"
+            ),
         )
-        fig.tight_layout()
         if show_plot:
             plt.show(block=False)
             return None
         return fig, ax
 
+    def _heterogeneity_fig(self):
+        return self._barh(
+            [o["name"] for o in self.overview],
+            [o["heter_score"] for o in self.overview],
+            xlabel="heterogeneity",
+            title=(
+                f"{method_registry.resolve(self.method_name).display_name} — "
+                f"heterogeneity"
+            ),
+            threshold=self.config.get("heter_threshold"),
+        )
+
+    def _triage_fig(self, partitions=None, title=None):
+        """The triage plane — `effector.plot_triage` when bound, the stored
+        scalars otherwise (same style, no arrows)."""
+        thr = self.config.get("heter_threshold")
+        if self._effect is not None:
+            from effector.visualization import plot_triage
+
+            return plot_triage(
+                self._effect,
+                partitions=partitions,
+                threshold=thr,
+                features=[o["feature"] for o in self.overview],
+                title=title,
+                show_plot=False,
+            )
+        from effector import theme
+        from effector.visualization import _decorate_ax
+        import matplotlib.pyplot as plt
+
+        t = theme.active()
+        fig, ax = plt.subplots()
+        ax.set_title("Feature triage" if title is None else title)
+        ax.scatter(
+            [o["importance"] for o in self.overview],
+            [o["heter_score"] for o in self.overview],
+            color=t.MEAN,
+            zorder=3,
+            label="global effect",
+        )
+        for o in self.overview:
+            ax.annotate(
+                o["name"],
+                (o["importance"], o["heter_score"]),
+                textcoords="offset points",
+                xytext=(6, 6),
+                fontsize="small",
+            )
+        if thr is not None:
+            ax.axhline(
+                thr,
+                color=t.AVG,
+                linestyle="--",
+                linewidth=1.0,
+                label="heterogeneity threshold",
+            )
+        _decorate_ax(ax, xlabel="importance", ylabel="heterogeneity")
+        fig.tight_layout()
+        return fig, ax
+
     # -- self-contained HTML page ---------------------------------------------
     def to_html(self, path=None):
-        """Render a self-contained HTML page — every figure inlined as a base64 PNG.
+        """Render the report as one self-contained HTML page — the pipeline in reading order.
 
-        The page holds the importance chart, per-feature mean-effect curves
-        with ± std bands (from the stored arrays), the partition tables and
-        trees, and — when the report is bound to its effect — one regional
-        plot per partition leaf. No external assets.
+        The page mirrors the line-by-line analysis: **overview first** (the
+        triage plane over all supported features, a clickable ranked table,
+        and collapsible importance/heterogeneity bars), then **one section per
+        reported feature** (global effect, partition tree, per-leaf regional
+        plots), and the **before/after triage** last — arrows from each
+        partitioned feature's global point to its leaves. Every figure is a
+        base64 PNG; navigation, click-to-zoom, and collapsing are inline
+        vanilla JS/CSS — no external assets, one file, one click.
 
         !!! note "Unbound reports"
             A report rebuilt with `from_dict` renders everything from stored
-            values; only the per-leaf regional plots are skipped (they need
-            the live effect).
+            values; the per-leaf regional plots and the triage arrows are
+            skipped (they need the live effect) — leaf statistics are shown
+            in a table instead.
 
         Args:
             path: optional file path to also write the page to.
@@ -189,56 +299,230 @@ class Report:
         Returns:
             the HTML string.
         """
+        esc = _htmlmod.escape
         title = method_registry.resolve(self.method_name).display_name
-        parts = [
-            "<!doctype html><html><head><meta charset='utf-8'>",
-            f"<title>{title} report</title>",
-            "<style>body{font-family:system-ui,Arial,sans-serif;margin:2rem;"
-            "max-width:900px}h1,h2{color:#222}table{border-collapse:collapse}"
-            "td,th{border:1px solid #ccc;padding:4px 10px;text-align:right}"
-            "th:first-child,td:first-child{text-align:left}"
-            "pre{background:#f6f6f6;padding:1rem;overflow-x:auto}"
-            "img{max-width:100%}</style></head><body>",
-            f"<h1>{title} report</h1>",
-            f"<p><b>target:</b> {self.target_name} &nbsp; "
-            f"<b>features:</b> {len(self.feature_names)}</p>",
-            "<h2>Feature importance</h2>",
-            self._img(self.plot_importance(show_plot=False)),
-            "<table><tr><th>feature</th><th>importance</th><th>heterogeneity</th>"
-            "<th>#regions</th></tr>",
-        ]
-        for fr in self.features:
-            nregions = len(fr.partition["regions"]) if fr.partition else 1
-            parts.append(
-                f"<tr><td>{fr.name}</td><td>{fr.importance:.4f}</td>"
-                f"<td>{fr.heter_score:.4f}</td><td>{nregions}</td></tr>"
-            )
-        parts.append("</table>")
+        bound = self._effect is not None
 
+        # rebuild each multi-region partition once (bound when possible)
+        parts = {}
         for fr in self.features:
-            parts.append(f"<h2>{fr.name}</h2>")
-            parts.append(
-                f"<p>importance {fr.importance:.4f} &nbsp; "
-                f"heterogeneity {fr.heter_score:.4f}</p>"
-            )
-            parts.append(self._img(self._effect_fig(fr)))
             if fr.partition is not None and len(fr.partition["regions"]) > 1:
-                part = Partition.from_dict(fr.partition)
-                if self._effect is not None:
-                    part = part.bind(self._effect)
-                parts.append(f"<pre>{self._partition_text(part)}</pre>")
-                if self._effect is not None:
-                    for r in part.leaves:
-                        fig = self._effect.plot(
-                            fr.feature, mask=part.mask(r.idx), show_plot=False
+                p = Partition.from_dict(fr.partition)
+                if bound:
+                    p = p.bind(self._effect)
+                parts[fr.feature] = p
+
+        out = [
+            "<!doctype html><html><head><meta charset='utf-8'>",
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>",
+            f"<title>{esc(title)} report</title>",
+            "<style>",
+            _CSS,
+            "</style></head><body>",
+        ]
+
+        # sticky nav — the pipeline's table of contents
+        nav = ["<a href='#overview'>Overview</a>"]
+        nav += [
+            f"<a href='#feat-{fr.feature}'>{esc(fr.name)}</a>" for fr in self.features
+        ]
+        nav.append("<a href='#after'>After regions</a>")
+        out.append("<nav>" + "".join(nav) + "</nav><main>")
+
+        # header
+        out.append(f"<h1>{esc(title)} report</h1>")
+        out.append(
+            f"<p class='caption'>target <b>{esc(self.target_name)}</b> · "
+            f"{len(self.feature_names)} features · "
+            f"{len(self.features)} reported</p>"
+        )
+        chips = []
+        for key in (
+            "method",
+            "top_k",
+            "heter_threshold",
+            "finder",
+            "nof_instances",
+            "random_state",
+        ):
+            if key in self.config:
+                val = self.config[key]
+                val = f"{val:.4f}" if isinstance(val, float) else str(val)
+                chips.append(f"<span class='chip'>{esc(key)} <b>{esc(val)}</b></span>")
+        if chips:
+            out.append("<div class='chips'>" + "".join(chips) + "</div>")
+
+        # -- 1 · overview ------------------------------------------------------
+        out.append("<section id='overview'><h2>1 · Overview — where to look</h2>")
+        out.append(
+            "<p class='caption'>Each point is a feature: importance (x) against "
+            "heterogeneity (y). Bottom-left is ignorable; bottom-right is "
+            "important and fully described by its mean effect; the top-right "
+            "corner — important <i>and</i> heterogeneous — is where the mean "
+            "hides something and <code>find_regions</code> looks for "
+            "subregions.</p>"
+        )
+        out.append(self._img(self._triage_fig(), alt="feature triage"))
+        out.append(
+            "<table><tr><th>#</th><th>feature</th><th>importance</th>"
+            "<th>heterogeneity</th><th>#regions</th><th>regional analysis</th></tr>"
+        )
+        reported = {fr.feature: fr for fr in self.features}
+        for rank, o in enumerate(self.overview, 1):
+            fr = reported.get(o["feature"])
+            if fr is None:
+                out.append(
+                    f"<tr class='dim'><td>{rank}</td><td>{esc(o['name'])}</td>"
+                    f"<td>{o['importance']:.4f}</td><td>{o['heter_score']:.4f}</td>"
+                    f"<td>·</td><td>not reported (beyond top_k)</td></tr>"
+                )
+                continue
+            if fr.partition is None:
+                nregions, note = 1, "below threshold — skipped"
+            elif fr.feature not in parts:
+                nregions, note = 1, "searched — no split passed"
+            else:
+                nregions = len(fr.partition["regions"])
+                note = f"split into {len(parts[fr.feature].leaves)} regions"
+            out.append(
+                f"<tr data-href='feat-{fr.feature}'><td>{rank}</td>"
+                f"<td>{esc(fr.name)}</td><td>{fr.importance:.4f}</td>"
+                f"<td>{fr.heter_score:.4f}</td><td>{nregions}</td>"
+                f"<td>{note} →</td></tr>"
+            )
+        out.append("</table>")
+        out.append(
+            "<details><summary>Bar views — importance and heterogeneity</summary>"
+        )
+        out.append(self._img(self.plot_importance(show_plot=False), alt="importance"))
+        out.append(self._img(self._heterogeneity_fig(), alt="heterogeneity"))
+        out.append("</details></section>")
+
+        # -- 2 · per-feature analysis -------------------------------------------
+        for rank, fr in enumerate(self.features, 1):
+            part = parts.get(fr.feature)
+            out.append(f"<section id='feat-{fr.feature}'>")
+            out.append(f"<h2>2.{rank} · {esc(fr.name)}</h2>")
+            out.append(
+                "<div class='chips'>"
+                f"<span class='chip'>importance <b>{fr.importance:.4f}</b></span>"
+                f"<span class='chip'>heterogeneity <b>{fr.heter_score:.4f}</b></span>"
+                f"<span class='chip'>regions <b>{len(part.leaves) if part else 1}</b>"
+                "</span></div>"
+            )
+            out.append("<h3>Global effect</h3>")
+            out.append(self._img(self._global_fig(fr), alt=f"{fr.name} global effect"))
+            out.append("<h3>Regional effects</h3>")
+            if fr.partition is None:
+                out.append(
+                    "<p class='note'>Heterogeneity below the threshold — the mean "
+                    "effect tells the whole story; <code>find_regions</code> was "
+                    "skipped.</p>"
+                )
+            elif part is None:
+                out.append(
+                    "<p class='note'><code>find_regions</code> searched but no "
+                    "split passed the heterogeneity-drop threshold — the effect "
+                    "is heterogeneous, yet no candidate rule explains it.</p>"
+                )
+            else:
+                out.append(
+                    "<details open><summary>Partition tree</summary>"
+                    f"<pre>{esc(self._partition_text(part))}</pre></details>"
+                )
+                root_h = part[0].heterogeneity
+                if bound:
+                    out.append("<div class='grid'>")
+                    for leaf in part.leaves:
+                        fig = part.plot(leaf.idx, heterogeneity=True, show_plot=False)
+                        drop = (
+                            f" · −{(1 - leaf.heterogeneity / root_h) * 100:.0f}% "
+                            "vs global"
+                            if root_h
+                            else ""
                         )
-                        parts.append(self._img(fig))
-        parts.append("</body></html>")
-        html = "".join(parts)
+                        out.append(
+                            f"<figure>{self._img(fig, alt=part.label(leaf.idx))}"
+                            f"<figcaption>{esc(part.label(leaf.idx))} · "
+                            f"heterogeneity {leaf.heterogeneity:.4f}{drop} · "
+                            f"n={leaf.nof_instances:,}</figcaption></figure>"
+                        )
+                    out.append("</div>")
+                else:
+                    out.append(
+                        "<p class='note'>Regional plots need the live effect — "
+                        "this report was rebuilt from stored values; leaf "
+                        "statistics below.</p>"
+                    )
+                    out.append(
+                        "<table><tr><th>region</th><th>heterogeneity</th>"
+                        "<th>drop vs global</th><th>n</th></tr>"
+                    )
+                    for leaf in part.leaves:
+                        drop = (
+                            f"−{(1 - leaf.heterogeneity / root_h) * 100:.0f}%"
+                            if root_h
+                            else "—"
+                        )
+                        out.append(
+                            f"<tr><td>{esc(part.label(leaf.idx))}</td>"
+                            f"<td>{leaf.heterogeneity:.4f}</td><td>{drop}</td>"
+                            f"<td>{leaf.nof_instances:,}</td></tr>"
+                        )
+                    out.append("</table>")
+            out.append("</section>")
+
+        # -- 3 · triage after regions -------------------------------------------
+        out.append("<section id='after'><h2>3 · Triage — after regions</h2>")
+        if bound and parts:
+            out.append(
+                "<p class='caption'>The before/after picture: an arrow runs from "
+                "each partitioned feature's global point to each of its leaves. "
+                "Leaves of a good partition land right and down — more decisive, "
+                "less heterogeneous.</p>"
+            )
+            out.append(
+                self._img(
+                    self._triage_fig(
+                        partitions=parts, title="Feature triage — after find_regions"
+                    ),
+                    alt="triage after regions",
+                )
+            )
+        else:
+            if parts:
+                out.append(
+                    "<p class='note'>Before/after arrows need the live effect — "
+                    "this report was rebuilt from stored values; the global "
+                    "plane is repeated below.</p>"
+                )
+            else:
+                out.append(
+                    "<p class='note'>No feature was partitioned — nothing moved; "
+                    "the plane is unchanged from the overview.</p>"
+                )
+            out.append(self._img(self._triage_fig(), alt="feature triage"))
+        out.append("</section>")
+
+        out.append(
+            "<footer>generated by <b>effector</b> · "
+            "<code>effector.explain(...)</code> → <code>report.to_html()</code>"
+            "</footer></main>"
+        )
+        out.append(_TAIL)
+        html = "".join(out)
         if path is not None:
             with open(path, "w") as fh:
                 fh.write(html)
         return html
+
+    def _global_fig(self, fr):
+        """The feature's global-effect figure — the live `effect.plot` (exactly
+        what the analyst runs, with the method's own band and categorical
+        handling) when bound, the stored curves otherwise."""
+        if self._effect is not None:
+            return self._effect.plot(fr.feature, heterogeneity=True, show_plot=False)
+        return self._effect_fig(fr)
 
     def _effect_fig(self, fr):
         import matplotlib.pyplot as plt
@@ -270,15 +554,19 @@ class Report:
         return buf.getvalue()
 
     @staticmethod
-    def _img(fig_ax):
+    def _img(fig_ax, alt=""):
         import matplotlib.pyplot as plt
 
         fig = fig_ax[0] if isinstance(fig_ax, tuple) else fig_ax
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=90, bbox_inches="tight")
+        fig.savefig(buf, format="png", dpi=100, bbox_inches="tight")
         plt.close(fig)
         b64 = base64.b64encode(buf.getvalue()).decode("ascii")
-        return f"<img src='data:image/png;base64,{b64}'/>"
+        return (
+            f"<img class='zoomable' loading='lazy' "
+            f"alt='{_htmlmod.escape(alt, quote=True)}' "
+            f"src='data:image/png;base64,{b64}'/>"
+        )
 
     # -- serialization ---------------------------------------------------------
     def to_dict(self):
@@ -296,6 +584,7 @@ class Report:
             "feature_names": list(self.feature_names),
             "target_name": self.target_name,
             "config": self.config,
+            "overview": [dict(o) for o in self.overview],
             "features": [fr.to_dict() for fr in self.features],
         }
 
@@ -305,7 +594,7 @@ class Report:
 
         The result is unbound: `show`, `plot_importance`, and `to_html` all
         work from the stored values; `to_html` skips only the per-leaf
-        regional plots, which need the live effect.
+        regional plots and the triage arrows, which need the live effect.
 
         Args:
             d: a dict produced by `to_dict()`.
@@ -319,7 +608,71 @@ class Report:
             target_name=d["target_name"],
             features=[FeatureReport.from_dict(x) for x in d["features"]],
             config=d.get("config", {}),
+            overview=[dict(o) for o in d.get("overview", [])],
         )
+
+
+# page chrome for `to_html` — inline only, no external assets
+_CSS = """
+:root{--ink:#1a1a1a;--muted:#666;--line:#ddd;--bg:#fff;--card:#fafafa;--accent:#4C78A8}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;margin:0;color:var(--ink);background:var(--bg);line-height:1.5}
+main{max-width:1000px;margin:0 auto;padding:0 1.5rem 4rem}
+nav{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.95);border-bottom:1px solid var(--line);padding:.6rem 1.5rem;display:flex;gap:1.1rem;flex-wrap:wrap;font-size:.9rem}
+nav a{color:var(--accent);text-decoration:none;font-weight:500}
+nav a:hover{text-decoration:underline}
+h1{font-size:1.6rem;margin:1.5rem 0 .25rem}
+h2{font-size:1.25rem;margin:0 0 1rem;padding-bottom:.4rem;border-bottom:2px solid var(--accent)}
+h3{margin:1.5rem 0 .5rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-size:.78rem}
+section{margin:2.75rem 0;scroll-margin-top:3.5rem}
+.chips{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0 1rem}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:.15rem .7rem;font-size:.8rem;color:var(--muted)}
+.chip b{color:var(--ink);font-weight:600}
+table{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums;margin:1rem 0}
+td,th{border-bottom:1px solid var(--line);padding:6px 10px;text-align:right}
+th{color:var(--muted);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.03em}
+th:nth-child(2),td:nth-child(2),th:last-child,td:last-child{text-align:left}
+tr[data-href]{cursor:pointer}
+tr[data-href]:hover{background:var(--card)}
+tr.dim{color:var(--muted)}
+pre{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:1rem;overflow-x:auto;font-size:.8rem;line-height:1.45}
+code{background:var(--card);border-radius:4px;padding:.05rem .3rem;font-size:.85em}
+figure{margin:1rem 0;text-align:center}
+figcaption{font-size:.85rem;color:var(--muted);margin-top:.4rem}
+img{max-width:100%;height:auto}
+img.zoomable{cursor:zoom-in;border:1px solid var(--line);border-radius:6px;background:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1rem;align-items:start}
+.grid figure{margin:0}
+.caption{color:var(--muted);font-size:.9rem}
+.note{color:var(--muted);font-style:italic;font-size:.9rem}
+details{margin:1rem 0}
+summary{cursor:pointer;font-weight:600;color:var(--accent)}
+footer{color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:1rem;margin-top:3rem}
+#lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;cursor:zoom-out;align-items:center;justify-content:center;padding:2rem}
+#lightbox.on{display:flex}
+#lightbox img{max-width:95vw;max-height:95vh;background:#fff;border-radius:6px}
+#top{display:none;position:fixed;right:1.25rem;bottom:1.25rem;z-index:50;border:1px solid var(--line);background:var(--bg);color:var(--accent);border-radius:999px;width:2.5rem;height:2.5rem;font-size:1.1rem;cursor:pointer}
+#top.on{display:block}
+"""
+
+_TAIL = """
+<div id='lightbox'><img alt=''/></div>
+<button id='top' title='back to top'>&#8593;</button>
+<script>
+var lb=document.getElementById('lightbox'),lbi=lb.querySelector('img');
+document.querySelectorAll('img.zoomable').forEach(function(im){
+  im.addEventListener('click',function(){lbi.src=im.src;lb.classList.add('on');});
+});
+lb.addEventListener('click',function(){lb.classList.remove('on');});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')lb.classList.remove('on');});
+document.querySelectorAll('tr[data-href]').forEach(function(r){
+  r.addEventListener('click',function(){location.hash=r.dataset.href;});
+});
+var topBtn=document.getElementById('top');
+window.addEventListener('scroll',function(){topBtn.classList.toggle('on',window.scrollY>600);});
+topBtn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+</script></body></html>
+"""
 
 
 def explain(
@@ -374,7 +727,8 @@ def explain(
 
     Returns:
         a `Report` bound to the fitted effect — `FeatureReport`s in
-        importance-descending order, partitions stored as dicts.
+        importance-descending order, partitions stored as dicts, and an
+        `overview` (importance + heterogeneity) over every supported feature.
     """
     spec = method_registry.resolve(method)
     ctor_args = (model, model_jac) if spec.needs_jac else (model,)
@@ -395,11 +749,12 @@ def explain(
     effect.fit(features=supported)
 
     imp = effect.importances()
-    ranked = [
+    order = [
         int(f)
         for f in np.argsort(-np.nan_to_num(imp, nan=-np.inf))
-        if not np.isnan(imp[f])
-    ][:top_k]
+        if int(f) in set(supported) and not np.isnan(imp[f])
+    ]
+    ranked = order[:top_k]
 
     # evaluate every reported surface through the model-free masked path (an
     # all-ones mask ≡ unmasked by M1); PDP/DerPDP are model-free only ON their
@@ -417,9 +772,11 @@ def explain(
             helpers.NOF_INTERNAL_POINTS,
         )
 
-    hs_map = {f: float(effect.heter_score(f, mask=mask_all)) for f in ranked}
+    # cheap scalars for the WHOLE plane (the triage view), not just the top-k
+    hs_all = {f: float(effect.heter_score(f, mask=mask_all)) for f in order}
     if heter_threshold is None:
-        thr = float(np.median(list(hs_map.values()))) if hs_map else 0.0
+        hs_ranked = [hs_all[f] for f in ranked]
+        thr = float(np.median(hs_ranked)) if hs_ranked else 0.0
     else:
         thr = heter_threshold
 
@@ -429,7 +786,7 @@ def explain(
         y = effect.eval(f, xs, mask=mask_all)
         y = y[0] if isinstance(y, tuple) else y
         h = effect.eval_heter(f, xs, mask=mask_all)
-        hs = hs_map[f]
+        hs = hs_all[f]
         part = (
             effect.find_regions(
                 f,
@@ -465,5 +822,15 @@ def explain(
             "nof_instances": nof_instances,
             "random_state": random_state,
         },
+        overview=[
+            {
+                "feature": f,
+                "name": effect.feature_names[f],
+                "importance": float(imp[f]),
+                "heter_score": hs_all[f],
+                "reported": f in set(ranked),
+            }
+            for f in order
+        ],
     )
     return report._bind(effect)
