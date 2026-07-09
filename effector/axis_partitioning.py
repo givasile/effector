@@ -1,3 +1,28 @@
+"""1D bin optimizers: split a feature axis into bins for ALE-style effects.
+
+Each optimizer takes 1D points `x` (and, for the variance-driven ones, a
+per-point value `y` — the local effects) and returns ascending bin edges.
+Select one via the `binning_method` argument of `ALE.fit` / `RHALE.fit`,
+either as a string alias or as a configured instance:
+
+```python
+rhale.fit("all", binning_method="dp")  # alias, default parameters
+rhale.fit("all", binning_method=effector.axis_partitioning.DynamicProgramming(max_nof_bins=30))
+```
+
+| Class (alias) | Bin edges | Uses `y` | Cost | Pick it when |
+|---|---|---|---|---|
+| `Fixed` (`"fixed"`) | uniform grid, exactly `nof_bins` | no | O(N) | you want a fixed-resolution grid; the only binner `ALE` accepts |
+| `Quantile` (`"quantile"`) | data quantiles, ~equal counts | no | O(N log N) | skewed features, where a uniform grid wastes bins |
+| `Agglomerative` (`"agglomerative"`) | greedy bottom-up merge of a fine grid | yes | O(N + K^2) | you want adaptive bins at low cost |
+| `DynamicProgramming` (`"dp"`) | exact optimum over a K-cell grid | yes | O(N + K^3) | you want the best adaptive bins; `RHALE`'s default |
+
+The variance-driven binners (`Agglomerative`, `DynamicProgramming`) share one
+objective — a bin spanning `[a, b]` costs `Var[y] * (b - a) * (1 - discount * n/N)`
+— so wide, homogeneous, well-populated bins are cheap. `"greedy"` is a
+deprecated alias for `"agglomerative"`.
+"""
+
 import copy
 import dataclasses
 import enum
@@ -294,14 +319,19 @@ class Base:
 
 
 class Agglomerative(Base):
-    """Bottom-up agglomerative binning.
+    """Bottom-up greedy binning: near-optimal adaptive bins at a fraction of DP's cost.
 
     Start from a fine uniform grid of `init_nof_bins` cells and repeatedly remove
     the interior boundary whose removal reduces the total cost the most, stopping
-    when no removal helps (under-filled bins carry `big_M`, so they are merged
-    away first). A genuine greedy — order-independent and driven by the same
-    variance×width objective `DynamicProgramming` optimizes, but only locally
-    optimal. O(N + K^2). (Replaces the old left-to-right `Greedy` sweep.)
+    when no removal helps (under-filled bins are merged away first). Driven by
+    the same variance-based objective `DynamicProgramming` optimizes exactly, but
+    only locally optimal — O(N + K^2) instead of O(N + K^3). Pick it when `"dp"`
+    is too slow.
+
+    !!! note "Replaces the old `Greedy`"
+        The old left-to-right `Greedy` sweep was replaced by this
+        order-independent agglomerative merge; `Greedy` and the `"greedy"`
+        alias still work and resolve here.
     """
 
     def __init__(
@@ -310,6 +340,17 @@ class Agglomerative(Base):
         min_points_per_bin: int = 2,
         discount: float = 0.3,
     ):
+        """Initialize the agglomerative binner.
+
+        Args:
+            init_nof_bins: Number of cells in the starting uniform grid; the
+                final bins are unions of these cells, so it caps the resolution.
+            min_points_per_bin: Bins with fewer points are penalized and merged
+                away. Must be at least 2 (variance needs two points).
+            discount: How much to reward well-populated bins. A bin holding a
+                fraction `p` of the points has its cost scaled by
+                `1 - discount * p`; higher values favor fewer, fuller bins.
+        """
         assert min_points_per_bin >= 2, "min_points_per_bin should be at least 2"
         constraints = Constraints(min_points_per_bin=min_points_per_bin)
         params = {"init_nof_bins": init_nof_bins, "discount": discount}
@@ -349,12 +390,33 @@ class Agglomerative(Base):
 
 
 class DynamicProgramming(Base):
+    """Optimal variance-based binning — `RHALE`'s default (`"dp"`).
+
+    Among all partitions of a uniform `max_nof_bins`-cell grid, dynamic
+    programming finds the one that exactly minimizes the total cost
+    `Var[y] * width * (1 - discount * n/N)` summed over bins: bin edges land
+    where the local effects change behavior. The most accurate binner and the
+    most expensive — O(N + K^3) in `max_nof_bins`; for large grids consider
+    `Agglomerative`, which chases the same objective greedily.
+    """
+
     def __init__(
         self,
         max_nof_bins: int = 20,
         min_points_per_bin: int = 2,
         discount: float = 0.3,
     ):
+        """Initialize the dynamic-programming binner.
+
+        Args:
+            max_nof_bins: Number of cells in the candidate grid and an upper
+                bound on the number of bins; the optimum may use fewer.
+            min_points_per_bin: Bins with fewer points are penalized and
+                avoided. Must be at least 2 (variance needs two points).
+            discount: How much to reward well-populated bins. A bin holding a
+                fraction `p` of the points has its cost scaled by
+                `1 - discount * p`; higher values favor fewer, fuller bins.
+        """
         assert min_points_per_bin >= 2, "min_points_per_bin should be at least 2"
         constraints = Constraints(
             min_points_per_bin=min_points_per_bin, max_nof_bins=max_nof_bins
@@ -435,7 +497,23 @@ class DynamicProgramming(Base):
 
 
 class Fixed(Base):
+    """Uniform grid: exactly `nof_bins` equal-width bins — `ALE`'s default (`"fixed"`).
+
+    Ignores `y`, so it is deterministic and the cheapest option (O(N)). It is
+    also the only binner `ALE` accepts: a shared fixed grid is part of ALE's
+    definition. It honors the requested bin count exactly — it never collapses
+    to fewer bins; if some bin ends up under `min_points_per_bin` it reports
+    failure instead.
+    """
+
     def __init__(self, nof_bins: int = 20, min_points_per_bin: int = 0):
+        """Initialize the fixed binner.
+
+        Args:
+            nof_bins: Number of equal-width bins over the axis range.
+            min_points_per_bin: If any bin of the grid holds fewer points,
+                `find_limits` returns `False`. `0` disables the check.
+        """
         constraints = Constraints(min_points_per_bin=min_points_per_bin)
         params = {"nof_bins": nof_bins}
         super(Fixed, self).__init__("fixed", constraints, params)
@@ -463,13 +541,25 @@ class Fixed(Base):
 
 
 class Quantile(Base):
-    """Equal-frequency binning: edges at data quantiles so every bin holds ~the
-    same number of points. Like `Fixed` it ignores `y`, but it adapts the edge
-    positions to the `x` distribution — robust for skewed features where a
-    uniform grid wastes bins. O(N log N). Under-filled bins (only with heavy
-    ties) are merged into a neighbor to honor `min_points_per_bin`."""
+    """Equal-frequency binning: edges at data quantiles (`"quantile"`).
+
+    Every bin holds roughly the same number of points. Like `Fixed` it ignores
+    `y`, but it adapts the edge positions to the `x` distribution — pick it for
+    skewed features, where a uniform grid wastes bins on empty stretches.
+    O(N log N). Tied quantiles collapse (so discrete-ish data yields fewer
+    bins), and under-filled bins are merged into a neighbor to honor
+    `min_points_per_bin`.
+    """
 
     def __init__(self, nof_bins: int = 20, min_points_per_bin: int = 0):
+        """Initialize the quantile binner.
+
+        Args:
+            nof_bins: Number of equal-frequency bins (edges at the `i/nof_bins`
+                quantiles); duplicates collapse, so ties may yield fewer.
+            min_points_per_bin: Bins with fewer points are merged into a
+                neighbor. `0` disables the check.
+        """
         constraints = Constraints(min_points_per_bin=min_points_per_bin)
         params = {"nof_bins": nof_bins}
         super(Quantile, self).__init__("quantile", constraints, params)

@@ -591,17 +591,25 @@ class GlobalEffectBase(ABC):
         centering: Union[bool, str] = False,
         **kwargs,
     ) -> None:
-        """Declare the method configuration for the given features and warm the
-        caches. Nothing fit does is unavailable lazily: any `eval`/`plot` on an
-        unfitted feature silently computes what it needs with the defaults.
+        """Declare the method configuration and do the expensive work now.
+
+        ```python
+        ale.fit("all")                                   # everything, defaults
+        ale.fit(["hr", "temp"], binning_method="dp")     # custom config
+        ```
+
+        !!! tip "`fit` is optional"
+            Any `eval`/`plot` on an unfitted feature silently computes what it
+            needs with the defaults. `fit` is *the place to customize*: its
+            kwargs (binning, order, scope) are deliberately not accepted by
+            `eval`/`plot`.
 
         Args:
-            features: the features to fit. If set to "all", all the features will be fitted.
-            centering: the default centering mode this feature is queried with
-
-                    - If `centering` is `False`, effects are not centered
-                    - If `centering` is `True` or `zero_integral`, the effect is centered around the `y` axis.
-                    - If `centering` is `zero_start`, the effect starts from zero.
+            features: which features to fit — an index/name, a list, or `"all"`.
+            centering: the default centering mode for this feature:
+                `False` (raw), `True`/`"zero_integral"` (zero mean), or
+                `"zero_start"` (starts at 0).
+            **kwargs: method-specific config — see each class's `fit`.
         """
         raise NotImplementedError
 
@@ -641,42 +649,36 @@ class GlobalEffectBase(ABC):
         mask: Optional[np.ndarray] = None,
         rule: Union[None, str, "Rule"] = None,
     ) -> np.ndarray:
-        """Evaluate the mean effect of the `feature`-th feature at positions `xs`.
+        """The mean effect of a feature at positions `xs`.
 
-        Notes:
-            This is the one evaluation method of every effect class (R1): it
-            always returns the mean effect as a single `(T,)` array.
-            Heterogeneity lives on its own surface — `eval_heter(feature, xs)`
-            for the curve, `heter_score(feature)` for the scalar, and
-            `payload(feature)` for the method's raw object.
+        ```python
+        xs = np.linspace(0, 24, 100)
+        y = pdp.eval("hr", xs)                            # (100,) mean effect
+        y_wd = pdp.eval("hr", xs, rule="workingday == 0") # same, on a subregion
+        ```
+
+        !!! note "One array, one type (R1)"
+            `eval` always returns the mean effect only. The spread around it
+            has its own ladder: `eval_heter` (curve), `heter_score` (scalar),
+            `payload` (the raw fitted object).
+
+        !!! warning "Discrete features"
+            Ordinal/nominal features are evaluated **only at observed
+            levels** — any other `xs` value raises `ValueError`.
 
         Args:
-            feature: index or name of the feature of interest
-            xs: the points along the s-th axis to evaluate the effect at
-
-              - `np.ndarray` of shape `(T, )`
-
-            centering: whether to center the effect
-
-                - `None` (default) uses the class default (`DEFAULT_CENTERING`)
-                - `False`: no centering
-                - `True` or `"zero_integral"`: center around the `y` axis
-                - `"zero_start"`: the effect starts from `y=0`
-
-            mask: optional boolean `(N,)` selecting a subregion. `None`
-                (default) evaluates over all instances; a mask summarizes that
-                subset of the cached local effects on the fly — the effect
-                *within* the subregion, on the global frame, without model
-                calls. Centering is then computed over the subregion's own
-                interval. Nothing is stored.
-
-            rule: sugar over `mask` — an `effector.Rule` (or a string like
-                `"temp < 3 and season == 0"`, parsed with this effect's
-                metadata) applied to the effect's data. Mutually exclusive
-                with `mask`.
+            feature: index or name of the feature of interest.
+            xs: where to evaluate, `(T,)`.
+            centering: `None` (class default), `False`,
+                `True`/`"zero_integral"`, or `"zero_start"`.
+            mask: optional boolean `(N,)` selecting a subregion — the effect
+                *within* it, re-summarized from cached local effects with zero
+                model calls. Nothing is stored.
+            rule: sugar over `mask` — an `effector.Rule` or a string like
+                `"temp < 3 and season == 0"`. Mutually exclusive with `mask`.
 
         Returns:
-            the mean effect `y` at the given `xs`, `(T,)`
+            the mean effect at `xs`, shape `(T,)`.
         """
         feature = self._resolve_feature(feature)
         centering = self.DEFAULT_CENTERING if centering is None else centering
@@ -707,30 +709,31 @@ class GlobalEffectBase(ABC):
         mask: Optional[np.ndarray] = None,
         rule: Union[None, str, "Rule"] = None,
     ) -> np.ndarray:
-        """Evaluate the heterogeneity curve h(xs) of the `feature`-th feature.
+        """The heterogeneity curve h(xs): how much per-instance effects disagree at each x.
 
-        Notes:
-            The values are *method-specific* (R2): the variance of the centered
-            ICE curves (PDP), of the d-ICE curves (DerPDP), the per-bin variance
-            of the local effects as a step function (ALE/RHALE), or the
-            interpolated per-bin variance of the SHAP values (ShapDP). They are
-            variances — take a square root for a std-like band.
+        ```python
+        h = pdp.eval_heter("hr", xs)          # (T,) variance around the mean
+        band = np.sqrt(h)                     # std-like band, plot-ready
+        ```
 
-            There is deliberately no `centering` argument: heterogeneity is
-            invariant to centering.
+        !!! note "It's a variance, and it's method-specific (R2)"
+            PDP: variance of centered ICE; DerPDP: of d-ICE slopes; ALE/RHALE:
+            per-bin slope variance as a step function; ShapDP: interpolated
+            per-bin φ variance. Take the square root for a band.
+
+        !!! note "No `centering` argument — by design"
+            Heterogeneity is invariant to centering; the signature enforces it.
 
         Args:
-            feature: index or name of the feature of interest
-            xs: the points to evaluate the heterogeneity at, `(T,)`
-            mask: optional boolean `(N,)` selecting a subregion. `None` (default)
-                evaluates over all instances; a mask summarizes that subset of
-                the cached local effects on the fly (the regional split search) —
-                pure numpy, no model calls.
-            rule: sugar over `mask` — an `effector.Rule` or a rule string,
-                applied to the effect's data. Mutually exclusive with `mask`.
+            feature: index or name of the feature of interest.
+            xs: where to evaluate, `(T,)`.
+            mask: optional boolean `(N,)` subregion — re-summarized from cached
+                local effects, zero model calls.
+            rule: sugar over `mask` (an `effector.Rule` or a rule string);
+                mutually exclusive with `mask`.
 
         Returns:
-            the heterogeneity curve h(xs), `(T,)`, non-negative
+            the heterogeneity curve h(xs), `(T,)`, non-negative.
         """
         feature = self._resolve_feature(feature)
         mask = self._resolve_mask(mask, rule)
@@ -738,10 +741,15 @@ class GlobalEffectBase(ABC):
         return self._eval_payload(feature, params, xs, heterogeneity=True)[1]
 
     def payload(self, feature: Union[int, str]) -> dict:
-        """The method's raw fitted object for the `feature`-th feature — the
-        honest method-specific state behind `eval`/`eval_heter` (per-bin
-        effects and variances for (RH)ALE and ShapDP, the grid summaries for
-        (d-)PDP): the all-ones summary (R14), pure numpy."""
+        """The raw fitted object behind `eval`/`eval_heter` — pure numpy, yours to inspect.
+
+        ```python
+        p = ale.payload("hr")     # e.g. {"limits": ..., "bin_effect": ..., "bin_variance": ...}
+        ```
+
+        Per method: per-bin effects and variances for (RH)ALE and ShapDP, the
+        grid summaries for (d-)PDP. A copy — mutate freely.
+        """
         return dict(self._summary(self._resolve_feature(feature), None))
 
     def heter_score(
@@ -750,17 +758,31 @@ class GlobalEffectBase(ABC):
         mask: Optional[np.ndarray] = None,
         rule: Union[None, str, "Rule"] = None,
     ) -> float:
-        """The method-agnostic heterogeneity scalar of the `feature`-th
-        feature: the mean of `eval_heter` over a uniform grid
-        (`helpers.NOF_INTERNAL_POINTS` points) on the feature's interval — the
-        single quantity regional splitting (and the future interaction module)
-        consumes.
+        """One number for a feature's heterogeneity — the scalar `find_regions` minimizes.
 
-        With a `mask` (boolean `(N,)`), the score is computed over that
-        subregion from the cached local effects — the entry point the regional
-        split search calls for every candidate, model-free. `rule` is sugar
-        over `mask` (an `effector.Rule` or a rule string; mutually
-        exclusive)."""
+        ```python
+        pdp.heter_score("hr")                            # global
+        pdp.heter_score("hr", rule="workingday == 0")    # within a subregion
+        ```
+
+        The mean of `eval_heter` over a uniform grid on the feature's interval
+        (frequency-weighted over levels for categorical features).
+        Method-agnostic and comparable across features of the same effect.
+
+        !!! tip "Pair it with `importance`"
+            `importance` measures the *mean* effect's strength; `heter_score`
+            measures the spread around it. High importance + high
+            heterogeneity = the top-right corner of `effector.plot_triage` —
+            where `find_regions` should look.
+
+        Args:
+            feature: index or name of the feature of interest.
+            mask: optional boolean `(N,)` subregion — model-free.
+            rule: sugar over `mask`; mutually exclusive with it.
+
+        Returns:
+            a non-negative scalar.
+        """
         feature = self._resolve_feature(feature)
         mask = self._resolve_mask(mask, rule)
         if self._is_cat(feature):
@@ -785,37 +807,43 @@ class GlobalEffectBase(ABC):
         finder="best",
         candidate_conditioning_features="all",
     ):
-        """Search for heterogeneity-reducing subregions and return the result as
-        a value (R12): nothing is stored on `self`.
+        """Search for subregions that resolve a feature's heterogeneity.
 
-        The search is model-free: every candidate's score is
-        `heter_score(feature, mask)`, re-summarized from the cached local effects
-        (and memoized). There are no method fit kwargs here — the binning/scope
-        etc. are exactly those `feature` was fitted with, replayed.
+        ```python
+        part = pdp.find_regions("hr")                       # one feature -> Partition
+        part.show()                                         # the tree + level stats
+        pdp.plot("hr", rule=part.leaves[0].rule)            # drill into a leaf
 
-        Exactly one of `feature`/`features` must be given. The singular form
-        returns one `Partition`; the plural form runs the same search per
-        feature and returns a `{feature_name: Partition}` dict — the shape
-        `plot_triage(effect, partitions=...)` consumes directly.
+        parts = pdp.find_regions(features="heterogeneous")  # several -> {name: Partition}
+        effector.plot_triage(pdp, partitions=parts)         # the before/after picture
+        ```
+
+        !!! note "A query, not a mutation (R12)"
+            The result is a value — nothing is stored on the effect. Don't
+            like a partition? Search again with different finder kwargs;
+            nothing needs resetting.
+
+        !!! note "Model-free"
+            Every candidate split is scored by `heter_score(feature, mask)`
+            on the cached local effects — zero model calls, whatever the grid
+            size. Binning/scope are those the feature was fitted with,
+            replayed.
 
         Args:
-            feature: index or name of the one feature to partition.
-            features: partition several features — a list of indices/names,
-                `"all"` (every feature this method supports), or
-                `"heterogeneous"` (supported features whose `heter_score` is at
-                or above the median — the same threshold convention
-                `effector.explain` uses). With `"all"`/`"heterogeneous"`,
-                unsupported feature types are skipped with one `UserWarning`;
-                a feature named explicitly in a list raises instead.
-            finder: a region finder — either a name (`"best"` /
-                `"best_level_wise"`) or any object implementing the finder
-                protocol (`find_regions(feature, data, score_fn, ...) -> Partition`).
+            feature: index or name of the one feature to partition
+                (→ `Partition`).
+            features: several at once — a list, `"all"`, or `"heterogeneous"`
+                (heter_score at/above the median, the same convention
+                `effector.explain` uses) → `{feature_name: Partition}`.
+                Exactly one of `feature`/`features` must be given.
+            finder: `"best"` (default), `"best_level_wise"`, or a configured
+                finder instance (e.g. `effector.space_partitioning.Best(...)`).
             candidate_conditioning_features: features allowed to define splits
                 (`"all"` or a list of indices/names).
 
         Returns:
-            a `Partition` bound to this effect (its `plot`/`eval` re-query
-            `self`) — or `{feature_name: Partition}` when `features=` is used.
+            a `Partition` bound to this effect — or `{feature_name: Partition}`
+            with `features=`.
         """
         if (feature is None) == (features is None):
             raise ValueError(
@@ -913,18 +941,26 @@ class GlobalEffectBase(ABC):
         mask: Optional[np.ndarray] = None,
         rule: Union[None, str, "Rule"] = None,
     ) -> float:
-        """R13: how much the **mean effect** of `feature` varies over the
-        (masked) data — the μ-twin of `heter_score` (which measures per-instance
-        spread). Model-free (re-summarized from the cached local effects) and
-        centering-invariant (the dispersion of the mean effect does not depend on
-        the additive centering constant, so there is deliberately no `centering`
-        argument). A `mask` restricts it to a subregion.
+        """How much a feature's mean effect moves the prediction (R13).
+
+        ```python
+        pdp.importance("temp")                           # scalar
+        pdp.importance("temp", rule="workingday == 1")   # within a subregion
+        ```
+
+        The dispersion of the **mean** effect — the μ-twin of `heter_score`
+        (which measures per-instance spread). A flat curve scores ~0; a
+        swinging curve scores high. Per method: std of the mean effect
+        (PDP/ALE/RHALE), `mean(|φ|)` (ShapDP), `mean(|derivative|)` (DerPDP).
+
+        !!! note "No `y`, ever"
+            effector never sees ground-truth labels — this is a property of
+            the fitted effect, not a loss/permutation importance.
 
         Args:
             feature: index or name of the feature of interest.
-            mask: optional boolean `(N,)` selecting a subregion.
-            rule: sugar over `mask` — an `effector.Rule` or a rule string,
-                applied to the effect's data. Mutually exclusive with `mask`.
+            mask: optional boolean `(N,)` subregion — model-free.
+            rule: sugar over `mask`; mutually exclusive with it.
 
         Returns:
             a non-negative scalar.
@@ -963,9 +999,24 @@ class GlobalEffectBase(ABC):
         mask: Optional[np.ndarray] = None,
         rule: Union[None, str, "Rule"] = None,
     ) -> np.ndarray:
-        """R13: the per-feature importance vector `(D,)`. Feature types this
-        method cannot explain are `NaN`, with one `UserWarning` (R9) naming the
-        skipped columns. `rule` is sugar over `mask` (mutually exclusive)."""
+        """The whole importance vector — rank your features in one call.
+
+        ```python
+        imp = pdp.importances()                       # (D,)
+        order = np.argsort(-np.nan_to_num(imp))       # most important first
+        ```
+
+        !!! warning "NaN means unsupported, not unimportant"
+            Feature types this method cannot explain (e.g. RHALE on a nominal
+            feature) return `NaN`, with one `UserWarning` naming them.
+
+        Args:
+            mask: optional boolean `(N,)` subregion.
+            rule: sugar over `mask`; mutually exclusive with it.
+
+        Returns:
+            the per-feature importance vector, `(D,)`.
+        """
         mask = self._resolve_mask(mask, rule)
         out = np.full(self.dim, np.nan)
         skipped = []
@@ -991,22 +1042,13 @@ class GlobalEffectBase(ABC):
         centering: Union[bool, str] = False,
         **kwargs,
     ) -> None:
-        """
+        """Draw the effect of one feature — a thin wrapper over the fitted state (R7).
 
-        Parameters
-        ----------
-        feature: index of the feature to plot
-        heterogeneity: whether to plot the heterogeneity measures
-
-            - If `heterogeneity=False`, the plot shows only the mean effect
-            - If `heterogeneity=True`, the plot additionally shows the heterogeneity with the default visualization, e.g., ICE plots for PDPs
-            - If `heterogeneity=<str>`, the plot shows the heterogeneity using the specified method
-
-        centering: whether to center the PDP
-
-                - If `centering` is `False`, the PDP not centered
-                - If `centering` is `True` or `zero_integral`, the PDP is centered around the `y` axis.
-                - If `centering` is `zero_start`, the PDP starts from `y=0`.
-        **kwargs: all other plot-specific arguments
+        Args:
+            feature: index or name of the feature to plot.
+            heterogeneity: `False` (mean only), `True` (the method's default
+                view, e.g. ICE for PDP), or a named view (`"std"`, `"ice"`, ...).
+            centering: `False`, `True`/`"zero_integral"`, or `"zero_start"`.
+            **kwargs: method-specific plot options — see each class's `plot`.
         """
         raise NotImplementedError

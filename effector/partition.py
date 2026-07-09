@@ -32,11 +32,24 @@ from effector.rules import Interval, Rule
 
 @dataclass(frozen=True)
 class Region:
-    """One subregion of a feature's domain, defined by a `Rule`.
+    """One subregion of a feature's domain — a frozen value whose identity is its `Rule`.
 
-    `idx == 0` is the full-data region (root, `rule.is_root`). `mask` is a
-    derived cache — the rule applied to one dataset; it is `None` on a
-    deserialized region until `Partition.bind` recomputes it.
+    `idx == 0` is the root: full data, weight 1.0, the global effect itself.
+    `heterogeneity` is `effect.heter_score(feature, mask)` within the region,
+    stamped when the region was built. `mask` is a derived cache — the rule
+    applied to one dataset — and is `None` on a deserialized region until
+    `Partition.bind` recomputes it.
+
+    Attributes:
+        idx: position in the partition; 0 is the root.
+        name: display name — the feature name, or ``"<feature> | <rule>"``.
+        rule: the `Rule` that defines membership — the region's identity.
+        heterogeneity: `heter_score(feature, mask)` within the region.
+        nof_instances: how many instances the rule selects.
+        weight: `nof_instances / N`.
+        level: depth in the partition tree (root = 0).
+        parent_idx: index of the parent region; `None` for the root.
+        mask: boolean `(N,)` cache of `rule.contains(data)`; `None` until bound.
     """
 
     idx: int
@@ -57,15 +70,23 @@ def _subset_sort_key(subset):
 
 
 class Partition:
-    """An ordered set of `Region`s covering a feature, produced by a finder.
+    """An ordered set of `Region`s covering one feature's domain — a value, not stored state.
 
-    Constructed with keyword-only metadata. `regions[0]` is the root (full
-    data, weight 1.0, root rule). A hierarchy is optional: `parent_idx` chains
-    encode a tree when a tree finder produced it, but flat producers (a user's
-    `from_rules`, future flat finders) may leave non-root `parent_idx` chains
-    shallow. The construction invariant: the leaves partition the root —
-    pairwise disjoint and jointly covering (checked whenever masks are
-    present; `bind` re-checks after recomputing masks from rules).
+    ```python
+    part = pdp.find_regions("hr")     # a Partition, bound to the effect
+    part.show()                       # tree + per-level stats
+    part.plot(1)                      # the effect inside region 1
+    ```
+
+    `regions[0]` is always the root — full data, weight 1.0, the global effect
+    itself — and the leaves partition it: pairwise disjoint, jointly covering
+    (verified whenever masks are present). Each region's identity is its
+    `Rule`; masks are derived caches, recomputed and re-verified by `bind`.
+
+    !!! note "Heterogeneity = `heter_score(feature, mask)`"
+        The heterogeneity a region reports is exactly the effect's
+        `heter_score(feature, mask=region_mask)` — the same scalar the
+        region finders minimize.
     """
 
     def __init__(
@@ -118,11 +139,30 @@ class Partition:
 
     # -- binding to an effect ----------------------------------------------------
     def bind(self, effect):
-        """Attach an effect: recompute every region's mask from its rule
-        against `effect.data` and verify it against the stored evidence — the
-        finder's mask when present (an exactness tripwire on the `find_regions`
-        path), else the serialized `nof_instances` (the `from_dict` path).
-        Returns `self`, live: `eval`/`plot`/`mask` work afterwards."""
+        """Attach an effect: recompute every region's mask from its rule and verify it.
+
+        ```python
+        part = effector.Partition.from_dict(d).bind(pdp)   # live again
+        ```
+
+        Masks are recomputed from the rules against `effect.data`, then checked
+        against the stored evidence — the finder's mask when present (the
+        `find_regions` path), else the serialized `nof_instances` (the
+        `from_dict` path). This is what makes a deserialized partition safely
+        re-attachable.
+
+        Args:
+            effect: a fitted global effect whose `data` the rules apply to.
+
+        Returns:
+            `self`, live — `eval`/`eval_heter`/`plot`/`mask` work afterwards.
+
+        Raises:
+            ValueError: a rule selects different instances than the stored
+                evidence — the effect's data differs from the data the
+                partition was built on (check `nof_instances` subsampling
+                and `random_state`).
+        """
         rebuilt = []
         for r in self.regions:
             m = r.rule.contains(effect.data)
@@ -164,10 +204,32 @@ class Partition:
     # -- user-authored partitions --------------------------------------------------
     @classmethod
     def from_rules(cls, rules, *, effect, feature, finder_name="user"):
-        """Build a partition from user-given rules (Rule objects or strings,
-        parsed with the effect's metadata). The rules must partition the data
-        — pairwise disjoint and jointly covering (constructor invariant).
-        Stats are stamped from the effect (model-free); the result is bound."""
+        """Build a partition from your own rules — no search.
+
+        ```python
+        part = effector.Partition.from_rules(
+            ["workingday == 0", "workingday == 1"], effect=pdp, feature=3
+        )
+        part.plot(1)
+        ```
+
+        Strings are parsed with the effect's metadata (`Rule.parse`); stats
+        (heterogeneity, counts, weights) are stamped from the effect's cached
+        local effects — zero model calls — and the result comes back bound.
+
+        Args:
+            rules: `Rule` objects or rule strings like `"temp < 3"`.
+            effect: a fitted global effect providing data and metadata.
+            feature: index of the feature of interest.
+            finder_name: label recorded on the partition (default `"user"`).
+
+        Returns:
+            a bound `Partition`: the root plus one level-1 region per rule.
+
+        Raises:
+            ValueError: the rules do not partition the data — some instance
+                is covered more than once or not at all.
+        """
         parsed = []
         for r in rules:
             if isinstance(r, str):
@@ -242,14 +304,26 @@ class Partition:
 
     @property
     def leaves(self):
-        """Regions that are no other region's parent. A one-region partition's
-        only leaf is the root."""
+        """The regions that are no other region's parent — the finest partition.
+
+        A one-region partition's only leaf is the root."""
         parents = {r.parent_idx for r in self.regions if r.parent_idx is not None}
         return [r for r in self.regions if r.idx not in parents]
 
     # -- masks & labels --------------------------------------------------------
     def mask(self, idx):
-        """Boolean mask of region `idx` (a COPY — safe to mutate)."""
+        """The boolean mask of region `idx` — a copy, safe to mutate.
+
+        Args:
+            idx: region index (0 = root).
+
+        Returns:
+            boolean array `(N,)` over the bound effect's data.
+
+        Raises:
+            RuntimeError: the region has no mask (unbound partition — rebuilt
+                from `to_dict()`); call `bind(effect)` first.
+        """
         region = self[idx]
         if region.mask is None:
             raise RuntimeError(
@@ -262,8 +336,19 @@ class Partition:
         return rule.format(self.feature_names, scale_x_list, self._category_names)
 
     def label(self, idx, scale_x_list=None):
-        """Human-readable label for region `idx`. Root -> feature name; else
-        ``"<feature> | <formatted rule>"``."""
+        """Human-readable label for region `idx`.
+
+        Root -> the feature name; otherwise ``"<feature> | <formatted rule>"``.
+
+        Args:
+            idx: region index.
+            scale_x_list: optional per-feature ``{"mean": ..., "std": ...}``
+                list to display values in original units; defaults to the
+                bound effect's.
+
+        Returns:
+            the label string.
+        """
         scale_x_list = helpers.resolve_scale(scale_x_list, self._default_scale_x_list)
         region = self[idx]
         if region.rule.is_root:
@@ -287,6 +372,17 @@ class Partition:
 
     # -- terminal summaries ------------------------------------------------------
     def show(self, scale_x_list=None):
+        """Print the partition tree and per-level heterogeneity statistics.
+
+        Each node shows its splitting condition plus a
+        ``[id | heter | inst | w]`` chip; the summary shows the heterogeneity
+        drop per level. Works on unbound partitions too.
+
+        Args:
+            scale_x_list: optional per-feature ``{"mean": ..., "std": ...}``
+                list for display in original units; defaults to the bound
+                effect's.
+        """
         scale_x_list = helpers.resolve_scale(scale_x_list, self._default_scale_x_list)
         feature = self.feature
 
@@ -354,9 +450,17 @@ class Partition:
         return chip + (f" | w: {region.weight:.2f}]" if with_weight else "]")
 
     def show_axes(self, scale_x_list=None):
-        """The axis view: when the leaves differ on one conditioning feature,
-        print them as a partition of that axis; on two, as a grid. Anything
-        else falls back to the tree print."""
+        """Print the leaves as a partition of the conditioning axes.
+
+        When the leaves differ on one conditioning feature, print them as a
+        partition of that axis; on two, as a grid. Anything else falls back
+        to the tree print (`show`).
+
+        Args:
+            scale_x_list: optional per-feature ``{"mean": ..., "std": ...}``
+                list for display in original units; defaults to the bound
+                effect's.
+        """
         scale_x_list = helpers.resolve_scale(scale_x_list, self._default_scale_x_list)
         leaves = self.leaves
         feats = sorted({f for leaf in leaves for f in leaf.rule.features})
@@ -424,14 +528,60 @@ class Partition:
 
     # -- effect-backed sugar ---------------------------------------------------
     def eval(self, idx, xs, **kwargs):
+        """The mean effect within region `idx` at positions `xs`.
+
+        Sugar for ``effect.eval(feature, xs, mask=part.mask(idx))`` —
+        re-summarized from cached local effects, zero model calls.
+
+        Args:
+            idx: region index (0 = root = the global effect).
+            xs: where to evaluate, `(T,)`.
+            **kwargs: forwarded to `effect.eval` (e.g. `centering`).
+
+        Returns:
+            the mean effect at `xs`, shape `(T,)`.
+
+        Raises:
+            RuntimeError: the partition is unbound; call `bind(effect)` first.
+        """
         return self._require_effect().eval(
             self.feature, xs, mask=self.mask(idx), **kwargs
         )
 
     def eval_heter(self, idx, xs):
+        """The heterogeneity curve within region `idx` at positions `xs`.
+
+        Sugar for ``effect.eval_heter(feature, xs, mask=part.mask(idx))`` —
+        model-free.
+
+        Args:
+            idx: region index (0 = root = the global effect).
+            xs: where to evaluate, `(T,)`.
+
+        Returns:
+            the heterogeneity curve at `xs`, shape `(T,)`, non-negative.
+
+        Raises:
+            RuntimeError: the partition is unbound; call `bind(effect)` first.
+        """
         return self._require_effect().eval_heter(self.feature, xs, mask=self.mask(idx))
 
     def plot(self, idx, scale_x_list=None, **plot_kwargs):
+        """Plot the effect within region `idx`, titled with the region's rule.
+
+        Sugar for ``effect.plot(feature, mask=part.mask(idx), ...)`` with the
+        region's `label` as the feature label.
+
+        Args:
+            idx: region index (0 = root = the global effect).
+            scale_x_list: optional per-feature ``{"mean": ..., "std": ...}``
+                list — scales both the axis and the rule in the label.
+            **plot_kwargs: forwarded to `effect.plot` (e.g. `heterogeneity`,
+                `centering`, `show_plot`).
+
+        Raises:
+            RuntimeError: the partition is unbound; call `bind(effect)` first.
+        """
         effect = self._require_effect()
         scale_x = scale_x_list[self.feature] if isinstance(scale_x_list, list) else None
         return effect.plot(
@@ -445,10 +595,28 @@ class Partition:
     # -- serialization boundary ------------------------------------------------
     @classmethod
     def from_dict(cls, d):
-        """Rebuild a `Partition` from `to_dict()` output. The result is
-        UNBOUND (no effect, no masks): `show`/`label`/`leaves` work;
-        `bind(effect)` recomputes and verifies the masks, restoring
-        `eval`/`plot`/`mask`."""
+        """Rebuild a `Partition` from `to_dict()` output.
+
+        ```python
+        part = effector.Partition.from_dict(d)   # labels/stats work
+        part.bind(pdp)                           # eval/plot work again
+        ```
+
+        !!! warning "The result is UNBOUND"
+            No effect, no masks: `show`/`show_axes`/`label`/`leaves` work from
+            the stored rules and stats, but `eval`/`eval_heter`/`plot`/`mask`
+            raise `RuntimeError` until `bind(effect)` recomputes and verifies
+            the masks.
+
+        Args:
+            d: a dict produced by `to_dict()` (schema version 2).
+
+        Returns:
+            an unbound `Partition`.
+
+        Raises:
+            ValueError: `d` is not a schema-version-2 (rule-based) dict.
+        """
         if d.get("schema_version") != 2:
             raise ValueError(
                 "Unsupported partition dict: expected schema_version 2 "
@@ -477,6 +645,17 @@ class Partition:
         )
 
     def to_dict(self):
+        """Serialize to a plain JSON-able dict.
+
+        !!! note "Rules + stats only"
+            Each region's rule and stamped statistics are serialized — never
+            masks, never the data, never the effect or the model.
+            `from_dict(...)` + `bind(effect)` restore the rest.
+
+        Returns:
+            a dict with `schema_version` 2, feature metadata, and one entry
+            per region (rule, heterogeneity, counts, weight, tree links).
+        """
         return {
             "schema_version": 2,
             "feature": self.feature,

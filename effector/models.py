@@ -1,3 +1,18 @@
+"""Analytic toy models with exact `predict` and `jacobian`.
+
+Each class is a closed-form function of a few features, built to exercise one
+specific phenomenon (a conditional interaction, a general interaction, a
+categorical gate). Because the math is known, every effect method's output can
+be checked against pen-and-paper ground truth — `effector.benchmarks` pairs
+these models with data distributions and spells those ground truths out.
+
+```python
+model = effector.models.ConditionalInteraction()
+y = model.predict(x)        # (N, 3) -> (N,)
+dy = model.jacobian(x)      # (N, 3) -> (N, 3)
+```
+"""
+
 import numpy as np
 
 from effector import helpers
@@ -17,10 +32,13 @@ class Base:
 
 class ConditionalInteraction(Base):
     def __init__(self):
-        r"""Define a simple model.
+        r"""The canonical conditional interaction: the sign of $x_2$ flips the effect of $x_1$.
 
         $f(x_1, x_2, x_3) = -x_1^2\mathbb{1}_{x_2 < 0} + x_1^2\mathbb{1}_{x_2 \geq 0} + e^{x_3}$
 
+        The global effect of $x_1$ averages out to zero while the regional
+        effects ($\pm x_1^2$) are strong — the textbook case for
+        `find_regions`, with one optimal split ($x_2$ at 0).
         """
         super().__init__(name=self.__class__.__name__)
 
@@ -28,7 +46,7 @@ class ConditionalInteraction(Base):
         """Predict.
 
         Args:
-            x : Input data, shape (N, 3)
+            x: Input data, shape (N, 3)
 
         Returns:
             Output of the model, shape (N,)
@@ -43,7 +61,7 @@ class ConditionalInteraction(Base):
         """Calculate the Jacobian of the model.
 
         Args:
-            x : Input data, shape (N, 3)
+            x: Input data, shape (N, 3)
 
         Returns:
             Jacobian of the model, shape (N, 3)
@@ -58,14 +76,15 @@ class ConditionalInteraction(Base):
 
 class DoubleConditionalInteraction(Base):
     def __init__(self):
-        r"""Define a simple model.
+        r"""A two-level conditional interaction: the signs of $x_2$ and $x_3$ jointly gate the effect of $x_1$.
 
-        $f(x_1, x_2, x_3) = -3x_1^2\mathbb{1}_{x_2 < 0}\mathbb{1}_{x_3 < 0} +
+        $f(x_1, x_2, x_3) = -3x_1^2\mathbb{1}_{x_2 < 0}\mathbb{1}_{x_3 < 0}
                             +x_1^2\mathbb{1}_{x_2 < 0}\mathbb{1}_{x_3 \geq 0}
                             -e^{x_1}\mathbb{1}_{x_2 \geq 0}\mathbb{1}_{x_3 < 0}
                             +e^{3x_1}\mathbb{1}_{x_2 \geq 0}\mathbb{1}_{x_3 \geq 0}$
-                            $
 
+        Four quadrants, four different effects of $x_1$ — resolving the
+        heterogeneity requires a two-level partition.
         """
         super().__init__(name=self.__class__.__name__)
 
@@ -73,7 +92,7 @@ class DoubleConditionalInteraction(Base):
         """Predict.
 
         Args:
-            x : Input data, shape (N, 3)
+            x: Input data, shape (N, 3)
 
         Returns:
             Output of the model, shape (N,)
@@ -91,7 +110,7 @@ class DoubleConditionalInteraction(Base):
         """Calculate the Jacobian of the model.
 
         Args:
-            x : Input data, shape (N, 3)
+            x: Input data, shape (N, 3)
 
         Returns:
             Jacobian of the model, shape (N, 3)
@@ -108,14 +127,19 @@ class DoubleConditionalInteraction(Base):
 
 class ConditionalInteraction4Regions(Base):
     def __init__(self):
-        """
+        r"""Two gates on the effect of $x_1$: $x_3$ flips its sign, $x_2$ picks its power.
+
         $f(x_1, x_2, x_3, x_4) =
         \begin{cases}
         -x_1^2 + e^{x_4}, & \text{if } x_2 < 0 \text{ and } x_3 < 0 \\
-        x_1^2 + e^{x_4}, & \text{if } x_2 < 0 \text{ and } x_3 \\geq 0 \\
-        -x_1^4 + e^{x_4}, & \text{if } x_2 \\geq 0 \text{ and } x_3 < 0 \\
-        x_1^4 + e^{x_4}, & \text{if } x_2 \\geq 0 \text{ and } x_3 \\geq 0
-        \\end{cases}
+        x_1^2 + e^{x_4}, & \text{if } x_2 < 0 \text{ and } x_3 \geq 0 \\
+        -x_1^4 + e^{x_4}, & \text{if } x_2 \geq 0 \text{ and } x_3 < 0 \\
+        x_1^4 + e^{x_4}, & \text{if } x_2 \geq 0 \text{ and } x_3 \geq 0
+        \end{cases}$
+
+        Four leaf regions with deterministic effects; the optimal split order
+        is dictated by the math (first $x_3$, the sign gate, then $x_2$, the
+        power gate) — see `benchmarks.ConditionalInteraction4RegionsUniform`.
         """
         super().__init__(name=self.__class__.__name__)
 
@@ -123,7 +147,7 @@ class ConditionalInteraction4Regions(Base):
         """Predict.
 
         Args:
-            x : Input data, shape (N, 4)
+            x: Input data, shape (N, 4)
 
         Returns:
             Output of the model, shape (N,)
@@ -146,7 +170,7 @@ class ConditionalInteraction4Regions(Base):
         """Calculate the Jacobian of the model.
 
         Args:
-            x : Input data, shape (N, 4)
+            x: Input data, shape (N, 4)
 
         Returns:
             Jacobian of the model, shape (N, 4)
@@ -170,10 +194,13 @@ class ConditionalInteraction4Regions(Base):
 
 class GeneralInteraction(Base):
     def __init__(self):
-        """Define a simple model.
+        r"""A smooth (non-conditional) interaction: $x_1$ and $x_2$ interact multiplicatively.
 
         $f(x_1, x_2, x_3) = x_1 x_2^2 + e^{x_3}$
 
+        Under a zero-mean $x_1$, the interaction is invisible in the mean
+        effect of $x_2$ but shows up in its heterogeneity — no crisp region
+        split resolves it (contrast with `ConditionalInteraction`).
         """
         super().__init__(name=self.__class__.__name__)
 
@@ -181,7 +208,7 @@ class GeneralInteraction(Base):
         """Predict.
 
         Args:
-            x : Input data, shape (N, 3)
+            x: Input data, shape (N, 3)
 
         Returns:
             Output of the model, shape (N,)
@@ -193,7 +220,7 @@ class GeneralInteraction(Base):
         """Calculate the Jacobian of the model.
 
         Args:
-            x : Input data, shape (N, 3)
+            x: Input data, shape (N, 3)
 
         Returns:
             Jacobian of the model, shape (N, 3)

@@ -205,11 +205,32 @@ def apply_theme(theme):
 
 
 def set_theme(name="light"):
-    """Activate a house theme by name: ``"light"``, ``"dark"``, ``"paper"``, or
-    ``"default"`` (restore stock matplotlib rcParams). Colors switch immediately
-    for new figures; the chrome rcParams are applied globally here.
+    """Activate a house theme for every figure effector draws after this call.
 
-    Raises ``ValueError`` for an unknown name.
+    ```python
+    effector.set_theme("dark")
+    effector.set_theme("default")   # back to stock matplotlib
+    ```
+
+    | Name | Look |
+    |---|---|
+    | `"light"` | the default: off-white surface, colorblind-safe palette |
+    | `"dark"` | the same palette on a dark surface |
+    | `"paper"` | pure white, no grid, 300-dpi savefig — print-ready |
+    | `"default"` | restore stock matplotlib rcParams |
+
+    !!! note "Global by design"
+        The chrome (background, font, grid, spines) lives in matplotlib's
+        global ``rcParams`` — matplotlib re-reads those at draw time, so a
+        local ``rc_context`` would revert before render. Palette colors and
+        chrome switch together for *new* figures; existing figures keep their
+        look.
+
+    Args:
+        name: one of the names above (default `"light"`).
+
+    Raises:
+        ValueError: unknown theme name.
     """
     global _ACTIVE
     if name == "default":

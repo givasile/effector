@@ -1,18 +1,24 @@
-"""Model adapters — facilitation only, the final pass is yours.
+"""Model adapters — wrappers that turn common model objects into the plain callable effector needs.
 
-effector engines take a plain numpy-in / numpy-out callable (R10). These
-helpers *return* such callables for common model objects — they never run
-automatically: you call the adapter, look at what it gave you, and pass it to
-the constructor yourself. Nothing in effector auto-detects or silently wraps
-a model.
+Every engine takes a numpy-in / numpy-out callable ``f(X: (N, D)) -> (N,)``.
+Each adapter here *returns* one; `check` probes it on two rows of your data
+before you build an engine.
+
+```python
+model = effector.adapters.from_sklearn(est)
+effector.adapters.check(model, X)
+pdp = effector.PDP(X, model, schema=schema)   # the final pass is yours
+```
+
+!!! note "Facilitation only"
+    Adapters only *return* callables — nothing in effector auto-detects or
+    silently wraps a model. You call the adapter, look at what it gave you,
+    and pass it to the constructor yourself.
 
 Every returned callable validates its own output on each call (shape ``(N,)``,
 numeric) and raises a named, actionable error instead of letting a wrong shape
-travel into a kernel. `check` is the explicit handshake: probe a callable on
-two rows of your data before building an engine.
-
-sklearn / torch are never imported at module import time — only inside the
-adapter that needs them.
+travel into a kernel. sklearn / torch are never imported at module import
+time — only inside the adapter that needs them.
 """
 
 import typing
@@ -43,20 +49,30 @@ def _validate_output(y, n: int, where: str) -> np.ndarray:
 def from_sklearn(estimator) -> typing.Callable:
     """Wrap an sklearn-style regressor into a numpy->numpy callable.
 
-    Returns a function ``f(X: (N, D) ndarray) -> (N,) ndarray`` that calls
-    ``estimator.predict`` and validates the output shape on every call.
-    Classifiers (anything with `predict_proba`) are rejected — class labels
-    are not a regression surface; explain a probability instead:
+    ```python
+    model = effector.adapters.from_sklearn(est)
+    pdp = effector.PDP(X, model, schema=schema)
+    ```
 
-        model = effector.adapters.classifier_proba(clf, class_=1)
+    The returned function calls ``estimator.predict`` and validates the
+    output (shape ``(N,)``, numeric) on every call.
+
+    !!! warning "Classifiers are rejected"
+        Anything with `predict_proba` raises — class labels are not a
+        regression surface. Explain a per-class probability instead:
+        ``effector.adapters.classifier_proba(clf, class_=1)``.
 
     Args:
         estimator: a fitted object with ``.predict(X) -> (N,)`` (an sklearn
             regressor or pipeline; anything duck-typing it works).
 
     Returns:
-        a plain callable — pass it to an engine yourself:
-        ``effector.PDP(X, effector.adapters.from_sklearn(est), schema=schema)``
+        a plain callable ``f(X: (N, D)) -> (N,)`` — pass it to an engine
+        yourself.
+
+    Raises:
+        TypeError: the object has no ``.predict`` method.
+        ValueError: the object is a classifier (has ``predict_proba``).
     """
     if not hasattr(estimator, "predict"):
         raise TypeError(
@@ -83,22 +99,33 @@ def from_sklearn(estimator) -> typing.Callable:
 def classifier_proba(estimator, class_=1) -> typing.Callable:
     """Wrap a classifier into a numpy->numpy callable for one class' probability.
 
+    ```python
+    model = effector.adapters.classifier_proba(clf, class_="yes")
+    pdp = effector.PDP(X, model, schema=schema)
+    ```
+
     The per-class probability is effector's classification story: the returned
     callable computes ``predict_proba(X)[:, k]`` — the surface P(class = k) —
-    which every engine can explain like any regression output. One explanation
+    which every engine explains like any regression output. One explanation
     per class; loop over classes yourself if you want them all.
 
-    `class_` is resolved against ``estimator.classes_`` at wrap time:
-    label-match first, positional-index fallback for plain ints.
+    !!! note "How `class_` is resolved"
+        Against ``estimator.classes_`` at wrap time: label match first,
+        positional column index as fallback for plain ints.
 
     Args:
         estimator: a fitted object with ``.predict_proba(X) -> (N, C)`` and
             ``.classes_``.
         class_: the class to explain — a label from ``classes_`` or a
-            positional column index.
+            positional column index (default `1`, the positive class of a
+            binary classifier).
 
     Returns:
         a plain callable ``f(X) -> (N,)`` of probabilities in [0, 1].
+
+    Raises:
+        TypeError: no ``predict_proba``, or no ``.classes_`` (is it fitted?).
+        ValueError: `class_` matches neither a label nor a valid column index.
     """
     if not hasattr(estimator, "predict_proba"):
         raise TypeError(
@@ -139,13 +166,21 @@ def classifier_proba(estimator, class_=1) -> typing.Callable:
 def from_torch(module, device=None, jacobian: bool = False):
     """Wrap a torch module into numpy->numpy callable(s).
 
-    The forward wrapper puts the module in eval mode, runs under ``no_grad``,
-    and moves tensors to/from `device`. With ``jacobian=True`` it also returns
-    a jacobian callable built on autograd (for RHALE / DerPDP), computed via
-    the sum-backward trick — valid because each row's output depends only on
-    that row's input.
+    ```python
+    model = effector.adapters.from_torch(net)
+    model, model_jac = effector.adapters.from_torch(net, jacobian=True)
+    rhale = effector.RHALE(X, model, model_jac, schema=schema)
+    ```
 
-    torch is imported lazily; effector gains no torch dependency.
+    The forward wrapper puts the module in eval mode, runs under ``no_grad``,
+    and moves tensors to/from `device`. torch is imported lazily — effector
+    gains no torch dependency.
+
+    !!! note "`jacobian=True` returns a *tuple*"
+        You get ``(model, model_jac)``, not a single callable. The jacobian
+        is built on autograd via the sum-backward trick — valid because each
+        row's output depends only on that row's input — and is exactly what
+        `RHALE` / `DerPDP` want.
 
     Args:
         module: a ``torch.nn.Module`` whose forward maps ``(N, D)`` to
@@ -154,8 +189,8 @@ def from_torch(module, device=None, jacobian: bool = False):
         jacobian: also build ``jac(X) -> (N, D)`` via autograd.
 
     Returns:
-        ``model`` — or ``(model, model_jac)`` when ``jacobian=True``. Pass
-        them to an engine yourself.
+        ``model`` — or the tuple ``(model, model_jac)`` when
+        ``jacobian=True``. Pass them to an engine yourself.
     """
     import torch
 
@@ -197,15 +232,30 @@ def from_torch(module, device=None, jacobian: bool = False):
 def check(model, X, model_jac=None) -> None:
     """Probe a model wrapper on two rows of your data — the explicit handshake.
 
-    Call this right before constructing an engine; it is the only place a
-    model call happens outside the engines, and *you* trigger it. Raises with
-    a precise message if the callable is not numpy-in / numpy-out with the
-    shapes effector expects; returns None when everything checks out.
+    ```python
+    model = effector.adapters.from_sklearn(est)
+    effector.adapters.check(model, X)             # raises loudly, or is silent
+    pdp = effector.PDP(X, model, schema=schema)
+    ```
+
+    Call it right before constructing an engine; it is the only place a model
+    call happens outside the engines, and *you* trigger it. Only ``X[:2]`` is
+    evaluated, so the probe is instant even for slow models.
 
     Args:
         model: the callable you are about to pass to an engine.
         X: your data (2-D numpy array); only ``X[:2]`` is evaluated.
         model_jac: optional jacobian callable; probed for shape ``(2, D)``.
+
+    Returns:
+        None — silence means the wrapper is numpy-in / numpy-out with the
+        shapes effector expects.
+
+    Raises:
+        TypeError: `model` (or `model_jac`) is not callable.
+        ValueError: `X` is not 2-D, or an output has the wrong shape or a
+            non-numeric dtype. A model exception on the probe is re-raised
+            with context.
     """
     if not callable(model):
         raise TypeError(

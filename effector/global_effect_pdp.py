@@ -247,26 +247,25 @@ class PDPBase(GlobalEffectBase):
         centering: Union[bool, str] = False,
         use_vectorized: bool = True,
     ):
-        """
-        Fit the Feature effect to the data.
+        """Declare per-feature defaults and warm the caches.
 
-        Notes:
-            You can use `.eval` or `.plot` without calling `.fit` explicitly:
-            any query computes what it needs lazily with these defaults. `fit`
-            declares the config and warms the caches (R14).
+        ```python
+        pdp.fit("hr", centering="zero_integral")
+        ```
+
+        !!! note "fit is optional"
+            `eval`, `plot`, `heter_score` compute what they need lazily with
+            these defaults; `fit` declares the config once and pays the model
+            cost upfront.
 
         Args:
-            features: the features to fit.
-                - If set to "all", all the features will be fitted.
-
-            centering: the default centering mode for this feature's queries:
-
-                - `False` means no centering
-                - `True` or `zero_integral` centers around the `y` axis.
-                - `zero_start` starts the plot from `y=0`.
-
-            use_vectorized: whether to use vectorized operations for the PDP and ICE curves
-
+            features: feature(s) to fit — index, name, list, or `"all"`.
+            centering: default centering for this feature's queries —
+                `False` (none), `True`/`"zero_integral"` (center around the
+                y axis), or `"zero_start"` (start at `y=0`).
+            use_vectorized: vectorize the ICE computation — faster, but
+                builds a `(T, N, D)` array internally; set `False` to trade
+                speed for memory.
         """
         self._fit_loop(features, centering, use_vectorized=use_vectorized)
 
@@ -417,6 +416,31 @@ class PDPBase(GlobalEffectBase):
 
 
 class PDP(PDPBase):
+    r"""Partial Dependence Plot: the average prediction as one feature varies.
+
+    ```python
+    pdp = effector.PDP(X, model)
+    pdp.plot("hr")                               # mean effect + ICE curves
+    y = pdp.eval("hr", np.linspace(0, 23, 100))  # (100,) mean effect
+    ```
+
+    Every instance is forced to each position $x_s$ and the predictions are
+    averaged:
+
+    $$
+    PDP(x_s) = \frac{1}{N} \sum_{i=1}^N f(x_s, \mathbf{x}_c^i)
+    $$
+
+    Each instance's own curve $ICE^i(x_s) = f(x_s, \mathbf{x}_c^i)$ tells the
+    individual story; the heterogeneity is the variance of the ICE curves
+    around the mean (each ICE centered on its own mean first).
+
+    !!! warning "Correlated features"
+        PDP averages over the marginal distribution: with strongly correlated
+        features it queries the model far off the data manifold. Prefer
+        `effector.ALE` or `effector.RHALE` there.
+    """
+
     # zero_integral by default (R3 single source): matches the global .plot
     # signature default and ALE/ShapDP, so global and regional plots — and
     # eval(centering=None) — all center consistently.
@@ -433,76 +457,23 @@ class PDP(PDPBase):
         schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ):
-        r"""
-        Constructor of the PDP class.
-
-        Definition:
-            PDP:
-            $$
-            PDP(x_s) = {1 \over N} \sum_{i=1}^N f(x_s, \mathbf{x}_c^i)
-            $$
-
-            centered-PDP:
-            $$
-            PDP_c(x_s) = PDP(x_s) - c, \quad c = {1 \over M} \sum_{j=1}^M PDP(x_s^j)
-            $$
-
-            ICE:
-            $$
-            ICE^i(x_s) = f(x_s, \mathbf{x}_c^i), \quad i=1, \dots, N
-            $$
-
-            centered-ICE:
-            $$
-            ICE_c^i(x_s) = ICE^i(x_s) - c_i, \quad c_i = {1 \over M} \sum_{j=1}^M ICE^i(x_s^j)
-            $$
-
-            heterogeneity function:
-            $$
-            h(x_s) = {1 \over N} \sum_{i=1}^N ( ICE_c^i(x_s) - PDP_c(x_s) )^2
-            $$
-
-            The heterogeneity value is:
-            $$
-            \mathcal{H}(x_s) = {1 \over M} \sum_{j=1}^M h(x_s^j),
-            $$
-            where $x_s^j$ are an equally spaced grid of points in $[x_s^{\min}, x_s^{\max}]$.
-
-        Notes:
-            The required parameters are `data` and `model`. The rest are optional.
+        r"""Build a PDP explainer. No model calls happen here.
 
         Args:
-            data: the design matrix
-
-                - shape: `(N,D)`
-            model: the black-box model. Must be a `Callable` with:
-
-                - input: `ndarray` of shape `(N, D)`
-                - output: `ndarray` of shape `(N,)`
-
-            axis_limits: The limits of the feature effect plot along each axis
-
-                - use a `ndarray` of shape `(2, D)`, to specify them manually
-                - use `None`, to be inferred from the data
-
-            nof_instances: maximum number of instances to be used
-
-                - use "all", for using all instances.
-                - use an `int`, for selecting `nof_instances` instances randomly.
-
-            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
-                with any of the keys `feature_names`, `feature_types`,
-                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
-
-                - omitted fields are auto-inferred from `data` (numpy
-                  heuristics) or synthesized (`["x_0", ...]`, `"y"`); to start
-                  from a DataFrame use `effector.from_dataframe`
-                - explicit fields always win over inference
-
-            random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
-
-                - use an `int` (default: `21`), for reproducible output; two identical constructions give identical results
-                - use `None`, for non-deterministic behavior
+            data: the design matrix, shape `(N, D)` — numpy only.
+            model: the black-box model — a `Callable` mapping `(N, D)`
+                arrays to `(N,)` predictions.
+            axis_limits: per-feature plot limits, shape `(2, D)`; `None`
+                (default) infers them from `data`.
+            nof_instances: max instances kept (default `10_000`) — an `int`
+                subsamples randomly, `"all"` keeps everything.
+            schema: input metadata — an `effector.Schema` or a plain `dict`
+                with any of `feature_names`, `feature_types`, `cat_limit`,
+                `target_name`, `scale_x_list`, `scale_y`; omitted fields are
+                inferred from `data`, explicit ones win. Coming from a
+                DataFrame? Use `effector.from_dataframe`.
+            random_state: seed for every internal random step (default `21`,
+                reproducible); `None` for non-deterministic behavior.
         """
 
         super(PDP, self).__init__(
@@ -533,52 +504,44 @@ class PDP(PDPBase):
         rule=None,
         feature_label: Optional[str] = None,
     ):
-        """
-        Plot the feature effect.
+        """Plot the PDP of `feature`, by default with the ICE cloud.
 
-        Parameters:
-            feature: index or name of the feature to plot
-            heterogeneity: whether to plot the heterogeneity
+        ```python
+        pdp.plot("hr")                          # mean effect + ICE curves
+        pdp.plot("hr", heterogeneity="std")     # mean ± std band
+        pdp.plot("hr", rule="workingday == 0")  # PDP within a subregion
+        ```
 
-                  - `False`, plot only the mean effect
-                  - `True` or `std`, plot the standard deviation of the ICE curves
-                  - `ice`, also plot the ICE curves
+        Args:
+            feature: index or name of the feature to plot.
+            heterogeneity: what to draw around the mean effect:
 
-            centering: whether to center the plot
+                - `False`: the mean effect only
+                - `True` or `"std"`: ± one std of the ICE curves
+                - `"std_err"`: ± the standard error of the mean
+                - `"ice"` (default): the ICE curves themselves
 
-                - `False` means no centering
-                - `True` or `zero_integral` centers around the `y` axis.
-                - `zero_start` starts the plot from `y=0`.
-
-            nof_points: the grid size for the PDP plot
-
-            scale_x: None or Dict with keys ['std', 'mean']
-
-                - If set to None, no scaling will be applied.
-                - If set to a dict, the x-axis will be scaled `x = (x + mean) * std`
-
-            scale_y: None or Dict with keys ['std', 'mean']
-
-                - If set to None, no scaling will be applied.
-                - If set to a dict, the y-axis will be scaled `y = (y + mean) * std`
-
-            nof_ice: number of ICE plots to show on top of the SHAP curve
-            show_avg_output: whether to show the average output of the model
-
-            y_limits: None or tuple, the limits of the y-axis
-
-                - If set to None, the limits of the y-axis are set automatically
-                - If set to a tuple, the limits are manually set
-
-            use_vectorized: whether to use the vectorized version of the PDP computation
-            mask: optional boolean `(N,)` selecting a subregion — plot the PDP/
-                ICE *within* it from the cached ICE table (grid resolution;
-                `nof_points` does not apply), model-free, with the x-axis
-                windowed to the subregion's own interval
+            centering: `False` (none), `True`/`"zero_integral"` (center
+                around the y axis), or `"zero_start"` (start at `y=0`).
+            nof_points: grid size of the x axis (default `100`).
+            scale_x: `None` or `{"mean": m, "std": s}` — the x axis is
+                drawn as `x = (x + m) * s` (undo a standardization).
+            scale_y: same, for the y axis.
+            nof_ice: how many ICE curves to draw (default `100`), or `"all"`.
+            show_avg_output: draw the model's average output as a
+                horizontal line.
+            y_limits: `(low, high)` for the y axis; `None` = automatic.
+            use_vectorized: vectorized ICE computation (faster, more memory).
+            show_plot: if `False`, return the figure and axes instead of
+                showing.
+            mask: boolean `(N,)` selecting a subregion — plot the PDP/ICE
+                *within* it from the cached ICE table (no model calls;
+                `nof_points` does not apply), x axis windowed to the
+                subregion's own interval.
             rule: sugar over `mask` — an `effector.Rule` or a rule string,
                 applied to the effect's data. Mutually exclusive with `mask`.
-            feature_label: optional display name for the feature axis (e.g. a
-                regional node's name), overriding `feature_names[feature]`
+            feature_label: display name for the feature axis (e.g. a
+                regional node's name), overriding `feature_names[feature]`.
         """
         feature = self._resolve_feature(feature)
         mask = self._resolve_mask(mask, rule)
@@ -603,6 +566,28 @@ class PDP(PDPBase):
 
 
 class DerPDP(PDPBase):
+    r"""Derivative-PDP: the model's average *derivative* as one feature varies.
+
+    ```python
+    dpdp = effector.DerPDP(X, model, model_jac)
+    dpdp.plot("hr")   # y axis in derivative units
+    ```
+
+    $$
+    dPDP(x_s) = \frac{1}{N} \sum_{i=1}^N
+    \frac{\partial f}{\partial x_s}(x_s, \mathbf{x}_c^i)
+    $$
+
+    Flat at zero means no effect; constant non-zero means a linear effect.
+    The heterogeneity is the variance of the d-ICE curves.
+
+    !!! warning "Continuous features only, derivative units"
+        The y axis is in $\partial y / \partial x_s$ units, not output
+        units. Categorical features raise an error — a derivative needs a
+        continuous axis. Without `model_jac`, derivatives fall back to
+        slower, less exact numerical differentiation.
+    """
+
     SUPPORTED_FEATURE_TYPES = frozenset({ingestion.CONTINUOUS})
     DEFAULT_CENTERING: Union[bool, str] = False
     IS_DERIVATIVE: bool = True
@@ -631,82 +616,27 @@ class DerPDP(PDPBase):
         schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ):
-        r"""
-        Constructor of the DerivativePDP class.
-
-        Definition:
-            d-PDP:
-            $$
-            dPDP(x_s) = {1 \over N} \sum_{i=1}^N {\partial f \over \partial x_s}(x_s, \mathbf{x}_c^i)
-            $$
-
-            centered-PDP:
-            $$
-            dPDP_c(x_s) = dPDP(x_s) - c, \quad c = {1 \over M} \sum_{j=1}^M dPDP(x_s^j)
-            $$
-
-            ICE:
-            $$
-            dICE^i(x_s) = {\partial f \over \partial x_s}(x_s, \mathbf{x}_c^i), \quad i=1, \dots, N
-            $$
-
-            centered-ICE:
-            $$
-            dICE_c^i(x_s) = dICE^i(x_s) - c_i, \quad c_i = {1 \over M} \sum_{j=1}^M dICE^i(x_s^j)
-            $$
-
-            heterogeneity function:
-            $$
-            h(x_s) = {1 \over N} \sum_{i=1}^N ( dICE_c^i(x_s) - dPDP_c(x_s) )^2
-            $$
-
-            The heterogeneity value is:
-            $$
-            \mathcal{H}(x_s) = {1 \over M} \sum_{j=1}^M h(x_s^j),
-            $$
-            where $x_s^j$ are an equally spaced grid of points in $[x_s^{\min}, x_s^{\max}]$.
-
-        Notes:
-            - The required parameters are `data` and `model`. The rest are optional.
-            - The `model_jac` is the Jacobian of the model. If `None`, the Jacobian will be computed numerically.
+        r"""Build a d-PDP explainer. No model calls happen here.
 
         Args:
-            data: the design matrix
-
-                - shape: `(N,D)`
-            model: the black-box model. Must be a `Callable` with:
-
-                - input: `ndarray` of shape `(N, D)`
-                - output: `ndarray` of shape `(N, )`
-
-            model_jac: the black-box model Jacobian. Must be a `Callable` with:
-
-                - input: `ndarray` of shape `(N, D)`
-                - output: `ndarray` of shape `(N, D)`
-
-            axis_limits: The limits of the feature effect plot along each axis
-
-                - use a `ndarray` of shape `(2, D)`, to specify them manually
-                - use `None`, to be inferred from the data
-
-            nof_instances: maximum number of instances to be used for PDP.
-
-                - use "all", for using all instances.
-                - use an `int`, for using `nof_instances` instances.
-
-            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
-                with any of the keys `feature_names`, `feature_types`,
-                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
-
-                - omitted fields are auto-inferred from `data` (numpy
-                  heuristics) or synthesized (`["x_0", ...]`, `"y"`); to start
-                  from a DataFrame use `effector.from_dataframe`
-                - explicit fields always win over inference
-
-            random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
-
-                - use an `int` (default: `21`), for reproducible output; two identical constructions give identical results
-                - use `None`, for non-deterministic behavior
+            data: the design matrix, shape `(N, D)` — numpy only.
+            model: the black-box model — a `Callable` mapping `(N, D)`
+                arrays to `(N,)` predictions.
+            model_jac: the model Jacobian — a `Callable` mapping `(N, D)`
+                arrays to `(N, D)` derivatives. If `None`, derivatives are
+                computed with central finite differences (two model calls
+                per position).
+            axis_limits: per-feature plot limits, shape `(2, D)`; `None`
+                (default) infers them from `data`.
+            nof_instances: max instances kept (default `10_000`) — an `int`
+                subsamples randomly, `"all"` keeps everything.
+            schema: input metadata — an `effector.Schema` or a plain `dict`
+                with any of `feature_names`, `feature_types`, `cat_limit`,
+                `target_name`, `scale_x_list`, `scale_y`; omitted fields are
+                inferred from `data`, explicit ones win. Coming from a
+                DataFrame? Use `effector.from_dataframe`.
+            random_state: seed for every internal random step (default `21`,
+                reproducible); `None` for non-deterministic behavior.
         """
 
         super(DerPDP, self).__init__(
@@ -737,53 +667,49 @@ class DerPDP(PDPBase):
         rule=None,
         feature_label: Optional[str] = None,
     ):
-        """
-        Plot the feature effect.
+        """Plot the d-PDP of `feature`, by default with the d-ICE cloud.
 
-        Parameters:
-            feature: the feature to plot
-            heterogeneity: whether to plot the heterogeneity
+        ```python
+        dpdp.plot("hr")                       # mean derivative + d-ICE
+        dpdp.plot("hr", heterogeneity="std")  # mean ± std band
+        ```
 
-                  - `False`, plot only the mean effect
-                  - `True` or `std`, plot the standard deviation of the ICE curves
-                  - `ice`, also plot the ICE curves
+        !!! warning "Derivative units"
+            The y axis (and `y_limits`) is in derivative units
+            `d(target)/d(feature)`, not output units.
 
-            centering: whether to center the plot
+        Args:
+            feature: index or name of the feature to plot.
+            heterogeneity: what to draw around the mean derivative:
 
-                - `False` means no centering
-                - `True` or `zero_integral` centers around the `y` axis.
-                - `zero_start` starts the plot from `y=0`.
+                - `False`: the mean effect only
+                - `True` or `"std"`: ± one std of the d-ICE curves
+                - `"std_err"`: ± the standard error of the mean
+                - `"ice"` (default): the d-ICE curves themselves
 
-            nof_points: the grid size for the PDP plot
-
-            scale_x: None or Dict with keys ['std', 'mean']
-
-                - If set to None, no scaling will be applied.
-                - If set to a dict, the x-axis will be scaled `x = (x + mean) * std`
-
-            scale_y: None or Dict with keys ['std', 'mean']
-
-                - If set to None, no scaling will be applied.
-                - If set to a dict, the y-axis will be scaled `y = (y + mean) * std`
-
-            nof_ice: number of ICE plots to show on top of the SHAP curve
-            show_avg_output: whether to show the average output of the model
-
-            y_limits: None or tuple, the limits of the y-axis (derivative units)
-
-                - If set to None, the limits of the y-axis are set automatically
-                - If set to a tuple, the limits are manually set
-
-            use_vectorized: whether to use the vectorized version of the PDP computation
-            show_plot: whether to show the plot
-            mask: optional boolean `(N,)` selecting a subregion — plot the
-                d-PDP/d-ICE *within* it from the cached d-ICE table (grid
-                resolution; `nof_points` does not apply), model-free, with the
-                x-axis windowed to the subregion's own interval
+            centering: `False` (default, none), `True`/`"zero_integral"`
+                (center around the y axis), or `"zero_start"` (start at
+                `y=0`).
+            nof_points: grid size of the x axis (default `100`).
+            scale_x: `None` or `{"mean": m, "std": s}` — the x axis is
+                drawn as `x = (x + m) * s` (undo a standardization).
+            scale_y: same, for the y axis.
+            nof_ice: how many d-ICE curves to draw (default `100`), or
+                `"all"`.
+            show_avg_output: draw the model's average output as a
+                horizontal line.
+            y_limits: `(low, high)` for the y axis; `None` = automatic.
+            use_vectorized: vectorized ICE computation (faster, more memory).
+            show_plot: if `False`, return the figure and axes instead of
+                showing.
+            mask: boolean `(N,)` selecting a subregion — plot the
+                d-PDP/d-ICE *within* it from the cached d-ICE table (no
+                model calls; `nof_points` does not apply), x axis windowed
+                to the subregion's own interval.
             rule: sugar over `mask` — an `effector.Rule` or a rule string,
                 applied to the effect's data. Mutually exclusive with `mask`.
-            feature_label: optional display name for the feature axis (e.g. a
-                regional node's name), overriding `feature_names[feature]`
+            feature_label: display name for the feature axis (e.g. a
+                regional node's name), overriding `feature_names[feature]`.
         """
         feature = self._resolve_feature(feature)
         mask = self._resolve_mask(mask, rule)

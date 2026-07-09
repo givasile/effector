@@ -1,24 +1,35 @@
-"""Split proposers: a candidate split is *parent rule -> child conditions*.
+"""Split proposers: how the region finders enumerate candidate splits.
 
-A `CandidateSplit` is parent-independent — an ordered tuple of disjoint,
-jointly-covering `Condition`s on ONE conditioning feature. Child ``i`` of a
-parent region is ``parent_rule.refine(conditions[i])`` with mask
-``parent_mask & conditions[i].contains(data)``. Parent-independence is what
-lets a level-wise finder apply one candidate to every node of a level, and
-it mirrors the finder's search space: positions come from the full data /
-axis limits, never from a parent subset. Candidates are k-way by
-construction (``len(conditions) >= 2``), so richer proposers (categorical
-subsets, multiway, continuous change-point) plug in without a finder change.
+A **proposer** is any object exposing ``propose(ctx, foc) ->
+list[CandidateSplit]``. A `CandidateSplit` is *parent rule -> child
+conditions*: an ordered tuple of disjoint, jointly-covering `Condition`s on
+ONE conditioning feature. Child ``i`` of a parent region is
+``parent_rule.refine(conditions[i])`` with mask ``parent_mask &
+conditions[i].contains(data)``. Candidates are parent-independent (positions
+come from the full data / axis limits, never from a parent subset) — that is
+what lets a level-wise finder apply one candidate to every node of a level —
+and k-way by construction (``len(conditions) >= 2``).
+
+The built-ins, selectable by name via a finder's ``continuous_proposer=`` /
+``categorical_proposer=`` kwargs:
+
+- ``"threshold"`` -> `ContinuousThreshold`: binary ``x < t / x >= t`` splits on an interior grid (the continuous default);
+- ``"quantiles"`` -> `ContinuousQuantiles`: one k-way candidate per child count, cut at the marginal quantiles;
+- ``"one_vs_rest"`` -> `CategoricalOneVsRest`: one level vs all the others, per observed level (the categorical default);
+- ``"subsets"`` -> `CategoricalSubsets`: every binary subset-vs-complement split over the observed levels;
+- ``"ordered"`` -> `CategoricalOrdered`: contiguous prefix/suffix cuts after ordering the levels;
+- ``"multiway"`` -> `CategoricalMultiway`: a single k-way candidate with one child per observed level.
+
+!!! note "Proposers are stateless"
+    The finder protocol deep-copies the finder but not the proposer instances
+    captured in its ``proposer_factory``, so the same instance may serve
+    searches over different datasets — any instance cache would silently go
+    stale.
 
 This module is a **leaf**: numpy + stdlib + `effector.rules` (itself a leaf),
 the `effector.ingestion` taxonomy predicate, and `effector.ordering` (level
 seriation). It must NOT import `partition`, `space_partitioning`, or
 `global_effect`.
-
-Proposers are **stateless**: the finder protocol deep-copies the finder but
-not the proposer instances captured in its `proposer_factory`, so the same
-instance may serve searches over different datasets — any instance cache
-would silently go stale.
 """
 
 import itertools
@@ -69,8 +80,12 @@ class CandidateSplit:
 
 
 class ContinuousThreshold:
-    """Binary threshold split: interior linspace positions between the axis
-    limits; candidate = ``(x < t, x >= t)``."""
+    """Binary threshold splits — the continuous default (``"threshold"``).
+
+    One candidate ``(x < t, x >= t)`` per interior position ``t`` of a uniform
+    grid over the axis limits (``numerical_features_grid_size`` segments, so
+    ``grid_size - 1`` candidates).
+    """
 
     def propose(self, ctx: SearchContext, foc: int) -> list:
         lo, hi = ctx.axis_limits[0, foc], ctx.axis_limits[1, foc]
@@ -93,9 +108,12 @@ def _observed_levels(ctx: SearchContext, foc: int) -> list:
 
 
 class CategoricalOneVsRest:
-    """One-vs-rest over the observed levels: ``({v}, universe - {v})`` per
-    level, ascending. Owns the ``!=`` semantics — the complement is
-    materialized as an explicit `LevelSet` over the observed universe."""
+    """One level vs all the others — the categorical default (``"one_vs_rest"``).
+
+    One binary candidate ``({v}, universe - {v})`` per observed level ``v``,
+    ascending. The complement is materialized as an explicit `LevelSet` over
+    the observed universe (this proposer owns the ``!=`` semantics).
+    """
 
     def propose(self, ctx: SearchContext, foc: int) -> list:
         universe = set(_observed_levels(ctx, foc))
@@ -111,9 +129,11 @@ class CategoricalOneVsRest:
 
 
 class CategoricalMultiway:
-    """One k-way candidate: one ``LevelSet({v})`` child per observed level,
-    ascending. Fewer than 2 observed levels proposes nothing (a 1-condition
-    candidate is not a split)."""
+    """A single k-way candidate: one child per observed level (``"multiway"``).
+
+    One ``LevelSet({v})`` child per observed level, ascending. Fewer than 2
+    observed levels proposes nothing (a 1-condition candidate is not a split).
+    """
 
     def propose(self, ctx: SearchContext, foc: int) -> list:
         universe = _observed_levels(ctx, foc)
@@ -123,19 +143,28 @@ class CategoricalMultiway:
 
 
 class CategoricalSubsets:
-    """Every binary subset-vs-complement split over the observed levels, each
-    unordered ``{S, complement}`` pair exactly once: the smallest level is
-    pinned to the first child, subsets enumerate size-ascending (ties in the
-    finder's argmin therefore prefer simpler splits), lexicographic within a
-    size — so the first candidates are exactly the one-vs-rest singletons.
+    """Every binary subset-vs-complement split over the observed levels (``"subsets"``).
 
-    ``2^(K-1) - 1`` candidates explode with the level count, so above
-    ``max_levels`` the proposal degrades to the singleton slice (the
-    one-vs-rest list) with a `UserWarning` — the feature stays searchable
-    instead of silently vanishing from the candidate set.
+    Each unordered ``{S, complement}`` pair appears exactly once: the smallest
+    level is pinned to the first child, subsets enumerate size-ascending (ties
+    in the finder's argmin therefore prefer simpler splits), lexicographic
+    within a size — so the first candidates are exactly the one-vs-rest
+    singletons.
+
+    !!! warning "Exponential in the level count"
+        ``2^(K-1) - 1`` candidates for ``K`` levels: above ``max_levels`` the
+        proposal degrades to the one-vs-rest list with a `UserWarning` — the
+        feature stays searchable instead of silently vanishing from the
+        candidate set.
     """
 
     def __init__(self, max_levels: int = 8):
+        """Initialize the proposer.
+
+        Args:
+            max_levels: Above this many observed levels, fall back to the
+                one-vs-rest candidates (with a warning). Must be >= 2.
+        """
         if max_levels < 2:
             raise ValueError(f"max_levels must be >= 2; got {max_levels}")
         self.max_levels = max_levels
@@ -165,26 +194,30 @@ class CategoricalSubsets:
 
 
 class CategoricalOrdered:
-    """``K - 1`` contiguous prefix/suffix binary splits after ordering the
-    levels — both sides explicit `LevelSet`s.
+    """Contiguous cuts after ordering the levels (``"ordered"``).
 
-    ``order`` decides the level order, resolved per feature at propose time:
-
-    - ``"auto"`` (default): natural ascending for ordinal features,
-      `effector.ordering.similarity_order` seriation for nominal ones;
-    - ``"natural"`` / ``"similarity"``: force one of the two;
-    - an explicit sequence of level values: used as-is, restricted to the
-      observed levels (an observed level missing from it raises).
-
-    The similarity order is recomputed on each propose call (per node or per
-    level of the search) — deterministic, and cheap at ``cat_limit``-sized
-    level counts; it must not be cached on the instance (see the module note
-    on statelessness).
+    ``K - 1`` binary prefix/suffix splits for ``K`` observed levels — both
+    sides explicit `LevelSet`s. Linear in the level count, so it scales where
+    `CategoricalSubsets` explodes; the price is that only order-contiguous
+    groupings are reachable.
     """
 
     _ORDER_STRINGS = ("auto", "natural", "similarity")
 
     def __init__(self, order="auto"):
+        """Initialize the proposer.
+
+        Args:
+            order: How to order the levels, resolved per feature at propose
+                time:
+
+                - `"auto"` (default): natural ascending for ordinal features,
+                  `effector.ordering.similarity_order` seriation for nominal ones;
+                - `"natural"` / `"similarity"`: force one of the two;
+                - an explicit sequence of level values: used as-is, restricted
+                  to the observed levels (an observed level missing from it
+                  raises).
+        """
         if isinstance(order, str):
             if order not in self._ORDER_STRINGS:
                 raise ValueError(
@@ -237,23 +270,30 @@ class CategoricalOrdered:
 
 
 class ContinuousQuantiles:
-    """One k-way candidate per child count ``k`` in ``2..max_children``,
-    ascending (ties in the finder's argmin therefore prefer fewer children):
-    the children split the conditioning column at its marginal quantiles
-    ``i/k`` — a jointly-covering chain of canonical half-open `Interval`s
-    over ``(-inf, inf)``.
+    """K-way splits at the marginal quantiles (``"quantiles"``).
+
+    One k-way candidate per child count ``k`` in ``2..max_children``, ascending
+    (ties in the finder's argmin therefore prefer fewer children): the children
+    cut the conditioning column at its quantiles ``i/k`` — a jointly-covering
+    chain of half-open `Interval`s over ``(-inf, inf)``.
 
     Edges are data-driven (x-only): duplicate quantiles collapse, so a
     candidate may end up with fewer than ``k`` children; edges at the column
     minimum are dropped (they would bound an empty first child — a constant
     column therefore proposes nothing); identical edge chains produced by
-    different ``k`` are proposed once. Both
-    ``ctx.numerical_grid_size`` (the threshold-grid knob) and
-    ``ctx.axis_limits`` are ignored — ``max_children`` is this proposer's own
-    knob and the unbounded chain covers any axis.
+    different ``k`` are proposed once. Both ``ctx.numerical_grid_size`` (the
+    threshold-grid knob) and ``ctx.axis_limits`` are ignored —
+    ``max_children`` is this proposer's own knob and the unbounded chain
+    covers any axis.
     """
 
     def __init__(self, max_children: int = 5):
+        """Initialize the proposer.
+
+        Args:
+            max_children: Largest child count to propose (one candidate per
+                ``k`` in ``2..max_children``). Must be >= 2.
+        """
         if max_children < 2:
             raise ValueError(f"max_children must be >= 2; got {max_children}")
         self.max_children = max_children

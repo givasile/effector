@@ -27,7 +27,18 @@ from effector.partition import Partition
 
 @dataclass
 class FeatureReport:
-    """The per-feature slice of a `Report` (all values, no live effect)."""
+    """The per-feature slice of a `Report` — plain values, no live effect.
+
+    Attributes:
+        feature: feature index.
+        name: feature display name.
+        importance: the feature's importance score.
+        heter_score: the feature's scalar heterogeneity.
+        xs: evaluation grid, `(T,)`.
+        y: mean-effect curve at `xs`, `(T,)`.
+        h: heterogeneity curve at `xs`, `(T,)`.
+        partition: `Partition.to_dict()` when `find_regions` ran, else `None`.
+    """
 
     feature: int
     name: str
@@ -39,6 +50,7 @@ class FeatureReport:
     partition: Optional[dict] = None  # Partition.to_dict() if find_regions ran
 
     def to_dict(self):
+        """Serialize to a plain JSON-able dict (arrays become lists)."""
         return {
             "feature": self.feature,
             "name": self.name,
@@ -52,6 +64,7 @@ class FeatureReport:
 
     @classmethod
     def from_dict(cls, d):
+        """Rebuild a `FeatureReport` from `to_dict()` output."""
         return cls(
             feature=d["feature"],
             name=d["name"],
@@ -66,11 +79,18 @@ class FeatureReport:
 
 @dataclass
 class Report:
-    """An importance-ranked, serializable explanation of a model.
+    """An importance-ranked, serializable explanation of a model — a value.
 
-    `features` is a list of `FeatureReport`, ranked by importance descending.
-    Bind an effect (via `explain`) to enable the lazy `plot`-sugar; the text and
-    serialized surfaces work without one.
+    ```python
+    report = effector.explain(X, model)
+    report.show()                     # ranked table + partition trees
+    report.to_html("report.html")     # self-contained page
+    ```
+
+    `features` holds one `FeatureReport` per reported feature, importance
+    descending. A report produced by `explain` is bound to its fitted effect,
+    which `to_html` uses for per-leaf regional plots; everything else works
+    from the stored values alone.
     """
 
     method_name: str
@@ -97,6 +117,11 @@ class Report:
 
     # -- terminal summary ------------------------------------------------------
     def show(self):
+        """Print the ranked feature table, then each multi-region partition tree.
+
+        Columns: feature, importance, heterogeneity, #regions. Works on
+        unbound reports (rebuilt via `from_dict`) too.
+        """
         title = method_registry.resolve(self.method_name).display_name
         print(f"\n{title} report — target: {self.target_name}")
         print("=" * 60)
@@ -115,6 +140,15 @@ class Report:
 
     # -- importance bar chart (R7 return rule) ---------------------------------
     def plot_importance(self, show_plot=True):
+        """Horizontal bar chart of feature importance, most important on top.
+
+        Args:
+            show_plot: `True` (default) displays the figure and returns
+                `None`; `False` returns `(fig, ax)` instead.
+
+        Returns:
+            `None`, or `(fig, ax)` when `show_plot=False`.
+        """
         import matplotlib.pyplot as plt
 
         names = [fr.name for fr in self.features]
@@ -137,9 +171,24 @@ class Report:
 
     # -- self-contained HTML page ---------------------------------------------
     def to_html(self, path=None):
-        """Render a self-contained HTML page (all figures inlined as base64 PNG
-        data URIs — no external assets). Returns the HTML string; writes it to
-        `path` if given."""
+        """Render a self-contained HTML page — every figure inlined as a base64 PNG.
+
+        The page holds the importance chart, per-feature mean-effect curves
+        with ± std bands (from the stored arrays), the partition tables and
+        trees, and — when the report is bound to its effect — one regional
+        plot per partition leaf. No external assets.
+
+        !!! note "Unbound reports"
+            A report rebuilt with `from_dict` renders everything from stored
+            values; only the per-leaf regional plots are skipped (they need
+            the live effect).
+
+        Args:
+            path: optional file path to also write the page to.
+
+        Returns:
+            the HTML string.
+        """
         title = method_registry.resolve(self.method_name).display_name
         parts = [
             "<!doctype html><html><head><meta charset='utf-8'>",
@@ -233,6 +282,15 @@ class Report:
 
     # -- serialization ---------------------------------------------------------
     def to_dict(self):
+        """Serialize to a plain JSON-able dict.
+
+        !!! note "Values only"
+            Curves, scores, and partition rules are serialized — never the
+            model, the data, or the fitted effect.
+
+        Returns:
+            a dict that `from_dict` round-trips.
+        """
         return {
             "method_name": self.method_name,
             "feature_names": list(self.feature_names),
@@ -243,6 +301,18 @@ class Report:
 
     @classmethod
     def from_dict(cls, d):
+        """Rebuild a `Report` from `to_dict()` output.
+
+        The result is unbound: `show`, `plot_importance`, and `to_html` all
+        work from the stored values; `to_html` skips only the per-leaf
+        regional plots, which need the live effect.
+
+        Args:
+            d: a dict produced by `to_dict()`.
+
+        Returns:
+            an unbound `Report`.
+        """
         return cls(
             method_name=d["method_name"],
             feature_names=list(d["feature_names"]),
@@ -266,20 +336,45 @@ def explain(
     nof_instances=10_000,
     random_state=21,
 ) -> Report:
-    """Run the whole explanation pipeline and return a `Report` (a value).
+    """Run the whole explanation pipeline and return a `Report` — a value.
 
-    Fit the chosen `method` once, rank features by `importance` (R13), and for
-    the top-`top_k`: compute the mean-effect + heterogeneity curves and, when the
-    feature is heterogeneous enough (`heter_score >= heter_threshold`), search for
-    subregions with `find_regions` (R12). All model calls happen through the one
-    `fit`; everything after is model-free.
+    ```python
+    report = effector.explain(X, model, method="pdp", top_k=5)
+    report.show()                     # ranked table + partition trees
+    report.to_html("report.html")     # self-contained page
+    ```
+
+    Fits the chosen `method` once, ranks features by importance, and for the
+    top-`top_k` computes the mean-effect and heterogeneity curves; features
+    heterogeneous enough (`heter_score >= heter_threshold`) also get a
+    `find_regions` search.
+
+    !!! note "One model touch"
+        All model calls happen through the single `fit`; everything after —
+        importances, curves, `find_regions` — is model-free, so the call
+        count does not grow with `top_k`.
 
     Args:
-        heter_threshold: minimum `heter_score` to trigger `find_regions`; `None`
-            uses the median heter_score across the ranked features.
+        data: `(N, D)` numpy design matrix.
+        model: callable `(N, D) -> (N,)` — the black box.
+        model_jac: callable `(N, D) -> (N, D)` Jacobian; required by
+            derivative-based methods (`"rhale"`, `"derpdp"`).
+        schema: optional feature schema (names/types/categories).
+        method: effect method — `"pdp"` (default), `"derpdp"`, `"ale"`,
+            `"rhale"`, or `"shapdp"` (aliases accepted).
+        top_k: how many top-importance features to report.
+        heter_threshold: minimum `heter_score` to trigger `find_regions`;
+            `None` (default) uses the median across the ranked features.
+        finder: region finder — `"best"` (default), `"best_level_wise"`, or
+            a configured finder instance.
+        candidate_conditioning_features: features allowed to define splits
+            (`"all"` or a list).
+        nof_instances: subsample size the effect is built on.
+        random_state: seed for the subsample.
 
     Returns:
-        a `Report` bound to the fitted effect.
+        a `Report` bound to the fitted effect — `FeatureReport`s in
+        importance-descending order, partitions stored as dicts.
     """
     spec = method_registry.resolve(method)
     ctor_args = (model, model_jac) if spec.needs_jac else (model,)

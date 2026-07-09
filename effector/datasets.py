@@ -1,3 +1,11 @@
+"""Data generators and real datasets used in the examples and tests.
+
+Synthetic generators (`IndependentUniform`) produce numpy arrays with known
+distributions — pair them with `effector.models` for ground-truth checks.
+Real datasets (`BikeSharing`) fetch, split, and standardize a public dataset
+into ready-to-use `x_train / y_train / x_test / y_test` numpy arrays.
+"""
+
 import numpy as np
 
 from effector import helpers
@@ -10,38 +18,46 @@ class Base:
         self.axis_limits = axis_limits
 
     def generate_data(self, n: int, seed: int = 21) -> np.ndarray:
-        """Generate N samples
+        """Generate `n` samples.
+
         Args:
-            n : int
-                Number of samples
-            seed : int
-                Seed for generating samples
+            n: Number of samples.
+            seed: Random seed, for reproducibility.
 
         Returns:
-            ndarray, shape: [n,2]
-                The samples
+            The samples, shape `(n, dim)`.
         """
         raise NotImplementedError
 
 
 class IndependentUniform(Base):
+    """`dim` independent features, each uniform on `[low, high]`.
+
+    The simplest possible distribution — no correlations, flat marginals — so
+    any structure in an effect plot comes from the model alone. The default
+    data source of the synthetic benchmarks.
+    """
+
     def __init__(self, dim: int = 2, low: float = 0, high: float = 1):
+        """Initialize the generator.
+
+        Args:
+            dim: Number of features.
+            low: Lower bound of every feature.
+            high: Upper bound of every feature.
+        """
         axis_limits = np.array([[low, high] for _ in range(dim)]).T
         super().__init__(name=self.__class__.__name__, dim=dim, axis_limits=axis_limits)
 
     def generate_data(self, n: int, seed: int = 21) -> np.ndarray:
-        """Generate N samples
+        """Generate `n` samples.
 
         Args:
-            n : int
-                Number of samples
-            seed : int
-                Seed for generating samples
+            n: Number of samples.
+            seed: Random seed, for reproducibility.
 
         Returns:
-            ndarray, shape: [n,2]
-                The samples
-
+            The samples, shape `(n, dim)`.
         """
         np.random.seed(seed)
         x = np.random.uniform(
@@ -52,6 +68,10 @@ class IndependentUniform(Base):
 
 
 class RealDatasetBase:
+    """Shared plumbing for real datasets: fetch, seeded train/test split,
+    optional standardization (storing the per-feature mu/std for mapping plots
+    back to natural units)."""
+
     def __init__(self, name: str, pcg_train, standardize, seed: int = 21):
         self.name = helpers.camel_to_snake(name)
 
@@ -128,7 +148,32 @@ class RealDatasetBase:
 
 
 class BikeSharing(RealDatasetBase):
+    """The UCI Bike Sharing dataset (hourly) — effector's canonical real example.
+
+    17,379 hourly records of the Capital Bikeshare system; the target is the
+    hourly rental count. Fetched via `ucimlrepo` (UCI id 275), with `dteday`
+    and `atemp` dropped — 11 features remain (season, yr, mnth, hr, holiday,
+    weekday, workingday, weathersit, temp, hum, windspeed). Data is split into
+    train/test with a seeded shuffle and (by default) standardized; the UCI
+    normalization constants of temp/hum/windspeed are folded into the stored
+    mu/std, so `scale_x`/`scale_y` map plots back to natural units.
+
+    ```python
+    data = effector.datasets.BikeSharing()
+    data.x_train, data.y_train    # (13903, 11), (13903,)
+    data.feature_names, data.target_name
+    ```
+    """
+
     def __init__(self, pcg_train=0.8, standardize=True, seed: int = 21):
+        """Fetch and prepare the dataset.
+
+        Args:
+            pcg_train: Fraction of samples in the train split.
+            standardize: Standardize features and target to zero mean, unit
+                variance (the mu/std used are stored on the object).
+            seed: Random seed of the train/test shuffle.
+        """
         super().__init__(
             name="BikeSharing", pcg_train=pcg_train, standardize=standardize, seed=seed
         )

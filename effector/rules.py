@@ -228,14 +228,22 @@ class Condition:
 
 
 class Rule:
-    """A normalized conjunction of conditions: at most one subset per feature.
+    """A normalized conjunction of per-feature conditions — a region's identity.
 
+    ```python
+    rule = effector.Rule.parse("temp < 3 and season == 0", ...)
+    mask = rule.contains(X)                  # (N,) bool
+    pdp.plot("hr", rule=rule)                # effects accept rules directly
+    ```
+
+    At most one subset per feature (a hyperbox with categorical level sets);
+    membership, display, and serialization all derive from this one object.
+    Rules are immutable and hashable; equality is order-insensitive.
     ``Rule({})`` is the root rule — it contains everything and formats to
-    ``""``. Conditions keep insertion order for display; equality and hash are
-    order-insensitive. A full (unbounded) `Interval` is dropped at
-    construction — it constrains nothing — so ``Rule({0: Interval()})``
-    equals ``Rule({})``. Emptiness (`is_empty`) is representable and never
-    raises; only `parse` rejects contradictions, as a courtesy to humans.
+    ``""``. A full (unbounded) `Interval` constrains nothing and is dropped at
+    construction, so ``Rule({0: Interval()}) == Rule({})``. Emptiness
+    (`is_empty`) is representable and never raises; only `parse` rejects
+    contradictions, as a courtesy to humans.
     """
 
     def __init__(self, conditions: Union[dict, Iterable[Condition]] = ()):
@@ -267,20 +275,24 @@ class Rule:
 
     @property
     def features(self) -> tuple:
+        """Indices of the constrained features, in display order."""
         return tuple(self._conditions)
 
     @property
     def is_root(self) -> bool:
+        """`True` for ``Rule({})`` — no conditions, contains everything."""
         return not self._conditions
 
     @property
     def is_empty(self) -> bool:
+        """`True` when any subset is empty — the rule selects nothing."""
         return any(s.is_empty for s in self._conditions.values())
 
     def __getitem__(self, feature: int) -> Subset:
         return self._conditions[feature]
 
     def get(self, feature: int, default=None):
+        """The subset on `feature`, or `default` when unconstrained."""
         return self._conditions.get(feature, default)
 
     def __eq__(self, other):
@@ -296,7 +308,18 @@ class Rule:
 
     # -- semantics -------------------------------------------------------------
     def contains(self, X: np.ndarray) -> np.ndarray:
-        """The rule applied to a data matrix — THE only rule->mask site."""
+        """Which rows of `X` satisfy the rule — the only place rules become masks.
+
+        Args:
+            X: data matrix `(N, D)`.
+
+        Returns:
+            boolean mask `(N,)`; all-`True` for the root rule.
+
+        Raises:
+            ValueError: `X` is not 2D, or the rule references a feature index
+                beyond `X.shape[1]`.
+        """
         X = np.asarray(X)
         if X.ndim != 2:
             raise ValueError(f"X must be a 2D (N, D) array; got ndim {X.ndim}")
@@ -311,17 +334,35 @@ class Rule:
         return mask
 
     def intersect(self, other: "Rule") -> "Rule":
+        """The conjunction of two rules — subsets on shared features intersect.
+
+        Returns:
+            a new `Rule`; may be empty (`is_empty`), never raises.
+        """
         conditions = dict(self._conditions)
         for f, s in other._conditions.items():
             conditions[f] = conditions[f].intersect(s) if f in conditions else s
         return Rule(conditions)
 
     def refine(self, condition: Condition) -> "Rule":
+        """A new rule with one more condition — sugar for `intersect(Rule([condition]))`."""
         return self.intersect(Rule([condition]))
 
     # -- format boundary ---------------------------------------------------------
     def format(self, feature_names=None, scale_x_list=None, category_names=None) -> str:
-        """Human-readable conjunction; the root rule formats to ``""``."""
+        """Human-readable conjunction, e.g. ``"temp < 3.00 and season = winter"``.
+
+        Args:
+            feature_names: display names, position = index; defaults to
+                ``x_<i>``.
+            scale_x_list: per-feature ``{"mean": ..., "std": ...}`` list to
+                show numeric values in original units.
+            category_names: ``{feature: {level: name}}`` map to show level
+                names instead of numbers.
+
+        Returns:
+            the formatted string; the root rule formats to ``""``.
+        """
         return " and ".join(
             Condition(f, s).format(feature_names, scale_x_list, category_names)
             for f, s in self._conditions.items()
@@ -329,6 +370,7 @@ class Rule:
 
     # -- serialization -----------------------------------------------------------
     def to_dict(self) -> dict:
+        """Serialize to a plain JSON-able dict — a list of per-feature conditions."""
         return {
             "conditions": [
                 {"feature": f, **s.to_dict()} for f, s in self._conditions.items()
@@ -337,6 +379,7 @@ class Rule:
 
     @classmethod
     def from_dict(cls, d: dict) -> "Rule":
+        """Rebuild a `Rule` from `to_dict()` output."""
         return cls({c["feature"]: subset_from_dict(c) for c in d["conditions"]})
 
     # -- parser ------------------------------------------------------------------
@@ -350,15 +393,30 @@ class Rule:
         levels=None,
         category_names=None,
     ) -> "Rule":
-        """Parse ``"temp < 3 and season != 2 and hr in {7, 8}"`` into a Rule.
+        """Parse ``"temp < 3 and season != 2 and hr in {7, 8}"`` into a `Rule`.
 
-        Grammar (v1): clauses joined by ``and``; each clause
-        ``<feature_name> <op> <value>`` with op in ``< <= > >= == != in``.
-        Continuous features accept the four inequalities; discrete features
-        accept ``==`` / ``in {…}`` and ``!=`` (which needs ``levels=`` — a
-        ``{feature_index: observed levels}`` map — to materialize the
-        complement). Level *names* are accepted where ``category_names``
-        covers the feature. Contradictory clauses raise.
+        Grammar: clauses joined by ``and``; each clause
+        ``<feature_name> <op> <value>`` with op in ``< <= > >= == != in``
+        (``=`` is accepted as ``==``). Continuous features take the four
+        inequalities; discrete features take ``==``, ``in {…}``, and ``!=``.
+        Level *names* are accepted where `category_names` covers the feature.
+
+        Args:
+            text: the rule string.
+            feature_names: feature display names, position = index.
+            feature_types: per-feature types; required for the discrete-only
+                ops ``==``/``!=``/``in``.
+            levels: ``{feature_index: observed levels}`` map; required by
+                ``!=`` to materialize the complement.
+            category_names: ``{feature: {level: name}}`` map so values can be
+                given by name.
+
+        Returns:
+            the parsed `Rule`.
+
+        Raises:
+            ValueError: unknown feature, unparsable clause, an op unsupported
+                for the feature's type, or contradictory clauses.
         """
         name_to_idx = {str(n): i for i, n in enumerate(feature_names)}
         conditions: dict = {}

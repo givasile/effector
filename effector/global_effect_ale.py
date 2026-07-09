@@ -174,54 +174,43 @@ class ALEBase(GlobalEffectBase):
         rule=None,
         feature_label: Optional[str] = None,
     ):
-        """
-        Plot the (RH)ALE feature effect of feature `feature`.
+        """Plot the (RH)ALE effect of `feature`.
 
-        Notes:
-            This is a common method inherited by both ALE and RHALE.
+        ```python
+        ale.plot("hr")                          # curve + heterogeneity
+        ale.plot("hr", rule="workingday == 0")  # within a subregion
+        ```
 
-        Parameters:
-            feature: index or name of the feature to plot
-            heterogeneity: whether to plot the heterogeneity
+        For a continuous feature the figure has two panels: the accumulated
+        curve on top, the per-bin average local effect (± std) below.
+        Categorical features get one bar per level with std whiskers.
 
-                  - `False`, plots only the mean effect
-                  - `True` or `"std"`, the std of the bin-effects will be plotted using a red vertical bar
-
-            centering: whether to center the plot:
-
-                - `False` means no centering
-                - `True` or `zero_integral` centers around the `y` axis.
-                - `zero_start` starts the plot from `y=0`.
-
-            scale_x: None or Dict with keys ['std', 'mean']
-
-                - If set to None, no scaling will be applied.
-                - If set to a dict, the x-axis will be scaled by the standard deviation and the mean.
-            scale_y: None or Dict with keys ['std', 'mean']
-
-                - If set to None, no scaling will be applied.
-                - If set to a dict, the y-axis will be scaled by the standard deviation and the mean.
-            show_avg_output: if True, the average output will be shown as a horizontal line.
-            y_limits: None or tuple, the limits of the y-axis
-
-                - If set to None, the limits of the y-axis are set automatically
-                - If set to a tuple, the limits are manually set
-
-            dy_limits: None or tuple, the limits of the dy-axis
-
-                - If set to None, the limits of the dy-axis are set automatically
-                - If set to a tuple, the limits are manually set
-
-            show_only_aggregated: if True, only the main ale plot will be shown
-            show_plot: if True, the plot will be shown
-            mask: optional boolean `(N,)` selecting a subregion — plot the
-                effect *within* it (re-binned from the cached local effects,
-                no model calls) with the x-axis windowed to the subregion's
-                own interval
+        Args:
+            feature: index or name of the feature to plot.
+            heterogeneity: `False` for the mean effect only; `True` or
+                `"std"` (default) adds the per-bin std of the local effects.
+            centering: `False` (none), `True`/`"zero_integral"` (center
+                around the y axis), or `"zero_start"` (start at `y=0`).
+            scale_x: `None` or `{"mean": m, "std": s}` to undo a
+                standardization of the x axis for display.
+            scale_y: same, for the y axis.
+            show_avg_output: draw the model's average output as a
+                horizontal line.
+            y_limits: `(low, high)` for the y axis; `None` = automatic.
+            dy_limits: `(low, high)` for the bottom (local-effect) panel;
+                `None` = automatic.
+            show_only_aggregated: draw only the accumulated curve, without
+                the bottom panel.
+            show_plot: if `False`, return the figure and axes instead of
+                showing.
+            mask: boolean `(N,)` selecting a subregion — plot the effect
+                *within* it (re-binned from the cached local effects, no
+                model calls), x axis windowed to the subregion's own
+                interval.
             rule: sugar over `mask` — an `effector.Rule` or a rule string,
                 applied to the effect's data. Mutually exclusive with `mask`.
-            feature_label: optional display name for the feature axis (e.g. a
-                regional node's name), overriding `feature_names[feature]`
+            feature_label: display name for the feature axis (e.g. a
+                regional node's name), overriding `feature_names[feature]`.
         """
         feature = self._resolve_feature(feature)
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
@@ -323,6 +312,35 @@ class ALEBase(GlobalEffectBase):
 
 
 class ALE(ALEBase):
+    r"""Accumulated Local Effects: the effect built bin-by-bin from local
+    model differences — the safe choice for correlated features.
+
+    ```python
+    ale = effector.ALE(X, model)
+    ale.plot("hr")
+    ```
+
+    The axis is split into $K$ fixed bins with limits $z_0 < \dots < z_K$.
+    Each instance in bin $k$ contributes the secant of the model across the
+    bin; the per-bin means $\mu_k$ are accumulated:
+
+    $$
+    \hat{f}^{ALE}(x) = \sum_{k=1}^{k_x - 1} (z_k - z_{k-1})\, \mu_k
+                       + (x - z_{k_x - 1})\, \mu_{k_x},
+    \qquad
+    \mu_k = \frac{1}{|S_k|} \sum_{i \in S_k}
+    \frac{f(x^i_{s=z_k}) - f(x^i_{s=z_{k-1}})}{z_k - z_{k-1}}
+    $$
+
+    Instances only move within their own bin, so ALE stays close to the data
+    manifold where PDP would extrapolate. The heterogeneity at $x$ is the
+    variance of the local effects within its bin.
+
+    !!! tip "Differentiable model? Use RHALE"
+        `effector.RHALE` reads the local effects off the model Jacobian:
+        no dependence on bin width, and automatic bin sizing.
+    """
+
     CAT_STRATEGY = "adjacent_level_diffs"
 
     def __init__(
@@ -335,78 +353,36 @@ class ALE(ALEBase):
         schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: Optional[int] = 21,
     ):
-        r"""
-        Constructor for the ALE plot.
+        r"""Build an ALE explainer. No model calls happen here.
 
-        Definition:
-            ALE reveals the effect of $x_s$ by accumulating, bin by bin, the
-            average *local effect* of the feature. The axis of $x_s$ is split
-            into $K$ fixed bins by the limits $z_0 < z_1 < \dots < z_K$. For an
-            instance $x^i$ whose $x_s^i$ falls in bin $k$, the local effect is
-            the secant of the model across that bin:
+        ??? note "Heterogeneity"
+            `eval_heter` returns a step function: the variance of the local
+            effects within the bin containing $x$,
+
             $$
-            \mathtt{effect}_i = \frac{f(x^i_{s=z_k}) - f(x^i_{s=z_{k-1}})}{z_k - z_{k-1}}
-            $$
-            where $x^i_{s=z}$ is $x^i$ with its $s$-th coordinate set to $z$.
-            The bin effect is the mean local effect over the instances $S_k$
-            that fall in bin $k$, and ALE at a point $x$ lying in bin $k_x$
-            accumulates the completed bins plus the partial contribution of the
-            current one:
-            $$
-            \mu_k = \frac{1}{|S_k|} \sum_{i \in S_k} \mathtt{effect}_i
+            h(x) = \sigma^2_{k_x},
             \qquad
-            \hat{f}^{ALE}(x) = \sum_{k=1}^{k_x - 1} (z_k - z_{k-1})\, \mu_k
-                               + (x - z_{k_x - 1})\, \mu_{k_x}
-            $$
-            The curve is centered afterwards (by default `zero_integral`,
-            subtracting its mean over the axis).
-
-            The heterogeneity is the variance of the local effects within the
-            bin containing $x$; `eval_heter` returns it as a step function:
-            $$
-            H(x) = \sigma^2_{k_x},
-            \qquad
-            \sigma^2_k = \frac{1}{|S_k|} \sum_{i \in S_k} (\mathtt{effect}_i - \mu_k)^2
+            \sigma^2_k = \frac{1}{|S_k|} \sum_{i \in S_k}
+            (\mathtt{effect}_i - \mu_k)^2
             $$
 
-            The std of the bin-effects is $\sqrt{\sigma^2_k}$, drawn as the
-            error bars on the bin plot.
-
-        Notes:
-            - The required parameters are `data` and `model`. The rest are optional.
+            The bin plot draws $\sqrt{\sigma^2_k}$ as error bars.
 
         Args:
-            data: the design matrix
-
-                - shape: `(N,D)`
-            model: the black-box model. Must be a `Callable` with:
-
-                - input: `ndarray` of shape `(N, D)`
-                - output: `ndarray` of shape `(N, )`
-
-            nof_instances: the number of instances to use for the explanation
-
-                - use an `int`, to specify the number of instances
-                - use `"all"`, to use all the instances
-
-            axis_limits: The limits of the feature effect plot along each axis
-
-                - use a `ndarray` of shape `(2, D)`, to specify them manually
-                - use `None`, to be inferred from the data
-
-            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
-                with any of the keys `feature_names`, `feature_types`,
-                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
-
-                - omitted fields are auto-inferred from `data` (numpy
-                  heuristics) or synthesized (`["x_0", ...]`, `"y"`); to start
-                  from a DataFrame use `effector.from_dataframe`
-                - explicit fields always win over inference
-
-            random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
-
-                - use an `int` (default: `21`), for reproducible output; two identical constructions give identical results
-                - use `None`, for non-deterministic behavior
+            data: the design matrix, shape `(N, D)` — numpy only.
+            model: the black-box model — a `Callable` mapping `(N, D)`
+                arrays to `(N,)` predictions.
+            nof_instances: max instances kept (default `10_000`) — an `int`
+                subsamples randomly, `"all"` keeps everything.
+            axis_limits: per-feature plot limits, shape `(2, D)`; `None`
+                (default) infers them from `data`.
+            schema: input metadata — an `effector.Schema` or a plain `dict`
+                with any of `feature_names`, `feature_types`, `cat_limit`,
+                `target_name`, `scale_x_list`, `scale_y`; omitted fields are
+                inferred from `data`, explicit ones win. Coming from a
+                DataFrame? Use `effector.from_dataframe`.
+            random_state: seed for every internal random step (default `21`,
+                reproducible); `None` for non-deterministic behavior.
         """
         super(ALE, self).__init__(
             data,
@@ -483,41 +459,45 @@ class ALE(ALEBase):
         binning_method: typing.Union[str, ap.Fixed] = "fixed",
         order: typing.Union[None, str, list] = None,
     ) -> None:
-        """Fit the ALE plot.
+        """Declare per-feature defaults and warm the caches.
+
+        ```python
+        ale.fit("hr", binning_method=Fixed(nof_bins=30))
+        ```
+
+        !!! note "fit is optional"
+            `eval`, `plot`, `heter_score` compute what they need lazily with
+            these defaults; `fit` declares the config once and pays the model
+            cost upfront.
 
         Args:
-            features: the features to fit. If set to "all", all the features will be fitted.
-
-            binning_method:
-
-                - If set to `"fixed"`, the ALE plot will be computed with the  default values, which are
-                `20` bins with at least `10` points per bin and the feature is considered as categorical if it has
-                less than `15` unique values.
-                - If you want to change the parameters of the method, you pass an instance of the
-                class `effector.axis_partitioning.Fixed` with the desired parameters.
-                For example: `Fixed(nof_bins=20, min_points_per_bin=0)`
-
-            centering: the default centering mode for this feature's queries:
-
-                - `False` means no centering
-                - `True` or `zero_integral` centers around the `y` axis.
-                - `zero_start` starts the plot from `y=0`.
-
-            order: level order for a *categorical* feature of interest
+            features: feature(s) to fit — index, name, list, or `"all"`.
+            centering: default centering for this feature's queries —
+                `False` (none), `True`/`"zero_integral"` (center around the
+                y axis), or `"zero_start"` (start at `y=0`).
+            binning_method: `"fixed"` (default: 20 equal-width bins) or an
+                `effector.axis_partitioning.Fixed` instance for custom
+                parameters, e.g. `Fixed(nof_bins=30, min_points_per_bin=0)`.
+                ALE accepts only fixed binning — for adaptive bins use
+                `effector.RHALE`.
+            order: level order for a *categorical* feature of interest:
 
                 - `None` (default): ascending encoded order — exact for
-                  ordinal features; for nominal features it is arbitrary-but-
-                  deterministic, and the accumulated curve's *shape* depends
-                  on it (the meaningful quantities are the adjacent-level
-                  differences — see docs/method_semantics.md)
+                  ordinal features; for nominal ones it is arbitrary-but-
+                  deterministic, and only the adjacent-level differences are
+                  meaningful (see docs/method_semantics.md)
                 - `"similarity"`: induce the order from the other features
                   (KS-distance seriation, Molnar/iml)
                 - a list of the levels: declare it explicitly (applies to
                   exactly one categorical feature)
 
-                Changing `order` changes the frame (R14): the next query
-                recomputes the local effects; the same `order` re-fitted is
-                a cache hit.
+                Changing `order` invalidates the cached local effects: the
+                next query recomputes them; re-fitting the same `order` is a
+                cache hit.
+
+        Raises:
+            ValueError: if `binning_method` is not fixed, or an explicit
+                `order` list targets more than one categorical feature.
         """
         self._check_binning_is_fixed(binning_method)
         self._validate_order_arg(features, order)
@@ -531,6 +511,34 @@ class ALE(ALEBase):
 
 
 class RHALE(ALEBase):
+    r"""Robust and Heterogeneity-aware ALE: ALE computed from the model
+    Jacobian, with automatic variable-size binning.
+
+    ```python
+    rhale = effector.RHALE(X, model, model_jac)
+    rhale.plot("hr")
+    ```
+
+    The local effect of an instance is the pointwise derivative instead of
+    ALE's bin secant, so it does not depend on the bin width — bins can be
+    sized automatically (dynamic programming by default) to balance bias and
+    variance. Accumulation and heterogeneity are then identical to ALE:
+
+    $$
+    \hat{f}^{RHALE}(x) = \sum_{k=1}^{k_x - 1} (z_k - z_{k-1})\, \mu_k
+                         + (x - z_{k_x - 1})\, \mu_{k_x},
+    \qquad
+    \mu_k = \frac{1}{|S_k|} \sum_{i \in S_k}
+    \frac{\partial f}{\partial x_s}(x^i)
+    $$
+
+    !!! warning "Needs derivatives"
+        Pass `model_jac` (or a precomputed `data_effect`); otherwise the
+        Jacobian is estimated with slower, less exact numerical
+        differentiation. Nominal features raise an error — use `ALE` or
+        `PDP` for those; ordinal features use discrete differences.
+    """
+
     SUPPORTED_FEATURE_TYPES = frozenset({ingestion.CONTINUOUS, ingestion.ORDINAL})
     CAT_STRATEGY = "level_diffs_grouped"
 
@@ -546,86 +554,41 @@ class RHALE(ALEBase):
         schema: Optional[Union[ingestion.Schema, dict]] = None,
         random_state: typing.Optional[int] = 21,
     ):
-        r"""
-        Constructor for RHALE.
+        r"""Build a RHALE explainer. No model calls happen here.
 
-        Definition:
-            RHALE is ALE with the *pointwise derivative* as the local effect.
-            Because the effect is read at the instance instead of as a secant
-            across the bin, it no longer depends on the bin width, which makes
-            the accumulated curve and the per-bin heterogeneity robust to the
-            binning. The axis of $x_s$ is split into $K$ bins by the limits
-            $z_0 < z_1 < \dots < z_K$, and for an instance $x^i$ whose $x_s^i$
-            falls in bin $k$ the local effect is
+        ??? note "Heterogeneity"
+            `eval_heter` returns a step function: the variance of the
+            per-instance derivatives within the bin containing $x$,
+
             $$
-            \mathtt{effect}_i = \frac{\partial f}{\partial x_s}(x^i)
-            $$
-            taken from the model Jacobian (exact if `model_jac` is provided,
-            otherwise numerical). The bin effect, the accumulation and the
-            heterogeneity are then identical to ALE:
-            $$
-            \mu_k = \frac{1}{|S_k|} \sum_{i \in S_k} \mathtt{effect}_i
+            h(x) = \sigma^2_{k_x},
             \qquad
-            \hat{f}^{RHALE}(x) = \sum_{k=1}^{k_x - 1} (z_k - z_{k-1})\, \mu_k
-                                 + (x - z_{k_x - 1})\, \mu_{k_x}
-            $$
-            The curve is centered afterwards (by default `zero_integral`).
-
-            The heterogeneity is the variance of the local effects within the
-            bin containing $x$; `eval_heter` returns it as a step function:
-            $$
-            H(x) = \sigma^2_{k_x},
-            \qquad
-            \sigma^2_k = \frac{1}{|S_k|} \sum_{i \in S_k} (\mathtt{effect}_i - \mu_k)^2
+            \sigma^2_k = \frac{1}{|S_k|} \sum_{i \in S_k}
+            (\mathtt{effect}_i - \mu_k)^2
             $$
 
-            The std of the bin-effects is $\sqrt{\sigma^2_k}$, drawn as the
-            error bars on the bin plot.
-
-        Notes:
-            The required parameters are `data` and `model`. The rest are optional.
+            The bin plot draws $\sqrt{\sigma^2_k}$ as error bars.
 
         Args:
-            data: the design matrix
-
-                - shape: `(N,D)`
-            model: the black-box model. Must be a `Callable` with:
-
-                - input: `ndarray` of shape `(N, D)`
-                - output: `ndarray` of shape `(N, )`
-
-            model_jac: the Jacobian of the model. Must be a `Callable` with:
-
-                - input: `ndarray` of shape `(N, D)`
-                - output: `ndarray` of shape `(N, D)`
-
-            nof_instances: the number of instances to use for the explanation
-
-                - use an `int`, to specify the number of instances
-                - use `"all"`, to use all the instances
-
-            axis_limits: The limits of the feature effect plot along each axis
-
-                - use a `ndarray` of shape `(2, D)`, to specify them manually
-                - use `None`, to be inferred from the data
-
-            data_effect:
-                - if np.ndarray, the model Jacobian computed on the `data`
-                - if None, the Jacobian will be computed using model_jac
-
-            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
-                with any of the keys `feature_names`, `feature_types`,
-                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
-
-                - omitted fields are auto-inferred from `data` (numpy
-                  heuristics) or synthesized (`["x_0", ...]`, `"y"`); to start
-                  from a DataFrame use `effector.from_dataframe`
-                - explicit fields always win over inference
-
-            random_state: seed for every internal random step (e.g. `nof_instances` subsampling)
-
-                - use an `int` (default: `21`), for reproducible output; two identical constructions give identical results
-                - use `None`, for non-deterministic behavior
+            data: the design matrix, shape `(N, D)` — numpy only.
+            model: the black-box model — a `Callable` mapping `(N, D)`
+                arrays to `(N,)` predictions.
+            model_jac: the model Jacobian — a `Callable` mapping `(N, D)`
+                arrays to `(N, D)` derivatives. If `None` (and no
+                `data_effect`), the Jacobian is computed numerically.
+            data_effect: precomputed Jacobian on `data`, shape `(N, D)`;
+                skips calling `model_jac`.
+            nof_instances: max instances kept (default `10_000`) — an `int`
+                subsamples randomly, `"all"` keeps everything.
+            axis_limits: per-feature plot limits, shape `(2, D)`; `None`
+                (default) infers them from `data`.
+            schema: input metadata — an `effector.Schema` or a plain `dict`
+                with any of `feature_names`, `feature_types`, `cat_limit`,
+                `target_name`, `scale_x_list`, `scale_y`; omitted fields are
+                inferred from `data`, explicit ones win. Coming from a
+                DataFrame? Use `effector.from_dataframe`.
+            random_state: seed for every internal random step (default `21`,
+                reproducible); `None` for non-deterministic behavior.
         """
         super(RHALE, self).__init__(
             data,
@@ -716,56 +679,58 @@ class RHALE(ALEBase):
         order: typing.Union[None, str, list] = None,
         binning_scope: str = "global",
     ) -> None:
-        """Fit the model.
+        """Declare per-feature defaults and warm the caches.
+
+        ```python
+        rhale.fit("hr", binning_method="dp")
+        ```
+
+        !!! note "fit is optional"
+            `eval`, `plot`, `heter_score` compute what they need lazily with
+            these defaults; `fit` declares the config once and pays the model
+            cost upfront.
 
         Args:
-            features (int, str, list): the features to fit.
+            features: feature(s) to fit — index, name, list, or `"all"`.
+            centering: default centering for this feature's queries —
+                `False` (none), `True`/`"zero_integral"` (center around the
+                y axis), or `"zero_start"` (start at `y=0`).
+            binning_method: how the axis is split into bins:
 
-                - If set to "all", all the features will be fitted.
+                - `"dp"` (default): dynamic programming — optimal
+                  variable-size bins
+                - `"agglomerative"`: bottom-up merging of small bins
+                  (`"greedy"` is a deprecated alias)
+                - `"quantile"`: equal-frequency bins
+                - `"fixed"`: equal-width bins
 
-            binning_method (str): the binning method to use.
+                For custom parameters pass an instance from
+                `effector.axis_partitioning`, e.g.
+                `DynamicProgramming(max_nof_bins=30)`.
 
-                - Use `"greedy"` for using the Greedy binning solution with the default parameters.
-                  For custom parameters initialize a `axis_partitioning.Greedy` object
-                - Use `"dp"` for using a Dynamic Programming binning solution with the default parameters.
-                  For custom parameters initialize a `axis_partitioning.DynamicProgramming` object
-                - Use `"fixed"` for using a Fixed binning solution with the default parameters.
-                  For custom parameters initialize a `axis_partitioning.Fixed` object
+            order: level order for a *categorical* feature of interest:
 
-            centering: the default centering mode for this feature's queries:
-
-                - `False` means no centering
-                - `True` or `zero_integral` centers around the `y` axis
-                - `zero_start` starts the plot from `y=0`
-
-            order: level order for a *categorical* feature of interest
-
-                - `None` (default): ascending encoded order — exact for
-                  ordinal features; for nominal features it is arbitrary-but-
-                  deterministic, and the accumulated curve's *shape* depends
-                  on it (the meaningful quantities are the adjacent-level
-                  differences — see docs/method_semantics.md)
+                - `None` (default): ascending encoded order
                 - `"similarity"`: induce the order from the other features
                   (KS-distance seriation, Molnar/iml)
                 - a list of the levels: declare it explicitly (applies to
                   exactly one categorical feature)
 
-                Changing `order` changes the frame (R14): the next query
-                recomputes the local effects; the same `order` re-fitted is
-                a cache hit.
+                Changing `order` invalidates the cached local effects: the
+                next query recomputes them; re-fitting the same `order` is a
+                cache hit.
 
             binning_scope: the x-range the binner covers when a *masked*
                 summary re-bins a subregion (`eval`/`eval_heter`/`plot`/
-                `heter_score` with `mask=`; the regional split search)
+                `heter_score` with `mask=`; the regional split search):
 
-                - `"global"` (default): the frozen global `axis_limits` — one
-                  frame for every subregion, directly comparable
-                - `"effective"`: the masked column's own `[min, max]` — bins
-                  packed into the subregion, finer resolution
+                - `"global"` (default): the frozen global `axis_limits` —
+                  one frame for every subregion, directly comparable
+                - `"effective"`: the masked column's own `[min, max]` —
+                  bins packed into the subregion, finer resolution
 
-                Recorded at fit and replayed by every masked call, so the
-                split search and the display always share the same scope.
-                Ignored when no mask is involved.
+                Recorded at fit and replayed by every masked call. Ignored
+                when no mask is involved.
         """
         # validation is the resolver's job (R6): one table, one error message
         binning_method = ap.return_default(binning_method)

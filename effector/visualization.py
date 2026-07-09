@@ -628,32 +628,54 @@ def compare(
 ):
     """Overlay the mean effect of several *fitted* effect objects on one feature.
 
-    This is the cross-examination verb that stands above the engines: you hold
-    the effect objects (possibly of different methods, or even different
-    models over the same columns), `compare` queries each one's `eval` on a
-    shared grid and overlays the curves — one color per effect from the theme
-    cycle. It computes nothing itself and stores nothing.
+    ```python
+    effector.compare(pdp, ale, rhale, feature="hr")
+    effector.compare(pdp_a, pdp_b, feature="hr", labels=["model A", "model B"])
+    ```
+
+    The cross-examination verb above the engines: you hold the effect objects
+    (different methods, or even different models over the same columns);
+    `compare` queries each one's `eval` on a shared grid and overlays the
+    curves — one theme color per effect. It computes nothing itself and
+    stores nothing.
+
+    !!! warning "Always centered"
+        A comparison is only meaningful for centered effects (each method
+        uses a different reference level), so `centering=False` is coerced to
+        `"zero_integral"` with a warning.
+
+    !!! note "Derivative units don't mix"
+        `DerPDP` effects (dy/dx) can only be compared with each other — never
+        on the same axis as the output-unit methods
+        (`PDP`/`ALE`/`RHALE`/`ShapDP`).
 
     The single-model shortcut with the same look is
     `effector.FeatureEffect(data, model).plot(feature, methods=[...])`, which
     builds its own engines; `compare` overlays engines you already have.
 
     Args:
-        *effects: two or more effect objects (`PDP`/`ALE`/`RHALE`/`ShapDP`/
-            `DerPDP`) over data with the same columns. Derivative-unit effects
-            (`DerPDP`, dy/dx) cannot be mixed with level-unit ones.
+        *effects: two or more fitted effect objects (`PDP`/`ALE`/`RHALE`/
+            `ShapDP`/`DerPDP`) over data with the same columns.
         feature: index or name of the feature to compare on.
         labels: one legend label per effect; defaults to the method display
-            names (`"PDP"`, `"RHALE"`, ...), deduped.
-        centering: how to center the curves. A comparison is meaningful only
-            when centered, so `False` is coerced to `"zero_integral"` with a
-            warning.
-        nof_points: size of the shared grid (continuous features).
-        scale_x, scale_y: `None` or dict with keys `["mean", "std"]`; default
+            names, deduped (`"PDP"`, `"PDP (2)"`, ...).
+        centering: how to center — `True`/`"zero_integral"` (around the y
+            axis) or `"zero_start"` (each curve starts at `y=0`).
+        nof_points: size of the shared grid (continuous features); the grid
+            spans the intersection of the effects' axis limits.
+        scale_x: `None` or a `{"mean", "std"}` dict for the x axis; defaults
             to the first effect's schema scaling.
+        scale_y: same, for the y axis.
         y_limits: `None` or tuple, manual y-axis limits.
         title: figure title.
-        show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`.
+        show_plot: if `True`, show the figure and return `None`; if `False`,
+            return `(fig, ax)`.
+
+    Raises:
+        ValueError: fewer than two effects; effects disagree on columns,
+            feature resolution, categorical status, or observed level sets;
+            derivative and output units are mixed; or the axis intervals do
+            not overlap.
     """
     if len(effects) < 2:
         raise ValueError(
@@ -762,19 +784,25 @@ def plot_triage(
     title: typing.Union[None, str] = None,
     show_plot: bool = True,
 ):
-    """The triage plane of one fitted effect: importance (x) against
-    heterogeneity (y), one labeled point per feature.
+    """The triage plane of one fitted effect: importance (x) against heterogeneity (y), one labeled point per feature.
+
+    ```python
+    effector.plot_triage(pdp)                       # survey every feature
+    parts = pdp.find_regions(features="heterogeneous")
+    effector.plot_triage(pdp, partitions=parts)     # before/after arrows
+    ```
 
     Read it as a to-do list: bottom-left is unimportant and honest, the
     bottom-right features are important and fully described by their mean
     effect, and the top-right corner — important *and* heterogeneous — is
     where the mean effect hides something and `find_regions` should look.
 
-    With `partitions`, the plot becomes the before/after story: for every
-    partitioned feature an arrow runs from its global point to each leaf
-    point (the leaf's `importance`/`heter_score` under its rule, computed
-    model-free from the caches). Leaves of a good partition land right and
-    down — more decisive, less heterogeneous.
+    !!! tip "The before/after story"
+        With `partitions`, an arrow runs from every partitioned feature's
+        global point to each of its leaf points (the leaf's
+        `importance`/`heter_score` under its rule, computed model-free from
+        the caches). Leaves of a good partition land right and down — more
+        decisive, less heterogeneous.
 
     Args:
         effect: a fitted effect object (`PDP`/`RHALE`/...); its `importance`
@@ -791,7 +819,8 @@ def plot_triage(
             indices/names. Feature types the method does not support are
             skipped with one `UserWarning`.
         title: figure title.
-        show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`.
+        show_plot: if `True`, show the figure and return `None`; if `False`,
+            return `(fig, ax)`.
     """
     if isinstance(features, str):
         if features != "all":

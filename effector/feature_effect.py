@@ -10,23 +10,31 @@ from effector import ingestion
 
 
 class FeatureEffect:
-    """Unified facade to compare global feature-effect methods on a single figure.
+    """Compare global feature-effect methods on a single figure — one model, one object.
 
-    `FeatureEffect` holds the shared ingredients (`data`, `model`, feature/target
-    names, axis limits) once and lazily builds the underlying method objects
-    (`PDP`, `ALE`, `RHALE`, `ShapDP`) on demand. Its `eval` returns the mean
-    effect of several methods on a shared grid, and its `plot` overlays them
-    on the same axis, so they can be compared directly.
+    ```python
+    fe = effector.FeatureEffect(X, model, schema=schema)
+    fe.plot(feature=3)                             # PDP vs ALE vs RHALE overlaid
+    fe.plot(feature=3, methods=["PDP", "ShapDP"])  # ShapDP is opt-in (slow)
+    ```
 
-    Notes:
-        - All methods share the *same* background data: the data is filtered to
-          `axis_limits` and subsampled to `nof_instances` once, then every method
-          is built on that identical subset. The only difference between the
-          curves is therefore the method itself.
-        - The comparison is meaningful only for *centered* effects (each method
-          uses a different reference level), so `plot` centers by default.
-        - `DerPDP` is intentionally not part of the pool: it lives in derivative
-          units and is not comparable with the output-unit methods.
+    Holds the shared ingredients (`data`, `model`, metadata, axis limits) once
+    and lazily builds the underlying method objects (`PDP`, `ALE`, `RHALE`,
+    `ShapDP`) on demand. `eval` returns each method's mean effect on a shared
+    grid; `plot` overlays them on one axis.
+
+    !!! note "Same background data for every method"
+        The data is filtered to `axis_limits` and subsampled to
+        `nof_instances` *once*; every method object is built on that identical
+        subset. The only difference between the curves is the method itself.
+
+    !!! warning "`DerPDP` is not in the pool"
+        It lives in derivative units (dy/dx) and cannot share an axis with the
+        output-unit methods.
+
+    To overlay effect objects you already hold — different subsets, even
+    different models — use `effector.compare` instead; `FeatureEffect` always
+    builds its own.
     """
 
     # the comparison pool: every registry method in output units (R5 — the
@@ -47,26 +55,27 @@ class FeatureEffect:
     ):
         """
         Args:
-            data: the design matrix — a `(N, D)` numeric numpy array (R10;
-                start from a DataFrame via `effector.from_dataframe`)
+            data: the design matrix — a `(N, D)` numeric numpy array (start
+                from a DataFrame via `effector.from_dataframe`).
             model: the black-box model, a numpy->numpy `Callable`
-                `(N, D) -> (N,)`
-            model_jac: the model Jacobian `(N, D) -> (N, D)`, optional. Needed by
-                `RHALE`; if omitted, `RHALE` falls back to numerical differentiation.
-            axis_limits: `(2, D)` array of per-feature limits, or `None` to infer
-                from the data.
+                `(N, D) -> (N,)` (see `effector.adapters` for wrappers).
+            model_jac: the model Jacobian `(N, D) -> (N, D)`, optional. Used by
+                `RHALE`; if omitted, `RHALE` falls back to numerical
+                differentiation (slower and approximate).
+            axis_limits: `(2, D)` array of per-feature limits, or `None` to
+                infer from the data.
             nof_instances: number of instances shared across all methods.
 
                 - use an `int` to subsample
                 - use `"all"` to use every instance
 
-            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
-                with any of the keys `feature_names`, `feature_types`,
-                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
+            schema: input metadata — an `effector.Schema` or a plain `dict`
+                with any of its keys (`feature_names`, `feature_types`,
+                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`,
+                `category_names`)
 
                 - omitted fields are auto-inferred from `data` (numpy
-                  heuristics) or synthesized (`["x_0", ...]`, `"y"`); to start
-                  from a DataFrame use `effector.from_dataframe`
+                  heuristics) or synthesized (`["x_0", ...]`, `"y"`)
                 - explicit fields always win over inference
 
             random_state: seed for every internal random step (e.g. the shared
@@ -193,21 +202,31 @@ class FeatureEffect:
         centering: Union[bool, str] = True,
         method_kwargs: Optional[dict] = None,
     ) -> dict:
-        """Evaluate the mean effect of several methods on a shared grid.
+        """Evaluate the mean effect of several methods on one shared grid.
+
+        ```python
+        xs = np.linspace(fe.axis_limits[0, 3], fe.axis_limits[1, 3], 100)
+        curves = fe.eval(feature=3, xs=xs)   # {"PDP": y, "ALE": y, "RHALE": y}
+        ```
+
+        Methods that do not support the feature's type (e.g. `RHALE` on a
+        nominal feature) are dropped with a warning.
 
         Args:
-            feature: index of the feature
-            xs: the grid to evaluate on, shape `(T,)`
+            feature: index of the feature.
+            xs: the grid to evaluate on, shape `(T,)`. For a categorical
+                feature pass its observed levels.
             methods: list of method names. Supported: `"PDP"`, `"ALE"`,
                 `"RHALE"`, `"ShapDP"` (alias `"SHAP"`). Defaults to
-                `["PDP", "ALE", "RHALE"]` (`ShapDP` is opt-in as it is slower
-                and needs the `shap` package).
-            centering: how to center the curves (R3 vocabulary)
+                `["PDP", "ALE", "RHALE"]` — `ShapDP` is opt-in as it is slower
+                and needs the `shap` package.
+            centering: `True` / `"zero_integral"` (center around the y axis),
+                `"zero_start"` (start each curve at `y=0`), or `False` (raw).
             method_kwargs: optional `{method_name: {**constructor_kwargs}}` to
-                customize individual methods
+                customize individual methods.
 
         Returns:
-            `{display_name: y}` with one `(T,)` mean-effect array per method
+            `{display_name: y}` with one `(T,)` mean-effect array per method.
         """
         if methods is None:
             methods = ["PDP", "ALE", "RHALE"]
@@ -237,26 +256,43 @@ class FeatureEffect:
     ):
         """Overlay the mean effect of several methods for one feature.
 
+        ```python
+        fe.plot(feature=3)                                  # PDP vs ALE vs RHALE
+        fe.plot(feature=3, methods=["PDP", "ALE", "ShapDP"])  # add ShapDP (slow)
+        ```
+
+        The grid is shared: a linspace over the feature's axis limits, or the
+        observed levels for a categorical feature.
+
+        !!! warning "Always centered"
+            The comparison is only meaningful for centered effects (each
+            method uses a different reference level), so `centering=False` is
+            coerced to `"zero_integral"` with a warning.
+
         Args:
-            feature: index of the feature to plot
-            methods: list of method names to compare. Supported: `"PDP"`, `"ALE"`,
-                `"RHALE"`, `"ShapDP"` (alias `"SHAP"`). Defaults to
-                `["PDP", "ALE", "RHALE"]` (`ShapDP` is opt-in as it is slower and
-                needs the `shap` package).
-            centering: how to center the curves. The comparison is meaningful only
-                when centered, so `False` is coerced to `"zero_integral"`.
+            feature: index of the feature to plot.
+            methods: list of method names to compare. Supported: `"PDP"`,
+                `"ALE"`, `"RHALE"`, `"ShapDP"` (alias `"SHAP"`). Defaults to
+                `["PDP", "ALE", "RHALE"]` — `ShapDP` is opt-in as it is slower
+                and needs the `shap` package.
+            centering: how to center the curves
 
                 - `True` / `"zero_integral"`: center around the `y` axis
                 - `"zero_start"`: start each curve from `y=0`
 
-            nof_points: size of the shared evaluation grid
-            scale_x, scale_y: `None` or dict with keys `["mean", "std"]` to map the
-                axes back to the original units
-            y_limits: `None` or tuple, manual y-axis limits
-            show_avg_output: whether to draw the model's average output as a line
+            nof_points: size of the shared evaluation grid (continuous
+                features).
+            scale_x: `None` or a `{"mean", "std"}` dict to map the x axis
+                back to original units; defaults to the schema's scaling.
+            scale_y: same, for the y axis.
+            y_limits: `None` or tuple, manual y-axis limits.
+            show_avg_output: whether to draw the model's average output as a
+                horizontal line.
             method_kwargs: optional `{method_name: {**constructor_kwargs}}` to
-                customize individual methods (e.g. `{"ShapDP": {"nof_instances": 300}}`)
-            show_plot: if `True`, show the figure; if `False`, return `(fig, ax)`
+                customize individual methods
+                (e.g. `{"ShapDP": {"nof_instances": 300}}`).
+            show_plot: if `True`, show the figure and return `None`; if
+                `False`, return `(fig, ax)`.
         """
         centering = helpers.prep_centering(centering)
         scale_x = helpers.resolve_scale(

@@ -1,3 +1,32 @@
+"""Region finders: split the input space into subregions with homogeneous effects.
+
+A **region finder** is any object exposing
+
+```python
+find_regions(feature, data, score_fn, *, axis_limits, feature_types, cat_limit,
+             candidate_conditioning_features, feature_names, target_name) -> Partition
+```
+
+where `score_fn(mask) -> float` scores the heterogeneity of a boolean
+subregion (the effect method passes its `heter_score(feature, mask)`). The
+finder owns the min-points and degeneracy guards — `score_fn` may raise or
+return non-finite values and the finder treats that as "worst possible", so
+effect methods never deal in sentinel costs.
+
+Two built-in finders implement the protocol:
+
+- `Best` — node-wise recursion: the best split per node, CART-style.
+- `BestLevelWise` — one shared split per tree level, applied to every node of
+  that level (the REPID-style search).
+
+Both enumerate candidate splits through the proposer seam
+(`effector.proposers`): the constructor kwargs `categorical_proposer=`
+(`"one_vs_rest"` | `"subsets"` | `"ordered"` | `"multiway"`) and
+`continuous_proposer=` (`"threshold"` | `"quantiles"`) pick how candidates on
+each conditioning-feature type are generated, and also accept a proposer
+instance. The result is a rule-primary `Partition` — no tree intermediate.
+"""
+
 import copy
 import dataclasses
 import typing
@@ -39,64 +68,18 @@ class Base:
     ):
         """Shared configuration of the space partitioners.
 
+        Not rendered in the docs — see `Best.__init__` for the full
+        parameter documentation shared by both built-in finders.
+
         Args:
-            min_heterogeneity_decrease_pcg: Minimum percentage of heterogeneity decrease to accept a split.
-
-                ??? Example "Example"
-                    - `0.1`: if the heterogeneity before any split is 1, the heterogeneity after the first split must be at most 0.9 to be accepted. Otherwise, no split will be accepted.
-
-            heter_small_enough: When heterogeneity is smaller than this value, no more splits are performed.
-
-                ??? Note "Default is `0.001`"
-                    Value 0.001 is small enough for most cases.
-                    It is advisable to set this value to a small number to avoid unnecessary splits.
-
-                ??? Note "Custom value"
-                    If you know a priori that a specific heterogeneity value is small enough,
-                    you can set this parameter to a higher value than the default.
-
-            max_depth: Maximum number of splits to perform
-
-                ??? Note "Default is `2`"
-                    2 splits already create 4 subregions, i.e. 4 regional plots per feature, which are already enough.
-                    Setting this value to a higher number will increase the number of subregions and plots, which may be too much for the user to analyze.
-
-            min_samples_leaf: Minimum number of instances per subregion
-
-                ??? Note "Default is `10`"
-                    If a subregion has less than 10 instances, it may not be representative enough to be analyzed.
-
-            numerical_features_grid_size: Number of candidate split positions for numerical features
-
-                ??? Note "Default is `20`"
-                    For numerical features, the algorithm will create a grid of 20 equally spaced values between the minimum and maximum values of the feature.
-
-            search_partitions_when_categorical: Whether to search for partitions when the feature is categorical
-
-                ??? warning "refers to a categorical feature of interest"
-                    This argument asks whether to search for partitions when the feature of interest is categorical.
-                    If the feature of interest is numerical, the algorithm will always search for partitions and will consider
-                    categorical features for conditioning.
-
-                ??? Note "Default is `False`"
-                    It is difficult to compute the heterogeneity for categorical features, so by default, the algorithm will not search for partitions when the feature of interest is categorical.
-
-            categorical_proposer: How candidate splits on categorical conditioning features are enumerated
-
-                ??? Note "Options"
-                    - `"one_vs_rest"` (default): one level vs. all others, per observed level
-                    - `"subsets"`: every binary subset-vs-complement split
-                    - `"ordered"`: contiguous cuts after ordering the levels (natural for ordinal, similarity seriation for nominal)
-                    - `"multiway"`: one k-way candidate with one child per level
-                    - a proposer instance (anything exposing `propose(ctx, foc)`), e.g. `effector.proposers.CategoricalOrdered(order=[...])`
-
-            continuous_proposer: How candidate splits on continuous conditioning features are enumerated
-
-                ??? Note "Options"
-                    - `"threshold"` (default): binary splits on an interior grid of `numerical_features_grid_size` positions
-                    - `"quantiles"`: one k-way candidate per child count, split at the marginal quantiles
-                    - a proposer instance, e.g. `effector.proposers.ContinuousQuantiles(max_children=3)`
-
+            min_heterogeneity_decrease_pcg: Minimum relative heterogeneity drop to accept a split.
+            heter_small_enough: Stop splitting below this heterogeneity.
+            max_depth: Maximum number of split levels.
+            min_samples_leaf: Minimum number of instances per subregion.
+            numerical_features_grid_size: Threshold-grid resolution for continuous conditioning features.
+            search_partitions_when_categorical: Search when the feature of interest is categorical (honored by `BestLevelWise`).
+            categorical_proposer: Candidate enumeration for categorical conditioning features (name or instance).
+            continuous_proposer: Candidate enumeration for continuous conditioning features (name or instance).
         """
         self.name = helpers.camel_to_snake(name)
 
@@ -331,8 +314,19 @@ class Base:
 
 
 class Best(Base):
-    """Node-wise recursive partitioning: find the best split for each node,
-    recurse into the children (see `Base.__init__` for the parameters)."""
+    """Node-wise recursive partitioning: the best split for each node, CART-style.
+
+    At every node, scan all candidate splits over all conditioning features,
+    keep the one that minimizes the (population-weighted) heterogeneity of the
+    children, and recurse into each child independently — so different branches
+    may split on different features. A split is accepted only if it drops the
+    node's heterogeneity by at least `min_heterogeneity_decrease_pcg`.
+
+    ```python
+    finder = effector.space_partitioning.Best(max_depth=3)
+    partition = rhale.find_regions("hr", finder=finder)
+    ```
+    """
 
     def __init__(
         self,
@@ -345,6 +339,67 @@ class Best(Base):
         categorical_proposer="one_vs_rest",
         continuous_proposer="threshold",
     ):
+        """Configure the finder.
+
+        Args:
+            min_heterogeneity_decrease_pcg: Minimum relative heterogeneity drop
+                to accept a split, as a fraction of the pre-split value.
+
+                ??? example "Default is `0.1`"
+                    With heterogeneity 1.0 at a node, the weighted
+                    heterogeneity of the children must be at most 0.9 —
+                    otherwise the node stays unsplit.
+
+            heter_small_enough: A node with heterogeneity below this value is
+                considered homogeneous and is not split further.
+
+                ??? note "Default is `0.001`"
+                    Small enough for most cases. If you know a priori what
+                    "homogeneous enough" means for your effect scores, raise it
+                    to stop earlier.
+
+            max_depth: Maximum number of split levels.
+
+                ??? note "Default is `2`"
+                    Two levels of binary splits already yield up to 4
+                    subregions — 4 regional plots per feature; deeper
+                    partitions are rarely digestible.
+
+            min_samples_leaf: Minimum number of instances per subregion;
+                candidate children below it score worst-possible, so they are
+                never selected.
+
+            numerical_features_grid_size: Threshold-grid resolution for
+                continuous conditioning features: the axis range is divided
+                into this many equal segments and the interior boundaries are
+                the candidate thresholds (`grid_size - 1` candidates).
+
+            search_partitions_when_categorical: Whether to search for
+                subregions when the *feature of interest* is categorical.
+
+                !!! warning "Refers to a categorical feature of interest"
+                    Categorical features are always considered for
+                    *conditioning*, regardless of this flag. It is honored by
+                    `BestLevelWise`; `Best` currently always searches.
+
+            categorical_proposer: How candidate splits on categorical
+                conditioning features are enumerated.
+
+                ??? note "Options"
+                    - `"one_vs_rest"` (default): one level vs. all others, per observed level
+                    - `"subsets"`: every binary subset-vs-complement split
+                    - `"ordered"`: contiguous cuts after ordering the levels (natural for ordinal, similarity seriation for nominal)
+                    - `"multiway"`: one k-way candidate with one child per level
+                    - a proposer instance (anything exposing `propose(ctx, foc)`), e.g. `effector.proposers.CategoricalOrdered(order=[...])`
+
+            continuous_proposer: How candidate splits on continuous conditioning
+                features are enumerated.
+
+                ??? note "Options"
+                    - `"threshold"` (default): binary splits on an interior grid of `numerical_features_grid_size` positions
+                    - `"quantiles"`: one k-way candidate per child count, split at the marginal quantiles
+                    - a proposer instance, e.g. `effector.proposers.ContinuousQuantiles(max_children=3)`
+        """
         super().__init__(
             "Best",
             min_heterogeneity_decrease_pcg,
@@ -441,10 +496,20 @@ class Best(Base):
 
 
 class BestLevelWise(Base):
-    """Level-wise partitioning: find the single best split for each level
-    (applied to every node of that level at once), then keep the prefix of
-    levels whose heterogeneity drop is large enough (see `Base.__init__` for
-    the parameters)."""
+    """Level-wise partitioning: one shared split per level (the REPID-style search).
+
+    At every level, find the single split that — applied to *all* nodes of that
+    level at once — minimizes the weighted heterogeneity of the resulting
+    children, then keep the prefix of levels whose relative heterogeneity drop
+    exceeds `min_heterogeneity_decrease_pcg`. All siblings therefore split on
+    the same feature at the same position, which yields symmetric, easy-to-read
+    partitions; `Best` is the more flexible node-wise alternative.
+
+    ```python
+    finder = effector.space_partitioning.BestLevelWise(max_depth=2)
+    partition = rhale.find_regions("hr", finder=finder)
+    ```
+    """
 
     def __init__(
         self,
@@ -457,6 +522,27 @@ class BestLevelWise(Base):
         categorical_proposer="one_vs_rest",
         continuous_proposer="threshold",
     ):
+        """Configure the finder — same knobs as `Best` (see there for the
+        extended notes).
+
+        Args:
+            min_heterogeneity_decrease_pcg: Minimum relative heterogeneity drop
+                for a level to be kept (default `0.1` = 10%).
+            heter_small_enough: Stop once a level's weighted heterogeneity is
+                below this value (default `0.001`).
+            max_depth: Maximum number of split levels (default `2`).
+            min_samples_leaf: Minimum number of instances per subregion;
+                candidate children below it score worst-possible.
+            numerical_features_grid_size: Threshold-grid resolution for
+                continuous conditioning features (`grid_size - 1` candidates).
+            search_partitions_when_categorical: Whether to search when the
+                *feature of interest* is categorical; if `False`, a root-only
+                partition is returned for categorical features.
+            categorical_proposer: `"one_vs_rest"` (default), `"subsets"`,
+                `"ordered"`, `"multiway"`, or a proposer instance.
+            continuous_proposer: `"threshold"` (default), `"quantiles"`, or a
+                proposer instance.
+        """
         super().__init__(
             "best_level_wise",
             min_heterogeneity_decrease_pcg,
