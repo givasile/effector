@@ -1247,3 +1247,41 @@ step *beside* the pipeline, not in it.
 leaf plots → (e) triage again with arrows: importance shifted right,
 heterogeneity shifted down. Classification = per-class proba wrapper.
 Interactions v0 = the Dx1 heter vector we already have.
+
+## 32. 2026-07-09 — The great cleanup: three living docs, one manual (tag: code)  [branch `chore/cleanup-and-docs`]
+
+```
+before: PLAN.html  STATUS.md  FIND_REGIONS_PLAN.md  KERNEL_DISPATCH_PLAN.md
+        scripts/{20+ probes, figures, PDFs, sketches}  effector_manual.md (R11, unpublished)
+        EFFECTOR_COOKBOOK.md (unpublished)  PLAN.md (1534 lines, ⅔ executed)
+
+after:  PLAN.md ──── next steps        (the map)
+        LOGBOOK.md ─ story of changes  (the trail)          + docs site:
+        EFFECTOR_VISION.md ─ the destination                  manual.md (R14)
+                                                              API gaps closed
+        scripts/ = api_playground.py + global_runtimes.py     stale refs gone
+```
+
+**What.** Every point-in-time planning doc deleted after mining its
+unexecuted ideas (Phase D interactive spec, vision A/B backlog, categorical
+P3, small parked items) into the rewritten PLAN.md — now ~230 lines: workflow,
+DONE stubs pointing at LOGBOOK #1–#31, an ordered Part IV backlog (land the
+chain → F2a interaction vector → hardening → Phase D → F2b/F4/F3 → 1.0.0),
+and a parking lot. The vision report became `EFFECTOR_VISION.md` at the root,
+reconciled to what shipped (scorecard: A1/A7/A9/B1/B2/B4/B5 done). The R11-era
+package manual + cookbook were folded into ONE published docs page
+(`manual.md`, updated to R14, with the Regional*→find_regions migration
+table). `scripts/` keeps only the interactive playground and the runtime
+benchmark.
+
+**Why.** The stray docs had started disagreeing with each other (three
+contract levels in circulation: R11, R13, R14) — one source of truth per
+altitude: PLAN = future, LOGBOOK = past, VISION = destination, docs site =
+present.
+
+**Changes.** Docs completeness pass alongside: API reference gained
+ingestion (Schema/from_dataframe), FeatureEffect, set_theme, benchmarks, and
+uniform member lists (importance/find_regions/eval_heter now visible on every
+class); orphaned pages (api_extras, guides/methods) linked; last stale
+references retired (simple_api `.summary()`, 04_no2 `RegionalPDP/RHALE`
+headers, R1-R13 nav title); `explain_report.html` gitignored.
