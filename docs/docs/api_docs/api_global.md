@@ -99,7 +99,7 @@ jacobian = ... # jacobian of the model
 
         === "ShapDP"
 
-             ![Alt text](./../static/quickstart/simple_api_files/simple_api_13_0.png)
+             ![Alt text](./../static/quickstart/simple_api_files/simple_api_13_8.png)
 
         === "ALE"
 

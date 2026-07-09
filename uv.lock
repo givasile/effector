@@ -948,6 +948,7 @@ tutorials = [
 [package.dev-dependencies]
 dev = [
     { name = "coverage" },
+    { name = "ipykernel" },
     { name = "jupyter-core" },
     { name = "mkdocs" },
     { name = "mkdocs-glightbox" },
@@ -971,6 +972,7 @@ dev = [
     { name = "ucimlrepo" },
 ]
 docs = [
+    { name = "ipykernel" },
     { name = "jupyter-core" },
     { name = "mkdocs" },
     { name = "mkdocs-glightbox" },
@@ -1019,6 +1021,7 @@ provides-extras = ["shap", "tutorials", "all"]
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage" },
+    { name = "ipykernel" },
     { name = "jupyter-core" },
     { name = "mkdocs" },
     { name = "mkdocs-glightbox" },
@@ -1037,6 +1040,7 @@ dev = [
     { name = "ucimlrepo" },
 ]
 docs = [
+    { name = "ipykernel" },
     { name = "jupyter-core" },
     { name = "mkdocs" },
     { name = "mkdocs-glightbox" },

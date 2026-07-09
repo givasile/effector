@@ -62,6 +62,7 @@ docs = [
     "mkdocs-glightbox",
     "nbconvert",  # docs-pages/docs-images: convert saved notebook outputs, no execution
     "jupyter-core",
+    "ipykernel",  # local notebook re-execution (jupyter nbconvert --execute)
 ]
 dev = [
     {include-group = "test"},

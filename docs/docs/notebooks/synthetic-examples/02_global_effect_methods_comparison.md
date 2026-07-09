@@ -20,6 +20,10 @@ import effector
 import matplotlib.pyplot as plt
 ```
 
+    /home/givasile/github/packages/effector/.venv/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+      from .autonotebook import tqdm as notebook_tqdm
+
+
 ## Problem setup
 
 We will generate $N=170$ examples with $D=3$ features. The setup — data
@@ -530,6 +534,24 @@ shap_dp.plot(feature=0, centering=True, heterogeneity="shap_values", y_limits=[-
     
 
 
+## Cross-examination: `effector.compare`
+
+Each method section above built its own fitted engine. `effector.compare` stands *above* the engines: hand it the fitted objects you already hold and it overlays their mean effects on one feature — always centered, one color per method. Methods that agree strengthen the explanation; where they diverge, the divergence itself is information (here: PDP's extrapolation into empty regions vs the ALE family).
+
+
+```python
+pdp = effector.PDP(data=x, model=f, axis_limits=axis_limits)
+ale = effector.ALE(data=x, model=f, axis_limits=axis_limits)
+rhale = effector.RHALE(data=x, model=f, model_jac=dfdx, axis_limits=axis_limits)
+effector.compare(pdp, ale, rhale, feature=0, y_limits=[-2, 2])
+```
+
+
+    
+![png](02_global_effect_methods_comparison_files/02_global_effect_methods_comparison_44_0.png)
+    
+
+
 ## Feature importance and one-click explanation
 
 Every global effect exposes a per-feature **importance** — the dispersion of the
@@ -573,12 +595,12 @@ report.show()
     🌳 Full Tree Structure:
     ───────────────────────
     x2 🔹 [id: 0 | heter: 0.42 | inst: 170 | w: 1.00]
-        x1 ≤ -0.10 🔹 [id: 1 | heter: 0.12 | inst: 115 | w: 0.68]
-            x1 ≤ -0.30 🔹 [id: 2 | heter: 0.03 | inst: 54 | w: 0.32]
-            x1 > -0.30 🔹 [id: 3 | heter: 0.02 | inst: 61 | w: 0.36]
-        x1 > -0.10 🔹 [id: 4 | heter: 0.25 | inst: 55 | w: 0.32]
-            x1 ≤ 0.20 🔹 [id: 5 | heter: 0.05 | inst: 41 | w: 0.24]
-            x1 > 0.20 🔹 [id: 6 | heter: 0.07 | inst: 14 | w: 0.08]
+        x1 < -0.10 🔹 [id: 1 | heter: 0.12 | inst: 115 | w: 0.68]
+            x1 < -0.30 🔹 [id: 2 | heter: 0.03 | inst: 54 | w: 0.32]
+            -0.30 ≤ x1 < -0.10 🔹 [id: 3 | heter: 0.02 | inst: 61 | w: 0.36]
+        x1 ≥ -0.10 🔹 [id: 4 | heter: 0.25 | inst: 55 | w: 0.32]
+            -0.10 ≤ x1 < 0.20 🔹 [id: 5 | heter: 0.05 | inst: 41 | w: 0.24]
+            x1 ≥ 0.20 🔹 [id: 6 | heter: 0.07 | inst: 14 | w: 0.08]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     🌳 Tree Summary:
@@ -594,12 +616,12 @@ report.show()
     🌳 Full Tree Structure:
     ───────────────────────
     x1 🔹 [id: 0 | heter: 0.64 | inst: 170 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.33 | inst: 142 | w: 0.84]
-            x2 ≤ -0.25 🔹 [id: 2 | heter: 0.12 | inst: 69 | w: 0.41]
-            x2 > -0.25 🔹 [id: 3 | heter: 0.18 | inst: 73 | w: 0.43]
-        x3 > 0.00 🔹 [id: 4 | heter: 0.24 | inst: 28 | w: 0.16]
-            x2 ≤ -0.25 🔹 [id: 5 | heter: 0.04 | inst: 10 | w: 0.06]
-            x2 > -0.25 🔹 [id: 6 | heter: 0.07 | inst: 18 | w: 0.11]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.33 | inst: 142 | w: 0.84]
+            x2 < -0.25 🔹 [id: 2 | heter: 0.12 | inst: 69 | w: 0.41]
+            x2 ≥ -0.25 🔹 [id: 3 | heter: 0.18 | inst: 73 | w: 0.43]
+        x3 ≥ 0.00 🔹 [id: 4 | heter: 0.24 | inst: 28 | w: 0.16]
+            x2 < -0.25 🔹 [id: 5 | heter: 0.04 | inst: 10 | w: 0.06]
+            x2 ≥ -0.25 🔹 [id: 6 | heter: 0.07 | inst: 18 | w: 0.11]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:

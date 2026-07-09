@@ -21,6 +21,10 @@ import numpy as np
 import effector
 ```
 
+    /home/givasile/github/packages/effector/.venv/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+      from .autonotebook import tqdm as notebook_tqdm
+
+
 ## Simulation example
 
 ### Data Generating Distribution
@@ -175,14 +179,14 @@ report = effector.explain(
 report.show()
 ```
 
-    PDP importances [x1, x2, x3]: [0.004 0.    0.612]
+    PDP importances [x1, x2, x3]: [0.  0.  0.6]
     
     PDP report — target: Y
     ============================================================
     feature                   importance     heter  #regions
     ------------------------------------------------------------
-    x3                            0.6116    3.1057         7
-    x1                            0.0036    3.1934         3
+    x3                            0.6005    3.0444         7
+    x1                            0.0000    3.2003         3
     x2                            0.0000    0.0000         1
     ============================================================
     
@@ -190,20 +194,20 @@ report.show()
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 3.11 | inst: 1000 | w: 1.00]
-        x1 ≤ -0.00 🔹 [id: 1 | heter: 0.73 | inst: 492 | w: 0.49]
-            x1 ≤ -0.50 🔹 [id: 2 | heter: 0.18 | inst: 266 | w: 0.27]
-            x1 > -0.50 🔹 [id: 3 | heter: 0.17 | inst: 226 | w: 0.23]
-        x1 > -0.00 🔹 [id: 4 | heter: 0.75 | inst: 508 | w: 0.51]
-            x1 ≤ 0.50 🔹 [id: 5 | heter: 0.18 | inst: 254 | w: 0.25]
-            x1 > 0.50 🔹 [id: 6 | heter: 0.20 | inst: 254 | w: 0.25]
+    x3 🔹 [id: 0 | heter: 3.04 | inst: 1000 | w: 1.00]
+        x1 < -0.00 🔹 [id: 1 | heter: 0.75 | inst: 498 | w: 0.50]
+            x1 < -0.50 🔹 [id: 2 | heter: 0.18 | inst: 247 | w: 0.25]
+            -0.50 ≤ x1 < -0.00 🔹 [id: 3 | heter: 0.17 | inst: 251 | w: 0.25]
+        x1 ≥ -0.00 🔹 [id: 4 | heter: 0.76 | inst: 502 | w: 0.50]
+            -0.00 ≤ x1 < 0.50 🔹 [id: 5 | heter: 0.19 | inst: 245 | w: 0.24]
+            x1 ≥ 0.50 🔹 [id: 6 | heter: 0.19 | inst: 257 | w: 0.26]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.11
-        Level 1🔹heter: 0.74 | 🔻2.36 (76.10%)
-            Level 2🔹heter: 0.19 | 🔻0.56 (74.87%)
+    Level 0🔹heter: 3.04
+        Level 1🔹heter: 0.76 | 🔻2.29 (75.16%)
+            Level 2🔹heter: 0.18 | 🔻0.57 (75.95%)
     
     
     
@@ -211,16 +215,29 @@ report.show()
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 3.19 | inst: 1000 | w: 1.00]
-        x3 ≤ -0.00 🔹 [id: 1 | heter: 0.00 | inst: 498 | w: 0.50]
-        x3 > -0.00 🔹 [id: 2 | heter: 0.03 | inst: 502 | w: 0.50]
+    x1 🔹 [id: 0 | heter: 3.20 | inst: 1000 | w: 1.00]
+        x3 < -0.00 🔹 [id: 1 | heter: 0.00 | inst: 500 | w: 0.50]
+        x3 ≥ -0.00 🔹 [id: 2 | heter: 0.00 | inst: 500 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.19
-        Level 1🔹heter: 0.01 | 🔻3.18 (99.60%)
+    Level 0🔹heter: 3.20
+        Level 1🔹heter: 0.00 | 🔻3.20 (100.00%)
     
+    
+
+
+The same survey as one picture: `effector.plot_triage` puts importance on the x-axis and heterogeneity on the y-axis. Here x1 lands **top-left** — its *global* mean effect is flat (near-zero importance) yet its heterogeneity is the highest of all features: the +3/-3 slopes cancel in the average. That corner is exactly where `find_regions` pays off — the effect is hiding, not absent.
+
+
+```python
+effector.plot_triage(pdp)
+```
+
+
+    
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_13_0.png)
     
 
 
@@ -230,8 +247,12 @@ Regional PDP will search for explanations that minimize the interaction-related 
 
 
 ```python
-# Regional effects are now queried from the *global* effect via `find_regions`,
-# which returns a `Partition` value object (nothing is stored on the effect).
+# Regional effects are queried from the *global* effect via `find_regions`,
+# which returns `Partition` value objects (nothing is stored on the effect).
+# Here we use the *plural* form, `find_regions(features=...)`: one call that
+# runs the search per feature and returns a `{feature_name: Partition}` dict
+# (`features` also accepts "heterogeneous" to target only the features whose
+# heter_score is at or above the median).
 pdp = effector.PDP(
     data=X_uncor_train, model=model,
     schema={"feature_names": ['x1', 'x2', 'x3']},
@@ -241,7 +262,8 @@ pdp = effector.PDP(
 pdp.fit("all", centering=True)
 
 finder = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
-partitions = {feat: pdp.find_regions(feat, finder=finder) for feat in range(3)}
+parts = pdp.find_regions(features="all", finder=finder)  # {name: Partition} — the plural form
+partitions = [parts[name] for name in ["x1", "x2", "x3"]]
 ```
 
 
@@ -255,8 +277,8 @@ partitions[0].show()
     🌳 Full Tree Structure:
     ───────────────────────
     x1 🔹 [id: 0 | heter: 3.21 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 499 | w: 0.50]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 501 | w: 0.50]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 500 | w: 0.50]
+        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 500 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
@@ -274,13 +296,13 @@ partitions[0].show()
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_15_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_17_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_15_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_17_1.png)
     
 
 
@@ -317,20 +339,20 @@ partitions[2].show()
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 3.11 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.73 | inst: 492 | w: 0.49]
-            x1 ≤ -0.40 🔹 [id: 2 | heter: 0.24 | inst: 300 | w: 0.30]
-            x1 > -0.40 🔹 [id: 3 | heter: 0.13 | inst: 192 | w: 0.19]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.75 | inst: 508 | w: 0.51]
-            x1 ≤ 0.60 🔹 [id: 5 | heter: 0.25 | inst: 303 | w: 0.30]
-            x1 > 0.60 🔹 [id: 6 | heter: 0.13 | inst: 205 | w: 0.20]
+    x3 🔹 [id: 0 | heter: 3.04 | inst: 1000 | w: 1.00]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.75 | inst: 498 | w: 0.50]
+            x1 < -0.60 🔹 [id: 2 | heter: 0.12 | inst: 205 | w: 0.20]
+            -0.60 ≤ x1 < 0.00 🔹 [id: 3 | heter: 0.25 | inst: 293 | w: 0.29]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.76 | inst: 502 | w: 0.50]
+            0.00 ≤ x1 < 0.40 🔹 [id: 5 | heter: 0.12 | inst: 199 | w: 0.20]
+            x1 ≥ 0.40 🔹 [id: 6 | heter: 0.26 | inst: 303 | w: 0.30]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.11
-        Level 1🔹heter: 0.74 | 🔻2.36 (76.10%)
-            Level 2🔹heter: 0.20 | 🔻0.54 (73.03%)
+    Level 0🔹heter: 3.04
+        Level 1🔹heter: 0.76 | 🔻2.29 (75.16%)
+            Level 2🔹heter: 0.20 | 🔻0.55 (73.32%)
     
     
 
@@ -343,13 +365,26 @@ partitions[2].plot(2, heterogeneity="ice", centering=True, y_limits=[-5, 5])
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_18_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_20_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_18_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_20_1.png)
+    
+
+
+Triage, after: with `partitions=` the same plane shows the before→after story — arrows run from x1's global point to its leaves. Both leaves jump **right** (within each subregion the effect is strongly decisive, |slope| = 3) and **down** (the heterogeneity is explained). A hidden effect became two visible ones.
+
+
+```python
+effector.plot_triage(pdp, partitions={"x1": partitions[0]})
+```
+
+
+    
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_22_0.png)
     
 
 
@@ -388,19 +423,19 @@ pdp = effector.PDP(data=X_cor_train, model=model, schema={"feature_names": ['x1'
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_22_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_26_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_22_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_26_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_22_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_26_2.png)
     
 
 
@@ -438,8 +473,8 @@ partitions[0].show()
     🌳 Full Tree Structure:
     ───────────────────────
     x1 🔹 [id: 0 | heter: 3.21 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 501 | w: 0.50]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 499 | w: 0.50]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 501 | w: 0.50]
+        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 499 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
@@ -458,13 +493,13 @@ partitions[0].plot(2, heterogeneity="ice", centering=True, y_limits=[-5, 5])
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_26_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_30_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_26_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_30_1.png)
     
 
 
@@ -494,20 +529,20 @@ partitions[2].show()
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 2.99 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.78 | inst: 501 | w: 0.50]
-            x1 ≤ -0.50 🔹 [id: 2 | heter: 0.17 | inst: 249 | w: 0.25]
-            x1 > -0.50 🔹 [id: 3 | heter: 0.19 | inst: 252 | w: 0.25]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.73 | inst: 499 | w: 0.50]
-            x1 ≤ 0.50 🔹 [id: 5 | heter: 0.19 | inst: 265 | w: 0.27]
-            x1 > 0.50 🔹 [id: 6 | heter: 0.19 | inst: 234 | w: 0.23]
+    x3 🔹 [id: 0 | heter: 2.93 | inst: 1000 | w: 1.00]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.72 | inst: 501 | w: 0.50]
+            x1 < -0.50 🔹 [id: 2 | heter: 0.18 | inst: 245 | w: 0.24]
+            -0.50 ≤ x1 < 0.00 🔹 [id: 3 | heter: 0.17 | inst: 256 | w: 0.26]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.71 | inst: 499 | w: 0.50]
+            0.00 ≤ x1 < 0.50 🔹 [id: 5 | heter: 0.17 | inst: 258 | w: 0.26]
+            x1 ≥ 0.50 🔹 [id: 6 | heter: 0.19 | inst: 241 | w: 0.24]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 2.99
-        Level 1🔹heter: 0.76 | 🔻2.23 (74.58%)
-            Level 2🔹heter: 0.18 | 🔻0.58 (76.04%)
+    Level 0🔹heter: 2.93
+        Level 1🔹heter: 0.72 | 🔻2.21 (75.48%)
+            Level 2🔹heter: 0.18 | 🔻0.54 (75.18%)
     
     
 
@@ -520,13 +555,13 @@ partitions[2].plot(2, heterogeneity="ice", centering=True, y_limits=[-5, 5])
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_29_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_33_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_29_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_33_1.png)
     
 
 
@@ -570,19 +605,19 @@ rhale.plot(feature=2, centering=True, heterogeneity="std", show_avg_output=False
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_33_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_37_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_33_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_37_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_33_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_37_2.png)
     
 
 
@@ -615,15 +650,15 @@ partitions[0].show()
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 8.95 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 499 | w: 0.50]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 501 | w: 0.50]
+    x1 🔹 [id: 0 | heter: 8.85 | inst: 1000 | w: 1.00]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 500 | w: 0.50]
+        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 500 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 8.95
-        Level 1🔹heter: 0.00 | 🔻8.95 (100.00%)
+    Level 0🔹heter: 8.85
+        Level 1🔹heter: 0.00 | 🔻8.85 (100.00%)
     
     
 
@@ -636,13 +671,13 @@ partitions[0].plot(2, heterogeneity="std", centering=True, y_limits=[-5, 5])
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_37_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_37_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_1.png)
     
 
 
@@ -708,19 +743,19 @@ rhale.fit(features="all", binning_method=binning_method, centering=True)
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_43_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_47_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_43_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_47_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_43_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_47_2.png)
     
 
 
@@ -817,19 +852,19 @@ shap.fit("all", binning_method=binning_method)
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_52_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_56_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_52_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_56_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_52_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_56_2.png)
     
 
 
@@ -867,14 +902,14 @@ partitions[0].show()
     🌳 Full Tree Structure:
     ───────────────────────
     x1 🔹 [id: 0 | heter: 0.85 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.02 | inst: 499 | w: 0.50]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.04 | inst: 501 | w: 0.50]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.03 | inst: 500 | w: 0.50]
+        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.03 | inst: 500 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
     Level 0🔹heter: 0.85
-        Level 1🔹heter: 0.03 | 🔻0.82 (96.42%)
+        Level 1🔹heter: 0.03 | 🔻0.82 (96.47%)
     
     
 
@@ -887,13 +922,13 @@ partitions[0].plot(2, heterogeneity="std", centering=True, y_limits=[-5, 5])
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_56_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_60_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_56_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_60_1.png)
     
 
 
@@ -923,15 +958,15 @@ partitions[2].show()
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 0.79 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.28 | inst: 492 | w: 0.49]
-        x1 > 0.00 🔹 [id: 2 | heter: 0.34 | inst: 508 | w: 0.51]
+    x3 🔹 [id: 0 | heter: 0.77 | inst: 1000 | w: 1.00]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.28 | inst: 498 | w: 0.50]
+        x1 ≥ 0.00 🔹 [id: 2 | heter: 0.30 | inst: 502 | w: 0.50]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.79
-        Level 1🔹heter: 0.31 | 🔻0.48 (60.82%)
+    Level 0🔹heter: 0.77
+        Level 1🔹heter: 0.29 | 🔻0.48 (61.98%)
     
     
 
@@ -960,19 +995,19 @@ shap = effector.ShapDP(data=X_cor_train, model=model, schema={"feature_names": [
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_61_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_65_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_61_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_65_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_61_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_65_2.png)
     
 
 

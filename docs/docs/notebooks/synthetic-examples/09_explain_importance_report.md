@@ -18,6 +18,10 @@ import numpy as np
 import effector
 ```
 
+    /home/givasile/github/packages/effector/.venv/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+      from .autonotebook import tqdm as notebook_tqdm
+
+
 ## A known black-box model
 
 We use a gated interaction on $D=3$ features, $x_0,x_1\sim\mathcal{U}(-1,1)$ and
@@ -92,6 +96,19 @@ global average hides and a **regional** analysis reveals. $x_1$ carries a genuin
 $x_2$ only gates. `explain` uses both axes: it plots the features with the largest mean effect and
 automatically runs `find_regions` on the ones whose heterogeneity is high.
 
+`effector.plot_triage` draws this survey as one picture — the manual counterpart of what `explain` automates. Importance right, heterogeneity up: the top-right corner is where the mean effect hides something.
+
+
+```python
+effector.plot_triage(pdp)
+```
+
+
+    
+![png](09_explain_importance_report_files/09_explain_importance_report_8_0.png)
+    
+
+
 ## 2. `effector.explain(...)` → `Report`
 
 `explain` runs the entire pipeline in **one model-touch**: fit → rank by importance → build the
@@ -121,12 +138,12 @@ report.show()
     🌳 Full Tree Structure:
     ───────────────────────
     x1 🔹 [id: 0 | heter: 1.53 | inst: 3000 | w: 1.00]
-        x0 ≤ -0.00 🔹 [id: 1 | heter: 0.95 | inst: 1524 | w: 0.51]
+        x0 < -0.00 🔹 [id: 1 | heter: 0.95 | inst: 1524 | w: 0.51]
             x2 = 0.00 🔹 [id: 2 | heter: 0.77 | inst: 788 | w: 0.26]
-            x2 ≠ 0.00 🔹 [id: 3 | heter: 0.00 | inst: 736 | w: 0.25]
-        x0 > -0.00 🔹 [id: 4 | heter: 0.95 | inst: 1476 | w: 0.49]
+            x2 = 1.00 🔹 [id: 3 | heter: 0.00 | inst: 736 | w: 0.25]
+        x0 ≥ -0.00 🔹 [id: 4 | heter: 0.95 | inst: 1476 | w: 0.49]
             x2 = 0.00 🔹 [id: 5 | heter: 0.74 | inst: 732 | w: 0.24]
-            x2 ≠ 0.00 🔹 [id: 6 | heter: 0.00 | inst: 744 | w: 0.25]
+            x2 = 1.00 🔹 [id: 6 | heter: 0.00 | inst: 744 | w: 0.25]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     🌳 Tree Summary:
@@ -142,12 +159,12 @@ report.show()
     🌳 Full Tree Structure:
     ───────────────────────
     x0 🔹 [id: 0 | heter: 1.62 | inst: 3000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.80 | inst: 1480 | w: 0.49]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.80 | inst: 1480 | w: 0.49]
             x2 = 0.00 🔹 [id: 2 | heter: 0.00 | inst: 742 | w: 0.25]
-            x2 ≠ 0.00 🔹 [id: 3 | heter: 0.00 | inst: 738 | w: 0.25]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.80 | inst: 1520 | w: 0.51]
+            x2 = 1.00 🔹 [id: 3 | heter: 0.00 | inst: 738 | w: 0.25]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.80 | inst: 1520 | w: 0.51]
             x2 = 0.00 🔹 [id: 5 | heter: 0.00 | inst: 778 | w: 0.26]
-            x2 ≠ 0.00 🔹 [id: 6 | heter: 0.00 | inst: 742 | w: 0.25]
+            x2 = 1.00 🔹 [id: 6 | heter: 0.00 | inst: 742 | w: 0.25]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
@@ -167,7 +184,7 @@ report.plot_importance()
 
 
     
-![png](09_explain_importance_report_files/09_explain_importance_report_9_0.png)
+![png](09_explain_importance_report_files/09_explain_importance_report_11_0.png)
     
 
 
@@ -222,12 +239,12 @@ reloaded.show()
     🌳 Full Tree Structure:
     ───────────────────────
     x1 🔹 [id: 0 | heter: 1.53 | inst: 3000 | w: 1.00]
-        x0 ≤ -0.00 🔹 [id: 1 | heter: 0.95 | inst: 1524 | w: 0.51]
+        x0 < -0.00 🔹 [id: 1 | heter: 0.95 | inst: 1524 | w: 0.51]
             x2 = 0.00 🔹 [id: 2 | heter: 0.77 | inst: 788 | w: 0.26]
-            x2 ≠ 0.00 🔹 [id: 3 | heter: 0.00 | inst: 736 | w: 0.25]
-        x0 > -0.00 🔹 [id: 4 | heter: 0.95 | inst: 1476 | w: 0.49]
+            x2 = 1.00 🔹 [id: 3 | heter: 0.00 | inst: 736 | w: 0.25]
+        x0 ≥ -0.00 🔹 [id: 4 | heter: 0.95 | inst: 1476 | w: 0.49]
             x2 = 0.00 🔹 [id: 5 | heter: 0.74 | inst: 732 | w: 0.24]
-            x2 ≠ 0.00 🔹 [id: 6 | heter: 0.00 | inst: 744 | w: 0.25]
+            x2 = 1.00 🔹 [id: 6 | heter: 0.00 | inst: 744 | w: 0.25]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     🌳 Tree Summary:
@@ -243,12 +260,12 @@ reloaded.show()
     🌳 Full Tree Structure:
     ───────────────────────
     x0 🔹 [id: 0 | heter: 1.62 | inst: 3000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.80 | inst: 1480 | w: 0.49]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.80 | inst: 1480 | w: 0.49]
             x2 = 0.00 🔹 [id: 2 | heter: 0.00 | inst: 742 | w: 0.25]
-            x2 ≠ 0.00 🔹 [id: 3 | heter: 0.00 | inst: 738 | w: 0.25]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.80 | inst: 1520 | w: 0.51]
+            x2 = 1.00 🔹 [id: 3 | heter: 0.00 | inst: 738 | w: 0.25]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.80 | inst: 1520 | w: 0.51]
             x2 = 0.00 🔹 [id: 5 | heter: 0.00 | inst: 778 | w: 0.26]
-            x2 ≠ 0.00 🔹 [id: 6 | heter: 0.00 | inst: 742 | w: 0.25]
+            x2 = 1.00 🔹 [id: 6 | heter: 0.00 | inst: 742 | w: 0.25]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
@@ -278,12 +295,12 @@ part.show()
     🌳 Full Tree Structure:
     ───────────────────────
     x0 🔹 [id: 0 | heter: 1.62 | inst: 3000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.80 | inst: 1480 | w: 0.49]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.80 | inst: 1480 | w: 0.49]
             x2 = 0.00 🔹 [id: 2 | heter: 0.00 | inst: 742 | w: 0.25]
-            x2 ≠ 0.00 🔹 [id: 3 | heter: 0.00 | inst: 738 | w: 0.25]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.80 | inst: 1520 | w: 0.51]
+            x2 = 1.00 🔹 [id: 3 | heter: 0.00 | inst: 738 | w: 0.25]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.80 | inst: 1520 | w: 0.51]
             x2 = 0.00 🔹 [id: 5 | heter: 0.00 | inst: 778 | w: 0.26]
-            x2 ≠ 0.00 🔹 [id: 6 | heter: 0.00 | inst: 742 | w: 0.25]
+            x2 = 1.00 🔹 [id: 6 | heter: 0.00 | inst: 742 | w: 0.25]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
@@ -324,25 +341,38 @@ for r in part.leaves:
 
 
     
-![png](09_explain_importance_report_files/09_explain_importance_report_17_0.png)
+![png](09_explain_importance_report_files/09_explain_importance_report_19_0.png)
     
 
 
 
     
-![png](09_explain_importance_report_files/09_explain_importance_report_17_1.png)
+![png](09_explain_importance_report_files/09_explain_importance_report_19_1.png)
     
 
 
 
     
-![png](09_explain_importance_report_files/09_explain_importance_report_17_2.png)
+![png](09_explain_importance_report_files/09_explain_importance_report_19_2.png)
     
 
 
 
     
-![png](09_explain_importance_report_files/09_explain_importance_report_17_3.png)
+![png](09_explain_importance_report_files/09_explain_importance_report_19_3.png)
+    
+
+
+And the before/after in one figure: arrows from the global point to the leaves — right and down, importance up, heterogeneity explained.
+
+
+```python
+effector.plot_triage(pdp, partitions={"x0": part})
+```
+
+
+    
+![png](09_explain_importance_report_files/09_explain_importance_report_21_0.png)
     
 
 
@@ -370,7 +400,7 @@ for method in ["pdp", "ale", "rhale", "shapdp"]:
     rhale   -> [('x1', 0.239), ('x0', 0.021)]
 
 
-    /home/givasile/github/packages/effector/effector/report.py:300: UserWarning: importance is undefined for feature(s) ['x2'] — this method does not support their feature type; returned NaN.
+    /home/givasile/github/packages/effector/effector/report.py:302: UserWarning: importance is undefined for feature(s) ['x2'] — this method does not support their feature type; returned NaN.
       imp = effect.importances()
 
 

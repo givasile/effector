@@ -30,6 +30,10 @@ from effector import models
 np.random.seed(21)
 ```
 
+    /home/givasile/github/packages/effector/.venv/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+      from .autonotebook import tqdm as notebook_tqdm
+
+
 ## A model with a categorical feature of interest
 
 We use the closed-form model $f(x) = a_{x_0} + b_{x_0}\, x_1 \, \mathbb{1}_{x_2>0}$ with $x_0 \in \{0, 1, 2\}$, $a = [0, 1, 3]$, $b = [1, -1, 0]$: the effect of $x_0$ is a per-level constant, and its *heterogeneity* comes from the interaction with $x_1, x_2$.
@@ -51,12 +55,13 @@ schema = {"feature_names": ["level", "x1", "x2"], "feature_types": ["ordinal", "
 
 ## PDP: bars at the levels, ICE as jittered dots
 
-For a discrete feature the model is evaluated **only at the observed levels** — never at fake in-between values.
+For a discrete feature the model is evaluated **only at the observed levels** — never at fake in-between values. Verbs take the feature by index or by name — `pdp.plot(0)` and `pdp.plot("level")` are the same call; we use the name below.
+
 
 
 ```python
 pdp = effector.PDP(data, model.predict, schema=schema)
-pdp.plot(0, heterogeneity="ice", centering=True)
+pdp.plot("level", heterogeneity="ice", centering=True)
 ```
 
 
@@ -67,7 +72,7 @@ pdp.plot(0, heterogeneity="ice", centering=True)
 
 
 ```python
-pdp.plot(0, heterogeneity="std", centering=True)
+pdp.plot("level", heterogeneity="std", centering=True)
 ```
 
 
@@ -80,9 +85,9 @@ pdp.plot(0, heterogeneity="std", centering=True)
 
 
 ```python
-print(pdp.eval(0, np.array([0.0, 1.0, 2.0]), centering="zero_start"))
+print(pdp.eval("level", np.array([0.0, 1.0, 2.0]), centering="zero_start"))
 try:
-    pdp.eval(0, np.array([0.5]))
+    pdp.eval("level", np.array([0.5]))
 except ValueError as e:
     print("ValueError:", e)
 ```
@@ -98,7 +103,7 @@ Each bar is the accumulated effect at a level; the whisker is the standard devia
 
 ```python
 ale = effector.ALE(data, model.predict, schema=schema)
-ale.plot(0, centering="zero_start")
+ale.plot("level", centering="zero_start")
 ```
 
 
@@ -115,7 +120,7 @@ On ordinal features RHALE treats the adjacent-level differences as a discrete de
 ```python
 rhale = effector.RHALE(data, model.predict, model.jacobian, schema=schema)
 rhale.fit(0, binning_method="greedy", centering="zero_start")
-rhale.plot(0, centering="zero_start")
+rhale.plot("level", centering="zero_start")
 ```
 
 
@@ -170,12 +175,12 @@ report.show()
     🌳 Full Tree Structure:
     ───────────────────────
     level 🔹 [id: 0 | heter: 0.13 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.08 | inst: 503 | w: 0.50]
-            x2 ≤ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 267 | w: 0.27]
-            x2 > 0.00 🔹 [id: 3 | heter: 0.07 | inst: 236 | w: 0.24]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.09 | inst: 497 | w: 0.50]
-            x2 ≤ 0.00 🔹 [id: 5 | heter: 0.00 | inst: 231 | w: 0.23]
-            x2 > 0.00 🔹 [id: 6 | heter: 0.07 | inst: 266 | w: 0.27]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.08 | inst: 503 | w: 0.50]
+            x2 < 0.00 🔹 [id: 2 | heter: 0.00 | inst: 267 | w: 0.27]
+            x2 ≥ 0.00 🔹 [id: 3 | heter: 0.07 | inst: 236 | w: 0.24]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.09 | inst: 497 | w: 0.50]
+            x2 < 0.00 🔹 [id: 5 | heter: 0.00 | inst: 231 | w: 0.23]
+            x2 ≥ 0.00 🔹 [id: 6 | heter: 0.07 | inst: 266 | w: 0.27]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
@@ -192,11 +197,11 @@ report.show()
     ───────────────────────
     x1 🔹 [id: 0 | heter: 0.14 | inst: 1000 | w: 1.00]
         level = 1.00 🔹 [id: 1 | heter: 0.09 | inst: 320 | w: 0.32]
-            x2 ≤ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 154 | w: 0.15]
-            x2 > 0.00 🔹 [id: 3 | heter: 0.00 | inst: 166 | w: 0.17]
-        level ≠ 1.00 🔹 [id: 4 | heter: 0.08 | inst: 680 | w: 0.68]
-            x2 ≤ 0.00 🔹 [id: 5 | heter: 0.00 | inst: 344 | w: 0.34]
-            x2 > 0.00 🔹 [id: 6 | heter: 0.08 | inst: 336 | w: 0.34]
+            x2 < 0.00 🔹 [id: 2 | heter: 0.00 | inst: 154 | w: 0.15]
+            x2 ≥ 0.00 🔹 [id: 3 | heter: 0.00 | inst: 166 | w: 0.17]
+        level ∈ {0.00, 2.00} 🔹 [id: 4 | heter: 0.08 | inst: 680 | w: 0.68]
+            x2 < 0.00 🔹 [id: 5 | heter: 0.00 | inst: 344 | w: 0.34]
+            x2 ≥ 0.00 🔹 [id: 6 | heter: 0.08 | inst: 336 | w: 0.34]
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
     🌳 Tree Summary:
@@ -233,8 +238,8 @@ partitions[0].show()
     🌳 Full Tree Structure:
     ───────────────────────
     level 🔹 [id: 0 | heter: 0.20 | inst: 1000 | w: 1.00]
-        x2 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 498 | w: 0.50]
-        x2 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 502 | w: 0.50]
+        x2 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 498 | w: 0.50]
+        x2 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 502 | w: 0.50]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
