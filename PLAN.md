@@ -98,8 +98,10 @@ interaction vector closes that loop and routes
 `candidate_conditioning_features` instead of guessing.
 
 - **Heterogeneity index (all methods):** normalized `heter_score` (e.g. by
-  `Var[f(X)]`, the H-statistic normalization) — zero iff no interaction; it is
+  `std[f(X)]`, the H-statistic normalization) — zero iff no interaction; it is
   exactly the quantity `find_regions` minimizes, surfaced as a number.
+  *(Half done by the units contract: `heter_score` is now a std-type quantity
+  in output units, so the index is just `heter_score / std(f(X))`.)*
 - **H-statistic `H²_j` (PDP only):** needs `pd_{-j}` (PDP of all-but-j) — one
   new kernel on the existing ICE machinery.
 - Module `effector/interaction.py`; ground truths from
@@ -186,10 +188,11 @@ LOGBOOK entry.
   evidence margin (n per level), low-evidence hollow markers.
 - A8 explain-one-row (`locate`): instance position on each curve +
   prediction-anatomy bar; residual = interaction share.
-- FeatureEffect ±std bands (heterogeneity in output units; centralize sqrt);
-  global-vs-regional overlay; multi-feature grid `plot(features=[...])`
-  (needs an `ax=` orchestration layer); 2-D effect plots (PDP first, shares
-  the F2b kernel).
+- FeatureEffect ±std bands (scalars are DONE — heter_score/importance are in
+  output units since the units contract; what remains is the facade's ±std
+  *band* display); global-vs-regional overlay; multi-feature grid
+  `plot(features=[...])` (needs an `ax=` orchestration layer); 2-D effect
+  plots (PDP first, shares the F2b kernel).
 - Units/denormalization as a first-class concept (today: hand-built
   `scale_x_list` dicts) — needs design. 🔴
 

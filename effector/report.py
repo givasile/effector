@@ -227,7 +227,7 @@ class Report:
         fig, ax = self._barh(
             [o["name"] for o in self.overview],
             [o["importance"] for o in self.overview],
-            xlabel="importance",
+            xlabel=f"importance ({self.target_name} units)",
             title=(
                 f"{method_registry.resolve(self.method_name).display_name} — "
                 f"feature importance"
@@ -242,7 +242,7 @@ class Report:
         return self._barh(
             [o["name"] for o in self.overview],
             [o["heter_score"] for o in self.overview],
-            xlabel="heterogeneity",
+            xlabel=f"heterogeneity ({self.target_name} units)",
             title=(
                 f"{method_registry.resolve(self.method_name).display_name} — "
                 f"heterogeneity"
@@ -295,7 +295,8 @@ class Report:
                 linewidth=1.0,
                 label="heterogeneity threshold",
             )
-        _decorate_ax(ax, xlabel="importance", ylabel="heterogeneity")
+        unit = f" ({self.target_name} units)"
+        _decorate_ax(ax, xlabel="importance" + unit, ylabel="heterogeneity" + unit)
         fig.tight_layout()
         return fig, ax
 

@@ -106,7 +106,9 @@ pdp = effector.PDP(X, predict, schema=schema)
 # 1. The itch: hr's global effect is a lie
 # -----------------------------------------------------------------------------
 # The mean effect of hr is ~flat (the +/- regimes cancel), but the spread is
-# enormous. heter_score is the scalar the whole splitting story minimizes.
+# enormous. heter_score is the scalar the whole splitting story minimizes —
+# a std-type number in OUTPUT units (rentals): "a typical instance's hr-effect
+# deviates from the mean curve by ~3.2 rentals".
 xs = np.linspace(0, 24, 100)
 pdp.plot(feature=0, heterogeneity=True)          # flat mean, huge band
 h_full = pdp.heter_score(0)
@@ -118,9 +120,9 @@ print("heter_score(hr) global:", round(h_full, 3))
 # -----------------------------------------------------------------------------
 # Every query (eval / heter_score / importance / plot) takes rule= — a string
 # parsed against the schema. Categorical clauses use the LEVEL NAMES, not codes.
-h_hot = pdp.heter_score(0, rule="temp > 15")            # RISES (~17): hot = double
-h_summerish = pdp.heter_score(0, rule="season in {summer, fall}")   # amplitude, both
-h_pure = pdp.heter_score(0, rule="season in {summer, fall} and temp > 15")  # signs
+h_hot = pdp.heter_score(0, rule="temp > 15")            # RISES (~4.2 rentals): hot =
+h_summerish = pdp.heter_score(0, rule="season in {summer, fall}")   # double amplitude,
+h_pure = pdp.heter_score(0, rule="season in {summer, fall} and temp > 15")  # both signs
 print("heter | temp > 15               :", round(h_hot, 3))
 print("heter | season in {summer,fall} :", round(h_summerish, 3))
 print("heter | both                    :", round(h_pure, 3), " <- a clean regime")

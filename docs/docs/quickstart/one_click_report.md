@@ -74,4 +74,8 @@ report2 = effector.Report.from_dict(d)   # text + HTML work without an effect
 
 Because effector never sees `y`, importance here is a property of the fitted
 effect (the dispersion of the mean effect, R13), not a held-out error — so a
-report needs only the model and the data.
+report needs only the model and the data. Both columns are in **target units**
+(the units contract): importance = how much the feature's mean effect typically
+moves the prediction; heter = how much a typical instance's effect deviates
+from that mean. Read them against each other — a heter close to the importance
+means the average effect describes almost no individual.

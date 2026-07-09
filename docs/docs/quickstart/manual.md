@@ -272,11 +272,15 @@ object (PDP: centered ICE levels; DerPDP: d-ICE slopes; (RH)ALE: per-bin slope
 variance as a step function; ShapDP: the interpolated per-bin φ variance).
 Variance internally, std only at the plot layer. There is **no centering
 kwarg** — h is invariant to centering and the signature enforces it. Every
-plotted band/error bar equals `eval_heter` output.
+plotted band/error bar equals `sqrt` of `eval_heter` output.
 
-`heter_score` is the mean of `eval_heter` over a uniform grid on the feature's
-interval (frequency-weighted over levels for categorical features). It is the
-single scalar the regional split search consumes — the seam that decouples
+`heter_score` is a std-type scalar in **output units** (the units contract,
+`method_semantics.md`): the RMS of `eval_heter` over the feature's own data
+values (frequency-weighted over levels for categorical features), bridged by
+the feature's std for the slope-native methods (ALE/RHALE/DerPDP) — so
+"±2.3" reads as "a typical instance's effect deviates from the mean effect by
+about 2.3 target units", comparable across feature types and methods. It is
+the single scalar the regional split search consumes — the seam that decouples
 regional search from the effect method entirely.
 
 ### `importance` (R13): the μ-twin
@@ -287,17 +291,20 @@ importances(mask=None, rule=None)          -> (D,)   # NaN + one warning for uns
 ```
 
 `importance` measures how much the **mean effect** varies — the μ-twin of
-`heter_score` (which measures per-instance spread), evaluated the same way it
-is. Model-free, centering-invariant (no `centering` kwarg by design). Default:
-the std of the mean effect; `ShapDP` overrides with the canonical
-`mean(|phi|)`; `DerPDP` with `mean(|derivative|)`. effector never sees `y`, so
-loss/permutation importance is out of scope by construction — importance here
-is a property of the fitted effect.
+`heter_score` (which measures per-instance spread), in the same output units
+over the same data weighting. Model-free, centering-invariant (no `centering`
+kwarg by design). Default: the std of the mean effect over the (masked) data
+values (linear model: `|coefficient| * std(x)`); `ShapDP` overrides with the
+canonical `mean(|phi|)`; `DerPDP` with `mean(|derivative|) * std(x)`. effector
+never sees `y`, so loss/permutation importance is out of scope by construction
+— importance here is a property of the fitted effect.
 
-**Importance and heterogeneity are orthogonal.** A feature can be highly
-heterogeneous yet have low importance if its mean effect cancels out — that is
-exactly the feature a global average hides and a regional analysis reveals
-(the top-right corner of `plot_triage`).
+**Importance and heterogeneity are orthogonal axes in one currency.** Both are
+target-unit std-type quantities: importance = the size of the typical claim
+the mean effect makes, heterogeneity = the typical per-instance miss around
+it. A feature can be highly heterogeneous yet have low importance if its mean
+effect cancels out — that is exactly the feature a global average hides and a
+regional analysis reveals (the top-right corner of `plot_triage`).
 
 ### `plot(feature, ...)` (R7)
 

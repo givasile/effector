@@ -57,7 +57,7 @@ Part A (visualization) and Part B (API) from the 2026-07-05 proposal:
 | A8 explain one row (`locate`) | ◻ parking lot |
 | A9 house theme | ✅ `set_theme("light"/"dark"/"paper")` |
 | B1 facade above the classes | ✅ resolved differently: no new class — engine + `explain` |
-| B2 feature importance | ✅ `importance`/`importances` (R13, the μ-twin of `heter_score`) |
+| B2 feature importance | ✅ `importance`/`importances` (R13, the μ-twin of `heter_score`; both in output units — the units contract) |
 | B3 model adapters + classification story | ➖ adapters shipped (`from_sklearn`/`from_torch`/`classifier_proba`/`check`); the classification *story* (units, per-class reports) open |
 | B4 one vocabulary | ✅ via the R1–R14 homogenization |
 | B5 regional ergonomics (objects, not printouts) | ✅ `Partition`/`Region`/`Rule`, rule-addressable plots |

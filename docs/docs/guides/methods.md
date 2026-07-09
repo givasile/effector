@@ -16,11 +16,17 @@ This section explains how each method (PDP, ALE, RHALE) defines and estimates th
     f_c^m(x_s) = f^m(x_s) - c, \text{ where } c = \frac{\int_{x_{s,\text{min}}}^{x_{s,\text{max}}} f^m(x_s) \, dx_s}{x_{s,\text{max}} - x_{s,\text{min}}}
     $$
     The normalizer \( c \) is the mean value of the global effect over the range of \( x_s \).
-- \( h^m(x_s) \) is the *heterogeneity function* of the effect of \( x_s \) using method \( m \).
-- \( H^m_{x_s} \) is the *heterogeneity value* of the effect of \( x_s \) using method \( m \):
+- \( h^m(x_s) \) is the *heterogeneity function* of the effect of \( x_s \) using method \( m \)
+  — a variance, in the method's native units (the plotted band is \( \pm\sqrt{h} \)).
+- \( H^m_{x_s} \) is the *heterogeneity value* (`heter_score`) — a std-type scalar in
+  **output units**, data-weighted (the units contract, see `method_semantics.md`):
     $$
-    H_{x_s}^m = \frac{\int_{x_{s,\text{min}}}^{x_{s,\text{max}}} h^m(x_s) \, dx_s}{x_{s,\text{max}} - x_{s,\text{min}}}.
+    H_{x_s}^m = \sqrt{\tfrac{1}{N} \textstyle\sum_i h^m\!\big(x_s^{(i)}\big)} \times \text{bridge},
     $$
+    where the bridge is \( \text{std}(x_s) \) for the slope-native methods
+    (ALE/RHALE/DerPDP) and \( 1 \) for PDP/ShapDP, whose \( h \) is already in
+    output² units. Discrete features replace the data mean with the
+    frequency-weighted mean over levels.
 
 ## PDP
 
@@ -93,8 +99,11 @@ The heterogeneity function $h^{ALE}(x_s)$ equals to the bin-variance of the bin 
 h^{ALE}(x_s) = \text{Var}_{k(x_s)}
 \end{equation}
 
-The heterogeneity value is the mean of these variances:
+The heterogeneity value bridges the slope dispersion into output units — slope
+disagreement × the feature's typical excursion:
 
 \begin{equation}
-H_{x_s}^{ALE} = \frac{1}{K} \sum_{k=1}^{K} \text{Var}_k
+H_{x_s}^{ALE} = \sqrt{\sum_{k=1}^{K} p_k \, \text{Var}_k} \; \times \; \text{std}(x_s)
 \end{equation}
+
+where \( p_k \) is the fraction of the data in bin \( k \).

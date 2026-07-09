@@ -921,5 +921,7 @@ def plot_triage(
                 )
                 first_leaf = False
 
-    _decorate_ax(ax, xlabel="importance", ylabel="heterogeneity")
+    # both axes are std-type quantities in the target's units (units contract)
+    unit = f" ({effect.target_name} units)"
+    _decorate_ax(ax, xlabel="importance" + unit, ylabel="heterogeneity" + unit)
     return _finalize(fig, ax, show_plot)
