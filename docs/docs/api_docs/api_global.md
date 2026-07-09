@@ -137,10 +137,13 @@ jacobian = ... # jacobian of the model
           - __init__
           - fit
           - eval
-          - plot
-          - find_regions
+          - eval_heter
+          - heter_score
+          - payload
           - importance
           - importances
+          - find_regions
+          - plot
 
 ### ::: effector.global_effect_ale.RHALE
       options:
@@ -151,6 +154,12 @@ jacobian = ... # jacobian of the model
           - __init__
           - fit
           - eval
+          - eval_heter
+          - heter_score
+          - payload
+          - importance
+          - importances
+          - find_regions
           - plot
 
 ### ::: effector.global_effect_pdp.PDP
@@ -162,6 +171,12 @@ jacobian = ... # jacobian of the model
           - __init__
           - fit
           - eval
+          - eval_heter
+          - heter_score
+          - payload
+          - importance
+          - importances
+          - find_regions
           - plot
 
 ### ::: effector.global_effect_pdp.DerPDP
@@ -173,6 +188,12 @@ jacobian = ... # jacobian of the model
           - __init__
           - fit
           - eval
+          - eval_heter
+          - heter_score
+          - payload
+          - importance
+          - importances
+          - find_regions
           - plot
 
 ### ::: effector.global_effect_shap.ShapDP
@@ -184,4 +205,10 @@ jacobian = ... # jacobian of the model
           - __init__
           - fit
           - eval
+          - eval_heter
+          - heter_score
+          - payload
+          - importance
+          - importances
+          - find_regions
           - plot

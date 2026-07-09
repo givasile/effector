@@ -1,4 +1,4 @@
-# Triage & comparison
+# Triage, comparison & theme
 
 ## Summary
 
@@ -31,8 +31,22 @@ columns — on one feature, always centered.
 effector.compare(pdp, rhale, shapdp, feature="temp")
 ```
 
-(For the single-model shortcut that builds its own engines, see
-`effector.FeatureEffect`.)
+**`FeatureEffect`** is the single-model shortcut with the same look: it
+ingests once and builds its own engines (same data, subsample, limits, and
+schema for every method), so the only difference between the overlaid curves
+is the method itself.
+
+```python
+fe = effector.FeatureEffect(X, model, schema=schema)
+fe.plot("temp", methods=["PDP", "ALE", "RHALE"])
+```
+
+**`set_theme`** switches the house matplotlib style for every figure the
+package produces:
+
+```python
+effector.set_theme("dark")     # "light" | "dark" | "paper" | "default"
+```
 
 ---
 
@@ -43,5 +57,18 @@ effector.compare(pdp, rhale, shapdp, feature="temp")
         show_root_heading: True
 
 ### ::: effector.visualization.compare
+      options:
+        show_root_heading: True
+
+### ::: effector.feature_effect.FeatureEffect
+      options:
+        show_root_heading: True
+        show_symbol_type_toc: True
+        members:
+          - __init__
+          - eval
+          - plot
+
+### ::: effector.theme.set_theme
       options:
         show_root_heading: True
