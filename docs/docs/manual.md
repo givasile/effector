@@ -138,7 +138,8 @@ with flat mirrors `feature_names`, `feature_types`, `cat_limit`,
 ```python
 model = effector.adapters.from_sklearn(est)                 # estimator/Pipeline -> callable
 model = effector.adapters.classifier_proba(clf, class_=1)   # classifiers: P(class=k)
-model, model_jac = effector.adapters.from_torch(net)        # torch: callable + autograd jacobian
+model = effector.adapters.from_torch(net)                   # torch module -> callable
+model, model_jac = effector.adapters.from_torch(net, jacobian=True)   # + autograd jacobian
 effector.adapters.check(model, X)                           # the handshake: probe on 2 rows
 ```
 
@@ -601,7 +602,7 @@ ale.plot("season")                               # nominal feature -> level bars
 ### 10.3 A torch model
 
 ```python
-model, model_jac = effector.adapters.from_torch(net)    # callable + autograd jacobian
+model, model_jac = effector.adapters.from_torch(net, jacobian=True)
 rhale = effector.RHALE(X, model, model_jac, schema=schema)
 ```
 
