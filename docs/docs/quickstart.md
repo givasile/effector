@@ -8,6 +8,7 @@
 - [One-click report](./one_click_report/)
 
 For the thinking behind the API — one engine, values not state, two
-entrances — read [the mental model](../mental_model/).
+entrances — read [the mental model](../mental_model/); for the full
+architecture and every verb in depth, [the package manual](../manual/).
 
 ---
