@@ -955,10 +955,10 @@ class GlobalEffectBase(ABC):
         The dispersion of the **mean** effect in output units — the μ-twin of
         `heter_score` (which measures per-instance spread on the same scale).
         A flat curve scores ~0; a swinging curve scores high. Per method: std
-        of the mean effect over the (masked) data values (PDP/ALE/RHALE; for
-        a linear model this is `|coefficient| * std(x)`), `mean(|φ|)`
-        (ShapDP), `mean(|derivative|) * std(x)` (DerPDP). Comparable across
-        feature types and, in magnitude, across methods.
+        of the mean effect over the (masked) data values (PDP/ALE/RHALE/
+        ShapDP; for a linear model this is `|coefficient| * std(x)`),
+        `mean(|derivative|) * std(x)` (DerPDP). Comparable across feature
+        types and, in magnitude, across methods.
 
         !!! note "No `y`, ever"
             effector never sees ground-truth labels — this is a property of

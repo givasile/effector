@@ -227,8 +227,11 @@ two axes):
   **nominal** in the difference-based methods (ALE/RHALE) is order-free via the
   all-pairs means (the chain's accumulated values are path-dependent under an
   arbitrary order).
-- **ShapDP** overrides the default with the canonical `mean(|phi_s|)` over the
-  (masked) instances — `phi_s` is the cached local effect (already output units).
+- **ShapDP** uses the same default — the std of the binned mean-φ curve over
+  the (masked) data values. (The once-canonical `mean(|phi_s|)` is an L1
+  functional — off by the distribution-dependent `E|x|/std(x)` factor — and φ
+  absorbs half of each pairwise interaction, which the other methods'
+  importances exclude; both biases made ShapDP the triage-plane outlier.)
 - **DerPDP** overrides it with the mean `|derivative|` over the (masked) data
   values × the std bridge: its mean effect is already a derivative, so the
   *dispersion* would be ~0 for a linear model (a useless ranking), while the

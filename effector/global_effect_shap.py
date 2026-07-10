@@ -224,11 +224,12 @@ class ShapDP(GlobalEffectBase):
 
     _compute_local_cat = _compute_local_cont
 
-    def _importance(self, feature, mask):
-        """R13 for SHAP: the canonical `mean(|phi_s|)` over the (masked)
-        instances — `phi_s` is already the cached local effect."""
-        phi = self._local[feature]["phi"][mask]
-        return float(np.mean(np.abs(phi)))
+    # `_importance` is deliberately NOT overridden: the inherited std of the
+    # binned mean-φ curve is variance-consistent with PDP/ALE (≈ √V_j; for a
+    # linear model `|coefficient| * std(x)`). The once-canonical `mean(|φ|)`
+    # is an L1 functional — off by the distribution-dependent E|x|/std(x) —
+    # and φ absorbs half of each pairwise interaction, which the other
+    # methods' importances exclude; it made ShapDP the triage outlier.
 
     def _masked_phi(self, feature: int, mask):
         """(positions, φ) of the SHAP cloud restricted to `mask` (None = all)."""

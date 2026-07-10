@@ -7,9 +7,9 @@ warning once on unsupported feature types.
 
 Closed-form oracle (units contract): for a linear model with independent
 features the mean effect is `a_j*(x_j - E[x_j])`, evaluated at the data values,
-so the data-weighted std of PDP/ALE/RHALE is exactly `|a_j| * std(x_j)`;
-d-PDP's `mean(|derivative|) * std(x_j)` recovers the same; ShapDP's
-`mean(|phi|)` is `|a_j| * mean(|x_j - mean|)`. All in output units.
+so the data-weighted std of PDP/ALE/RHALE/ShapDP is exactly `|a_j| * std(x_j)`
+(ShapDP through the binned mean-φ curve, so within interpolation tolerance);
+d-PDP's `mean(|derivative|) * std(x_j)` recovers the same. All in output units.
 """
 
 import warnings
@@ -168,13 +168,14 @@ def test_i5_closed_form_pdp_ale_rhale(name):
 
 
 def test_i5_closed_form_shapdp():
+    # ShapDP inherits the base std-of-binned-μ importance — same closed form
+    # as PDP/ALE, loose tolerance for the bin-interpolation of the φ curve
     data = make_global_data(n=2000)
     m = make_global("shapdp", data, nof_instances="all")
     m.fit(features="all", centering=False)
     for f in range(3):
-        col = data[:, f]
-        expected = abs(COEF[f]) * np.mean(np.abs(col - col.mean()))
-        np.testing.assert_allclose(m.importance(f), expected, rtol=1e-6)
+        expected = abs(COEF[f]) * _data_std(m, f)
+        np.testing.assert_allclose(m.importance(f), expected, rtol=5e-2)
 
 
 def test_i5_closed_form_derpdp():
