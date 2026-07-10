@@ -1285,3 +1285,48 @@ uniform member lists (importance/find_regions/eval_heter now visible on every
 class); orphaned pages (api_extras, guides/methods) linked; last stale
 references retired (simple_api `.summary()`, 04_no2 `RegionalPDP/RHALE`
 headers, R1-R13 nav title); `explain_report.html` gitignored.
+
+## 33. 2026-07-11 — Explained variance: the report says what the curves keep (tag: code)  [PLAN Part IV; variance ledger WS1+WS2; branch `feat/explained-variance`]
+
+```
+                Var(f̂(X))  = the 100% bar (one prediction pass, cached)
+
+  GAM surrogate                       CALM surrogate
+  g(x) = c + Σⱼ curveⱼ(xⱼ)            g(x) = c_R(x) + Σⱼ curve_{j|Rⱼ(x)}(xⱼ)
+  read off cache (b), zero refits     leaf-conditional under OWN partition,
+        │                             offsets = joint lstsq on region dummies
+        ▼                                   │
+  "global effects reproduce 72%" ────────►  "with subregions, 91%"
+                                            + per-split gains (+12 pts …)
+```
+
+**What.** `explain()`/`Report` gain a label-free explained-variance section
+(`effector/explained_variance.py`): surrogate R² of the additive read-off of
+the cached curves against `f̂(X)`, global and with subregions, plus per-split
+ΔR² gains — rendered next to both triage plots, printed by `explain` and
+`show`. Scope is report-only (`to_gam()`/`to_calm()` deferred until the CALM
+paper is out); no ledger-shares table (a re-normalization of the triage plane
+— the new information is the R² pair and the gains). Riding along (WS1):
+ShapDP's `mean(|φ|)` importance override deleted — it inherits the std-of-
+binned-μ default, variance-consistent with PDP/ALE (`≈ √V_j`).
+
+**Why.** The units contract made importance/heter_score output-unit numbers;
+one denominator upgrades them to variance accounting and buys the sentence
+that sells regional analysis: *the curves explain x%, the splits recover
+another y*. Verified against closed-form Sobol decompositions (sign-flip
+10%→100%, ConditionalInteractionUniform 86%→100%, bike sharing 72%→91%).
+Semantics settled in-session: each feature leaf-conditional under its own
+partition only; combined figure = greedy forward selection over partitions
+(overlapping partitions double-count interaction deviations in the curves —
+applying all blindly can score below the best single split; greedy also
+matches find_regions' own greedy-R² objective). Curves are read through the
+model-free `_summary`/`_eval_payload` path — the whole section costs exactly
+one extra model call (`f̂(X)`, reused by plots).
+
+**Changes.** `effector/explained_variance.py` (new leaf module) +
+`Report.explained_variance` field, show/to_html/to_dict wiring, `explain`
+headline print; ShapDP override deleted (`global_effect_shap.py`), importance
+docstring + `method_semantics.md` updated; `tests/test_explained_variance.py`
+(analytic Sobol/switch/joint-offset/greedy/budget pins), ShapDP closed form
+in `test_contract_importance.py` now `|a|·std(x)`; all notebooks re-executed,
+docs pages regenerated.

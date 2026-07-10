@@ -2,10 +2,11 @@
 
 `effector.explain(data, model, ...)` runs the whole pipeline — fit → rank by
 importance (R13) → mean-effect curves for the top-k → `find_regions` on the
-heterogeneous ones (R12) — and returns a `Report`, a serializable **value**
-(R12: values, not state). Every model call happens through the single
-`effect.fit(...)`; importance, heter_score, curves, and find_regions are all
-model-free afterwards.
+heterogeneous ones (R12) → explained-variance surrogates — and returns a
+`Report`, a serializable **value** (R12: values, not state). Every model call
+happens through the single `effect.fit(...)` plus one prediction pass for
+`f̂(X)`; importance, heter_score, curves, find_regions, and the surrogate R²s
+are all model-free afterwards.
 
 `Report` binds a reference to its producing effect only for the lazy re-plot
 sugar (mirrors `Partition._bind`); `to_dict()`/`from_dict()` are the
@@ -27,6 +28,7 @@ from typing import List, Optional
 
 import numpy as np
 
+from effector import explained_variance as _ev
 from effector import helpers, method_registry
 from effector.partition import Partition
 
@@ -120,10 +122,12 @@ class Report:
     `features` holds one `FeatureReport` per reported feature, importance
     descending. `overview` holds the cheap scalars — importance and
     heterogeneity — for **every** supported feature (superset of `features`),
-    so the triage plane renders even on unbound reports. A report produced by
-    `explain` is bound to its fitted effect, which `to_html` uses for the
-    per-leaf regional plots and the before/after triage arrows; everything
-    else works from the stored values alone.
+    so the triage plane renders even on unbound reports. `explained_variance`
+    holds the label-free surrogate R² payload (`effector.explained_variance`)
+    — plain floats, so it too renders unbound; `None` for derivative-scale
+    methods. A report produced by `explain` is bound to its fitted effect,
+    which `to_html` uses for the per-leaf regional plots and the before/after
+    triage arrows; everything else works from the stored values alone.
     """
 
     method_name: str
@@ -132,6 +136,7 @@ class Report:
     features: List[FeatureReport]
     config: dict = field(default_factory=dict)
     overview: List[dict] = field(default_factory=list)
+    explained_variance: Optional[dict] = None
 
     def __post_init__(self):
         self._effect = None
@@ -162,8 +167,20 @@ class Report:
         return self._effect
 
     # -- terminal summary ------------------------------------------------------
+    def _ev_headline(self):
+        """The explained-variance one-liner, or `None` when the section is
+        absent (derivative-scale method / degenerate model output)."""
+        ev = self.explained_variance
+        if not ev:
+            return None
+        line = f"global effects reproduce {ev['gam_r2']:.1%} of the model's variance"
+        if ev["gains"]:
+            line += f"; with subregions, {ev['regional_r2']:.1%}"
+        return line
+
     def show(self):
-        """Print the ranked feature table, then each multi-region partition tree.
+        """Print the ranked feature table, the explained-variance summary,
+        then each multi-region partition tree.
 
         Columns: feature, importance, heterogeneity, #regions. Works on
         unbound reports (rebuilt via `from_dict`) too.
@@ -180,6 +197,14 @@ class Report:
                 f"{nregions:>10d}"
             )
         print("=" * 60)
+        headline = self._ev_headline()
+        if headline:
+            print(headline)
+            for g in self.explained_variance["gains"]:
+                print(
+                    f"  splitting {g['name']} (on {g['on']}) recovers "
+                    f"{g['delta_r2'] * 100:+.1f} pts"
+                )
         for fr in self.features:
             if fr.partition is not None and len(fr.partition["regions"]) > 1:
                 Partition.from_dict(fr.partition).show()
@@ -428,6 +453,18 @@ class Report:
             "subregions.</p>"
         )
         out.append(self._img(self._triage_fig(), alt="feature triage"))
+        ev = self.explained_variance
+        if ev:
+            sentence = (
+                "An additive surrogate read off these global curves reproduces "
+                f"<b>{ev['gam_r2']:.1%}</b> of the model's predicted variance"
+            )
+            if ev["gains"]:
+                sentence += (
+                    "; with the subregions of §3, "
+                    f"<b>{ev['regional_r2']:.1%}</b>"
+                )
+            out.append(f"<p class='caption'>{sentence}.</p>")
         out.append(
             "<table><tr><th>#</th><th>feature</th><th>importance</th>"
             "<th>heterogeneity</th><th>#regions</th><th>regional analysis</th></tr>"
@@ -576,6 +613,38 @@ class Report:
                     "the plane is unchanged from the overview.</p>"
                 )
             out.append(self._img(self._triage_fig(), alt="feature triage"))
+        if ev and ev["gains"]:
+            out.append(
+                "<p class='caption'>What each partition buys — the gain in "
+                "explained variance from applying that feature's subregions "
+                "alone, on top of the global curves. Gains need not sum to "
+                "the combined figure: partitions sharing interaction variance "
+                "each recover part of the same pot, so the combined figure "
+                "greedily applies only the splits that still improve it.</p>"
+            )
+            out.append(
+                "<table><tr><th>split</th><th>regions</th>"
+                "<th>explained-variance gain</th></tr>"
+            )
+            for g in ev["gains"]:
+                out.append(
+                    f"<tr><td>{esc(g['name'])} (on {esc(g['on'])})</td>"
+                    f"<td>{g['n_regions']}</td>"
+                    f"<td>{g['delta_r2'] * 100:+.1f} pts</td></tr>"
+                )
+            used = [g["name"] for g in ev["gains"] if g.get("in_combined")]
+            label = (
+                "subregions combined"
+                if len(used) == len(ev["gains"])
+                else f"subregions combined (using {esc(', '.join(used))})"
+            )
+            out.append(
+                f"<tr><td><b>{label}</b></td><td>·</td>"
+                f"<td><b>{ev['regional_r2']:.1%}</b> "
+                f"({(ev['regional_r2'] - ev['gam_r2']) * 100:+.1f} pts vs "
+                f"global's {ev['gam_r2']:.1%})</td></tr>"
+            )
+            out.append("</table>")
         out.append("</section>")
 
         out.append(
@@ -702,6 +771,7 @@ class Report:
             "config": self.config,
             "overview": [dict(o) for o in self.overview],
             "features": [fr.to_dict() for fr in self.features],
+            "explained_variance": self.explained_variance,
         }
 
     @classmethod
@@ -725,6 +795,7 @@ class Report:
             features=[FeatureReport.from_dict(x) for x in d["features"]],
             config=d.get("config", {}),
             overview=[dict(o) for o in d.get("overview", [])],
+            explained_variance=d.get("explained_variance"),
         )
 
 
@@ -819,9 +890,11 @@ def explain(
     `find_regions` search.
 
     !!! note "One model touch"
-        All model calls happen through the single `fit`; everything after —
-        importances, curves, `find_regions` — is model-free, so the call
-        count does not grow with `top_k`.
+        All model calls happen through the single `fit`, plus one prediction
+        pass for the explained-variance denominator (`f̂(X)`, cached on the
+        effect); everything after — importances, curves, `find_regions`, the
+        surrogate R²s — is model-free, so the call count does not grow with
+        `top_k`.
 
     Args:
         data: `(N, D)` numpy design matrix.
@@ -843,8 +916,9 @@ def explain(
 
     Returns:
         a `Report` bound to the fitted effect — `FeatureReport`s in
-        importance-descending order, partitions stored as dicts, and an
-        `overview` (importance + heterogeneity) over every supported feature.
+        importance-descending order, partitions stored as dicts, an
+        `overview` (importance + heterogeneity) over every supported feature,
+        and the `explained_variance` summary (surrogate R², per-split gains).
     """
     spec = method_registry.resolve(method)
     ctor_args = (model, model_jac) if spec.needs_jac else (model,)
@@ -897,21 +971,24 @@ def explain(
         thr = heter_threshold
 
     features = []
+    live_parts = {}  # feature -> bound multi-leaf Partition, ranked order
     for f in ranked:
         xs = _grid(f)
         y = effect.eval(f, xs, mask=mask_all)
         y = y[0] if isinstance(y, tuple) else y
         h = effect.eval_heter(f, xs, mask=mask_all)
         hs = hs_all[f]
-        part = (
+        part_obj = (
             effect.find_regions(
                 f,
                 finder=finder,
                 candidate_conditioning_features=candidate_conditioning_features,
-            ).to_dict()
+            )
             if hs >= thr
             else None
         )
+        if part_obj is not None and len(part_obj.leaves) > 1:
+            live_parts[f] = part_obj
         features.append(
             FeatureReport(
                 feature=f,
@@ -921,9 +998,14 @@ def explain(
                 xs=xs,
                 y=np.asarray(y),
                 h=np.asarray(h),
-                partition=part,
+                partition=part_obj.to_dict() if part_obj is not None else None,
             )
         )
+
+    # the explained-variance summary: surrogates read off the caches above,
+    # scored against f̂(X) — the pipeline's one extra model call (cached on
+    # the effect, reused by plots)
+    ev = _ev.summarize(effect, live_parts, features=supported)
 
     report = Report(
         method_name=method_registry.canonical(method),
@@ -948,5 +1030,10 @@ def explain(
             }
             for f in order
         ],
+        explained_variance=ev,
     )
-    return report._bind(effect)
+    report._bind(effect)
+    headline = report._ev_headline()
+    if headline:
+        print(f"[effector] {headline}")
+    return report
