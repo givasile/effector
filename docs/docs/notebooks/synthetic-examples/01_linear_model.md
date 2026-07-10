@@ -148,6 +148,7 @@ report.show()
 ```
 
     importances: [2.04  0.921 1.142]
+    [effector] global effects reproduce 100.0% of the model's variance
     
     PDP report — target: y
     ============================================================
@@ -157,6 +158,7 @@ report.show()
     x_2                           1.1423    0.0000         1
     x_1                           0.9207    0.0000         1
     ============================================================
+    global effects reproduce 100.0% of the model's variance
 
 
 As we expected, all feature effects are linear. Looking closer, we can also confirm the gradients of the effects: 

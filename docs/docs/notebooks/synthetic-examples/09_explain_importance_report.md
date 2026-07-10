@@ -119,6 +119,7 @@ report = effector.explain(X, model, method="pdp", schema=schema,
 report.show()
 ```
 
+    [effector] global effects reproduce 2.7% of the model's variance; with subregions, 100.0%
     
     PDP report — target: y
     ============================================================
@@ -128,6 +129,9 @@ report.show()
     x2                            0.0236    0.8672         1
     x0                            0.0208    1.2365         7
     ============================================================
+    global effects reproduce 2.7% of the model's variance; with subregions, 100.0%
+      splitting x1 (on x0, x2) recovers +71.9 pts
+      splitting x0 (on x1, x2) recovers +97.3 pts
     
     
     Feature 1 - Full partition tree:
@@ -200,7 +204,7 @@ print("length (chars):", len(html))
 
     inlined figures: True
     no external assets: True
-    length (chars): 582190
+    length (chars): 583038
 
 
 ### The `Report` is a value: it round-trips without the model
@@ -227,6 +231,9 @@ reloaded.show()
     x2                            0.0236    0.8672         1
     x0                            0.0208    1.2365         7
     ============================================================
+    global effects reproduce 2.7% of the model's variance; with subregions, 100.0%
+      splitting x1 (on x0, x2) recovers +71.9 pts
+      splitting x0 (on x1, x2) recovers +97.3 pts
     
     
     Feature 1 - Full partition tree:
@@ -387,25 +394,16 @@ for method in ["pdp", "ale", "rhale", "shapdp"]:
     print(f"{method:7s} -> {ranked}")
 ```
 
+    [effector] global effects reproduce 2.7% of the model's variance; with subregions, 100.0%
     pdp     -> [('x1', 0.214), ('x2', 0.024), ('x0', 0.021)]
+    [effector] global effects reproduce 2.5% of the model's variance; with subregions, 100.0%
     ale     -> [('x1', 0.228), ('x0', 0.057), ('x2', 0.024)]
-
-
+    [effector] global effects reproduce 2.7% of the model's variance; with subregions, 100.0%
     rhale   -> [('x1', 0.231), ('x2', 0.024), ('x0', 0.021)]
 
 
-    ExactExplainer explainer:   0%|          | 1/500 [00:00<?, ?it/s]
-
-    ExactExplainer explainer:  39%|███▉      | 195/500 [00:10<00:00, 1936.45it/s]
-
-    ExactExplainer explainer:  78%|███████▊  | 389/500 [00:10<00:00, 1836.16it/s]
-
-    ExactExplainer explainer: 501it [00:10, 48.08it/s]                           
-
-    
-
-
-    shapdp  -> [('x1', 0.405), ('x0', 0.376), ('x2', 0.247)]
+    [effector] global effects reproduce 0.1% of the model's variance; with subregions, 87.1%
+    shapdp  -> [('x2', 0.011), ('x0', 0.0), ('x1', 0.0)]
 
 
 ## Takeaways

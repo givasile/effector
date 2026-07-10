@@ -163,6 +163,7 @@ report.show()
 ```
 
     importances: [1.103 0.039 0.007]
+    [effector] global effects reproduce 90.5% of the model's variance; with subregions, 98.4%
     
     PDP report — target: y
     ============================================================
@@ -172,6 +173,9 @@ report.show()
     x1                            0.0394    0.3701         5
     x2                            0.0069    0.2635         1
     ============================================================
+    global effects reproduce 90.5% of the model's variance; with subregions, 98.4%
+      splitting level (on x1, x2) recovers +7.0 pts
+      splitting x1 (on level, x2) recovers +7.9 pts
     
     
     Feature 0 - Full partition tree:
