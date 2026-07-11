@@ -31,7 +31,9 @@ which on (d-)PDP grows the position store / retouches ICE with model calls.
 
 This module is a **leaf**: numpy only; it duck-types the effect
 (`._summary`/`._eval_payload`/`.data`/`.model`/`._y_pred`) and `Partition`
-(`.leaves`/`.mask(idx)`, `leaf.rule.conditions`).
+(`.leaves`/`.mask(idx)`, `leaf.rule.conditions`, and — for the ledger's
+heterogeneity column — `part[0].heterogeneity`, `leaf.heterogeneity`,
+`leaf.nof_instances`).
 """
 
 from __future__ import annotations
@@ -133,33 +135,65 @@ def _fit_offsets(residual: np.ndarray, partitions: dict, n: int) -> np.ndarray:
     return Z @ beta
 
 
-def summarize(effect, partitions: dict, features: list) -> Optional[dict]:
+def _heter_pair(part) -> tuple:
+    """A partition's (root, weighted-leaf) heterogeneity, or `(None, None)`.
+
+    The drop is a *static* property of the split — the feature's local effects
+    against its own regional curves — so unlike the R² marginals it does not
+    depend on which other splits are applied. `None` when the partition
+    carries no finite heterogeneity numbers (e.g. hand-built rules).
+    """
+    try:
+        before = float(part[0].heterogeneity)
+        w = np.array([leaf.nof_instances for leaf in part.leaves], dtype=float)
+        h = np.array([leaf.heterogeneity for leaf in part.leaves], dtype=float)
+        after = float((w * h).sum() / w.sum())
+    except (TypeError, AttributeError, IndexError):
+        return None, None
+    if not (np.isfinite(before) and np.isfinite(after)):
+        return None, None
+    return before, after
+
+
+def summarize(
+    effect, partitions: dict, features: list, min_gain: float = 0.01
+) -> Optional[dict]:
     """The Report's explained-variance payload — plain floats, JSON-safe.
 
     Computes `f̂(X)` through `effect._y_pred` (filling it on first use — the
     one model call this module ever costs; plots reuse it). Returns `None`
     when the method is unsupported (derivative-scale) or `Var(f̂) == 0`.
 
+    The payload is a **decision sequence** (greedy forward selection): each
+    round applies the split with the largest R² gain *measured on top of the
+    splits already applied*, and stops when no remaining split adds at least
+    `min_gain`. Sequential marginals are the intuitive currency — the stage
+    gains sum exactly to `regional_r2 − gam_r2`, and a redundant split shows
+    ~0 instead of a counterfactual solo figure. Applying every partition
+    blindly can score *worse* than the best single one (overlapping partitions
+    double-count interaction deviations in the leaf-conditional curves, which
+    the joint offsets cannot repair); the greedy pass guarantees
+    `regional_r2 ≥ gam_r2` and mirrors `find_regions`' own greedy objective.
+
     Args:
         effect: a fitted global effect.
         partitions: `{feature: Partition}` — bound; single-leaf ones ignored.
         features: feature indices the surrogates sum over.
+        min_gain: smallest R² marginal worth a stage (default 1 pt) — below
+            it a split is skipped as `below_threshold`.
 
     Returns:
-        ``{"gam_r2": float, "regional_r2": float, "gains": [{"feature",
-        "name", "on", "n_regions", "delta_r2", "in_combined"}, ...]}`` —
-        gains in the given partition order, each measured alone on top of the
-        GAM. They need not sum to `regional_r2 − gam_r2`: partitions sharing
-        interaction variance each recover part of the same pot.
-
-    `regional_r2` is a **greedy forward selection** over the partitions: add
-    the split with the largest R² improvement, keep adding while R² improves
-    (`in_combined` marks the selected ones). Applying every partition blindly
-    can score *worse* than the best single one — overlapping partitions
-    double-count interaction deviations in the leaf-conditional curves
-    themselves, which the joint offsets cannot repair — while greedy selection
-    guarantees `regional_r2 ≥ gam_r2` and ≥ every single-split figure. It is
-    also the honest reading of `find_regions`' own greedy objective.
+        ``{"gam_r2", "regional_r2", "min_gain",
+        "stages": [{"feature", "name", "on", "n_regions", "delta_r2",
+        "cum_r2", "solo_delta_r2", "heter_before", "heter_after"}, ...],
+        "skipped": [{..., "delta_r2", "reason"}, ...]}`` — stages in decision
+        order with `delta_r2` the sequential marginal and `cum_r2` the running
+        R²; skipped splits carry their marginal on top of the final selection
+        and a `reason`: `"redundant"` (adds ~nothing — its variance is already
+        explained) or `"below_threshold"` (real but < `min_gain`). The solo
+        figure (`solo_delta_r2`, alone on top of the GAM) is kept for
+        programmatic consumers only — it is a counterfactual and does not add
+        up across splits.
     """
     if not supports(effect):
         return None
@@ -174,6 +208,27 @@ def summarize(effect, partitions: dict, features: list) -> Optional[dict]:
 
     single_r2 = {j: surrogate_r2(effect, fx, {j: p}, features) for j, p in parts.items()}
 
+    def _info(j, part):
+        conditioning = sorted(
+            {
+                effect.feature_names[k]
+                for leaf in part.leaves
+                for k in leaf.rule.conditions
+            }
+        )
+        before, after = _heter_pair(part)
+        return {
+            "feature": int(j),
+            "name": effect.feature_names[j],
+            "on": ", ".join(conditioning),
+            "n_regions": len(part.leaves),
+            "solo_delta_r2": single_r2[j] - gam_r2,
+            "heter_before": before,
+            "heter_after": after,
+        }
+
+    stages: list = []
+    skipped: list = []
     selected: dict = {}
     regional_r2 = gam_r2
     remaining = dict(parts)
@@ -183,28 +238,30 @@ def summarize(effect, partitions: dict, features: list) -> Optional[dict]:
             for j, p in remaining.items()
         }
         best = max(scored, key=lambda j: scored[j])
-        if scored[best] <= regional_r2:
+        gain = scored[best] - regional_r2
+        if gain <= 0 or gain < min_gain:
+            for j, p in remaining.items():
+                marginal = scored[j] - regional_r2
+                skipped.append(
+                    {
+                        **_info(j, p),
+                        "delta_r2": marginal,
+                        "reason": (
+                            "below_threshold" if marginal > 1e-9 else "redundant"
+                        ),
+                    }
+                )
             break
         selected[best] = remaining.pop(best)
         regional_r2 = scored[best]
+        stages.append(
+            {**_info(best, selected[best]), "delta_r2": gain, "cum_r2": regional_r2}
+        )
 
-    gains = []
-    for j, part in parts.items():
-        conditioning = sorted(
-            {
-                effect.feature_names[k]
-                for leaf in part.leaves
-                for k in leaf.rule.conditions
-            }
-        )
-        gains.append(
-            {
-                "feature": int(j),
-                "name": effect.feature_names[j],
-                "on": ", ".join(conditioning),
-                "n_regions": len(part.leaves),
-                "delta_r2": single_r2[j] - gam_r2,
-                "in_combined": j in selected,
-            }
-        )
-    return {"gam_r2": gam_r2, "regional_r2": regional_r2, "gains": gains}
+    return {
+        "gam_r2": gam_r2,
+        "regional_r2": regional_r2,
+        "min_gain": float(min_gain),
+        "stages": stages,
+        "skipped": skipped,
+    }

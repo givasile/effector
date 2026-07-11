@@ -116,6 +116,30 @@ def test_to_html_reads_like_the_pipeline():
     assert "http://" not in html and "https://" not in html
 
 
+def test_to_html_demotes_skipped_splits():
+    # a split the decision sequence skipped keeps its section but trades the
+    # partition tree + regional plots for a one-line pointer
+    data = make_regional_data(n=800)
+    rep = effector.explain(data, gated_model, method="pdp", nof_instances="all")
+    ev = rep.explained_variance
+    if not ev["skipped"]:
+        # force one deterministically (greedy semantics are pinned elsewhere)
+        st = ev["stages"].pop()
+        ev["regional_r2"] -= st["delta_r2"]
+        st.pop("cum_r2")
+        ev["skipped"].append({**st, "reason": "redundant"})
+    html = rep.to_html()
+    feat = ev["skipped"][0]["feature"]
+    section = html.split(f"id='feat-{feat}'")[1].split("</section>")[0]
+    assert "skips it" in section  # the demotion note
+    assert "Partition tree" not in section
+    assert "skipped in §3" in html  # the overview table marker
+    # kept stages still get the full regional treatment
+    for st in ev["stages"]:
+        kept = html.split(f"id='feat-{st['feature']}'")[1].split("</section>")[0]
+        assert "Partition tree" in kept
+
+
 def test_harmonize_axes_shares_y_globally_and_x_per_section():
     import matplotlib.pyplot as plt
 

@@ -174,13 +174,13 @@ class Report:
         if not ev:
             return None
         line = f"global effects reproduce {ev['gam_r2']:.1%} of the model's variance"
-        if ev["gains"]:
+        if ev["stages"]:
             line += f"; with subregions, {ev['regional_r2']:.1%}"
         return line
 
     def show(self):
-        """Print the ranked feature table, the explained-variance summary,
-        then each multi-region partition tree.
+        """Print the ranked feature table, the explained-variance decision
+        sequence, then each multi-region partition tree.
 
         Columns: feature, importance, heterogeneity, #regions. Works on
         unbound reports (rebuilt via `from_dict`) too.
@@ -199,11 +199,27 @@ class Report:
         print("=" * 60)
         headline = self._ev_headline()
         if headline:
-            print(headline)
-            for g in self.explained_variance["gains"]:
+            ev = self.explained_variance
+            print(f"explained variance: global effects (GAM) {ev['gam_r2']:.1%}")
+            for st in ev["stages"]:
+                heter = (
+                    f", heter {st['heter_before']:.3f}→{st['heter_after']:.3f}"
+                    if st["heter_before"] is not None
+                    else ""
+                )
                 print(
-                    f"  splitting {g['name']} (on {g['on']}) recovers "
-                    f"{g['delta_r2'] * 100:+.1f} pts"
+                    f"  + split {st['name']} (on {st['on']}) → {st['cum_r2']:.1%}"
+                    f" ({st['delta_r2'] * 100:+.1f} pts{heter})"
+                )
+            for sk in ev["skipped"]:
+                why = (
+                    "redundant (variance already explained)"
+                    if sk["reason"] == "redundant"
+                    else f"below the {ev['min_gain'] * 100:.1f}-pt threshold"
+                )
+                print(
+                    f"  skipped: {sk['name']} (on {sk['on']}) — "
+                    f"{sk['delta_r2'] * 100:+.1f} pts, {why}"
                 )
         for fr in self.features:
             if fr.partition is not None and len(fr.partition["regions"]) > 1:
@@ -325,16 +341,101 @@ class Report:
         fig.tight_layout()
         return fig, ax
 
+    def _ev_ledger_fig(self):
+        """The explained-variance ledger — one 0–100% bar of `Var(f̂)`: what
+        reading the global plots buys (the GAM share), what each kept split
+        adds (decision order), and what stays unexplained. The reading
+        protocol in a single glance: which regional plots are worth the time.
+        """
+        from effector import theme
+        import matplotlib.pyplot as plt
+
+        t = theme.active()
+        ev = self.explained_variance
+        segs = [("global effects", ev["gam_r2"], t.CAT[0], f"{ev['gam_r2']:.0%}")]
+        for i, st in enumerate(ev["stages"]):
+            segs.append(
+                (
+                    f"+ {st['name']} regions",
+                    st["delta_r2"],
+                    t.CAT[(i + 1) % len(t.CAT)],
+                    f"{st['delta_r2'] * 100:+.1f} pts",
+                )
+            )
+        rest = max(1.0 - ev["regional_r2"], 0.0)
+
+        def _seg_ink(hexcolor):
+            r, g, b = (int(hexcolor[i : i + 2], 16) / 255 for i in (1, 3, 5))
+            lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+            return "#ffffff" if lum < 0.55 else "#1a1a1a"
+
+        fig, ax = plt.subplots(figsize=(7.4, 1.6))
+        surface = plt.rcParams.get("axes.facecolor", "#ffffff")
+        ink = plt.rcParams.get("axes.labelcolor", "#333333")
+        left, stagger = 0.0, 0
+        for label, width, color, value in segs:
+            if width <= 0:
+                continue
+            ax.barh(
+                0, width, left=left, height=0.5, color=color,
+                edgecolor=surface, linewidth=2,
+            )
+            if width >= 0.14:
+                ax.text(
+                    left + width / 2, 0, f"{label}\n{value}",
+                    ha="center", va="center", fontsize=8,
+                    color=_seg_ink(color), fontweight="bold",
+                )
+            else:
+                # narrow segment: label above the bar, staggered to dodge
+                # its neighbor
+                y = 0.55 + 0.4 * (stagger % 2)
+                stagger += 1
+                ax.annotate(
+                    f"{label} · {value}",
+                    xy=(left + width / 2, 0.27),
+                    xytext=(left + width / 2, y),
+                    ha="center", va="bottom", fontsize=7, color=ink,
+                    arrowprops={"arrowstyle": "-", "lw": 0.6, "color": ink},
+                )
+            left += width
+        if rest > 0:
+            ax.barh(
+                0, rest, left=left, height=0.5,
+                color=t.BAR_FACE_MUTED, edgecolor=surface, linewidth=2,
+            )
+            if rest >= 0.14:
+                ax.text(
+                    left + rest / 2, 0, f"unexplained\n{rest:.0%}",
+                    ha="center", va="center", fontsize=8, color=ink,
+                )
+        ax.set_xlim(0, 1)
+        ax.set_ylim(-0.55, 1.45)
+        ax.set_yticks([])
+        ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0])
+        ax.set_xticklabels(["0%", "25%", "50%", "75%", "100%"])
+        ax.set_title(
+            "Explained variance — what reading each layer buys", fontsize=9
+        )
+        for spine in ("left", "top", "right"):
+            ax.spines[spine].set_visible(False)
+        fig.tight_layout()
+        return fig, ax
+
     # -- self-contained HTML page ---------------------------------------------
     def to_html(self, path=None, share_y="across"):
         """Render the report as one self-contained HTML page — the pipeline in reading order.
 
         The page mirrors the line-by-line analysis: **overview first** (the
-        triage plane over all supported features, a clickable ranked table,
-        and collapsible importance/heterogeneity bars), then **one section per
-        reported feature** (global effect, partition tree, per-leaf regional
-        plots), and the **before/after triage** last — arrows from each
-        partitioned feature's global point to its leaves. Every figure is a
+        triage plane over all supported features, the explained-variance
+        ledger bar, a clickable ranked table, and collapsible
+        importance/heterogeneity bars), then **one section per reported
+        feature** (global effect, partition tree, per-leaf regional plots —
+        unless §3's decision sequence skipped the split as redundant or
+        below the `min_r2_gain` threshold, in which case a one-line pointer
+        replaces the plots), and the **before/after triage** last — arrows
+        from each partitioned feature's global point to its leaves, plus the
+        decision-sequence ledger table. Every figure is a
         base64 PNG; navigation, click-to-zoom, and collapsing are inline
         vanilla JS/CSS — no external assets, one file, one click.
 
@@ -402,6 +503,12 @@ class Report:
                     p = p.bind(self._effect)
                 parts[fr.feature] = p
 
+        # splits the decision sequence skipped (redundant / below min gain):
+        # their §2 section keeps a one-line pointer instead of the regional
+        # plots — the variance they would explain is already read elsewhere
+        ev = self.explained_variance
+        demoted = {s["feature"]: s for s in (ev["skipped"] if ev else [])}
+
         out = [
             "<!doctype html><html><head><meta charset='utf-8'>",
             "<meta name='viewport' content='width=device-width,initial-scale=1'>",
@@ -431,6 +538,7 @@ class Report:
             "method",
             "top_k",
             "heter_threshold",
+            "min_r2_gain",
             "finder",
             "nof_instances",
             "random_state",
@@ -453,18 +561,23 @@ class Report:
             "subregions.</p>"
         )
         out.append(self._img(self._triage_fig(), alt="feature triage"))
-        ev = self.explained_variance
         if ev:
             sentence = (
                 "An additive surrogate read off these global curves reproduces "
                 f"<b>{ev['gam_r2']:.1%}</b> of the model's predicted variance"
             )
-            if ev["gains"]:
+            if ev["stages"]:
                 sentence += (
-                    "; with the subregions of §3, "
-                    f"<b>{ev['regional_r2']:.1%}</b>"
+                    "; adding the regional plots kept by §3's decision "
+                    f"sequence, <b>{ev['regional_r2']:.1%}</b>"
                 )
             out.append(f"<p class='caption'>{sentence}.</p>")
+            if ev["gam_r2"] > 0:
+                out.append(
+                    self._img(
+                        self._ev_ledger_fig(), alt="explained-variance ledger"
+                    )
+                )
         out.append(
             "<table><tr><th>#</th><th>feature</th><th>importance</th>"
             "<th>heterogeneity</th><th>#regions</th><th>regional analysis</th></tr>"
@@ -486,6 +599,8 @@ class Report:
             else:
                 nregions = len(fr.partition["regions"])
                 note = f"split into {len(parts[fr.feature].leaves)} regions"
+                if fr.feature in demoted:
+                    note += " · skipped in §3"
             out.append(
                 f"<tr data-href='feat-{fr.feature}'><td>{rank}</td>"
                 f"<td>{esc(fr.name)}</td><td>{fr.importance:.4f}</td>"
@@ -532,6 +647,28 @@ class Report:
                     "<p class='note'><code>find_regions</code> searched but no "
                     "split passed the heterogeneity-drop threshold — the effect "
                     "is heterogeneous, yet no candidate rule explains it.</p>"
+                )
+            elif fr.feature in demoted:
+                sk = demoted[fr.feature]
+                drop = (
+                    f" (heterogeneity {sk['heter_before']:.3f} → "
+                    f"{sk['heter_after']:.3f})"
+                    if sk.get("heter_before") is not None
+                    else ""
+                )
+                why = (
+                    "adds no explained variance beyond the splits kept there — "
+                    "the same variance is already read elsewhere"
+                    if sk["reason"] == "redundant"
+                    else f"adds only {sk['delta_r2'] * 100:+.1f} pts, below the "
+                    f"{ev['min_gain'] * 100:.1f}-pt threshold"
+                )
+                out.append(
+                    f"<p class='note'>A split on <b>{esc(sk['on'])}</b> into "
+                    f"{sk['n_regions']} regions was found{drop}, but the "
+                    f"decision sequence of §3 skips it: it {why}. The regional "
+                    "plots are omitted; reproduce them with "
+                    "<code>find_regions</code>.</p>"
                 )
             else:
                 out.append(
@@ -613,37 +750,53 @@ class Report:
                     "the plane is unchanged from the overview.</p>"
                 )
             out.append(self._img(self._triage_fig(), alt="feature triage"))
-        if ev and ev["gains"]:
+        if ev and (ev["stages"] or ev["skipped"]):
             out.append(
-                "<p class='caption'>What each partition buys — the gain in "
-                "explained variance from applying that feature's subregions "
-                "alone, on top of the global curves. Gains need not sum to "
-                "the combined figure: partitions sharing interaction variance "
-                "each recover part of the same pot, so the combined figure "
-                "greedily applies only the splits that still improve it.</p>"
+                "<p class='caption'>Explained variance — the decision "
+                "sequence. Starting from the global curves, each round applies "
+                "the split with the largest gain, measured <i>on top of the "
+                "splits above it</i>, and stops when no remaining split adds "
+                f"at least {ev['min_gain'] * 100:.1f} pts. A real split (its "
+                "heterogeneity does drop) can still add nothing — or even "
+                "hurt, by double-counting — when its variance is already "
+                "explained by an earlier split.</p>"
             )
             out.append(
-                "<table><tr><th>split</th><th>regions</th>"
-                "<th>explained-variance gain</th></tr>"
+                "<table><tr><th>step</th><th>regions</th>"
+                "<th>heterogeneity</th><th>explained variance</th></tr>"
             )
-            for g in ev["gains"]:
-                out.append(
-                    f"<tr><td>{esc(g['name'])} (on {esc(g['on'])})</td>"
-                    f"<td>{g['n_regions']}</td>"
-                    f"<td>{g['delta_r2'] * 100:+.1f} pts</td></tr>"
+            out.append(
+                "<tr><td>global effects (GAM)</td><td>·</td><td>·</td>"
+                f"<td><b>{ev['gam_r2']:.1%}</b></td></tr>"
+            )
+
+            def _heter_cell(entry):
+                if entry.get("heter_before") is None:
+                    return "·"
+                return (
+                    f"{entry['heter_before']:.3f} → {entry['heter_after']:.3f}"
                 )
-            used = [g["name"] for g in ev["gains"] if g.get("in_combined")]
-            label = (
-                "subregions combined"
-                if len(used) == len(ev["gains"])
-                else f"subregions combined (using {esc(', '.join(used))})"
-            )
-            out.append(
-                f"<tr><td><b>{label}</b></td><td>·</td>"
-                f"<td><b>{ev['regional_r2']:.1%}</b> "
-                f"({(ev['regional_r2'] - ev['gam_r2']) * 100:+.1f} pts vs "
-                f"global's {ev['gam_r2']:.1%})</td></tr>"
-            )
+
+            for st in ev["stages"]:
+                out.append(
+                    f"<tr><td>+ split {esc(st['name'])} "
+                    f"(on {esc(st['on'])})</td>"
+                    f"<td>{st['n_regions']}</td><td>{_heter_cell(st)}</td>"
+                    f"<td>{st['delta_r2'] * 100:+.1f} pts → "
+                    f"<b>{st['cum_r2']:.1%}</b></td></tr>"
+                )
+            for sk in ev["skipped"]:
+                why = (
+                    "redundant (variance already explained)"
+                    if sk["reason"] == "redundant"
+                    else f"below the {ev['min_gain'] * 100:.1f}-pt threshold"
+                )
+                out.append(
+                    f"<tr class='dim'><td>skipped · {esc(sk['name'])} "
+                    f"(on {esc(sk['on'])})</td>"
+                    f"<td>{sk['n_regions']}</td><td>{_heter_cell(sk)}</td>"
+                    f"<td>{sk['delta_r2'] * 100:+.1f} pts — {why}</td></tr>"
+                )
             out.append("</table>")
         out.append("</section>")
 
@@ -871,6 +1024,7 @@ def explain(
     method="pdp",
     top_k=5,
     heter_threshold=None,
+    min_r2_gain=0.01,
     finder="best",
     candidate_conditioning_features="all",
     nof_instances=10_000,
@@ -907,6 +1061,11 @@ def explain(
         top_k: how many top-importance features to report.
         heter_threshold: minimum `heter_score` to trigger `find_regions`;
             `None` (default) uses the median across the ranked features.
+        min_r2_gain: smallest explained-variance marginal (fraction of
+            `Var(f̂)`, default 0.01 = 1 pt) a split must add — on top of the
+            splits already applied — to earn a stage in the decision sequence
+            and its regional plots; splits below it are skipped as redundant
+            or below-threshold.
         finder: region finder — `"best"` (default), `"best_level_wise"`, or
             a configured finder instance.
         candidate_conditioning_features: features allowed to define splits
@@ -918,7 +1077,8 @@ def explain(
         a `Report` bound to the fitted effect — `FeatureReport`s in
         importance-descending order, partitions stored as dicts, an
         `overview` (importance + heterogeneity) over every supported feature,
-        and the `explained_variance` summary (surrogate R², per-split gains).
+        and the `explained_variance` decision sequence (surrogate R² of the
+        global GAM read, per-stage marginal gains, skipped splits).
     """
     spec = method_registry.resolve(method)
     ctor_args = (model, model_jac) if spec.needs_jac else (model,)
@@ -1005,7 +1165,7 @@ def explain(
     # the explained-variance summary: surrogates read off the caches above,
     # scored against f̂(X) — the pipeline's one extra model call (cached on
     # the effect, reused by plots)
-    ev = _ev.summarize(effect, live_parts, features=supported)
+    ev = _ev.summarize(effect, live_parts, features=supported, min_gain=min_r2_gain)
 
     report = Report(
         method_name=method_registry.canonical(method),
@@ -1016,6 +1176,7 @@ def explain(
             "method": method_registry.canonical(method),
             "top_k": top_k,
             "heter_threshold": thr,
+            "min_r2_gain": min_r2_gain,
             "finder": finder if isinstance(finder, str) else type(finder).__name__,
             "nof_instances": nof_instances,
             "random_state": random_state,

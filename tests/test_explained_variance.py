@@ -108,13 +108,21 @@ def test_two_overlapping_partitions_joint_offsets_and_greedy_combined():
     single = ev.surrogate_r2(m, fx, {0: p0}, [0, 1, 2])
     np.testing.assert_allclose(single, 1 - (1 / 3) / total, atol=0.02)
 
-    # summarize: greedy combined applies both (the second still improves R²)
+    # summarize: the decision sequence applies both (the second still adds
+    # more than min_gain)
     s = ev.summarize(m, {0: p0, 1: p1}, [0, 1, 2])
     assert s["regional_r2"] >= 0.99
+    assert len(s["stages"]) == 2 and not s["skipped"]
+    # the first stage's marginal IS its solo gain (nothing applied before it)
     np.testing.assert_allclose(
-        s["gains"][0]["delta_r2"], single - s["gam_r2"], atol=1e-12
+        s["stages"][0]["delta_r2"], s["stages"][0]["solo_delta_r2"], atol=1e-12
     )
-    assert all(g["in_combined"] for g in s["gains"])
+    # sequential marginals sum exactly to the headline shift
+    np.testing.assert_allclose(
+        sum(st["delta_r2"] for st in s["stages"]),
+        s["regional_r2"] - s["gam_r2"],
+        atol=1e-12,
+    )
 
 
 def test_greedy_combined_drops_a_redundant_partition():
@@ -127,8 +135,39 @@ def test_greedy_combined_drops_a_redundant_partition():
     p0 = m.find_regions(0)
     p2 = m.find_regions(2)
     s = ev.summarize(m, {0: p0, 2: p2}, [0, 1, 2])
-    assert s["regional_r2"] >= s["gam_r2"] + max(g["delta_r2"] for g in s["gains"]) - 1e-9
-    assert sum(g["in_combined"] for g in s["gains"]) == 1
+    assert len(s["stages"]) == 1 and len(s["skipped"]) == 1
+    assert s["skipped"][0]["reason"] == "redundant"
+    # the running figure is exactly baseline + the kept stage's marginal
+    np.testing.assert_allclose(
+        s["regional_r2"], s["gam_r2"] + s["stages"][0]["delta_r2"]
+    )
+    # the redundant split still records a real solo gain — that contrast
+    # (solo > 0, marginal ~ 0) is the two-claimants-one-pot signature
+    assert s["skipped"][0]["solo_delta_r2"] > 0.1
+    assert s["skipped"][0]["delta_r2"] <= 1e-9
+
+
+def test_min_gain_threshold_gates_the_stages():
+    # the switch split is worth ~1/6 of Var(f): a stage at the default
+    # threshold, skipped as below_threshold when min_gain exceeds it
+    data = make_uniform()
+    m = fitted_pdp(data, switch_model)
+    part = effector.Partition.from_rules(
+        [f"{m.feature_names[2]} > 0", f"{m.feature_names[2]} <= 0"],
+        effect=m,
+        feature=0,
+    )
+    s = ev.summarize(m, {0: part}, [0, 1, 2])
+    assert len(s["stages"]) == 1 and not s["skipped"]
+
+    s_hi = ev.summarize(m, {0: part}, [0, 1, 2], min_gain=0.5)
+    assert not s_hi["stages"]
+    assert s_hi["skipped"][0]["reason"] == "below_threshold"
+    assert s_hi["regional_r2"] == s_hi["gam_r2"]
+    # the static heterogeneity pair rides along even for hand-built rules —
+    # and the switch split genuinely simplifies the regional curves
+    sk = s_hi["skipped"][0]
+    assert sk["heter_after"] < sk["heter_before"]
 
 
 def test_degenerate_feature_inside_a_region_contributes_zero():
@@ -177,15 +216,18 @@ def test_explain_stores_and_prints_explained_variance(capsys):
     rep = effector.explain(data, gated_model, method="pdp", nof_instances="all")
     assert "of the model's variance" in capsys.readouterr().out
     s = rep.explained_variance
-    assert s is not None and s["gains"]
+    assert s is not None and s["stages"]
     assert s["regional_r2"] > s["gam_r2"]
-    assert set(s["gains"][0]) == {
+    assert set(s["stages"][0]) == {
         "feature",
         "name",
         "on",
         "n_regions",
         "delta_r2",
-        "in_combined",
+        "cum_r2",
+        "solo_delta_r2",
+        "heter_before",
+        "heter_after",
     }
 
 
@@ -197,8 +239,9 @@ def test_explained_variance_roundtrips_and_renders_unbound():
     rep2.show()  # runs unbound
     html = rep2.to_html()
     assert "predicted variance" in html
-    assert "recovers" not in html  # the phrasing lives in show(); html tables:
-    assert "explained-variance gain" in html and "subregions combined" in html
+    # the decision-sequence ledger renders from stored values alone
+    assert "decision" in html and "global effects (GAM)" in html
+    assert "explained-variance ledger" in html  # the 0-100% bar figure
 
 
 def test_explain_budget_is_one_fit_plus_one_prediction_pass():

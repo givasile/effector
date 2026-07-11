@@ -1330,3 +1330,34 @@ docstring + `method_semantics.md` updated; `tests/test_explained_variance.py`
 (analytic Sobol/switch/joint-offset/greedy/budget pins), ShapDP closed form
 in `test_contract_importance.py` now `|a|·std(x)`; all notebooks re-executed,
 docs pages regenerated.
+
+## 34. 2026-07-11 — Explained variance becomes a decision sequence (tag: code)  [variance ledger follow-up; branch `feat/explained-variance`]
+
+**What.** The explained-variance payload switches currency: per-split *solo*
+gains (counterfactuals that need not add up) are replaced by **sequential
+marginal gains along the greedy path** — stages sum exactly to
+`regional_r2 − gam_r2`, and a redundant split reads ~0 instead of a
+paradoxical "+7.5 pts but skipped". Greedy stops at `min_r2_gain` (new
+`explain()` knob, default 1 pt); splits left out are classified `redundant`
+(variance already explained) or `below_threshold`. Each split also carries
+its static heterogeneity pair (root → weighted leaves). New surfaces: the
+**ledger bar** in §1 (one 0–100% bar of Var(f̂): global-effects share, one
+segment per kept split, unexplained tail — the reading protocol at a
+glance), the **decision-ledger table** in §3 (running R², heterogeneity
+column, skipped rows dimmed with reason), and §2 **demotion**: a skipped
+split keeps its section but trades tree+regional plots for a one-line
+pointer. Solo gains stay in `to_dict()` for programmatic consumers only.
+
+**Why.** Users read "+7.5 pts" as a promise; showing it next to "redundant"
+contradicts itself. Sequential marginals are the only display currency that
+adds up, and the greedy order gives the report a hierarchy: which features to
+read globally, which regionally, which to skip. Re-measuring each round (not
+stale snapshot promises) is what catches redundancy; heterogeneity proposes,
+R² disposes. Everything subtler — solo-vs-marginal attribution, Shapley
+smearing, promise-vs-delivery divergence — is CALM-paper scope.
+
+**Changes.** `explained_variance.summarize` → `stages`/`skipped`/`min_gain`
+payload (+`_heter_pair`); `report.py`: `min_r2_gain` param + config chip,
+`_ev_ledger_fig`, §1 bar, §2 demotion note, §3 ledger table, `show()`
+sequence lines; tests updated + `test_min_gain_threshold_gates_the_stages`,
+`test_to_html_demotes_skipped_splits`.
