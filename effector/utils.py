@@ -657,7 +657,11 @@ def compute_jacobian_numerically(
         data_plus[:, f] += eps
         data_minus = copy.deepcopy(data)
         data_minus[:, f] -= eps
-        jacobian[:, f] = (model(data_plus) - model(data_minus)) / (2 * eps)
+        # reshape(-1): tolerate (N, 1) column-vector model outputs, like the
+        # rest of the pipeline does
+        plus = np.asarray(model(data_plus), dtype=float).reshape(-1)
+        minus = np.asarray(model(data_minus), dtype=float).reshape(-1)
+        jacobian[:, f] = (plus - minus) / (2 * eps)
     return jacobian
 
 
