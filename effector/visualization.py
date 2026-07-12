@@ -776,6 +776,81 @@ def compare(
     )
 
 
+def triage_scatter(
+    points,
+    *,
+    arrows=None,
+    threshold=False,
+    thr_label="heterogeneity threshold",
+    unit="",
+    title=None,
+    show_plot=False,
+):
+    """Draw a triage plane from precomputed scalars — no effect object needed.
+
+    The value-in twin of `plot_triage`: `Report` (unbound) and
+    `CALM.plot_triage` hand in stamped numbers, this draws them.
+
+    Args:
+        points: `[(name, importance, heterogeneity)]`, one entry per feature.
+        arrows: optional `{name: ((x0, y0), (x1, y1))}` — one arrow per
+            feature, e.g. global point -> weighted-mean regional point.
+        threshold: heterogeneity line — a float draws it, `None`/`False`
+            nothing.
+        thr_label: legend label of the threshold line.
+        unit: axis-label suffix, e.g. ``" (cnt units)"``.
+        title: figure title.
+        show_plot: if `True`, show and return `None`; else `(fig, ax)`.
+    """
+    t = theme.active()
+    fig, ax = plt.subplots()
+    ax.set_title("Feature triage" if title is None else title)
+    ax.scatter(
+        [p[1] for p in points],
+        [p[2] for p in points],
+        color=t.MEAN,
+        zorder=3,
+    )
+    for name, x, y in points:
+        ax.annotate(
+            name,
+            (x, y),
+            textcoords="offset points",
+            xytext=(6, 6),
+            fontsize="small",
+        )
+    if arrows:
+        for i, (name, (start, end)) in enumerate(arrows.items()):
+            color = t.CAT[i % len(t.CAT)]
+            ax.annotate(
+                "",
+                xy=end,
+                xytext=start,
+                arrowprops=dict(
+                    arrowstyle="->", color=color, linewidth=1.2, alpha=0.9
+                ),
+            )
+            ax.scatter(
+                [start[0]],
+                [start[1]],
+                facecolors="none",
+                edgecolors=color,
+                zorder=3,
+                label=f"{name} before regions",
+            )
+    if threshold is not None and threshold is not False:
+        ax.axhline(
+            float(threshold),
+            color=t.AVG,
+            linestyle="--",
+            linewidth=1.0,
+            label=thr_label,
+        )
+    _decorate_ax(ax, xlabel="importance" + unit, ylabel="heterogeneity" + unit)
+    fig.tight_layout()
+    return _finalize(fig, ax, show_plot)
+
+
 def plot_triage(
     effect,
     partitions: typing.Union[None, dict] = None,
