@@ -17,10 +17,15 @@ title: The mental model
 
     - **Engine**: an effect object — `PDP`, `DerPDP`, `ALE`, `RHALE`, `ShapDP`. The one stateful thing.
     - **Verb**: anything you ask the engine — `fit`, `plot`, `eval`, `importance`,
-      `heter_score`, `find_regions`. Every verb takes a feature by **index or name**.
+      `heter_score`, `find_regions`, `select_regions`. Every verb takes a feature
+      by **index or name**.
     - **Rule**: a predicate like `workingday == 1`. Passing `rule=` to a verb
       restricts it to that subpopulation.
     - **`Partition`**: a tree of regions returned by `find_regions`; each region carries a rule.
+    - **`CALM`**: one snapshot of the analysis — global effects everywhere except
+      the accepted splits, with its explained-variance R² stamped on it.
+      `select_regions` returns the chain of them (`CalmSequence`), from the pure
+      GAM to the selected regional model.
     - **`Report`**: the frozen result of `effector.explain`, renderable with `.to_html()`.
 
 ## One engine, five methods
@@ -33,8 +38,10 @@ flowchart LR
     E --> Q1["importance<br/>heter_score"]
     E --> Q2["plot / eval<br/>rule = …"]
     E --> Q3["find_regions<br/>→ Partition"]
+    E --> Q4["select_regions<br/>→ CALM chain"]
     Q1 --> T["plot_triage"]
     Q3 --> T
+    Q3 --> Q4
 ```
 
 🔧 Think of an engine the way you think of a pytorch model: construct it once,
@@ -72,7 +79,8 @@ pdp.find_regions("hr")
 
 Queries return **values**
 ([R12](../guides/design.md#r12-regions-are-values-not-state)): a float from
-`importance`, a `Partition` from `find_regions`, a `Report` from `explain`.
+`importance`, a `Partition` from `find_regions`, a `CalmSequence` from
+`select_regions`, a `Report` from `explain`.
 
 ```python
 parts = pdp.find_regions(features="heterogeneous")   # a dict you hold
@@ -93,8 +101,10 @@ Two ways in. They share every internal:
     report.to_html("report.html")
     ```
 
-    Fits one method, ranks features, searches regions for the heterogeneous
-    ones, freezes it all into a `Report`.
+    Fits one method, searches regions on the heterogeneous features, lets
+    `select_regions` decide which splits earn their explained-variance keep,
+    and freezes it all into a `Report` — the ledger bar first, then the
+    selected snapshot, then the global baseline.
 
     👉 Use it when you want **the answer**.
 
@@ -146,7 +156,7 @@ pdp = effector.PDP(X, model, schema=schema)                # yours, visibly
 
 ## The canonical workflow
 
-The whole package folds into five steps. The bike-sharing walkthrough
+The whole package folds into six steps. The bike-sharing walkthrough
 ([notebook](../notebooks/real-examples/01_bike_sharing_dataset.md)) runs them
 end to end.
 
@@ -155,8 +165,9 @@ flowchart LR
     A["<b>a. Scope</b><br/>construct + fit"] --> B["<b>b. Triage</b><br/>plot_triage"]
     B --> C["<b>c. Look</b><br/>plot the suspects"]
     C --> D["<b>d. Explain</b><br/>find_regions"]
-    D --> E["<b>e. Triage again</b><br/>with receipts"]
-    E -.->|"still heterogeneous?"| C
+    D --> E["<b>e. Select</b><br/>select_regions"]
+    E --> F["<b>f. Triage again</b><br/>with receipts"]
+    F -.->|"still heterogeneous?"| C
 ```
 
 **(a) Scope.** Construct the engine; `fit` the features you care about.
@@ -219,10 +230,26 @@ parts["hr"].show()
 pdp.plot("hr", rule=parts["hr"].leaves[0].rule)
 ```
 
-**(e) Triage again, with receipts.**
+**(e) Select — which splits earn their complexity.** `find_regions` proposes
+one candidate partition per feature; `select_regions` decides *across*
+features which of them actually explain the model. Starting from the GAM
+(every feature global), each round applies the split with the largest
+explained-variance gain measured on top of the splits already applied, and
+stops below `min_r2_gain`. Every accepted round is a `CALM` snapshot; the
+chain is the story the report's ledger bar tells.
+
+```python
+chain = pdp.select_regions(partitions=parts)
+chain.show()          # GAM R² → each accepted split → the rejected ones
+chain.final           # the selected snapshot: importances, heterogeneities,
+                      # partitions — global everywhere except the kept splits
+```
+
+**(f) Triage again, with receipts.**
 
 ```python
 effector.plot_triage(pdp, partitions=parts)
+chain.final.plot_triage()   # one arrow per accepted split, global → weighted mean
 ```
 
 ???+ success "How to read the final figure"
