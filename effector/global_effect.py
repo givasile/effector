@@ -939,6 +939,86 @@ class GlobalEffectBase(ABC):
             for f in resolved
         }
 
+    def select_regions(
+        self,
+        partitions: Optional[dict] = None,
+        *,
+        features: Union[list, str] = "heterogeneous",
+        finder="best",
+        candidate_conditioning_features="all",
+        min_r2_gain: float = 0.01,
+    ):
+        """Greedily select which partitions earn their complexity — the CALM chain.
+
+        ```python
+        chain = pdp.select_regions()      # search + select in one call
+        chain.show()                      # GAM R2, each accepted split, the rejected
+        chain.final                       # the last CALM — the regional analysis
+        chain[0]                          # the GAM snapshot
+        ```
+
+        `find_regions` proposes one candidate `Partition` per feature;
+        this verb decides *across* features which of them actually explain
+        the model: starting from the GAM (all features global), each round
+        applies the split with the largest explained-variance gain — the
+        surrogate R² against `f̂`, measured on top of the splits already
+        applied — and stops when no remaining split adds at least
+        `min_r2_gain`. Every accepted round is a snapshot (`CALM`) of
+        increased complexity; the whole chain is the report's ledger.
+
+        !!! note "A query, not a mutation (R12)"
+            The result is a value — nothing is stored on the effect.
+
+        !!! note "One prediction pass"
+            Beyond `fit`, the only model touch is one `f̂(X)` pass for the
+            variance denominator (cached on the effect); the search, the
+            scoring, and every snapshot's summaries are model-free.
+
+        Args:
+            partitions: pre-computed candidates — `{feature_index_or_name:
+                Partition}`, exactly what `find_regions(features=...)`
+                returns. `None` (default) runs the search here first.
+            features: which features to search when `partitions` is `None` —
+                a list, `"all"`, or `"heterogeneous"` (default; heter_score
+                at/above the median).
+            finder: region finder, as in `find_regions`.
+            candidate_conditioning_features: features allowed to define
+                splits (`"all"` or a list of indices/names).
+            min_r2_gain: smallest explained-variance marginal (fraction of
+                `Var(f̂)`, default 0.01 = 1 pt) a split must add — on top of
+                the splits already applied — to earn a snapshot.
+
+        Returns:
+            a `CalmSequence` — `[GAM, calm1, ...]`, R² non-decreasing along
+            it, with the rejected splits in `.skipped`
+            (`"redundant"`/`"below_threshold"`).
+
+        Raises:
+            ValueError: the method is derivative-scale (no output-scale
+                surrogate) or `Var(f̂) == 0`.
+        """
+        from effector import explained_variance as _ev  # lazy: one-way dep guard
+
+        if partitions is None:
+            partitions = self.find_regions(
+                features=features,
+                finder=finder,
+                candidate_conditioning_features=candidate_conditioning_features,
+            )
+        parts = {}
+        for key, p in partitions.items():
+            f = self._resolve_feature(key)
+            parts[f] = p if p._effect is not None else p.bind(self)
+
+        supported = []
+        for f in range(self.dim):
+            try:
+                self._check_feature_type_supported(f)
+                supported.append(f)
+            except ValueError:
+                continue
+        return _ev.select(self, parts, supported, min_gain=min_r2_gain)
+
     def importance(
         self,
         feature: Union[int, str],

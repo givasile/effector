@@ -155,53 +155,62 @@ def _heter_pair(part) -> tuple:
     return before, after
 
 
-def summarize(
-    effect, partitions: dict, features: list, min_gain: float = 0.01
-) -> Optional[dict]:
-    """The Report's explained-variance payload — plain floats, JSON-safe.
+def select(effect, partitions: dict, features: list, min_gain: float = 0.01):
+    """Greedy forward selection of partitions → a `CalmSequence` of snapshots.
 
     Computes `f̂(X)` through `effect._y_pred` (filling it on first use — the
-    one model call this module ever costs; plots reuse it). Returns `None`
-    when the method is unsupported (derivative-scale) or `Var(f̂) == 0`.
+    one model call this module ever costs; plots reuse it).
 
-    The payload is a **decision sequence** (greedy forward selection): each
-    round applies the split with the largest R² gain *measured on top of the
-    splits already applied*, and stops when no remaining split adds at least
-    `min_gain`. Sequential marginals are the intuitive currency — the stage
-    gains sum exactly to `regional_r2 − gam_r2`, and a redundant split shows
-    ~0 instead of a counterfactual solo figure. Applying every partition
-    blindly can score *worse* than the best single one (overlapping partitions
-    double-count interaction deviations in the leaf-conditional curves, which
-    the joint offsets cannot repair); the greedy pass guarantees
-    `regional_r2 ≥ gam_r2` and mirrors `find_regions`' own greedy objective.
+    The chain is a **decision sequence**: each round applies the split with
+    the largest R² gain *measured on top of the splits already applied*, and
+    stops when no remaining split adds at least `min_gain`. Sequential
+    marginals are the intuitive currency — the stage gains sum exactly to
+    `regional_r2 − gam_r2`, and a redundant split shows ~0 instead of a
+    counterfactual solo figure. Applying every partition blindly can score
+    *worse* than the best single one (overlapping partitions double-count
+    interaction deviations in the leaf-conditional curves, which the joint
+    offsets cannot repair); the greedy pass guarantees `regional_r2 ≥ gam_r2`
+    and mirrors `find_regions`' own greedy objective.
 
     Args:
         effect: a fitted global effect.
-        partitions: `{feature: Partition}` — bound; single-leaf ones ignored.
+        partitions: `{feature_index: Partition}` — bound; single-leaf ones
+            ignored.
         features: feature indices the surrogates sum over.
         min_gain: smallest R² marginal worth a stage (default 1 pt) — below
             it a split is skipped as `below_threshold`.
 
     Returns:
-        ``{"gam_r2", "regional_r2", "min_gain",
-        "stages": [{"feature", "name", "on", "n_regions", "delta_r2",
-        "cum_r2", "solo_delta_r2", "heter_before", "heter_after"}, ...],
-        "skipped": [{..., "delta_r2", "reason"}, ...]}`` — stages in decision
-        order with `delta_r2` the sequential marginal and `cum_r2` the running
-        R²; skipped splits carry their marginal on top of the final selection
-        and a `reason`: `"redundant"` (adds ~nothing — its variance is already
-        explained) or `"below_threshold"` (real but < `min_gain`). The solo
-        figure (`solo_delta_r2`, alone on top of the GAM) is kept for
-        programmatic consumers only — it is a counterfactual and does not add
-        up across splits.
+        a `CalmSequence` — `[GAM, calm1, ...]` with each stage carrying
+        `{"feature", "name", "on", "n_regions", "delta_r2", "cum_r2",
+        "solo_delta_r2", "heter_before", "heter_after"}` (`delta_r2` is the
+        sequential marginal, `cum_r2` the running R²; `solo_delta_r2` — the
+        split alone on top of the GAM — is a counterfactual kept for
+        programmatic consumers, it does not add up across splits). Rejected
+        splits land in `.skipped` with their marginal on top of the final
+        selection and a `reason`: `"redundant"` (adds ~nothing — its variance
+        is already explained) or `"below_threshold"` (real but < `min_gain`).
+
+    Raises:
+        ValueError: the method is derivative-scale (see `supports`) or
+            `Var(f̂) == 0` — an additive output-scale surrogate is undefined.
     """
+    from effector.calm import CALM, CalmSequence  # leaf importing a leaf
+
     if not supports(effect):
-        return None
+        raise ValueError(
+            "select_regions: explained-variance selection is undefined for "
+            "derivative-scale methods (the cached curves are ∂f/∂x, summing "
+            "them does not approximate f̂)."
+        )
     if effect._y_pred is None:
         effect._y_pred = np.asarray(effect.model(effect.data))
     fx = np.asarray(effect._y_pred, dtype=float).reshape(-1)
     if not np.var(fx) > 0:
-        return None
+        raise ValueError(
+            "select_regions: Var(f̂) == 0 — the model is constant on this "
+            "data, explained variance is undefined."
+        )
 
     parts = {j: p for j, p in partitions.items() if len(p.leaves) > 1}
     gam_r2 = surrogate_r2(effect, fx, {}, features)
@@ -227,7 +236,7 @@ def summarize(
             "heter_after": after,
         }
 
-    stages: list = []
+    calms = [CALM.from_effect(effect, {}, r2=gam_r2, index=0)]
     skipped: list = []
     selected: dict = {}
     regional_r2 = gam_r2
@@ -254,14 +263,42 @@ def summarize(
             break
         selected[best] = remaining.pop(best)
         regional_r2 = scored[best]
-        stages.append(
-            {**_info(best, selected[best]), "delta_r2": gain, "cum_r2": regional_r2}
+        stage = {
+            **_info(best, selected[best]),
+            "delta_r2": gain,
+            "cum_r2": regional_r2,
+        }
+        calms.append(
+            CALM.from_effect(
+                effect,
+                dict(selected),
+                r2=regional_r2,
+                index=len(calms),
+                stage=stage,
+            )
         )
 
+    return CalmSequence(calms, skipped=skipped, min_gain=min_gain)
+
+
+def summarize(
+    effect, partitions: dict, features: list, min_gain: float = 0.01
+) -> Optional[dict]:
+    """The flat decision-sequence payload — plain floats, JSON-safe.
+
+    A thin serializer over `select`: same greedy semantics, but returns
+    ``{"gam_r2", "regional_r2", "min_gain", "stages", "skipped"}`` and `None`
+    (instead of raising) when the method is unsupported (derivative-scale)
+    or `Var(f̂) == 0`.
+    """
+    if not supports(effect):
+        return None
+    if effect._y_pred is None:
+        effect._y_pred = np.asarray(effect.model(effect.data))
+    if not np.var(np.asarray(effect._y_pred, dtype=float)) > 0:
+        return None
+    chain = select(effect, partitions, features, min_gain)
+    d = chain.to_dict()
     return {
-        "gam_r2": gam_r2,
-        "regional_r2": regional_r2,
-        "min_gain": float(min_gain),
-        "stages": stages,
-        "skipped": skipped,
+        k: d[k] for k in ("gam_r2", "regional_r2", "min_gain", "stages", "skipped")
     }
