@@ -1361,3 +1361,44 @@ payload (+`_heter_pair`); `report.py`: `min_r2_gain` param + config chip,
 `_ev_ledger_fig`, §1 bar, §2 demotion note, §3 ledger table, `show()`
 sequence lines; tests updated + `test_min_gain_threshold_gates_the_stages`,
 `test_to_html_demotes_skipped_splits`.
+
+## 35. 2026-07-13 — The CALM chain: select_regions + snapshot-major report (tag: architecture + code)  [branch `feat/calm-chain`, stacked on #59]
+
+**What.** The decision sequence is reified into first-class values and the
+report is restructured around it. New: `CALM` (one snapshot of the analysis —
+global effects everywhere except the accepted splits, surrogate R² and
+per-feature importance/heterogeneity stamped on it; weighted-mean bridge for
+split features) and `CalmSequence` (the chain `[GAM, calm1, ...]` plus
+`.skipped`), returned by the new engine verb **`select_regions`** —
+`find_regions` proposes per-feature candidates, `select_regions` decides
+across features which earn their explained-variance keep.
+`explained_variance.summarize` is now a thin serializer over `select`.
+`explain()` searches wide (`features="heterogeneous"`), ranks and displays by
+**final-CALM importance** with a coverage cut (show features until
+`coverage=0.8` of importance mass, ceiling `top_k=5`, accepted splits always
+shown; achieved share printed). Report reading order: §1 ledger bar FIRST +
+weighted-mean-arrow triage + ranked table in CALM values + decision table;
+§2 regional analysis = the final CALM (split features as leaf groups in rule
+order, no global fig); §3 global baseline = the split features' global curves
+only — the counterfactual "what you'd believe without regions". Also:
+public `effect.grid(feature)`, `effect.explain()` mirror (shared
+`_explain_effect`, respects prior fit config via `_ensure_local`),
+`Report.to_dict` schema_version, numerical jacobian tolerates (N,1) outputs.
+
+**Why.** This is the final architecture for the presentation/paper: one set
+of primitives, two entry altitudes, and the value ladder Rule → Region →
+Partition → CALM → Report. Each accepted split is a model of increased
+complexity; the chain makes that a holdable object (per-snapshot triage,
+future `calm.predict`), and the report tells its story in reading order:
+what the analysis explains (ledger), the selected snapshot (regional), and
+what you'd have believed without it (baseline).
+
+**Changes.** New `effector/calm.py`; `global_effect.py` (`select_regions`,
+`grid`, `explain`); `explained_variance.py` (`select` + thin `summarize`);
+`report.py` (snapshot-major render, `_triage_fig` from stored scalars,
+coverage cut); `visualization.triage_scatter`; `method_registry.name_of`;
+`utils.compute_jacobian_numerically` column-vector fix; `tests/test_calm.py`
+(10 pins: chain invariants, weighted-mean identity, round-trip/rebind,
+budget) + report/EV test updates; mental_model.md (six-step workflow with
+*e. Select*). All 20 example notebooks gain a cross-method
+`explain()`-sweep section, executed end to end.
