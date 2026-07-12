@@ -314,7 +314,8 @@ def test_rc10_high_cardinality_categorical_conditioning_feature():
     assert isinstance(part, Partition)
     # end-to-end explain path (candidate_conditioning_features="all") must also survive
     rep = effector.explain(
-        X, model, method="pdp", schema=schema, nof_instances="all", top_k=2
+        X, model, method="pdp", schema=schema, nof_instances="all", top_k=2,
+        coverage=1.0,
     )
     assert len(rep.features) == 2
 

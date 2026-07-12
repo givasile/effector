@@ -77,7 +77,7 @@ def test_to_html_works_unbound(tmp_path):
     html = rep2.to_html()  # draws curves from stored xs/y/h, skips region plots
     assert "data:image/png;base64" in html
     # the full page structure renders from stored values alone
-    assert "id='overview'" in html and "id='after'" in html
+    assert "id='overview'" in html and "Regional analysis" in html
 
 
 def test_explain_overview_covers_all_supported_features():
@@ -100,27 +100,29 @@ def test_to_html_reads_like_the_pipeline():
     data = make_regional_data(n=800)
     rep = effector.explain(data, gated_model, method="pdp", nof_instances="all")
     html = rep.to_html()
-    # section order mirrors the analyst pipeline:
-    # overview triage -> per-feature (global + regional) -> closing triage
+    # section order mirrors the reading order: ledger-first overview ->
+    # regional analysis (the final CALM) -> global baseline (counterfactual)
     assert (
         html.index("id='overview'")
         < html.index("id='feat-")
-        < html.index("id='after'")
+        < html.index("id='baseline'")
     )
     for fr in rep.features:
         assert f"id='feat-{fr.feature}'" in html
-    # opening + closing triage plus one global figure per feature, all zoomable
+    # triage + ledger plus at least one figure per feature, all zoomable
     assert html.count("class='zoomable'") >= len(rep.features) + 2
     # inline chrome only — nav, lightbox, script — no external assets
     assert "<nav>" in html and "lightbox" in html and "<script>" in html
     assert "http://" not in html and "https://" not in html
 
 
-def test_to_html_demotes_skipped_splits():
-    # a split the decision sequence skipped keeps its section but trades the
+def test_to_html_demotes_rejected_splits():
+    # a split the decision sequence rejected keeps its section but trades the
     # partition tree + regional plots for a one-line pointer
     data = make_regional_data(n=800)
-    rep = effector.explain(data, gated_model, method="pdp", nof_instances="all")
+    rep = effector.explain(
+        data, gated_model, method="pdp", nof_instances="all", coverage=1.0
+    )
     ev = rep.explained_variance
     if not ev["skipped"]:
         # force one deterministically (greedy semantics are pinned elsewhere)
@@ -133,7 +135,7 @@ def test_to_html_demotes_skipped_splits():
     section = html.split(f"id='feat-{feat}'")[1].split("</section>")[0]
     assert "skips it" in section  # the demotion note
     assert "Partition tree" not in section
-    assert "skipped in §3" in html  # the overview table marker
+    assert "rejected by the decision sequence" in html  # the table marker
     # kept stages still get the full regional treatment
     for st in ev["stages"]:
         kept = html.split(f"id='feat-{st['feature']}'")[1].split("</section>")[0]
@@ -297,6 +299,58 @@ def test_explain_finds_regions_on_heterogeneous_feature():
         assert fr.partition["schema_version"] == 2
         for region in fr.partition["regions"]:
             assert "rule" in region and "mask" not in region
+
+
+def test_display_cut_stops_at_coverage_and_respects_ceiling():
+    data = make_global_data(n=800)
+    # COEF=[2,-3,0.5]: the top-2 features carry ~91% of the importance mass,
+    # so the default coverage=0.8 stops the plots after two of them
+    rep = effector.explain(data, linear_model, method="pdp", nof_instances="all")
+    assert len(rep.features) == 2
+    assert rep.config["coverage_achieved"] >= 0.8
+    # coverage=1.0 lifts the cut to every supported feature (up to top_k)...
+    rep_all = effector.explain(
+        data, linear_model, method="pdp", nof_instances="all", coverage=1.0
+    )
+    assert len(rep_all.features) == data.shape[1]
+    # ...and the top_k ceiling binds regardless of coverage
+    rep_one = effector.explain(
+        data, linear_model, method="pdp", nof_instances="all", top_k=1, coverage=1.0
+    )
+    assert len(rep_one.features) == 1
+
+
+def test_accepted_split_features_are_always_plotted():
+    # a coverage cut that keeps only the top feature must still display every
+    # split the decision sequence accepted — the ledger references them
+    data = make_regional_data(n=800)
+    rep = effector.explain(
+        data,
+        gated_model,
+        method="pdp",
+        nof_instances="all",
+        coverage=0.01,
+        top_k=1,
+    )
+    ev = rep.explained_variance
+    displayed = {fr.feature for fr in rep.features}
+    for st in ev["stages"]:
+        assert st["feature"] in displayed
+
+
+def test_report_importances_are_final_calm_values():
+    # the ranked table speaks the final snapshot's language: a split feature's
+    # importance is the instance-weighted mean over its subregions
+    data = make_regional_data(n=800)
+    rep = effector.explain(data, gated_model, method="pdp", nof_instances="all")
+    final = rep.explained_variance["calms"][-1]
+    for fr in rep.features:
+        assert fr.importance == pytest.approx(
+            float(final["importances"][str(fr.feature)])
+        )
+        assert fr.heter_score == pytest.approx(
+            float(final["heter_scores"][str(fr.feature)])
+        )
 
 
 @pytest.mark.parametrize("method", ["pdp", "ale", "rhale", "shapdp"])
