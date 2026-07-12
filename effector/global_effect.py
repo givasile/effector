@@ -1019,6 +1019,78 @@ class GlobalEffectBase(ABC):
                 continue
         return _ev.select(self, parts, supported, min_gain=min_r2_gain)
 
+    def grid(self, feature: Union[int, str]) -> np.ndarray:
+        """The evaluation grid on which this feature's effect is model-free.
+
+        The observed levels for a discrete feature; otherwise
+        `helpers.NOF_INTERNAL_POINTS` equally spaced points inside the
+        feature's axis limits — the cache grid `explain` evaluates every
+        reported curve on.
+
+        Args:
+            feature: index or name.
+
+        Returns:
+            `(T,)` array of evaluation positions.
+        """
+        feature = self._resolve_feature(feature)
+        if self._is_cat(feature):
+            return np.unique(self.data[:, feature])
+        return np.linspace(
+            self.axis_limits[0, feature],
+            self.axis_limits[1, feature],
+            helpers.NOF_INTERNAL_POINTS,
+        )
+
+    def explain(
+        self,
+        *,
+        top_k: int = 5,
+        coverage: float = 0.8,
+        heter_threshold: Optional[float] = None,
+        min_r2_gain: float = 0.01,
+        finder="best",
+        candidate_conditioning_features="all",
+    ):
+        """The one-liner on *this* engine — `effector.explain` without leaving the session.
+
+        ```python
+        pdp = effector.PDP(X, model, schema=schema)
+        report = pdp.explain()            # same Report as effector.explain
+        ```
+
+        Runs the same pipeline as `effector.explain` on the already-built
+        engine: features you have `fit` with custom config keep it (missing
+        ones are computed with the defaults), and every cache the pipeline
+        warms stays on the engine for your follow-up queries.
+
+        Args:
+            top_k: hard ceiling on how many features get curve plots.
+            coverage: stop plotting once the shown features carry this share
+                of the total importance mass (default 0.8).
+            heter_threshold: minimum `heter_score` to enter the region
+                search; `None` (default) = the median convention.
+            min_r2_gain: smallest explained-variance marginal a split must
+                add to earn a snapshot in the CALM chain.
+            finder: region finder, as in `find_regions`.
+            candidate_conditioning_features: features allowed to define
+                splits.
+
+        Returns:
+            a `Report` bound to this engine.
+        """
+        from effector import report as _report  # lazy: one-way dep guard
+
+        return _report._explain_effect(
+            self,
+            top_k=top_k,
+            coverage=coverage,
+            heter_threshold=heter_threshold,
+            min_r2_gain=min_r2_gain,
+            finder=finder,
+            candidate_conditioning_features=candidate_conditioning_features,
+        )
+
     def importance(
         self,
         feature: Union[int, str],

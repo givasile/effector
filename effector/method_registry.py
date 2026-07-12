@@ -68,3 +68,11 @@ def canonical(name: str) -> str:
 def resolve(name: str) -> MethodSpec:
     """The `MethodSpec` for `name` (case-insensitive, aliases allowed)."""
     return METHODS[canonical(name)]
+
+
+def name_of(cls) -> str:
+    """The canonical registry key of an effect class (reverse lookup)."""
+    for name, spec in METHODS.items():
+        if spec.cls is cls:
+            return name
+    raise KeyError(f"{cls!r} is not a registered effect class.")

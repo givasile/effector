@@ -1181,14 +1181,43 @@ def explain(
         nof_instances=nof_instances,
         random_state=random_state,
     )
+    return _explain_effect(
+        effect,
+        top_k=top_k,
+        coverage=coverage,
+        heter_threshold=heter_threshold,
+        min_r2_gain=min_r2_gain,
+        finder=finder,
+        candidate_conditioning_features=candidate_conditioning_features,
+    )
 
-    # fit only the features this method can explain (single model touch)
-    supported = [
-        f
-        for f in range(effect.dim)
-        if effect.feature_types[f] in spec.supported_feature_types
-    ]
-    effect.fit(features=supported)
+
+def _explain_effect(
+    effect,
+    *,
+    top_k=5,
+    coverage=0.8,
+    heter_threshold=None,
+    min_r2_gain=0.01,
+    finder="best",
+    candidate_conditioning_features="all",
+) -> Report:
+    """The pipeline shared by `effector.explain` and `effect.explain()`.
+
+    Warms the local-effect caches for the supported features — respecting
+    any fit config already declared on the engine (missing features are
+    computed with the defaults) — then ranks, searches wide, selects the
+    CALM chain, and packages the `Report`.
+    """
+    method = method_registry.name_of(type(effect))
+    supported = []
+    for f in range(effect.dim):
+        try:
+            effect._check_feature_type_supported(f)
+        except ValueError:
+            continue
+        supported.append(f)
+        effect._ensure_local(f)  # the single model touch, per feature
 
     imp = effect.importances()
     order = [
@@ -1203,15 +1232,6 @@ def explain(
     # Net effect: after importances() computed the local effects once, the whole
     # report is model-free — the count does not grow with top_k.
     mask_all = np.ones(effect.data.shape[0], dtype=bool)
-
-    def _grid(f):
-        if effect._is_cat(f):
-            return np.unique(effect.data[:, f])
-        return np.linspace(
-            effect.axis_limits[0, f],
-            effect.axis_limits[1, f],
-            helpers.NOF_INTERNAL_POINTS,
-        )
 
     # cheap scalars for the WHOLE plane (the triage view)
     hs_all = {f: float(effect.heter_score(f, mask=mask_all)) for f in order}
@@ -1270,7 +1290,7 @@ def explain(
 
     features = []
     for f in displayed:
-        xs = _grid(f)
+        xs = effect.grid(f)
         y = effect.eval(f, xs, mask=mask_all)
         y = y[0] if isinstance(y, tuple) else y
         h = effect.eval_heter(f, xs, mask=mask_all)
@@ -1306,8 +1326,8 @@ def explain(
             "heter_threshold": thr,
             "min_r2_gain": min_r2_gain,
             "finder": finder if isinstance(finder, str) else type(finder).__name__,
-            "nof_instances": nof_instances,
-            "random_state": random_state,
+            "nof_instances": effect.nof_instances,
+            "random_state": effect.random_state,
         },
         overview=[
             {
