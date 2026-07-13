@@ -141,6 +141,7 @@ class Report:
     config: dict = field(default_factory=dict)
     overview: List[dict] = field(default_factory=list)
     explained_variance: Optional[dict] = None
+    summary: Optional[dict] = None
 
     def __post_init__(self):
         self._effect = None
@@ -171,6 +172,29 @@ class Report:
         return self._effect
 
     # -- terminal summary ------------------------------------------------------
+    def _summary_lines(self):
+        """The data+model summary as 1–2 plain lines (self-containment: a
+        reader should not need the notebook to know what was explained)."""
+        s = self.summary
+        if not s:
+            return []
+        ft = s.get("feature_types", {})
+        kinds = " · ".join(
+            f"{v} {k}" for k, v in ft.items() if v
+        )
+        lines = [
+            f"data: {s['n_instances']:,} instances × {s['n_features']} "
+            f"features ({kinds}) — target {self.target_name}"
+        ]
+        pred = (
+            f"model output: mean {s['pred_mean']:.3g}, std {s['pred_std']:.3g}, "
+            f"range [{s['pred_min']:.3g}, {s['pred_max']:.3g}]"
+        )
+        if s.get("score") is not None:
+            pred += f" · {s['score_kind']} {s['score']:.3f} (on this subsample)"
+        lines.append(pred)
+        return lines
+
     def _ev_headline(self):
         """The explained-variance one-liner, or `None` when the section is
         absent (derivative-scale method / degenerate model output)."""
@@ -193,6 +217,8 @@ class Report:
         title = method_registry.resolve(self.method_name).display_name
         print(f"\n{title} report — target: {self.target_name}")
         print("=" * 60)
+        for line in self._summary_lines():
+            print(line)
         ev = self.explained_variance
         accepted = {st["feature"] for st in ev["stages"]} if ev else None
         if self._ev_headline():
@@ -244,35 +270,43 @@ class Report:
                 and len(fr.partition["regions"]) > 1
                 and (accepted is None or fr.feature in accepted)
             ):
-                Partition.from_dict(fr.partition).show()
+                p = Partition.from_dict(fr.partition)
+                if self._effect is not None:
+                    # bound: rule text resolves level names and raw units
+                    p = p.bind(self._effect)
+                p.show()
 
     # -- overview figures (R7 return rule) --------------------------------------
-    def _barh(self, names, vals, xlabel, title, threshold=None):
-        from effector import theme
-        import matplotlib.pyplot as plt
+    def _split_features(self):
+        ev = self.explained_variance
+        return {st["feature"] for st in ev["stages"]} if ev else set()
 
-        t = theme.active()
-        fig, ax = plt.subplots(figsize=(7, 0.5 * len(names) + 1.5))
-        ax.barh(range(len(names)), vals, color=t.BAR_FACE)
-        ax.set_yticks(range(len(names)))
-        ax.set_yticklabels(names)
-        ax.invert_yaxis()  # most important on top
-        ax.set_xlabel(xlabel)
-        ax.set_title(title)
-        if threshold is not None:
-            ax.axvline(
-                threshold,
-                color=t.AVG,
-                linestyle="--",
-                linewidth=1.0,
-                label="heterogeneity threshold",
+    def _sorted_overview(self):
+        """Overview rows sorted descending by the plotted (final-CALM when
+        available) importance — order and bar length always agree."""
+        rows = [dict(o) for o in self.overview]
+        for o in rows:
+            o["_imp"] = float(o.get("calm_importance", o["importance"]))
+        rows.sort(key=lambda o: -o["_imp"])
+        return rows
+
+    @staticmethod
+    def _value_labels(ax, vals, texts, muted, emphasized, emphasis):
+        vmax = max(vals) if vals else 1.0
+        for i, (v, txt) in enumerate(zip(vals, texts)):
+            ax.text(
+                v + vmax * 0.015,
+                i,
+                txt,
+                va="center",
+                fontsize=8,
+                color=emphasized if emphasis[i] else muted,
             )
-            ax.legend()
-        fig.tight_layout()
-        return fig, ax
+        ax.set_xlim(0, vmax * 1.28)
 
     def plot_importance(self, show_plot=True):
-        """Horizontal bar chart of feature importance, most important on top.
+        """Horizontal bar chart of feature importance: sorted descending,
+        value at each bar tip, accepted split features tagged `· split`.
 
         Covers every feature in `overview` (all supported features), not just
         the reported top-k.
@@ -284,33 +318,109 @@ class Report:
         Returns:
             `None`, or `(fig, ax)` when `show_plot=False`.
         """
+        from effector import theme
         import matplotlib.pyplot as plt
 
-        fig, ax = self._barh(
-            [o["name"] for o in self.overview],
-            [o["importance"] for o in self.overview],
-            xlabel=f"importance ({self.target_name} units)",
-            title=(
-                f"{method_registry.resolve(self.method_name).display_name} — "
-                f"feature importance"
-            ),
+        t = theme.active()
+        rows = self._sorted_overview()
+        split = self._split_features()
+        fig, ax = plt.subplots(figsize=(7, 0.35 * len(rows) + 1.2))
+        vals = [o["_imp"] for o in rows]
+        ax.barh(range(len(rows)), vals, height=0.55, color=t.BAR_FACE)
+        ax.set_yticks(range(len(rows)))
+        ax.set_yticklabels([o["name"] for o in rows])
+        ax.invert_yaxis()  # most important on top
+        self._value_labels(
+            ax,
+            vals,
+            [
+                f"{v:.3f}" + ("  · split" if o["feature"] in split else "")
+                for v, o in zip(vals, rows)
+            ],
+            muted=theme.MUTED,
+            emphasized=theme.INK2,
+            emphasis=[o["feature"] in split for o in rows],
         )
+        ax.grid(axis="y", visible=False)
+        ax.set_xlabel(f"importance ({self.target_name} units)")
+        ax.set_title(
+            f"{method_registry.resolve(self.method_name).display_name} — "
+            f"feature importance",
+            loc="left",
+        )
+        fig.tight_layout()
         if show_plot:
             plt.show(block=False)
             return None
         return fig, ax
 
-    def _heterogeneity_fig(self):
-        return self._barh(
-            [o["name"] for o in self.overview],
-            [o["heter_score"] for o in self.overview],
-            xlabel=f"heterogeneity ({self.target_name} units)",
-            title=(
-                f"{method_registry.resolve(self.method_name).display_name} — "
-                f"heterogeneity"
-            ),
-            threshold=self.config.get("heter_threshold"),
+    def _overview_bars_fig(self):
+        """The paired overview figure: importance (left) and heterogeneity
+        (right) share one sorted feature axis, value labels at the tips, the
+        heterogeneity threshold as an inline hairline. One figure instead of
+        two — the triage plane in bar form."""
+        from effector import theme
+        import matplotlib.pyplot as plt
+
+        t = theme.active()
+        rows = self._sorted_overview()
+        split = self._split_features()
+        fig, (ax1, ax2) = plt.subplots(
+            1,
+            2,
+            figsize=(8.6, 0.35 * len(rows) + 1.2),
+            sharey=True,
+            gridspec_kw={"wspace": 0.06},
         )
+        y = range(len(rows))
+        imp = [o["_imp"] for o in rows]
+        het = [float(o["heter_score"]) for o in rows]
+        ax1.barh(y, imp, height=0.55, color=t.BAR_FACE)
+        ax2.barh(y, het, height=0.55, color=t.BAND, alpha=0.75)
+        ax1.set_yticks(list(y))
+        ax1.set_yticklabels([o["name"] for o in rows])
+        ax1.invert_yaxis()
+        self._value_labels(
+            ax1,
+            imp,
+            [
+                f"{v:.3f}" + ("  · split" if o["feature"] in split else "")
+                for v, o in zip(imp, rows)
+            ],
+            muted=theme.MUTED,
+            emphasized=theme.INK2,
+            emphasis=[o["feature"] in split for o in rows],
+        )
+        self._value_labels(
+            ax2,
+            het,
+            [f"{v:.3f}" for v in het],
+            muted=theme.MUTED,
+            emphasized=theme.INK2,
+            emphasis=[False] * len(rows),
+        )
+        thr = self.config.get("heter_threshold")
+        if thr is not None:
+            ax2.axvline(thr, color=t.REF, linewidth=1.0)
+            ax2.text(
+                thr,
+                len(rows) - 0.55,
+                " threshold",
+                fontsize=7,
+                color=t.TAG,
+                va="bottom",
+            )
+        for ax in (ax1, ax2):
+            ax.grid(axis="y", visible=False)
+        ax1.set_xlabel("importance")
+        ax2.set_xlabel("heterogeneity")
+        ax1.set_title(
+            f"{method_registry.resolve(self.method_name).display_name} — "
+            f"importance and heterogeneity ({self.target_name} units)",
+            loc="left",
+        )
+        fig.tight_layout()
+        return fig, (ax1, ax2)
 
     def _triage_fig(self, title=None):
         """The triage plane from the stored scalars — global points for every
@@ -349,11 +459,23 @@ class Report:
             show_plot=False,
         )
 
+    @staticmethod
+    def _text_width(fig, txt, fontsize):
+        """Rendered pixel width of `txt` — measure, never guess (labels only
+        go inside a segment when they demonstrably fit)."""
+        probe = fig.text(0, 0, txt, fontsize=fontsize)
+        fig.canvas.draw()
+        w = probe.get_window_extent().width
+        probe.remove()
+        return w
+
     def _ev_ledger_fig(self):
         """The explained-variance ledger — one 0–100% bar of `Var(f̂)`: what
         reading the global plots buys (the GAM share), what each kept split
-        adds (decision order), and what stays unexplained. The reading
-        protocol in a single glance: which regional plots are worth the time.
+        adds (decision order), and what stays unexplained. Values sit inside
+        a segment only when they measurably fit; identity lives in the
+        ordered swatch key beneath the bar, which doubles as the reading
+        order.
         """
         from effector import theme
         import matplotlib.pyplot as plt
@@ -364,67 +486,87 @@ class Report:
         for i, st in enumerate(ev["stages"]):
             segs.append(
                 (
-                    f"+ {st['name']} regions",
+                    st["name"],
                     st["delta_r2"],
                     t.CAT[(i + 1) % len(t.CAT)],
                     f"{st['delta_r2'] * 100:+.1f} pts",
                 )
             )
         rest = max(1.0 - ev["regional_r2"], 0.0)
+        segs.append(("unexplained", rest, theme.GRID, f"{rest:.0%}"))
 
-        def _seg_ink(hexcolor):
-            r, g, b = (int(hexcolor[i : i + 2], 16) / 255 for i in (1, 3, 5))
-            lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
-            return "#ffffff" if lum < 0.55 else "#1a1a1a"
-
-        fig, ax = plt.subplots(figsize=(7.4, 1.6))
+        fig, ax = plt.subplots(figsize=(7.4, 1.9))
         surface = plt.rcParams.get("axes.facecolor", "#ffffff")
-        ink = plt.rcParams.get("axes.labelcolor", "#333333")
-        left, stagger = 0.0, 0
+        ink = plt.rcParams.get("text.color", "#1a1a1a")
+        fig.canvas.draw()
+        ax.set_xlim(0, 1)
+        ax.set_ylim(-2.1, 0.75)
+        ax_w = ax.get_window_extent().width
+        left = 0.0
+        named_inside = set()
         for label, width, color, value in segs:
             if width <= 0:
                 continue
             ax.barh(
-                0, width, left=left, height=0.5, color=color,
-                edgecolor=surface, linewidth=2,
+                0.25,
+                width,
+                left=left,
+                height=0.42,
+                color=color,
+                edgecolor=surface,
+                linewidth=2,
             )
-            if width >= 0.14:
+            inside = (
+                f"{label} · {value}" if label == "global effects" else value
+            )
+            if self._text_width(fig, inside, 8) + 8 < width * ax_w:
                 ax.text(
-                    left + width / 2, 0, f"{label}\n{value}",
-                    ha="center", va="center", fontsize=8,
-                    color=_seg_ink(color), fontweight="bold",
+                    left + width / 2,
+                    0.25,
+                    inside,
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                    fontweight="bold",
+                    color="#ffffff" if label != "unexplained" else theme.INK2,
                 )
-            else:
-                # narrow segment: label above the bar, staggered to dodge
-                # its neighbor
-                y = 0.55 + 0.4 * (stagger % 2)
-                stagger += 1
-                ax.annotate(
-                    f"{label} · {value}",
-                    xy=(left + width / 2, 0.27),
-                    xytext=(left + width / 2, y),
-                    ha="center", va="bottom", fontsize=7, color=ink,
-                    arrowprops={"arrowstyle": "-", "lw": 0.6, "color": ink},
-                )
+                if label == "global effects":
+                    named_inside.add(label)
             left += width
-        if rest > 0:
-            ax.barh(
-                0, rest, left=left, height=0.5,
-                color=t.BAR_FACE_MUTED, edgecolor=surface, linewidth=2,
-            )
-            if rest >= 0.14:
-                ax.text(
-                    left + rest / 2, 0, f"unexplained\n{rest:.0%}",
-                    ha="center", va="center", fontsize=8, color=ink,
+        # the ordered swatch key, flowing left-to-right beneath the bar; the
+        # global segment joins it whenever its name did not fit inside
+        kx, ky = 0.0, -0.72
+        for label, width, color, value in segs:
+            if label in named_inside or width <= 0:
+                continue
+            item = f"{label}  {value}"
+            w_frac = (self._text_width(fig, item, 8) + 26) / ax_w
+            if kx + w_frac > 1.0:
+                kx, ky = 0.0, ky - 0.62
+            ax.add_patch(
+                plt.Rectangle(
+                    (kx, ky - 0.11),
+                    0.014,
+                    0.30,
+                    facecolor=color,
+                    edgecolor="none",
+                    clip_on=False,
                 )
-        ax.set_xlim(0, 1)
-        ax.set_ylim(-0.55, 1.45)
+            )
+            ax.text(
+                kx + 0.022,
+                ky + 0.04,
+                item,
+                fontsize=8,
+                va="center",
+                color=ink if label != "unexplained" else t.TAG,
+            )
+            kx += w_frac
         ax.set_yticks([])
         ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0])
         ax.set_xticklabels(["0%", "25%", "50%", "75%", "100%"])
-        ax.set_title(
-            "Explained variance — what reading each layer buys", fontsize=9
-        )
+        ax.grid(False)
+        ax.set_title("Explained variance", loc="left", fontsize=9.5)
         for spine in ("left", "top", "right"):
             ax.spines[spine].set_visible(False)
         fig.tight_layout()
@@ -481,7 +623,14 @@ class Report:
             `path` — so an interactive shell doesn't echo a megabyte of
             markup.
         """
-        with _offscreen_figures():
+        import matplotlib as mpl
+
+        from effector import theme
+
+        # C1: the page always renders in the active house theme — every
+        # savefig happens inside _render_html, so a local rc_context holds
+        # (interactively it would revert before draw; here it cannot)
+        with _offscreen_figures(), mpl.rc_context(theme.active().rcparams):
             html = self._render_html(share_y)
         if path is not None:
             with open(path, "w") as fh:
@@ -547,6 +696,24 @@ class Report:
             f"{len(self.feature_names)} features · "
             f"{len(self.features)} plotted</p>"
         )
+        s = self.summary
+        if s:
+            ft = s.get("feature_types", {})
+            kinds = " · ".join(f"{v} {k}" for k, v in ft.items() if v)
+            chips = [
+                f"<span class='chip'>data <b>{s['n_instances']:,} × "
+                f"{s['n_features']}</b></span>",
+                f"<span class='chip'>{esc(kinds)}</span>",
+                "<span class='chip'>model output "
+                f"<b>{s['pred_mean']:.3g} ± {s['pred_std']:.3g}</b> in "
+                f"[{s['pred_min']:.3g}, {s['pred_max']:.3g}]</span>",
+            ]
+            if s.get("score") is not None:
+                chips.append(
+                    f"<span class='chip'>{esc(s['score_kind'])} "
+                    f"<b>{s['score']:.3f}</b> on this subsample</span>"
+                )
+            out.append("<div class='chips'>" + "".join(chips) + "</div>")
         chips = []
         for key in (
             "method",
@@ -690,11 +857,14 @@ class Report:
                 )
             out.append("</table>")
         out.append(
-            "<details><summary>Bar views — global importance and "
-            "heterogeneity</summary>"
+            "<details><summary>Bar view — importance and heterogeneity"
+            "</summary>"
         )
-        out.append(self._img(self.plot_importance(show_plot=False), alt="importance"))
-        out.append(self._img(self._heterogeneity_fig(), alt="heterogeneity"))
+        out.append(
+            self._img(
+                self._overview_bars_fig(), alt="importance and heterogeneity"
+            )
+        )
         out.append("</details></section>")
 
         # -- 2 · regional analysis — the final CALM -------------------------------
@@ -728,9 +898,11 @@ class Report:
                         blk.append(
                             _defer(fig, alt=part.label(leaf.idx), section=fr.feature)
                         )
+                    # the rule is the figure's own title now — the caption
+                    # carries only the stats
                     blk.append(
-                        f"<figcaption>{esc(part.label(leaf.idx))} · "
-                        f"heterogeneity {leaf.heterogeneity:.4f}{drop} · "
+                        f"<figcaption>heterogeneity "
+                        f"{leaf.heterogeneity:.4f}{drop} · "
                         f"n={leaf.nof_instances:,}</figcaption></figure>"
                     )
                 blk.append("</div>")
@@ -931,8 +1103,11 @@ class Report:
         ygroups, xgroups = {}, {}
         for fig_ax, _, section in entries:
             fig = fig_ax[0] if isinstance(fig_ax, tuple) else fig_ax
-            key = section if share_y == "within" else None
             for panel, ax in enumerate(fig.axes):
+                # panel 0 is output units — comparable across features; every
+                # later panel ((RH)ALE's dy/dx) is per-unit-of-x, so sharing
+                # it across features would be dimensionally meaningless
+                key = section if (share_y == "within" or panel > 0) else None
                 ygroups.setdefault((panel, key), []).append(ax)
             # (RH)ALE's panels are created with sharex, so axes[0] carries both
             xgroups.setdefault(section, []).append(fig.axes[0])
@@ -951,17 +1126,21 @@ class Report:
     def _effect_fig(self, fr):
         import matplotlib.pyplot as plt
 
+        from effector import theme
+
+        t = theme.active()
         fig, ax = plt.subplots(figsize=(7, 4))
         band = np.sqrt(np.clip(fr.h, 0, None))
-        ax.plot(fr.xs, fr.y, color="#4C78A8", label="mean effect")
+        ax.plot(fr.xs, fr.y, color=t.MEAN, label="mean effect")
         ax.fill_between(
             fr.xs,
             fr.y - band,
             fr.y + band,
-            alpha=0.2,
-            color="#4C78A8",
+            alpha=t.BAND_ALPHA,
+            color=t.BAND,
             label="± std",
         )
+        ax.set_title(fr.name, loc="left")
         ax.set_xlabel(fr.name)
         ax.set_ylabel(self.target_name)
         ax.legend()
@@ -981,7 +1160,7 @@ class Report:
 
         fig = fig_ax[0] if isinstance(fig_ax, tuple) else fig_ax
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=100, bbox_inches="tight")
+        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
         plt.close(fig)
         b64 = base64.b64encode(buf.getvalue()).decode("ascii")
         return (
@@ -1010,6 +1189,7 @@ class Report:
             "overview": [dict(o) for o in self.overview],
             "features": [fr.to_dict() for fr in self.features],
             "explained_variance": self.explained_variance,
+            "summary": self.summary,
         }
 
     @classmethod
@@ -1034,6 +1214,7 @@ class Report:
             config=d.get("config", {}),
             overview=[dict(o) for o in d.get("overview", [])],
             explained_variance=d.get("explained_variance"),
+            summary=d.get("summary"),
         )
 
 
@@ -1105,6 +1286,7 @@ def explain(
     model,
     model_jac=None,
     *,
+    y=None,
     schema=None,
     method="pdp",
     top_k=5,
@@ -1150,6 +1332,10 @@ def explain(
         model: callable `(N, D) -> (N,)` — the black box.
         model_jac: callable `(N, D) -> (N, D)` Jacobian; required by
             derivative-based methods (`"rhale"`, `"derpdp"`).
+        y: optional `(N,)` ground truth aligned with `data`. When given, the
+            report header states the model's score on the explained
+            subsample — R² for a continuous target, accuracy for a binary
+            one — so the report is self-contained.
         schema: optional feature schema (names/types/categories).
         method: effect method — `"pdp"` (default), `"derpdp"`, `"ale"`,
             `"rhale"`, or `"shapdp"` (aliases accepted).
@@ -1192,6 +1378,7 @@ def explain(
     )
     return _explain_effect(
         effect,
+        y=y,
         top_k=top_k,
         coverage=coverage,
         heter_threshold=heter_threshold,
@@ -1201,9 +1388,47 @@ def explain(
     )
 
 
+def _model_summary(effect, y=None):
+    """The data+model header: shape, feature-type counts, prediction stats
+    from the `_y_pred` cache, and — when ground truth is given — the score on
+    the explained subsample (R² continuous / accuracy binary)."""
+    if effect._y_pred is None:
+        effect._y_pred = np.asarray(effect.model(effect.data))
+    fx = effect._y_pred
+    n, d = effect.data.shape
+    kinds = {}
+    for t in effect.feature_types:
+        kinds[t] = kinds.get(t, 0) + 1
+    summary = {
+        "n_instances": int(n),
+        "n_features": int(d),
+        "feature_types": kinds,
+        "pred_mean": float(np.mean(fx)),
+        "pred_std": float(np.std(fx)),
+        "pred_min": float(np.min(fx)),
+        "pred_max": float(np.max(fx)),
+        "score": None,
+        "score_kind": None,
+    }
+    if y is not None:
+        y = np.asarray(y, dtype=float)
+        y_sub = y[effect.indices] if len(y) != n else y
+        uniq = np.unique(y_sub)
+        if len(uniq) <= 2 and set(uniq) <= {0.0, 1.0}:
+            summary["score"] = float(np.mean((fx >= 0.5) == (y_sub >= 0.5)))
+            summary["score_kind"] = "accuracy"
+        else:
+            ss_res = float(np.sum((y_sub - fx) ** 2))
+            ss_tot = float(np.sum((y_sub - y_sub.mean()) ** 2))
+            summary["score"] = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
+            summary["score_kind"] = "R²"
+    return summary
+
+
 def _explain_effect(
     effect,
     *,
+    y=None,
     top_k=5,
     coverage=0.8,
     heter_threshold=None,
@@ -1219,6 +1444,8 @@ def _explain_effect(
     CALM chain, and packages the `Report`.
     """
     method = method_registry.name_of(type(effect))
+    # header summary first — `y` is shadowed by curve locals further down
+    summary = _model_summary(effect, y)
     supported = []
     for f in range(effect.dim):
         try:
@@ -1350,6 +1577,7 @@ def _explain_effect(
             for f in order
         ],
         explained_variance=ev,
+        summary=summary,
     )
     report._bind(effect)
     headline = report._ev_headline()
