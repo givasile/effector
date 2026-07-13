@@ -203,6 +203,11 @@ LOGBOOK entry.
   decision table; say *why* in the caption).
 
 **Engine / methods:**
+- DerPDP explained-variance ledger: integrate the derivative curves to
+  output scale (∂f/∂x → cumulative effect, RHALE-style accumulation) so the
+  surrogate R² / decision sequence applies to it too — today DerPDP is the
+  one method whose report has no ledger/§3 (derivative units, sums of
+  curves don't approximate f̂). Agreed 2026-07-13: leave as is for now.
 - Binners: **ChangePoint/CUSUM first** (edges where the running mean of the
   effect shifts; O(N); continuous-only), CART-split (top-down), curve-simplify
   (Douglas–Peucker on the cumulative curve); give Agglomerative an
