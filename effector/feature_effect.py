@@ -349,4 +349,5 @@ class FeatureEffect:
             discrete=discrete,
             level_labels=level_labels,
             show_plot=show_plot,
+            level_kind=self.feature_types[feature] if discrete else "nominal",
         )

@@ -351,8 +351,9 @@ class ALEBase(GlobalEffectBase):
                 interval.
             rule: sugar over `mask` — an `effector.Rule` or a rule string,
                 applied to the effect's data. Mutually exclusive with `mask`.
-            feature_label: display name for the feature axis (e.g. a
-                regional node's name), overriding `feature_names[feature]`.
+            feature_label: display title for the figure (e.g. a regional
+                node's label with its rule); defaults to the feature name.
+                The x-axis always keeps the plain feature name.
         """
         feature = self._resolve_feature(feature)
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
@@ -362,9 +363,16 @@ class ALEBase(GlobalEffectBase):
         )
         scale_y = helpers.resolve_scale(scale_y, self.scale_y)
         mask = self._resolve_mask(mask, rule)
-        feature_names = list(self.feature_names)
-        if feature_label is not None:
-            feature_names[feature] = feature_label
+        feature_names = self.feature_names
+        # C2: title = feature (or leaf label with its rule); method · scope
+        # context moves to the corner tag
+        plot_title = (
+            feature_label if feature_label is not None else feature_names[feature]
+        )
+        tag = (
+            f"{'ALE' if self.method_name == 'ale' else 'RHALE'}"
+            f" · {'regional' if mask is not None else 'global'}"
+        )
 
         # one path for global and masked alike (R14): pick the payload, read it
         is_cat = self._is_cat(feature)
@@ -392,11 +400,6 @@ class ALEBase(GlobalEffectBase):
 
         avg_output = self._avg_output(mask, scale_y) if show_avg_output else None
 
-        title = (
-            "Accumulated Local Effects (ALE)"
-            if self.method_name == "ale"
-            else "Robust and Heterogeneity-Aware ALE (RHALE)"
-        )
         if is_cat:
             # bars = accumulated per-level values (in fit order); whiskers =
             # the variance of the step into each level (method_semantics.md)
@@ -407,28 +410,40 @@ class ALEBase(GlobalEffectBase):
                 if heterogeneity is not False
                 else None
             )
+            level_kind = self.feature_types[feature]
+            level_counts = self._level_counts_for(feature, mask, levels)
             positions = np.asarray(levels, dtype=float)
-            if np.any(np.diff(positions) < 0):
-                # custom (declared/induced) order: draw by rank, label by level
+            plot_scale_x, sort = scale_x, None
+            if level_kind == "ordinal" and np.any(np.diff(positions) < 0):
+                # custom (declared/induced) order: draw by rank in fit order —
+                # ranks are display geometry, so the feature scale must not
+                # touch them — and label by level
                 if labels is None:
                     labels = [f"{v:g}" for v in positions]
                 positions = np.arange(len(positions), dtype=float)
+                plot_scale_x, sort = None, False
             return vis.plot_categorical_effect(
                 positions,
                 y_levels,
                 variances,
                 feature,
                 heterogeneity,
-                title=title,
+                title=plot_title,
                 level_labels=labels,
-                scale_x=scale_x,
+                scale_x=plot_scale_x,
                 scale_y=scale_y,
                 avg_output=avg_output,
                 feature_names=feature_names,
                 target_name=self.target_name,
                 y_limits=y_limits,
-                connect_line=True,  # (RH)ALE bars accumulate: show the step path
+                # the accumulation path is meaningful only along an ordered
+                # axis; sorted nominal bars would fake an interpolation
+                connect_line=level_kind == "ordinal",
                 show_plot=show_plot,
+                tag=tag,
+                level_kind=level_kind,
+                sort=sort,
+                level_counts=level_counts,
             )
         return vis.ale_plot(
             x,
@@ -441,7 +456,7 @@ class ALEBase(GlobalEffectBase):
             heterogeneity=heterogeneity,
             scale_x=scale_x,
             scale_y=scale_y,
-            title=title,
+            title=plot_title,
             avg_output=avg_output,
             feature_names=feature_names,
             target_name=self.target_name,
@@ -450,6 +465,7 @@ class ALEBase(GlobalEffectBase):
             show_only_aggregated=show_only_aggregated,
             show_plot=show_plot,
             x_limits=x_window,
+            tag=tag,
         )
 
 

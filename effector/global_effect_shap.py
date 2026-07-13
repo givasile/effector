@@ -50,7 +50,9 @@ def _compute_shap_values(
                 "Install it with `pip install effector[shap]`."
             )
         explainer_defaults = {"masker": data, "seed": random_state}
-        explanation_defaults = {"max_evals": budget}
+        # silent squashes shap's per-call progress bars (notebook hygiene);
+        # user explanation_kwargs override it
+        explanation_defaults = {"max_evals": budget, "silent": True}
     elif backend == "shapiq":
         if shapiq is None:
             raise ImportError(
@@ -430,8 +432,9 @@ class ShapDP(GlobalEffectBase):
                 subregion's own interval.
             rule: sugar over `mask` — an `effector.Rule` or a rule string,
                 applied to the effect's data. Mutually exclusive with `mask`.
-            feature_label: display name for the feature axis (e.g. a
-                regional node's name), overriding `feature_names[feature]`.
+            feature_label: display title for the figure (e.g. a regional
+                node's label with its rule); defaults to the feature name.
+                The x-axis always keeps the plain feature name.
         """
         feature = self._resolve_feature(feature)
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
@@ -441,9 +444,12 @@ class ShapDP(GlobalEffectBase):
         )
         scale_y = helpers.resolve_scale(scale_y, self.scale_y)
         mask = self._resolve_mask(mask, rule)
-        feature_names = list(self.feature_names)
-        if feature_label is not None:
-            feature_names[feature] = feature_label
+        feature_names = self.feature_names
+        # C2: title = feature (or leaf label); method · scope = corner tag
+        title = (
+            feature_label if feature_label is not None else feature_names[feature]
+        )
+        tag = f"SHAP-DP · {'regional' if mask is not None else 'global'}"
 
         if mask is not None and not self._is_cat(feature):
             self._effective_limits(feature, mask)  # degeneracy guard
@@ -461,7 +467,8 @@ class ShapDP(GlobalEffectBase):
             # the payload's frame: the levels observed within the (masked) data
             levels, labels = self._level_display(feature, params["levels"])
             y_levels = self._eval_payload(feature, params, levels) - norm
-            title = "SHAP Dependence Plot (SHAP-DP)"
+            level_kind = self.feature_types[feature]
+            level_counts = self._level_counts_for(feature, mask, levels)
             if heterogeneity == "shap_values":
                 # the scatter cloud comes from cache (a) — the same (masked)
                 # φ the payload was summarized from, by construction
@@ -484,6 +491,9 @@ class ShapDP(GlobalEffectBase):
                     y_limits=y_limits,
                     show_plot=show_plot,
                     random_state=self.random_state,
+                    tag=tag,
+                    level_kind=level_kind,
+                    level_counts=level_counts,
                 )
             variances = (
                 self._eval_payload(feature, params, levels, heterogeneity=True)[1]
@@ -505,6 +515,9 @@ class ShapDP(GlobalEffectBase):
                 target_name=self.target_name,
                 y_limits=y_limits,
                 show_plot=show_plot,
+                tag=tag,
+                level_kind=level_kind,
+                level_counts=level_counts,
             )
 
         # continuous: the x-axis spans the (effective) interval; the cloud is
@@ -541,6 +554,8 @@ class ShapDP(GlobalEffectBase):
             y_limits=y_limits,
             only_shap_values=only_shap_values,
             show_plot=show_plot,
+            title=title,
+            tag=tag,
         )
 
         return ret

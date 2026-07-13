@@ -292,9 +292,16 @@ class PDPBase(GlobalEffectBase):
         )
         scale_y = helpers.resolve_scale(scale_y, self.scale_y)
         mask = self._prep_mask(mask)
-        feature_names = list(self.feature_names)
-        if feature_label is not None:
-            feature_names[feature] = feature_label
+        feature_names = self.feature_names
+        # C2: the title carries the identity (feature, or the leaf label with
+        # its rule); the constant method · scope context is the corner tag
+        title = (
+            feature_label if feature_label is not None else feature_names[feature]
+        )
+        tag = (
+            f"{'d-PDP' if self.IS_DERIVATIVE else 'PDP'}"
+            f" · {'regional' if mask is not None else 'global'}"
+        )
 
         is_cat = self._is_cat(feature)
         if mask is None:
@@ -338,13 +345,10 @@ class PDPBase(GlobalEffectBase):
 
         avg_output = self._avg_output(mask, scale_y) if show_avg_output else None
 
-        title = (
-            "Partial Dependence Plot (PDP)"
-            if self.method_name == "pdp"
-            else "derivative Partial Dependence Plot (d-PDP)"
-        )
         if is_cat:
             levels, labels = self._level_display(feature)
+            level_kind = self.feature_types[feature]
+            level_counts = self._level_counts_for(feature, mask, levels)
             if self.IS_DERIVATIVE:
                 # transition positions: K-1 bars labeled v_{t-1} -> v_t
                 lab = (
@@ -354,14 +358,18 @@ class PDPBase(GlobalEffectBase):
                 )
                 labels = [f"{a}→{b}" for a, b in zip(lab[:-1], lab[1:])]
                 levels = np.arange(len(lab) - 1, dtype=float)
+                # transitions are ordered display slots: never sorted, never
+                # scaled, thin-able like an ordinal axis
+                level_kind = "ordinal"
+                level_counts = None
             if heterogeneity == "ice":
                 return vis.plot_pdp_ice_categorical(
                     levels,
                     yy,
                     feature,
                     title=title,
-                    y_pdp_label="PDP",
-                    y_ice_label="ICE",
+                    y_pdp_label="PDP" if not self.IS_DERIVATIVE else "d-PDP",
+                    y_ice_label="ICE" if not self.IS_DERIVATIVE else "d-ICE",
                     level_labels=labels,
                     scale_x=scale_x,
                     scale_y=scale_y,
@@ -372,6 +380,10 @@ class PDPBase(GlobalEffectBase):
                     y_limits=y_limits,
                     show_plot=show_plot,
                     random_state=self.random_state,
+                    tag=tag,
+                    level_kind=level_kind,
+                    sort=False if self.IS_DERIVATIVE else None,
+                    level_counts=level_counts,
                 )
             if heterogeneity is not False:
                 params = self._summary(feature, mask)
@@ -398,6 +410,10 @@ class PDPBase(GlobalEffectBase):
                 target_name=self.target_name,
                 y_limits=y_limits,
                 show_plot=show_plot,
+                tag=tag,
+                level_kind=level_kind,
+                sort=False if self.IS_DERIVATIVE else None,
+                level_counts=level_counts,
             )
         # R1: the method owns the compute. Derive the mean line and the
         # std/std_err band here (from the ICE table we already have — cached
@@ -416,6 +432,7 @@ class PDPBase(GlobalEffectBase):
             band=band,
             ice=yy if heterogeneity == "ice" else None,
             title=title,
+            tag=tag,
             heterogeneity=heterogeneity,
             y_pdp_label="PDP" if self.method_name == "pdp" else "d-PDP",
             y_ice_label="ICE" if self.method_name == "pdp" else "d-ICE",
@@ -557,8 +574,9 @@ class PDP(PDPBase):
                 subregion's own interval.
             rule: sugar over `mask` — an `effector.Rule` or a rule string,
                 applied to the effect's data. Mutually exclusive with `mask`.
-            feature_label: display name for the feature axis (e.g. a
-                regional node's name), overriding `feature_names[feature]`.
+            feature_label: display title for the figure (e.g. a regional
+                node's label with its rule); defaults to the feature name.
+                The x-axis always keeps the plain feature name.
         """
         feature = self._resolve_feature(feature)
         mask = self._resolve_mask(mask, rule)
@@ -835,8 +853,9 @@ class DerPDP(PDPBase):
                 to the subregion's own interval.
             rule: sugar over `mask` — an `effector.Rule` or a rule string,
                 applied to the effect's data. Mutually exclusive with `mask`.
-            feature_label: display name for the feature axis (e.g. a
-                regional node's name), overriding `feature_names[feature]`.
+            feature_label: display title for the figure (e.g. a regional
+                node's label with its rule); defaults to the feature name.
+                The x-axis always keeps the plain feature name.
         """
         feature = self._resolve_feature(feature)
         mask = self._resolve_mask(mask, rule)

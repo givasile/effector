@@ -498,6 +498,16 @@ class GlobalEffectBase(ABC):
         levels, counts = np.unique(col, return_counts=True)
         return levels, counts / counts.sum()
 
+    def _level_counts_for(
+        self, feature: int, mask: Optional[np.ndarray], levels
+    ) -> np.ndarray:
+        """Per-level sample counts aligned to `levels` — the muted `n=…`
+        annotations of the categorical plots."""
+        col = self.data[:, feature] if mask is None else self.data[mask, feature]
+        return np.array(
+            [int((col == float(lv)).sum()) for lv in np.asarray(levels, dtype=float)]
+        )
+
     def _level_display(self, feature: int, levels=None):
         """(positions, tick labels) for categorical plots: positions are the
         level values; labels translate the `schema.category_names` map back to
@@ -1045,6 +1055,7 @@ class GlobalEffectBase(ABC):
     def explain(
         self,
         *,
+        y: Optional[np.ndarray] = None,
         top_k: int = 5,
         coverage: float = 0.8,
         heter_threshold: Optional[float] = None,
@@ -1065,6 +1076,9 @@ class GlobalEffectBase(ABC):
         warms stays on the engine for your follow-up queries.
 
         Args:
+            y: optional ground truth aligned with the original `data` (or
+                this engine's subsample); when given, the report header
+                states the model's score on the explained subsample.
             top_k: hard ceiling on how many features get curve plots.
             coverage: stop plotting once the shown features carry this share
                 of the total importance mass (default 0.8).
@@ -1083,6 +1097,7 @@ class GlobalEffectBase(ABC):
 
         return _report._explain_effect(
             self,
+            y=y,
             top_k=top_k,
             coverage=coverage,
             heter_threshold=heter_threshold,
