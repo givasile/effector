@@ -15,6 +15,7 @@ Every function returns ``(fig, ax)`` when ``show_plot=False`` and ``None``
 otherwise (R7).
 """
 
+import textwrap
 import typing
 import warnings
 
@@ -59,10 +60,87 @@ def _feature_label(feature, feature_names):
     return "x_%d" % feature if feature_names is None else feature_names[feature]
 
 
+def _wrap_text(s, width=48, max_lines=2):
+    """Wrap to at most `max_lines` lines; ellipsize when truncated."""
+    lines = textwrap.wrap(str(s), width=width, break_long_words=False)
+    if not lines:
+        return str(s)
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        lines[-1] += " …"
+    return "\n".join(lines)
+
+
+def _set_title(ax, title, tag=None):
+    """The title carries the information (feature / rule), left-aligned and
+    wrapped; the constant context (method · scope) is a muted corner tag."""
+    if title is not None:
+        ax.set_title(_wrap_text(title), loc="left")
+    if tag is not None:
+        ax.text(
+            1.0,
+            1.02,
+            tag,
+            transform=ax.transAxes,
+            ha="right",
+            va="bottom",
+            fontsize=7.5,
+            color=theme.active().TAG,
+        )
+
+
+def _ref_line(
+    ax, *, y=None, x=None, label, tag=None, color=None, linestyle="-", lw=1.0
+):
+    """A reference hairline (threshold / avg output / zero): the artist keeps
+    its `label` (tests look lines up by it) but is excluded from the legend —
+    `_decorate_ax` filters everything registered here. `tag` draws a small
+    inline right-edge (or top-edge) text instead of a legend entry, in blended
+    coordinates so a later `set_xlim`/`set_ylim` never strands it."""
+    color = theme.active().REF if color is None else color
+    labels = getattr(ax, "_effector_ref_labels", None)
+    if labels is None:
+        labels = set()
+        ax._effector_ref_labels = labels
+    labels.add(label)
+    t = theme.active()
+    if y is not None:
+        ax.axhline(y=y, color=color, linestyle=linestyle, linewidth=lw, label=label)
+        if tag is not None:
+            ax.text(
+                0.995,
+                y,
+                tag,
+                transform=ax.get_yaxis_transform(),
+                ha="right",
+                va="bottom",
+                fontsize=7,
+                color=t.TAG,
+            )
+    if x is not None:
+        ax.axvline(x=x, color=color, linestyle=linestyle, linewidth=lw, label=label)
+        if tag is not None:
+            ax.text(
+                x,
+                0.99,
+                tag,
+                transform=ax.get_xaxis_transform(),
+                ha="left",
+                va="top",
+                fontsize=7,
+                color=t.TAG,
+            )
+
+
 def _add_avg_output(ax, avg_output):
     if avg_output is not None:
-        ax.axhline(
-            y=avg_output, color=theme.active().AVG, linestyle="--", label="avg output"
+        _ref_line(
+            ax,
+            y=avg_output,
+            label="avg output",
+            tag="avg output",
+            color=theme.active().AVG,
+            linestyle="--",
         )
 
 
@@ -71,9 +149,64 @@ def _decorate_ax(ax, xlabel=None, ylabel=None, y_limits=None):
         ax.set_xlabel(xlabel)
     if ylabel is not None:
         ax.set_ylabel(ylabel)
-    ax.legend()
+    # legend discipline: reference lines carry inline tags instead of legend
+    # entries, and a single-series axis needs no legend box at all
+    ref = getattr(ax, "_effector_ref_labels", ())
+    handles, labels = ax.get_legend_handles_labels()
+    kept = [(h, l) for h, l in zip(handles, labels) if l not in ref]
+    if len(kept) >= 2:
+        ax.legend([h for h, _ in kept], [l for _, l in kept])
     if y_limits is not None:
         ax.set_ylim(y_limits[0], y_limits[1])
+
+
+def _repel_labels(ax, fig, pts, *, avoid=None, max_labels=20, fontsize=8):
+    """Greedy point-label placement: try a ring of candidate offsets, keep the
+    first that collides with nothing placed so far (labels, ticks, `avoid`
+    extents); draw a hairline leader when the label lands away from its point.
+    `pts` is `[(name, x, y)]`; at most `max_labels` labels are drawn, ranked
+    by x descending (importance) — the rest stay unlabeled points."""
+    t = theme.active()
+    fig.canvas.draw()
+    placed = list(avoid or [])
+    placed += [
+        lbl.get_window_extent()
+        for lbl in ax.get_xticklabels() + ax.get_yticklabels()
+    ]
+    ranked = sorted(pts, key=lambda p: -(p[1] + p[2]))[:max_labels]
+    ink = plt.rcParams.get("text.color", "black")
+    fig_bb = fig.get_window_extent()
+    for name, x, y in sorted(ranked, key=lambda p: -p[2]):
+        for dx, dy in [
+            (7, 5), (7, -11), (-7, 5), (-7, -11), (7, 16), (-7, 16),
+            (7, -22), (0, 24), (0, -30),
+        ]:
+            ha = "left" if dx > 0 else ("center" if dx == 0 else "right")
+            txt = ax.annotate(
+                name,
+                (x, y),
+                textcoords="offset points",
+                xytext=(dx, dy),
+                fontsize=fontsize,
+                ha=ha,
+                color=ink,
+                zorder=4,
+            )
+            fig.canvas.draw()
+            bb = txt.get_window_extent()
+            clipped = bb.x1 > fig_bb.x1 - 2 or bb.x0 < fig_bb.x0 + 2
+            if clipped or any(bb.overlaps(p) for p in placed):
+                txt.remove()
+                continue
+            placed.append(bb.expanded(1.05, 1.15))
+            if abs(dx) + abs(dy) > 20:  # displaced: hairline leader
+                end = ax.transData.inverted().transform(
+                    (bb.x0 - 2 if dx > 0 else bb.x1 + 2, (bb.y0 + bb.y1) / 2)
+                )
+                ax.plot(
+                    [x, end[0]], [y, end[1]], lw=0.6, color=t.REF, zorder=2
+                )
+            break
 
 
 def _finalize(fig, ax, show_plot):
@@ -104,13 +237,15 @@ def ale_plot(
     show_only_aggregated: bool = False,
     show_plot: bool = True,
     x_limits: typing.Union[None, tuple] = None,
+    tag: typing.Union[None, str] = None,
 ):
-    """Draw the (RH)ALE mean effect (top axis) and the bin-effects bar plot
+    """Draw the (RH)ALE mean effect (top axis) and the bin-slope bar plot
     (bottom axis, with sqrt(bin_variance) error bars if `heterogeneity`).
 
     `x`/`y` is the mean-effect curve; `bin_effect`/`bin_variance`/`limits`/`dx`
     is the stored bin payload. `x_limits` (raw feature units) windows the
-    shared x-axis — the masked/subregion zoom.
+    shared x-axis — the masked/subregion zoom. `tag` is the muted corner
+    context tag ("RHALE · global").
     """
     x = _scale_x(x, scale_x)
     y = _scale_y(y, scale_y)
@@ -131,15 +266,21 @@ def ale_plot(
         fig, ax1 = plt.subplots()
         axes = ax1
     else:
-        fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+        fig, (ax1, ax2) = plt.subplots(
+            2,
+            1,
+            sharex=True,
+            gridspec_kw={"height_ratios": [2.3, 1], "hspace": 0.12},
+        )
         axes = (ax1, ax2)
 
     t = theme.active()
-    ax1.set_title("Accumulated Local Effects (ALE)" if title is None else title)
-    ax1.plot(x, y, color=t.MEAN, linestyle="--", label="average effect")
+    x_name = _feature_label(feature, feature_names)
+    _set_title(ax1, x_name if title is None else title, tag)
+    ax1.plot(x, y, color=t.MEAN, linestyle="-", linewidth=2.0,
+             label="average effect")
     _add_avg_output(ax1, avg_output)
 
-    x_name = _feature_label(feature, feature_names)
     y_name = "y" if target_name is None else target_name
     _decorate_ax(
         ax1,
@@ -155,13 +296,26 @@ def ale_plot(
             x=bin_centers,
             height=bin_effect,
             width=dx,
-            color=t.BAR_FACE_MUTED,
-            edgecolor=t.BAR_EDGE_ACCENT,
+            color=t.MEAN,
+            alpha=0.30,
+            edgecolor=t.MEAN,
+            linewidth=0.8,
             yerr=yerr,
             ecolor=t.ERROR,
-            label="dy_dx",
+            error_kw={"lw": 0.9},
+            capsize=2,
+            label="bin slope ± heterogeneity" if heterogeneity else "bin slope",
         )
-        _decorate_ax(ax2, xlabel=x_name, ylabel="dy/dx", y_limits=dy_limits)
+        _ref_line(ax2, y=0, label="zero")
+        ax2.set_xlabel(x_name)
+        ax2.set_ylabel("Δy/Δx")
+        # the sanctioned single-entry legend: the panel's series needs naming
+        handles, labels = ax2.get_legend_handles_labels()
+        ref = getattr(ax2, "_effector_ref_labels", ())
+        kept = [(h, l) for h, l in zip(handles, labels) if l not in ref]
+        ax2.legend([h for h, _ in kept], [l for _, l in kept], fontsize=8)
+        if dy_limits is not None:
+            ax2.set_ylim(dy_limits[0], dy_limits[1])
 
     if x_limits is not None:
         # window the (shared) x-axis to the caller's interval, e.g. a
@@ -191,6 +345,7 @@ def plot_pdp_ice(
     y_limits: typing.Union[None, tuple] = None,
     show_plot: bool = True,
     random_state: typing.Union[None, int] = None,
+    tag: typing.Union[None, str] = None,
 ):
     """Draw the pre-computed PDP mean curve `y_mean` (shape `(T,)`) plus the
     requested heterogeneity (R1 — nothing is computed here): a std/std-err
@@ -201,7 +356,7 @@ def plot_pdp_ice(
 
     fig, ax = plt.subplots()
     t = theme.active()
-    ax.set_title(title)
+    _set_title(ax, title, tag)
 
     if heterogeneity in ("std", "std_err"):
         b = band if scale_y is None else trans_scale(band, scale_y["std"])
@@ -257,17 +412,20 @@ def plot_effect_comparison(
     discrete: bool = False,
     level_labels: typing.Union[None, list] = None,
     show_plot: bool = True,
+    level_kind: str = "nominal",
 ):
     """Overlay the mean effect of several methods for one feature on a single
     axis. `curves` maps `{method_label: y}`, each `y` of shape `(T,)`.
 
-    `discrete=True` (categorical feature): the effects are per-level values, so
-    each method is drawn as a marker series at the level positions (joined by a
-    thin line) and the x-axis shows the level ticks/labels instead of a
-    continuous grid."""
+    `discrete=True` (categorical feature): the effects are per-level values,
+    so each method is drawn as a marker series at the level positions and the
+    x-axis shows the level ticks/labels instead of a continuous grid. A thin
+    connecting line joins the markers only for `level_kind="ordinal"` — for
+    nominal levels a line would imply an interpolation between unordered
+    categories."""
     fig, ax = plt.subplots()
     t = theme.active()
-    ax.set_title("Feature Effect Comparison" if title is None else title)
+    _set_title(ax, _feature_label(feature, feature_names) if title is None else title)
 
     positions = np.asarray(x, dtype=float)
     x_scaled = _scale_x(positions, scale_x)
@@ -279,14 +437,15 @@ def plot_effect_comparison(
                 _scale_y(y, scale_y),
                 marker="o",
                 markersize=5,
-                linewidth=1.2,
+                linewidth=1.2 if level_kind == "ordinal" else 0,
+                linestyle="-" if level_kind == "ordinal" else "none",
                 color=color,
                 label=label,
             )
         else:
             ax.plot(x_scaled, _scale_y(y, scale_y), color=color, label=label)
     if discrete:
-        _categorical_axis(ax, positions, level_labels, scale_x)
+        _categorical_axis(ax, x_scaled, level_labels, level_kind)
     _add_avg_output(ax, avg_output)
 
     _decorate_ax(
@@ -314,12 +473,16 @@ def plot_shap(
     y_limits: typing.Union[None, tuple] = None,
     only_shap_values: bool = False,
     show_plot: bool = True,
+    title: typing.Union[None, str] = None,
+    tag: typing.Union[None, str] = None,
 ):
     """Draw the SHAP-DP curve `x`/`y` plus the requested heterogeneity: a std
     band (`y_std`) or the shap-value cloud `xx`/`yy`."""
     fig, ax = plt.subplots()
     t = theme.active()
-    ax.set_title("SHAP Dependence Plot")
+    _set_title(
+        ax, _feature_label(feature, feature_names) if title is None else title, tag
+    )
 
     x = _scale_x(x, scale_x)
     y = _scale_y(y, scale_y)
@@ -339,7 +502,8 @@ def plot_shap(
             xx[0],
             yy[0],
             color=t.CLOUD,
-            marker="x",
+            marker=".",
+            markersize=3.5,
             linestyle="none",
             alpha=t.SHAP_MARKER_ALPHA,
             label="SHAP values",
@@ -348,7 +512,8 @@ def plot_shap(
             xx,
             yy,
             color=t.CLOUD,
-            marker="x",
+            marker=".",
+            markersize=3.5,
             linestyle="none",
             alpha=t.SHAP_MARKER_ALPHA,
         )
@@ -366,13 +531,87 @@ def plot_shap(
     return _finalize(fig, ax, show_plot)
 
 
-def _categorical_axis(ax, positions, level_labels, scale_x):
-    """Ticks at the level positions; explicit labels replace numeric ticks
-    when the levels carry names (nominal / encoded categories)."""
-    ticks = _scale_x(np.asarray(positions, dtype=float), scale_x)
-    ax.set_xticks(ticks)
-    if level_labels is not None:
-        ax.set_xticklabels(level_labels)
+def _level_layout(heights, positions, level_kind="nominal", sort=None):
+    """Display order and draw positions for a categorical axis.
+
+    Nominal levels sort by effect value and draw at ranks `0..K-1` (a rank is
+    display geometry — `scale_x` must never touch it); ordinal levels keep
+    their natural order at their level values (`scale_x` applies).
+
+    Returns `(order, draw_positions, use_scale_x)`.
+    """
+    positions = np.asarray(positions, dtype=float)
+    k = len(positions)
+    if sort is None:
+        sort = level_kind == "nominal"
+    order = (
+        np.argsort(np.asarray(heights, dtype=float))
+        if sort
+        else np.arange(k)
+    )
+    if level_kind == "nominal":
+        return order, np.arange(k, dtype=float), False
+    return order, positions[order], True
+
+
+def _categorical_axis(ax, positions, level_labels, level_kind="nominal"):
+    """The one tick-policy spot (C4). `positions` are display coordinates
+    (ranks or scaled level values). Unnamed levels get raw-unit integer-ish
+    labels; named levels are wrapped (≤12 chars/line) and rotated by
+    crowding (0/30/45/60). Never label every level past 8 when the labels
+    are numeric or the levels ordered — majors thin to ≤8 with a minor tick
+    marking each level. Deterministic in K and label lengths (R8)."""
+    positions = np.asarray(positions, dtype=float)
+    k = len(positions)
+    generated = level_labels is None
+    if generated:
+        near_int = np.allclose(positions, np.round(positions), atol=1e-6)
+        level_labels = [
+            f"{v:.0f}" if near_int else f"{v:g}" for v in positions
+        ]
+        rot = 0
+    else:
+        level_labels = [str(l) for l in level_labels]
+        longest = max(len(l) for l in level_labels)
+        if longest <= 6 and k <= 6:
+            rot = 0
+        elif k <= 8 and longest <= 16:
+            rot = 30
+        elif k <= 16:
+            rot = 45
+        else:
+            rot = 60
+        level_labels = [_wrap_text(l, width=12, max_lines=2) for l in level_labels]
+    # thinning drops labels, so it is reserved for levels whose identity
+    # survives it: numbers, or named-but-ordered levels
+    step = int(np.ceil(k / 8)) if (generated or level_kind == "ordinal") else 1
+    ax.set_xticks(positions[::step])
+    ax.set_xticklabels(
+        level_labels[::step], rotation=rot, ha="right" if rot else "center"
+    )
+    if step > 1:
+        ax.set_xticks(positions, minor=True)
+
+
+def _level_counts(ax, positions, counts):
+    """Muted per-level sample sizes along the top of the axes. Past ~10
+    levels the labels would collide into noise, so dense axes skip them —
+    the counts stay available programmatically (`_level_weights`)."""
+    positions = np.asarray(positions, dtype=float)
+    if len(positions) > 10:
+        return
+    t = theme.active()
+    for x, n in zip(positions, counts):
+        ax.text(
+            x,
+            0.985,
+            f"n={int(n):,}",
+            transform=ax.get_xaxis_transform(),
+            ha="center",
+            va="top",
+            fontsize=6.5,
+            color=t.TAG,
+        )
 
 
 def _bar_width(positions):
@@ -386,7 +625,7 @@ def plot_categorical_effect(
     variances,
     feature,
     heterogeneity,
-    title,
+    title=None,
     level_labels=None,
     scale_x=None,
     scale_y=None,
@@ -396,6 +635,10 @@ def plot_categorical_effect(
     y_limits=None,
     connect_line=False,
     show_plot=True,
+    tag=None,
+    level_kind="nominal",
+    sort=None,
+    level_counts=None,
 ):
     """Bars at the level positions with heterogeneity whiskers = sqrt(h(v_k)).
 
@@ -404,23 +647,31 @@ def plot_categorical_effect(
     ShapDP (per-level shap means). Pure drawing — heights/variances arrive
     evaluated and centered.
 
-    `connect_line=True` overlays a line through the bar tops — only meaningful
-    for (RH)ALE, where the bars are an accumulation and the slope between two
-    bars is the per-transition step the method measures (the values are a
-    cumulative sum of adjacent-level changes). Off for PDP/ShapDP, whose
-    per-level bars are independent.
+    Nominal levels sort by effect value and draw at ranks; ordinal levels keep
+    their natural order (`_level_layout`). `connect_line=True` overlays a line
+    through the bar tops — only meaningful for (RH)ALE on *ordinal* features,
+    where the bars are an accumulation and the slope between two bars is the
+    per-transition step the method measures. `level_counts` writes a muted
+    per-level `n=…` along the top.
     """
     fig, ax = plt.subplots()
     t = theme.active()
-    ax.set_title(title)
+    _set_title(
+        ax, _feature_label(feature, feature_names) if title is None else title, tag
+    )
 
-    x = _scale_x(np.asarray(positions, dtype=float), scale_x)
-    y = _scale_y(np.asarray(heights, dtype=float), scale_y)
+    heights = np.asarray(heights, dtype=float)
+    order, draw_pos, use_scale = _level_layout(heights, positions, level_kind, sort)
+    x = _scale_x(draw_pos, scale_x) if use_scale else draw_pos
+    y = _scale_y(heights, scale_y)[order]
+    labels = (
+        [level_labels[i] for i in order] if level_labels is not None else None
+    )
     width = _bar_width(x)
 
     yerr = None
     if heterogeneity is not False and variances is not None:
-        std = np.sqrt(np.asarray(variances, dtype=float))
+        std = np.sqrt(np.asarray(variances, dtype=float))[order]
         yerr = std * scale_y["std"] if scale_y is not None else std
 
     ax.bar(
@@ -432,8 +683,9 @@ def plot_categorical_effect(
         linewidth=0.6,
         yerr=yerr,
         ecolor=t.ERROR,
-        capsize=4,
-        label="mean effect",
+        capsize=3,
+        error_kw={"lw": 1.0},
+        label="mean effect ± heterogeneity" if yerr is not None else "mean effect",
     )
     if connect_line:
         # accumulation path: slope between bars = the per-transition step
@@ -447,7 +699,9 @@ def plot_categorical_effect(
             zorder=3,
             label="accumulated (steps)",
         )
-    _categorical_axis(ax, positions, level_labels, scale_x)
+    _categorical_axis(ax, x, labels, level_kind)
+    if level_counts is not None:
+        _level_counts(ax, x, np.asarray(level_counts)[order])
     _add_avg_output(ax, avg_output)
     _decorate_ax(
         ax,
@@ -455,6 +709,14 @@ def plot_categorical_effect(
         ylabel=target_name,
         y_limits=y_limits,
     )
+    if yerr is not None and ax.get_legend() is None:
+        # whiskers need naming even when the bars are the only series — the
+        # sanctioned single-entry legend (like the ALE dy/dx panel)
+        handles, lbls = ax.get_legend_handles_labels()
+        ref = getattr(ax, "_effector_ref_labels", ())
+        kept = [(h, l) for h, l in zip(handles, lbls) if l not in ref]
+        if kept:
+            ax.legend([kept[0][0]], [kept[0][1]], fontsize=8)
     return _finalize(fig, ax, show_plot)
 
 
@@ -462,7 +724,7 @@ def plot_pdp_ice_categorical(
     positions,
     yy,
     feature,
-    title,
+    title=None,
     y_pdp_label="PDP",
     y_ice_label="ICE",
     level_labels=None,
@@ -475,18 +737,30 @@ def plot_pdp_ice_categorical(
     y_limits=None,
     show_plot=True,
     random_state=21,
+    tag=None,
+    level_kind="nominal",
+    sort=None,
+    level_counts=None,
 ):
     """Bars for the per-level mean + jittered per-instance ICE dots.
 
     `yy` is the (K, N) ICE table evaluated at the K levels. Jitter and the
     ICE subsample are seeded (`random_state`) — determinism is contractual
-    (R8)."""
+    (R8). Nominal levels sort by the per-level mean and draw at ranks."""
     fig, ax = plt.subplots()
     t = theme.active()
-    ax.set_title(title)
+    _set_title(
+        ax, _feature_label(feature, feature_names) if title is None else title, tag
+    )
 
     yy = np.asarray(yy, dtype=float)
-    x = _scale_x(np.asarray(positions, dtype=float), scale_x)
+    means = yy.mean(axis=1)
+    order, draw_pos, use_scale = _level_layout(means, positions, level_kind, sort)
+    yy = yy[order]
+    x = _scale_x(draw_pos, scale_x) if use_scale else draw_pos
+    labels = (
+        [level_labels[i] for i in order] if level_labels is not None else None
+    )
     y_mean = _scale_y(yy.mean(axis=1), scale_y)
     width = _bar_width(x)
 
@@ -520,7 +794,9 @@ def plot_pdp_ice_categorical(
         alpha=0.8,
         label=y_pdp_label,
     )
-    _categorical_axis(ax, positions, level_labels, scale_x)
+    _categorical_axis(ax, x, labels, level_kind)
+    if level_counts is not None:
+        _level_counts(ax, x, np.asarray(level_counts)[order])
     _add_avg_output(ax, avg_output)
     _decorate_ax(
         ax,
@@ -537,7 +813,7 @@ def plot_shap_categorical(
     xx,
     yy,
     feature,
-    title,
+    title=None,
     level_labels=None,
     scale_x=None,
     scale_y=None,
@@ -548,14 +824,30 @@ def plot_shap_categorical(
     y_limits=None,
     show_plot=True,
     random_state=21,
+    tag=None,
+    level_kind="nominal",
+    sort=None,
+    level_counts=None,
 ):
-    """Bars for the per-level shap mean + the jittered shap cloud."""
+    """Bars for the per-level shap mean + the jittered shap cloud.
+
+    Nominal levels sort by the per-level mean and draw at ranks; the raw
+    cloud's x values (level values) are remapped to the display positions
+    before jittering (seeding unchanged — R8)."""
     fig, ax = plt.subplots()
     t = theme.active()
-    ax.set_title(title)
+    _set_title(
+        ax, _feature_label(feature, feature_names) if title is None else title, tag
+    )
 
-    x = _scale_x(np.asarray(positions, dtype=float), scale_x)
-    y_mean = _scale_y(np.asarray(heights, dtype=float), scale_y)
+    heights = np.asarray(heights, dtype=float)
+    levels = np.asarray(positions, dtype=float)
+    order, draw_pos, use_scale = _level_layout(heights, positions, level_kind, sort)
+    x = _scale_x(draw_pos, scale_x) if use_scale else draw_pos
+    labels = (
+        [level_labels[i] for i in order] if level_labels is not None else None
+    )
+    y_mean = _scale_y(heights, scale_y)[order]
     width = _bar_width(x)
 
     rng = np.random.default_rng(random_state)
@@ -565,8 +857,11 @@ def plot_shap_categorical(
     else:
         keep = np.arange(n)
     jitter = rng.uniform(-0.25 * width, 0.25 * width, size=len(keep))
+    # map each raw cloud value (a level value) to its display position
+    inv = np.argsort(order)
+    cloud_levels = np.searchsorted(levels, np.asarray(xx, dtype=float)[keep])
     ax.plot(
-        _scale_x(np.asarray(xx, dtype=float)[keep], scale_x) + jitter,
+        x[inv[cloud_levels]] + jitter,
         _scale_y(np.asarray(yy, dtype=float)[keep], scale_y),
         marker=".",
         linestyle="none",
@@ -586,7 +881,9 @@ def plot_shap_categorical(
         alpha=0.8,
         label="mean shap per level",
     )
-    _categorical_axis(ax, positions, level_labels, scale_x)
+    _categorical_axis(ax, x, labels, level_kind)
+    if level_counts is not None:
+        _level_counts(ax, x, np.asarray(level_counts)[order])
     _add_avg_output(ax, avg_output)
     _decorate_ax(
         ax,
@@ -773,7 +1070,70 @@ def compare(
         discrete=discrete,
         level_labels=level_labels,
         show_plot=show_plot,
+        level_kind=first.feature_types[f] if discrete else "nominal",
     )
+
+
+def _draw_triage(fig, ax, points, arrows, threshold, thr_label, unit, title):
+    """The one triage look (shared by `triage_scatter` and `plot_triage`):
+    labeled global points, one mild-accent arrow per accepted split ending in
+    an open circle (a single "regional effects" legend entry), the threshold
+    as a solid hairline with an inline tag, and greedy label repel with
+    hairline leaders — capped at the top 20 features. `arrows` is a list of
+    `((x0, y0), (x1, y1))` pairs."""
+    t = theme.active()
+    _set_title(ax, "Feature triage" if title is None else title)
+    ax.margins(0.10)
+    ax.scatter(
+        [p[1] for p in points],
+        [p[2] for p in points],
+        s=42,
+        color=t.MEAN,
+        zorder=3,
+        edgecolor=plt.rcParams.get("axes.facecolor", "#ffffff"),
+        linewidth=1.2,
+        label="global effects",
+    )
+    first = True
+    for start, end in arrows or []:
+        ax.annotate(
+            "",
+            xy=end,
+            xytext=start,
+            arrowprops=dict(
+                arrowstyle="->",
+                color=t.ARROW,
+                linewidth=1.1,
+                alpha=0.9,
+                shrinkA=4,
+                shrinkB=4,
+            ),
+        )
+        ax.scatter(
+            [end[0]],
+            [end[1]],
+            facecolors="none",
+            edgecolors=t.ARROW,
+            s=38,
+            linewidth=1.2,
+            zorder=3,
+            label="regional effects" if first else None,
+        )
+        first = False
+    if threshold is not None and threshold is not False:
+        _ref_line(
+            ax,
+            y=float(threshold),
+            label=thr_label,
+            tag="median heterogeneity" if "median" in thr_label else thr_label,
+        )
+    _decorate_ax(ax, xlabel="importance" + unit, ylabel="heterogeneity" + unit)
+    fig.canvas.draw()
+    avoid = []
+    legend = ax.get_legend()
+    if legend is not None:
+        avoid.append(legend.get_window_extent())
+    _repel_labels(ax, fig, points, avoid=avoid)
 
 
 def triage_scatter(
@@ -797,56 +1157,23 @@ def triage_scatter(
             feature, e.g. global point -> weighted-mean regional point.
         threshold: heterogeneity line — a float draws it, `None`/`False`
             nothing.
-        thr_label: legend label of the threshold line.
+        thr_label: label of the threshold line (kept on the artist; shown as
+            an inline tag, not a legend entry).
         unit: axis-label suffix, e.g. ``" (cnt units)"``.
         title: figure title.
         show_plot: if `True`, show and return `None`; else `(fig, ax)`.
     """
-    t = theme.active()
     fig, ax = plt.subplots()
-    ax.set_title("Feature triage" if title is None else title)
-    ax.scatter(
-        [p[1] for p in points],
-        [p[2] for p in points],
-        color=t.MEAN,
-        zorder=3,
+    _draw_triage(
+        fig,
+        ax,
+        points,
+        list(arrows.values()) if arrows else [],
+        threshold,
+        thr_label,
+        unit,
+        title,
     )
-    for name, x, y in points:
-        ax.annotate(
-            name,
-            (x, y),
-            textcoords="offset points",
-            xytext=(6, 6),
-            fontsize="small",
-        )
-    if arrows:
-        for i, (name, (start, end)) in enumerate(arrows.items()):
-            color = t.CAT[i % len(t.CAT)]
-            ax.annotate(
-                "",
-                xy=end,
-                xytext=start,
-                arrowprops=dict(
-                    arrowstyle="->", color=color, linewidth=1.2, alpha=0.9
-                ),
-            )
-            ax.scatter(
-                [start[0]],
-                [start[1]],
-                facecolors="none",
-                edgecolors=color,
-                zorder=3,
-                label=f"{name} before regions",
-            )
-    if threshold is not None and threshold is not False:
-        ax.axhline(
-            float(threshold),
-            color=t.AVG,
-            linestyle="--",
-            linewidth=1.0,
-            label=thr_label,
-        )
-    _decorate_ax(ax, xlabel="importance" + unit, ylabel="heterogeneity" + unit)
     fig.tight_layout()
     return _finalize(fig, ax, show_plot)
 
@@ -927,76 +1254,33 @@ def plot_triage(
     imp = {f: effect.importance(f) for f in plotted}
     het = {f: effect.heter_score(f) for f in plotted}
 
-    fig, ax = plt.subplots()
-    t = theme.active()
-    ax.set_title("Feature triage" if title is None else title)
-
-    ax.scatter(
-        [imp[f] for f in plotted],
-        [het[f] for f in plotted],
-        color=t.MEAN,
-        zorder=3,
-        label="global effect",
-    )
-    for f in plotted:
-        ax.annotate(
-            effect.feature_names[f],
-            (imp[f], het[f]),
-            textcoords="offset points",
-            xytext=(6, 6),
-            fontsize="small",
-        )
-
     if threshold is None:
         threshold = float(np.median([het[f] for f in plotted]))
         thr_label = "heterogeneity threshold (median)"
     else:
         thr_label = "heterogeneity threshold"
-    if threshold is not False:
-        ax.axhline(
-            threshold,
-            color=t.AVG,
-            linestyle="--",
-            linewidth=1.0,
-            label=thr_label,
-        )
 
+    arrows = []
     if partitions:
-        cat_cycle = t.CAT
-        for i, (key, partition) in enumerate(partitions.items()):
+        for key, partition in partitions.items():
             f = effect._resolve_feature(key)
-            leaves = partition.leaves
             if len(partition) <= 1:
                 continue  # root-only: nothing was found
-            color = cat_cycle[i % len(cat_cycle)]
             start = (imp[f], het[f])
-            first_leaf = True
-            for leaf in leaves:
-                end = (
-                    effect.importance(f, rule=leaf.rule),
-                    effect.heter_score(f, rule=leaf.rule),
+            for leaf in partition.leaves:
+                arrows.append(
+                    (
+                        start,
+                        (
+                            effect.importance(f, rule=leaf.rule),
+                            effect.heter_score(f, rule=leaf.rule),
+                        ),
+                    )
                 )
-                ax.annotate(
-                    "",
-                    xy=end,
-                    xytext=start,
-                    arrowprops=dict(
-                        arrowstyle="->", color=color, linewidth=1.2, alpha=0.9
-                    ),
-                )
-                ax.scatter(
-                    [end[0]],
-                    [end[1]],
-                    facecolors="none",
-                    edgecolors=color,
-                    zorder=3,
-                    label=(
-                        f"{effect.feature_names[f]} leaves" if first_leaf else None
-                    ),
-                )
-                first_leaf = False
 
+    fig, ax = plt.subplots()
+    points = [(effect.feature_names[f], imp[f], het[f]) for f in plotted]
     # both axes are std-type quantities in the target's units (units contract)
     unit = f" ({effect.target_name} units)"
-    _decorate_ax(ax, xlabel="importance" + unit, ylabel="heterogeneity" + unit)
+    _draw_triage(fig, ax, points, arrows, threshold, thr_label, unit, title)
     return _finalize(fig, ax, show_plot)
