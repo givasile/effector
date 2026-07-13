@@ -2,8 +2,11 @@
 
 Synthetic generators (`IndependentUniform`) produce numpy arrays with known
 distributions — pair them with `effector.models` for ground-truth checks.
-Real datasets (`BikeSharing`) fetch, split, and standardize a public dataset
-into ready-to-use `x_train / y_train / x_test / y_test` numpy arrays.
+Real datasets (`BikeSharing`, `MedicalCosts`, `AirfoilSelfNoise`,
+`AdultIncome`) fetch, split, and optionally standardize a public
+dataset into ready-to-use `x_train / y_train / x_test / y_test` numpy
+arrays. Datasets with categorical columns also expose `feature_types` and
+`category_names`, ready to feed `effector.Schema`.
 """
 
 import numpy as np
@@ -209,3 +212,208 @@ class BikeSharing(RealDatasetBase):
 
         self.x_train_std[10] *= 67
         self.x_test_std[10] *= 67
+
+
+class MedicalCosts(RealDatasetBase):
+    """The Medical Cost Personal dataset — annual medical charges billed by
+    an insurer, the textbook smoker × bmi interaction.
+
+    1,338 policyholders with 6 features (age, sex, bmi, children, smoker,
+    region); the target is the individual's yearly medical charges in USD.
+    Fetched from the dataset's canonical mirror (stedy/Machine-Learning-with-R-datasets).
+    Categorical columns are encoded to integer codes; `feature_types` and
+    `category_names` are populated for `effector.Schema`. Kept in natural
+    units by default (`standardize=False`) so partition rules read directly
+    (e.g. `bmi < 30`).
+
+    ```python
+    data = effector.datasets.MedicalCosts()
+    data.x_train, data.y_train        # (1070, 6), (1070,)
+    schema = effector.Schema(
+        feature_names=data.feature_names,
+        feature_types=data.feature_types,
+        category_names=data.category_names,
+        target_name=data.target_name,
+    )
+    ```
+    """
+
+    URL = (
+        "https://raw.githubusercontent.com/stedy/"
+        "Machine-Learning-with-R-datasets/master/insurance.csv"
+    )
+
+    def __init__(self, pcg_train=0.8, standardize=False, seed: int = 21):
+        """Fetch and prepare the dataset.
+
+        Args:
+            pcg_train: Fraction of samples in the train split.
+            standardize: Standardize features and target (default False —
+                natural units keep the partition rules readable).
+            seed: Random seed of the train/test shuffle.
+        """
+        super().__init__(
+            name="MedicalCosts", pcg_train=pcg_train, standardize=standardize, seed=seed
+        )
+
+    def fetch_and_preprocess(self):
+        import pandas as pd
+
+        raw = pd.read_csv(self.URL)
+
+        levels = {
+            "sex": ["female", "male"],
+            "smoker": ["no", "yes"],
+            "region": ["northeast", "northwest", "southeast", "southwest"],
+        }
+        for col, lv in levels.items():
+            raw[col] = raw[col].map({name: i for i, name in enumerate(lv)})
+
+        self.feature_names = ["age", "sex", "bmi", "children", "smoker", "region"]
+        self.target_name = "charges"
+        self.feature_types = [
+            "continuous",  # age
+            "nominal",     # sex
+            "continuous",  # bmi
+            "ordinal",     # children
+            "nominal",     # smoker
+            "nominal",     # region
+        ]
+        self.category_names = [
+            None, levels["sex"], None, None, levels["smoker"], levels["region"]
+        ]
+
+        X = raw[self.feature_names].to_numpy(dtype=float)
+        y = raw[self.target_name].to_numpy(dtype=float)
+        self.dataset = np.concatenate((X, y.reshape(-1, 1)), axis=1)
+
+    def postprocess(self):
+        pass
+
+
+class AirfoilSelfNoise(RealDatasetBase):
+    """The NASA Airfoil Self-Noise dataset (UCI id 291).
+
+    1,503 wind-tunnel measurements of NACA 0012 airfoil sections; the target
+    is the scaled sound pressure level in dB. Five continuous features:
+    frequency (Hz), angle of attack (deg), chord length (m), free-stream
+    velocity (m/s), suction-side displacement thickness (m). Kept in natural
+    units by default (`standardize=False`).
+
+    ```python
+    data = effector.datasets.AirfoilSelfNoise()
+    data.x_train, data.y_train    # (1202, 5), (1202,)
+    ```
+    """
+
+    def __init__(self, pcg_train=0.8, standardize=False, seed: int = 21):
+        """Fetch and prepare the dataset.
+
+        Args:
+            pcg_train: Fraction of samples in the train split.
+            standardize: Standardize features and target (default False —
+                natural units keep the partition rules readable).
+            seed: Random seed of the train/test shuffle.
+        """
+        super().__init__(
+            name="AirfoilSelfNoise",
+            pcg_train=pcg_train,
+            standardize=standardize,
+            seed=seed,
+        )
+
+    def fetch_and_preprocess(self):
+        from ucimlrepo import fetch_ucirepo
+
+        airfoil = fetch_ucirepo(id=291)
+
+        X = airfoil.data.features
+        self.feature_names = X.columns.to_list()
+        y = airfoil.data.targets
+        self.target_name = y.columns.item()
+        self.dataset = np.concatenate(
+            (X.to_numpy(dtype=float), y.to_numpy(dtype=float).reshape(-1, 1)), axis=1
+        )
+
+    def postprocess(self):
+        pass
+
+
+class AdultIncome(RealDatasetBase):
+    """The Adult (census income) dataset (UCI id 2) — a classification
+    example: explain `predict_proba` of the positive class.
+
+    45,222 census records after dropping rows with missing values; the
+    target is binary — whether yearly income exceeds $50K. 12 features
+    remain after dropping `fnlwgt` (a sampling weight) and `education`
+    (duplicated by `education-num`). Categorical columns are encoded to
+    integer codes with the level names recorded in `category_names`; levels
+    rarer than 50 rows are bucketed into `"Other"` (a level that rare can
+    vanish from a train split, invalidating the schema). Kept in natural
+    units by default (`standardize=False`); the 0/1 target is never a
+    regression target — pair it with a classifier and explain the predicted
+    probability.
+
+    ```python
+    data = effector.datasets.AdultIncome()
+    data.x_train, data.y_train    # (36177, 12), (36177,) with y in {0, 1}
+    ```
+    """
+
+    RARE_LEVEL_MIN_ROWS = 50
+
+    def __init__(self, pcg_train=0.8, standardize=False, seed: int = 21):
+        """Fetch and prepare the dataset.
+
+        Args:
+            pcg_train: Fraction of samples in the train split.
+            standardize: Standardize the features (default False — natural
+                units keep the partition rules readable). The 0/1 target is
+                standardized too when True; leave False for classification.
+            seed: Random seed of the train/test shuffle.
+        """
+        super().__init__(
+            name="AdultIncome", pcg_train=pcg_train, standardize=standardize, seed=seed
+        )
+
+    def fetch_and_preprocess(self):
+        from ucimlrepo import fetch_ucirepo
+
+        adult = fetch_ucirepo(id=2)
+
+        X = adult.data.features.drop(["fnlwgt", "education"], axis=1)
+        y = adult.data.targets.iloc[:, 0].astype(str).str.strip()
+        y = y.str.startswith(">50K").to_numpy().astype(float)
+
+        X = X.replace("?", np.nan)
+        keep = X.notna().all(axis=1).to_numpy()
+        X, y = X.loc[keep].reset_index(drop=True), y[keep]
+
+        self.feature_names = X.columns.to_list()
+        self.target_name = "income>50K"
+        self.feature_types = []
+        self.category_names = []
+        encoded = np.empty(X.shape, dtype=float)
+        for j, col in enumerate(self.feature_names):
+            vals = X[col]
+            if vals.dtype == object:
+                vals = vals.astype(str).str.strip()
+                counts = vals.value_counts()
+                rare = counts[counts < self.RARE_LEVEL_MIN_ROWS].index
+                if len(rare):
+                    vals = vals.where(~vals.isin(rare), "Other")
+                levels = sorted(vals.unique())
+                encoded[:, j] = vals.map({lv: i for i, lv in enumerate(levels)})
+                self.feature_types.append("nominal")
+                self.category_names.append(levels)
+            else:
+                encoded[:, j] = vals.to_numpy(dtype=float)
+                self.feature_types.append(
+                    "ordinal" if col == "education-num" else "continuous"
+                )
+                self.category_names.append(None)
+
+        self.dataset = np.concatenate((encoded, y.reshape(-1, 1)), axis=1)
+
+    def postprocess(self):
+        pass

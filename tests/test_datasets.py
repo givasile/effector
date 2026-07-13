@@ -19,6 +19,38 @@ def test_bike_sharing():
     assert data.dataset is not None
 
 
+@pytest.mark.slow
+def test_medical_costs():
+    """Downloads a CSV — network; tier 2 only."""
+    data = effector.datasets.MedicalCosts()
+    assert data.dataset.shape == (1338, 7)
+    assert data.x_train.shape == (1070, 6)
+    assert data.feature_names[4] == "smoker"
+    assert data.category_names[4] == ["no", "yes"]
+    assert len(data.feature_types) == 6
+
+
+@pytest.mark.slow
+def test_airfoil_self_noise():
+    """Downloads from UCI — network; tier 2 only."""
+    data = effector.datasets.AirfoilSelfNoise()
+    assert data.dataset.shape == (1503, 6)
+    assert data.x_train.shape == (1202, 5)
+    assert len(data.feature_names) == 5
+
+
+@pytest.mark.slow
+def test_adult_income():
+    """Downloads from UCI — network; tier 2 only."""
+    data = effector.datasets.AdultIncome()
+    assert data.dataset.shape == (45222, 13)
+    assert data.x_train.shape == (36177, 12)
+    assert set(data.y_train.tolist()) == {0.0, 1.0}
+    assert data.feature_names[8] == "capital-gain"
+    sex = data.feature_names.index("sex")
+    assert data.category_names[sex] == ["Female", "Male"]
+
+
 def test_independent_uniform_seeded_reproducibility():
     ds = effector.datasets.IndependentUniform(dim=3, low=-1, high=1)
     a = ds.generate_data(500, seed=21)
