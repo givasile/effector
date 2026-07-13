@@ -1402,3 +1402,56 @@ coverage cut); `visualization.triage_scatter`; `method_registry.name_of`;
 budget) + report/EV test updates; mental_model.md (six-step workflow with
 *e. Select*). All 20 example notebooks gain a cross-method
 `explain()`-sweep section, executed end to end.
+
+## 36. 2026-07-13 — Plots learn to shine: the design-review decisions land (tag: design + code)  [plot_design_review/ draft; branch `feat/plot-redesign`]
+
+**Agreed.** The per-plot design review (rendered mockups in
+`plot_design_review/draft.pdf`) was accepted with these calls: (C1) reports
+always render in the *active* house theme (`rc_context` inside `to_html`, so
+`set_theme` swaps the whole report look); (C2) the title carries the identity
+— feature name, or `feature where (rule)` on leaves — left-aligned and
+wrapped, with the constant `METHOD · global/regional` context demoted to a
+muted corner tag, and the x-label back to the plain feature name; (C3) rule
+text is terse and raw-unit — `hr where (workingday = no) and (temp < 6.81)`,
+parens only for ≥2 conditions, level names and inverse scaling wherever the
+schema carries them; (C4) never label every level — ordinals thin to ≤8
+integer majors with minors marking each level, nominal labels wrap at ~12
+chars and rotate 30/45/60 by crowding; (C5) y-harmonization shares only
+output-unit panels across features — (RH)ALE's Δy/Δx panel is per-unit-of-x
+and now unions within a feature only; (C6) reference lines (threshold, avg
+output, zero) become hairlines with inline tags, never legend entries, and
+single-series axes drop the legend box. Per figure: triage gets greedy label
+repel with hairline leaders (top-20 cap), a two-entry legend ("global
+effects"/"regional effects") and one mild-orange arrow style; categorical
+bars stay vertical with rotated+wrapped ticks, nominal levels sorted by
+effect value (drawn at ranks — scale never touches ranks), ALE's
+accumulation line only on ordinals, and a muted per-level `n=…` (≤10
+levels); the ledger keeps values inside segments only where they measurably
+fit and moves identity to an ordered swatch key beneath the bar, titled just
+"Explained variance"; the report's two bar views merge into one paired
+importance|heterogeneity figure sorted by the plotted value with value
+labels and `· split` tags. Two additions: `explain(..., y=None)` puts a
+data+model summary at the head of `show()`/`to_html` (N×D, type counts,
+f̂(X) stats, and R²/accuracy on the explained subsample when `y` is given),
+and ShapDP passes `silent=True` to shap by default (notebook hygiene, with
+keras `verbose=0` in 01/04).
+
+**Why.** The end user only ever sees the plots; every defect the review
+caught was presentation, not information — colliding ledger labels,
+tick mush on 24-level ordinals, standardized values leaking into rules,
+method names squatting on every title while the actual identity hid in the
+x-label, and a dimensionally meaningless dy/dx union that flattened panels
+to a line.
+
+**Changes.** `theme.py` (ARROW/REF/TAG tokens); `visualization.py`
+(`_wrap_text`/`_set_title`/`_ref_line`/`_repel_labels`/`_level_layout`/
+`_categorical_axis`/`_level_counts`, redesigned ale/triage/categorical
+draw fns); `rules.py` (`Rule.format` parens); `partition.py` +
+`space_partitioning.py` (" where " labels); the three method classes
+(title/tag, `level_kind`, counts, ordinal-gated connect line);
+`report.py` (theme ctx, dpi 150, harmonize fix, `_overview_bars_fig`,
+key-below ledger, stats-only figcaptions, `summary` field + `y=`);
+`global_effect_shap.py` (`silent`); tests (goldens/labels/masked/harmonize
+updated + `test_plot_policies.py` pins); notebooks 01/04 gain full
+`effector.Schema`s with `category_names` + scales, 05-07 pass `y=`; all
+five real-example notebooks re-executed, every report regenerated.
