@@ -337,8 +337,11 @@ def test_m6_masked_plot_window_and_label(name, global_data):
     xlo, xhi = ax_main.get_xlim()
     pad = 0.1 * (hi - lo)
     assert xlo >= lo - pad and xhi <= hi + pad
+    # feature_label lands as the (left-aligned) title; the x-axis keeps the
+    # plain feature name
+    assert ax_main.get_title(loc="left") == "x_0 | region"
     labeled = ax[-1] if isinstance(ax, tuple) else ax
-    assert labeled.get_xlabel() == "x_0 | region"
+    assert labeled.get_xlabel() == "x_0"
 
 
 @pytest.mark.parametrize("name", params(CAT_NAMES))

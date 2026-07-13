@@ -198,7 +198,7 @@ def _two_panel(xlim, ylim, dylim):
     return fig, (ax1, ax2)
 
 
-def test_harmonize_axes_shares_the_dy_panel_of_two_panel_figures():
+def test_harmonize_axes_shares_the_dy_panel_within_its_section_only():
     import matplotlib.pyplot as plt
 
     a = _two_panel((0, 1), (-1, 1), (-2, 2))  # section "f0"
@@ -206,9 +206,14 @@ def test_harmonize_axes_shares_the_dy_panel_of_two_panel_figures():
     c = _two_panel((10, 20), (0, 3), (0, 1))  # section "f1"
     entries = [(a, "", "f0"), (b, "", "f0"), (c, "", "f1")]
     Report._harmonize_axes(entries)
+    # the effect panel (output units) is shared across features...
     for fig, _ in (a, b, c):
-        assert fig.axes[0].get_ylim() == (-5.0, 3.0)  # effect panel, as before
-        assert fig.axes[1].get_ylim() == (-2.0, 8.0)  # dy/dx panel, now too
+        assert fig.axes[0].get_ylim() == (-5.0, 3.0)
+    # ...but dy/dx is per-unit-of-x — dimensionally incomparable across
+    # features, so it unions within a section only
+    for fig, _ in (a, b):
+        assert fig.axes[1].get_ylim() == (-2.0, 8.0)
+    assert c[0].axes[1].get_ylim() == (0.0, 1.0)
     for fig, _ in (a, b, c):
         plt.close(fig)
 

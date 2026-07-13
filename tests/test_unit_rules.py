@@ -274,8 +274,10 @@ def test_rule_eq_hash_order_insensitive_format_order_preserving():
     a = Rule({0: Interval(hi=3.0), 1: LevelSet([0])})
     b = Rule({1: LevelSet([0]), 0: Interval(hi=3.0)})
     assert a == b and hash(a) == hash(b)
-    assert a.format() == "x_0 < 3.00 and x_1 = 0.00"
-    assert b.format() == "x_1 = 0.00 and x_0 < 3.00"
+    # two or more conditions are parenthesized; a single one stays bare
+    assert a.format() == "(x_0 < 3.00) and (x_1 = 0.00)"
+    assert b.format() == "(x_1 = 0.00) and (x_0 < 3.00)"
+    assert Rule({0: Interval(hi=3.0)}).format() == "x_0 < 3.00"
 
 
 def test_rule_round_trip():

@@ -52,8 +52,8 @@ def _two_level_partition():
     m_right = ~m_left
     regions = [
         _root(n),
-        _region(1, Rule({1: Interval(hi=3.0)}), m_left, 0.30, name="x0 | x1 < 3.00"),
-        _region(2, Rule({1: Interval(lo=3.0)}), m_right, 0.20, name="x0 | x1 ≥ 3.00"),
+        _region(1, Rule({1: Interval(hi=3.0)}), m_left, 0.30, name="x0 where x1 < 3.00"),
+        _region(2, Rule({1: Interval(lo=3.0)}), m_right, 0.20, name="x0 where x1 ≥ 3.00"),
     ]
     return Partition(
         regions,
@@ -166,22 +166,22 @@ def test_leaves():
 def test_label_root_and_conditions():
     part = _two_level_partition()
     assert part.label(0) == "x0"
-    assert part.label(1) == "x0 | x1 < 3.00"
-    assert part.label(2) == "x0 | x1 ≥ 3.00"
+    assert part.label(1) == "x0 where x1 < 3.00"
+    assert part.label(2) == "x0 where x1 ≥ 3.00"
 
 
 def test_label_rule_shapes():
     # every rule shape renders through the same format boundary
     n = 4
     cases = [
-        (Rule({1: Interval(lo=2.0)}), "x0 | x1 ≥ 2.00"),
-        (Rule({1: Interval(hi=2.0)}), "x0 | x1 < 2.00"),
-        (Rule({1: Interval(1.0, 2.0)}), "x0 | 1.00 ≤ x1 < 2.00"),
-        (Rule({2: LevelSet([2])}), "x0 | x2 = 2.00"),
-        (Rule({2: LevelSet([0, 1])}), "x0 | x2 ∈ {0.00, 1.00}"),
+        (Rule({1: Interval(lo=2.0)}), "x0 where x1 ≥ 2.00"),
+        (Rule({1: Interval(hi=2.0)}), "x0 where x1 < 2.00"),
+        (Rule({1: Interval(1.0, 2.0)}), "x0 where 1.00 ≤ x1 < 2.00"),
+        (Rule({2: LevelSet([2])}), "x0 where x2 = 2.00"),
+        (Rule({2: LevelSet([0, 1])}), "x0 where x2 ∈ {0.00, 1.00}"),
         (
             Rule({1: Interval(hi=2.0), 2: LevelSet([0])}),
-            "x0 | x1 < 2.00 and x2 = 0.00",
+            "x0 where (x1 < 2.00) and (x2 = 0.00)",
         ),
     ]
     for rule, expected in cases:
@@ -201,7 +201,7 @@ def test_label_scaled():
     part = _two_level_partition()
     # scale feature 1 by mean=10, std=2 -> 3.0 becomes 16.00
     scale = [None, {"mean": 10.0, "std": 2.0}, None]
-    assert part.label(1, scale_x_list=scale) == "x0 | x1 < 16.00"
+    assert part.label(1, scale_x_list=scale) == "x0 where x1 < 16.00"
 
 
 def test_show_tree(capsys):
@@ -389,7 +389,7 @@ def test_from_rules_happy_path_and_validation():
     assert len(part) == 3
     assert part.finder_name == "user"
     assert part[1].nof_instances == 4 and part[1].heterogeneity == 0.25
-    assert part.label(1) == "x0 | x1 < 3.00"
+    assert part.label(1) == "x0 where x1 < 3.00"
     assert part.mask(2).sum() == 4
     # string rules parse with the effect's metadata
     part2 = Partition.from_rules(

@@ -125,7 +125,7 @@ EXPECTED_BEST_FOUR_REGIONS = {
         },
         {
             "idx": 1,
-            "name": "x1 | x2 < 5.00",
+            "name": "x1 where x2 < 5.00",
             "rule": {
                 "conditions": [
                     {
@@ -146,7 +146,7 @@ EXPECTED_BEST_FOUR_REGIONS = {
         },
         {
             "idx": 2,
-            "name": "x1 | x2 < 3.00",
+            "name": "x1 where x2 < 3.00",
             "rule": {
                 "conditions": [
                     {
@@ -167,7 +167,7 @@ EXPECTED_BEST_FOUR_REGIONS = {
         },
         {
             "idx": 3,
-            "name": "x1 | 3.00 ≤ x2 < 5.00",
+            "name": "x1 where 3.00 ≤ x2 < 5.00",
             "rule": {
                 "conditions": [
                     {
@@ -188,7 +188,7 @@ EXPECTED_BEST_FOUR_REGIONS = {
         },
         {
             "idx": 4,
-            "name": "x1 | x2 ≥ 5.00",
+            "name": "x1 where x2 ≥ 5.00",
             "rule": {
                 "conditions": [
                     {
@@ -229,7 +229,7 @@ EXPECTED_BLW_FOUR_REGIONS = {
         },
         {
             "idx": 1,
-            "name": "x1 | x2 < 5.00",
+            "name": "x1 where x2 < 5.00",
             "rule": {
                 "conditions": [
                     {
@@ -250,7 +250,7 @@ EXPECTED_BLW_FOUR_REGIONS = {
         },
         {
             "idx": 2,
-            "name": "x1 | x2 ≥ 5.00",
+            "name": "x1 where x2 ≥ 5.00",
             "rule": {
                 "conditions": [
                     {
@@ -291,7 +291,7 @@ EXPECTED_BEST_CATEGORICAL = {
         },
         {
             "idx": 1,
-            "name": "x1 | x3 = 0.00",
+            "name": "x1 where x3 = 0.00",
             "rule": {"conditions": [{"feature": 2, "kind": "levels", "levels": [0.0]}]},
             "heterogeneity": 0.0,
             "nof_instances": 281,
@@ -301,7 +301,7 @@ EXPECTED_BEST_CATEGORICAL = {
         },
         {
             "idx": 2,
-            "name": "x1 | x3 = 1.00",
+            "name": "x1 where x3 = 1.00",
             "rule": {"conditions": [{"feature": 2, "kind": "levels", "levels": [1.0]}]},
             "heterogeneity": 0.0,
             "nof_instances": 319,
@@ -331,7 +331,7 @@ EXPECTED_GATED_PDP = {
         },
         {
             "idx": 1,
-            "name": "x_0 | x_2 = 0.00",
+            "name": "x_0 where x_2 = 0.00",
             "rule": {"conditions": [{"feature": 2, "kind": "levels", "levels": [0.0]}]},
             "heterogeneity": 1.384029449043207,
             "nof_instances": 244,
@@ -341,7 +341,7 @@ EXPECTED_GATED_PDP = {
         },
         {
             "idx": 2,
-            "name": "x_0 | x_2 = 0.00 and x_1 < -0.00",
+            "name": "x_0 where (x_2 = 0.00) and (x_1 < -0.00)",
             "rule": {
                 "conditions": [
                     {"feature": 2, "kind": "levels", "levels": [0.0]},
@@ -363,7 +363,7 @@ EXPECTED_GATED_PDP = {
         },
         {
             "idx": 3,
-            "name": "x_0 | x_2 = 0.00 and x_1 ≥ -0.00",
+            "name": "x_0 where (x_2 = 0.00) and (x_1 ≥ -0.00)",
             "rule": {
                 "conditions": [
                     {"feature": 2, "kind": "levels", "levels": [0.0]},
@@ -385,7 +385,7 @@ EXPECTED_GATED_PDP = {
         },
         {
             "idx": 4,
-            "name": "x_0 | x_2 = 1.00",
+            "name": "x_0 where x_2 = 1.00",
             "rule": {"conditions": [{"feature": 2, "kind": "levels", "levels": [1.0]}]},
             "heterogeneity": 0.0,
             "nof_instances": 256,
@@ -491,7 +491,7 @@ EXPECTED_TIE_BREAK = {
         },
         {
             "idx": 1,
-            "name": "x1 | x2 < 0.50",
+            "name": "x1 where x2 < 0.50",
             "rule": {
                 "conditions": [
                     {
@@ -512,7 +512,7 @@ EXPECTED_TIE_BREAK = {
         },
         {
             "idx": 2,
-            "name": "x1 | x2 ≥ 0.50",
+            "name": "x1 where x2 ≥ 0.50",
             "rule": {
                 "conditions": [
                     {
