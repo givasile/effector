@@ -250,7 +250,7 @@ class Base:
         name = (
             feature_name
             if rule.is_root
-            else f"{feature_name} | {rule.format(self.feature_names)}"
+            else f"{feature_name} where {rule.format(self.feature_names)}"
         )
         nof_instances = int(np.sum(mask))
         return Region(

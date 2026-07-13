@@ -350,7 +350,9 @@ class Rule:
 
     # -- format boundary ---------------------------------------------------------
     def format(self, feature_names=None, scale_x_list=None, category_names=None) -> str:
-        """Human-readable conjunction, e.g. ``"temp < 3.00 and season = winter"``.
+        """Human-readable conjunction. A single condition stays bare
+        (``"temp < 3.00"``); two or more are parenthesized:
+        ``"(temp < 3.00) and (season = winter)"``.
 
         Args:
             feature_names: display names, position = index; defaults to
@@ -363,10 +365,13 @@ class Rule:
         Returns:
             the formatted string; the root rule formats to ``""``.
         """
-        return " and ".join(
+        parts = [
             Condition(f, s).format(feature_names, scale_x_list, category_names)
             for f, s in self._conditions.items()
-        )
+        ]
+        if len(parts) <= 1:
+            return "".join(parts)
+        return " and ".join(f"({p})" for p in parts)
 
     # -- serialization -----------------------------------------------------------
     def to_dict(self) -> dict:

@@ -268,7 +268,7 @@ class Partition:
             regions.append(
                 Region(
                     idx=i + 1,
-                    name=f"{feature_name} | {rule.format(effect.feature_names)}",
+                    name=f"{feature_name} where {rule.format(effect.feature_names)}",
                     rule=rule,
                     heterogeneity=float(effect.heter_score(feature, mask=mask)),
                     nof_instances=n,
@@ -338,7 +338,7 @@ class Partition:
     def label(self, idx, scale_x_list=None):
         """Human-readable label for region `idx`.
 
-        Root -> the feature name; otherwise ``"<feature> | <formatted rule>"``.
+        Root -> the feature name; otherwise ``"<feature> where <formatted rule>"``.
 
         Args:
             idx: region index.
@@ -353,7 +353,10 @@ class Partition:
         region = self[idx]
         if region.rule.is_root:
             return self.feature_name
-        return f"{self.feature_name} | {self._format_rule(region.rule, scale_x_list)}"
+        return (
+            f"{self.feature_name} where "
+            f"{self._format_rule(region.rule, scale_x_list)}"
+        )
 
     def _own_condition(self, region, scale_x_list=None):
         """The condition(s) that carve this region out of its parent (root ->
