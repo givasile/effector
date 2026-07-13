@@ -18,3 +18,6 @@ Real Examples:
 - [Example 2 - California Housing Dataset](./notebooks/real-examples/02_california_housing.md)
 - [Example 3 - California Housing Dataset with TabPFN](./notebooks/real-examples/03_california_housing_tabpfn.md)
 - [Example 4 - NO2](./notebooks/real-examples/04_no2.md)
+- [Example 5 - Medical Costs](./notebooks/real-examples/05_medical_costs.md): one interaction, two claimants — the decision sequence on the smoker × bmi classic
+- [Example 6 - Airfoil Self-Noise](./notebooks/real-examples/06_airfoil_self_noise.md): when half the model is one interaction — a single split recovers +28 pts of explained variance
+- [Example 7 - Adult Census Income](./notebooks/real-examples/07_adult_income.md): explaining a classifier's probability — a four-split decision sequence

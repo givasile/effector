@@ -23,6 +23,9 @@ page  notebooks/real-examples/01_bike_sharing_dataset.ipynb                     
 page  notebooks/real-examples/02_california_housing.ipynb                        real-examples
 page  notebooks/real-examples/03_california_housing_tabpfn.ipynb                 real-examples
 page  notebooks/real-examples/04_no2.ipynb                                       real-examples
+page  notebooks/real-examples/05_medical_costs.ipynb                             real-examples
+page  notebooks/real-examples/06_airfoil_self_noise.ipynb                        real-examples
+page  notebooks/real-examples/07_adult_income.ipynb                              real-examples
 
 # --- IMAGES (bucket a): notebooks whose figures feed authored pages ---
 image notebooks/quickstart/simple_api.ipynb                                      quickstart
