@@ -130,6 +130,9 @@ class Theme:
     CONNECT: str  # (RH)ALE accumulation line
     CAT: tuple  # per-series cycle for method comparison
     # alpha / width knobs (the taste dials tuned during figure review)
+    ARROW: str = ORANGE  # triage arrows + regional endpoint circles
+    REF: str = BASELINE  # solid reference hairlines (threshold, zero)
+    TAG: str = MUTED  # corner method tags, inline tags, n=…, value labels
     BAND_ALPHA: float = 0.25
     CLOUD_ALPHA: float = 0.12
     CLOUD_LW: float = 0.8
@@ -172,7 +175,9 @@ DARK = dataclasses.replace(
     CLOUD=D_MUTED,
     BAR_EDGE=D_INK,
     AVG=D_INK,
-    # MEAN/BAR_FACE stay palette blue (reads on dark); CAT unchanged
+    REF=D_BASELINE,
+    TAG=D_MUTED,
+    # MEAN/BAR_FACE/ARROW stay palette hues (read on dark); CAT unchanged
 )
 
 PAPER = dataclasses.replace(
