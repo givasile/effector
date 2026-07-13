@@ -116,6 +116,27 @@ def test_to_html_reads_like_the_pipeline():
     assert "http://" not in html and "https://" not in html
 
 
+def test_to_html_survives_a_leaf_with_constant_feature():
+    # regional slicing can pin a feature to a single value inside a leaf
+    # (e.g. capital-loss == 0 wherever capital-gain > 0 in the adult census);
+    # that leaf has no axis to draw a curve over, so its figure gives way to a
+    # note instead of crashing the whole render
+    rng = np.random.default_rng(21)
+    n = 800
+    x0 = rng.integers(0, 2, n).astype(float)
+    x1 = np.where(x0 == 0, rng.uniform(-1, 1, n), 0.0)
+    data = np.column_stack([x0, x1])
+
+    def model(x):
+        return x[:, 1] * (1 - x[:, 0]) + 0.5 * x[:, 0]
+
+    rep = effector.explain(
+        data, model, method="pdp", nof_instances="all", coverage=1.0
+    )
+    html = rep.to_html()
+    assert "no curve to draw" in html
+
+
 def test_to_html_demotes_rejected_splits():
     # a split the decision sequence rejected keeps its section but trades the
     # partition tree + regional plots for a one-line pointer

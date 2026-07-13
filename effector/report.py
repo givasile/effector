@@ -708,7 +708,6 @@ class Report:
             if bound:
                 blk.append("<div class='grid'>")
                 for leaf in part.leaves:
-                    fig = part.plot(leaf.idx, show_plot=False)
                     drop = (
                         f" · −{(1 - leaf.heterogeneity / root_h) * 100:.0f}% "
                         "vs global"
@@ -716,9 +715,19 @@ class Report:
                         else ""
                     )
                     blk.append("<figure>")
-                    blk.append(
-                        _defer(fig, alt=part.label(leaf.idx), section=fr.feature)
-                    )
+                    try:
+                        fig = part.plot(leaf.idx, show_plot=False)
+                    except ValueError:
+                        # the rule pins the feature to (nearly) one value in
+                        # this region — there is no axis to draw a curve over
+                        blk.append(
+                            "<p class='note'>the feature is constant inside "
+                            "this region — no curve to draw</p>"
+                        )
+                    else:
+                        blk.append(
+                            _defer(fig, alt=part.label(leaf.idx), section=fr.feature)
+                        )
                     blk.append(
                         f"<figcaption>{esc(part.label(leaf.idx))} · "
                         f"heterogeneity {leaf.heterogeneity:.4f}{drop} · "
