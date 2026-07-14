@@ -35,6 +35,11 @@ report2 = effector.Report.from_dict(d)
          show_root_heading: True
          show_symbol_type_toc: True
 
+### ::: effector.global_effect.GlobalEffectBase.explain
+       options:
+         show_root_heading: True
+         show_symbol_type_toc: True
+
 ### ::: effector.report.Report
        options:
          show_root_heading: True

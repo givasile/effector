@@ -24,6 +24,12 @@ API DOCS:
     - [`effector.Partition`](./api_docs/api_partition.md/#effector.partition.Partition)
     - [`effector.Region`](./api_docs/api_partition.md/#effector.partition.Region)
 
+- [Explained variance — select_regions & the CALM chain](./api_docs/api_calm.md)
+    - [`effector.GlobalEffectBase.select_regions`](./api_docs/api_calm.md/#effector.global_effect.GlobalEffectBase.select_regions)
+      — which found splits earn their keep, as a `CalmSequence`
+    - [`effector.CalmSequence`](./api_docs/api_calm.md/#effector.calm.CalmSequence)
+    - [`effector.CALM`](./api_docs/api_calm.md/#effector.calm.CALM)
+
 - [Triage, comparison & theme](./api_docs/api_visualization.md)
     - [`effector.plot_triage`](./api_docs/api_visualization.md/#effector.visualization.plot_triage)
       — importance × heterogeneity plane, before/after arrows with `partitions=`
@@ -35,6 +41,8 @@ API DOCS:
 
 - [One-click report — explain & Report](./api_docs/api_report.md)
     - [`effector.explain`](./api_docs/api_report.md/#effector.report.explain)
+    - [`effector.GlobalEffectBase.explain`](./api_docs/api_report.md/#effector.global_effect.GlobalEffectBase.explain)
+      — the one-liner on an already-constructed engine
     - [`effector.Report`](./api_docs/api_report.md/#effector.report.Report)
 
 
