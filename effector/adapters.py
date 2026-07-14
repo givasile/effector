@@ -89,9 +89,7 @@ def from_sklearn(estimator) -> typing.Callable:
         )
 
     def model(X: np.ndarray) -> np.ndarray:
-        return _validate_output(
-            estimator.predict(X), len(X), "adapters.from_sklearn"
-        )
+        return _validate_output(estimator.predict(X), len(X), "adapters.from_sklearn")
 
     return model
 
@@ -135,8 +133,7 @@ def classifier_proba(estimator, class_=1) -> typing.Callable:
     classes = np.asarray(getattr(estimator, "classes_", []))
     if classes.size == 0:
         raise TypeError(
-            "adapters.classifier_proba: estimator has no .classes_; "
-            "is it fitted?"
+            "adapters.classifier_proba: estimator has no .classes_; is it fitted?"
         )
     matches = np.flatnonzero(classes == class_)
     if matches.size == 1:
@@ -156,9 +153,7 @@ def classifier_proba(estimator, class_=1) -> typing.Callable:
                 f"adapters.classifier_proba: predict_proba returned shape "
                 f"{proba.shape}, expected ({len(X)}, n_classes)."
             )
-        return _validate_output(
-            proba[:, col], len(X), "adapters.classifier_proba"
-        )
+        return _validate_output(proba[:, col], len(X), "adapters.classifier_proba")
 
     return model
 

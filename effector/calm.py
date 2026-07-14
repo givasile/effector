@@ -33,8 +33,6 @@ leaf). It must NOT import `global_effect` — the dependency flows one way.
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 
 from effector.partition import Partition
@@ -107,9 +105,7 @@ class CALM:
                 continue
             if f in partitions:
                 part = partitions[f]
-                w = np.array(
-                    [leaf.nof_instances for leaf in part.leaves], dtype=float
-                )
+                w = np.array([leaf.nof_instances for leaf in part.leaves], dtype=float)
                 imps[f] = float(
                     np.average(
                         [
@@ -174,8 +170,7 @@ class CALM:
                 return self.feature_names.index(feature)
             except ValueError:
                 raise ValueError(
-                    f"Unknown feature {feature!r}; known names: "
-                    f"{self.feature_names}"
+                    f"Unknown feature {feature!r}; known names: {self.feature_names}"
                 ) from None
         return int(feature)
 
@@ -230,15 +225,11 @@ class CALM:
 
     def importances(self):
         """`(D,)` vector of this snapshot's importances; NaN = unsupported type."""
-        return np.array(
-            [self._importances[f] for f in range(len(self.feature_names))]
-        )
+        return np.array([self._importances[f] for f in range(len(self.feature_names))])
 
     def heter_scores(self):
         """`(D,)` vector of this snapshot's heterogeneities; NaN = unsupported type."""
-        return np.array(
-            [self._heter_scores[f] for f in range(len(self.feature_names))]
-        )
+        return np.array([self._heter_scores[f] for f in range(len(self.feature_names))])
 
     # -- views -----------------------------------------------------------------
     def plot_triage(self, threshold=False, title=None, show_plot=True):
@@ -269,7 +260,9 @@ class CALM:
             for f in self.features
             if f in self._baseline
         }
-        default = "Feature triage" if self.is_gam else f"Feature triage — CALM {self.index}"
+        default = (
+            "Feature triage" if self.is_gam else f"Feature triage — CALM {self.index}"
+        )
         return triage_scatter(
             pts,
             arrows=arrows,

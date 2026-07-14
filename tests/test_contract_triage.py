@@ -39,9 +39,7 @@ def _arrow_count(ax):
 def test_offsets_equal_verbs(pdp):
     fig, ax = effector.plot_triage(pdp, show_plot=False)
     offsets = ax.collections[0].get_offsets()
-    expected = np.array(
-        [[pdp.importance(f), pdp.heter_score(f)] for f in range(3)]
-    )
+    expected = np.array([[pdp.importance(f), pdp.heter_score(f)] for f in range(3)])
     np.testing.assert_allclose(np.asarray(offsets), expected, atol=1e-12)
     plt.close(fig)
 
@@ -49,9 +47,7 @@ def test_offsets_equal_verbs(pdp):
 def test_threshold_line_is_median(pdp):
     fig, ax = effector.plot_triage(pdp, show_plot=False)
     hs = [pdp.heter_score(f) for f in range(3)]
-    thr_lines = [
-        ln for ln in ax.get_lines() if "threshold" in str(ln.get_label())
-    ]
+    thr_lines = [ln for ln in ax.get_lines() if "threshold" in str(ln.get_label())]
     assert len(thr_lines) == 1
     assert thr_lines[0].get_ydata()[0] == pytest.approx(float(np.median(hs)))
     plt.close(fig)
@@ -116,7 +112,11 @@ def test_unsupported_features_skipped_with_warning(monkeypatch):
         data,
         gated_model,
         model_jac=lambda x: np.stack(
-            [np.where((x[:, 1] > 0) & (x[:, 2] == 0), 5.0, 0.0), np.zeros(len(x)), np.zeros(len(x))],
+            [
+                np.where((x[:, 1] > 0) & (x[:, 2] == 0), 5.0, 0.0),
+                np.zeros(len(x)),
+                np.zeros(len(x)),
+            ],
             axis=1,
         ),
         nof_instances="all",

@@ -446,9 +446,7 @@ class ShapDP(GlobalEffectBase):
         mask = self._resolve_mask(mask, rule)
         feature_names = self.feature_names
         # C2: title = feature (or leaf label); method · scope = corner tag
-        title = (
-            feature_label if feature_label is not None else feature_names[feature]
-        )
+        title = feature_label if feature_label is not None else feature_names[feature]
         tag = f"SHAP-DP · {'regional' if mask is not None else 'global'}"
 
         if mask is not None and not self._is_cat(feature):

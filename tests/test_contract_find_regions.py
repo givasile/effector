@@ -314,7 +314,12 @@ def test_rc10_high_cardinality_categorical_conditioning_feature():
     assert isinstance(part, Partition)
     # end-to-end explain path (candidate_conditioning_features="all") must also survive
     rep = effector.explain(
-        X, model, method="pdp", schema=schema, nof_instances="all", top_k=2,
+        X,
+        model,
+        method="pdp",
+        schema=schema,
+        nof_instances="all",
+        top_k=2,
         coverage=1.0,
     )
     assert len(rep.features) == 2
@@ -431,7 +436,9 @@ def test_rc13_all_covers_supported_and_warns_on_skipped(monkeypatch):
         effector.DerPDP, "SUPPORTED_FEATURE_TYPES", frozenset({ingestion.CONTINUOUS})
     )
     data = make_regional_data(n=300)
-    fx = effector.DerPDP(data, gated_model, model_jac=gated_model_jac, nof_instances="all")
+    fx = effector.DerPDP(
+        data, gated_model, model_jac=gated_model_jac, nof_instances="all"
+    )
     with pytest.warns(UserWarning, match="x_2"):
         parts = fx.find_regions(features="all")
     assert set(parts) == {"x_0", "x_1"}
@@ -444,7 +451,9 @@ def test_rc13_explicit_unsupported_feature_raises(monkeypatch):
         effector.DerPDP, "SUPPORTED_FEATURE_TYPES", frozenset({ingestion.CONTINUOUS})
     )
     data = make_regional_data(n=300)
-    fx = effector.DerPDP(data, gated_model, model_jac=gated_model_jac, nof_instances="all")
+    fx = effector.DerPDP(
+        data, gated_model, model_jac=gated_model_jac, nof_instances="all"
+    )
     with pytest.raises(ValueError):
         fx.find_regions(features=[2])
 

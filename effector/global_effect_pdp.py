@@ -295,9 +295,7 @@ class PDPBase(GlobalEffectBase):
         feature_names = self.feature_names
         # C2: the title carries the identity (feature, or the leaf label with
         # its rule); the constant method · scope context is the corner tag
-        title = (
-            feature_label if feature_label is not None else feature_names[feature]
-        )
+        title = feature_label if feature_label is not None else feature_names[feature]
         tag = (
             f"{'d-PDP' if self.IS_DERIVATIVE else 'PDP'}"
             f" · {'regional' if mask is not None else 'global'}"
@@ -638,9 +636,7 @@ class DerPDP(PDPBase):
         of predictions, so the jacobian (the continuous kernel's tool) is
         deliberately not used."""
         grid = self._canonical_grid(feature)
-        method = (
-            ice_vectorized if self._use_vectorized(feature) else ice_non_vectorized
-        )
+        method = ice_vectorized if self._use_vectorized(feature) else ice_non_vectorized
         ice = method(self.model, None, self.data, grid, feature, False)
         return {"frame": frame, "pos": grid, "ice": ice}
 
@@ -744,7 +740,8 @@ class DerPDP(PDPBase):
             levels, weights = self._level_weights(feature, mask)
             mu = self._eval_payload(feature, params, levels)
             return float(
-                np.average(np.abs(mu), weights=weights) * self._ordinal_code_std(feature)
+                np.average(np.abs(mu), weights=weights)
+                * self._ordinal_code_std(feature)
             )
         xs = self.data[mask, feature]
         mu = self._eval_payload(feature, params, xs)

@@ -57,9 +57,10 @@ def test_nominal_levels_sort_by_effect_value(cat_effect):
 
 
 def test_avg_output_line_present_but_not_in_legend(cat_effect):
-    fig, ax = cat_effect.plot(0, heterogeneity="ice", show_avg_output=True,
-                              show_plot=False)
-    assert [l for l in ax.get_lines() if l.get_label() == "avg output"]
+    fig, ax = cat_effect.plot(
+        0, heterogeneity="ice", show_avg_output=True, show_plot=False
+    )
+    assert [ln for ln in ax.get_lines() if ln.get_label() == "avg output"]
     legend_texts = {t.get_text() for t in ax.get_legend().get_texts()}
     assert "avg output" not in legend_texts
     assert {"PDP", "ICE"} <= legend_texts
@@ -90,17 +91,13 @@ def test_ale_connect_line_only_for_ordinal():
         ]
     )
     model = lambda x: (x[:, 0] == 1) * 1.0 + 0.3 * x[:, 1]
-    schema = effector.Schema(
-        feature_types=["nominal", "ordinal"], target_name="y"
-    )
+    schema = effector.Schema(feature_types=["nominal", "ordinal"], target_name="y")
     ale = effector.ALE(X, model, schema=schema)
     fig, ax = ale.plot(1, show_plot=False)  # ordinal: accumulation path shown
-    assert [l for l in ax.get_lines() if l.get_label() == "accumulated (steps)"]
+    assert [ln for ln in ax.get_lines() if ln.get_label() == "accumulated (steps)"]
     plt.close(fig)
     fig, ax = ale.plot(0, show_plot=False)  # nominal: no line between ranks
-    assert not [
-        l for l in ax.get_lines() if l.get_label() == "accumulated (steps)"
-    ]
+    assert not [ln for ln in ax.get_lines() if ln.get_label() == "accumulated (steps)"]
     plt.close(fig)
 
 
@@ -114,7 +111,7 @@ def test_ale_dy_panel_labels():
     texts = {t.get_text() for t in ax2.get_legend().get_texts()}
     assert "bin slope ± heterogeneity" in texts and "dy_dx" not in texts
     # the mean line is solid now
-    mean = [l for l in ax1.get_lines() if l.get_label() == "average effect"][0]
+    mean = [ln for ln in ax1.get_lines() if ln.get_label() == "average effect"][0]
     assert mean.get_linestyle() == "-"
     plt.close(fig)
 

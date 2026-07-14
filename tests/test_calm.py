@@ -147,8 +147,9 @@ def test_select_regions_raises_for_derivative_scale_methods():
     from tests.conftest import gated_model_jac
 
     data = make_regional_data(n=500)
-    m = effector.DerPDP(data, gated_model, model_jac=gated_model_jac,
-                        nof_instances="all")
+    m = effector.DerPDP(
+        data, gated_model, model_jac=gated_model_jac, nof_instances="all"
+    )
     m.fit(features="all")
     with pytest.raises(ValueError, match="derivative-scale"):
         m.select_regions()

@@ -93,9 +93,7 @@ def test_regional_rhale_on_ordinal_foi(data):
 def test_regional_derpdp_on_categorical_foi(data):
     # d-PDP supports an ordinal FOI via ICE level differences (the jacobian is
     # never touched): fit AND find_regions run, and the gate is isolated
-    fx = effector.DerPDP(
-        data, gated_cat_model, model_jac=gated_cat_jac, schema=SCHEMA
-    )
+    fx = effector.DerPDP(data, gated_cat_model, model_jac=gated_cat_jac, schema=SCHEMA)
     fx.fit(0)
     _assert_gate_found(_find(fx))
 

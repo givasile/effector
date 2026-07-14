@@ -215,7 +215,9 @@ def select(effect, partitions: dict, features: list, min_gain: float = 0.01):
     parts = {j: p for j, p in partitions.items() if len(p.leaves) > 1}
     gam_r2 = surrogate_r2(effect, fx, {}, features)
 
-    single_r2 = {j: surrogate_r2(effect, fx, {j: p}, features) for j, p in parts.items()}
+    single_r2 = {
+        j: surrogate_r2(effect, fx, {j: p}, features) for j, p in parts.items()
+    }
 
     def _info(j, part):
         conditioning = sorted(
@@ -299,6 +301,4 @@ def summarize(
         return None
     chain = select(effect, partitions, features, min_gain)
     d = chain.to_dict()
-    return {
-        k: d[k] for k in ("gam_r2", "regional_r2", "min_gain", "stages", "skipped")
-    }
+    return {k: d[k] for k in ("gam_r2", "regional_r2", "min_gain", "stages", "skipped")}

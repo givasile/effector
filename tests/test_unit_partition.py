@@ -52,8 +52,12 @@ def _two_level_partition():
     m_right = ~m_left
     regions = [
         _root(n),
-        _region(1, Rule({1: Interval(hi=3.0)}), m_left, 0.30, name="x0 where x1 < 3.00"),
-        _region(2, Rule({1: Interval(lo=3.0)}), m_right, 0.20, name="x0 where x1 ≥ 3.00"),
+        _region(
+            1, Rule({1: Interval(hi=3.0)}), m_left, 0.30, name="x0 where x1 < 3.00"
+        ),
+        _region(
+            2, Rule({1: Interval(lo=3.0)}), m_right, 0.20, name="x0 where x1 ≥ 3.00"
+        ),
     ]
     return Partition(
         regions,
@@ -186,7 +190,9 @@ def test_label_rule_shapes():
     ]
     for rule, expected in cases:
         child = _region(1, rule, np.array([1, 1, 0, 0], dtype=bool), 0.1)
-        sibling = _region(2, Rule({1: Interval(lo=99.0)}), np.array([0, 0, 1, 1], dtype=bool), 0.1)
+        sibling = _region(
+            2, Rule({1: Interval(lo=99.0)}), np.array([0, 0, 1, 1], dtype=bool), 0.1
+        )
         part = Partition(
             [_root(n), child, sibling],
             feature=0,
@@ -303,7 +309,12 @@ def test_show_axes_falls_back_to_tree(capsys):
     m1 = np.array([1, 1, 1, 1, 0, 0, 0, 0], dtype=bool)
     regions = [
         _root(n),
-        _region(1, Rule({0: Interval(hi=1.0), 1: Interval(hi=2.0), 2: LevelSet([0])}), m1, 0.1),
+        _region(
+            1,
+            Rule({0: Interval(hi=1.0), 1: Interval(hi=2.0), 2: LevelSet([0])}),
+            m1,
+            0.1,
+        ),
         _region(2, Rule({1: Interval(lo=99.0)}), ~m1, 0.1),
     ]
     part = Partition(
@@ -392,9 +403,7 @@ def test_from_rules_happy_path_and_validation():
     assert part.label(1) == "x0 where x1 < 3.00"
     assert part.mask(2).sum() == 4
     # string rules parse with the effect's metadata
-    part2 = Partition.from_rules(
-        ["x1 < 3", "x1 >= 3"], effect=effect, feature=0
-    )
+    part2 = Partition.from_rules(["x1 < 3", "x1 >= 3"], effect=effect, feature=0)
     assert part2[1].rule == part[1].rule
     # non-covering rules violate the partition invariant
     with pytest.raises(ValueError, match="partition the root"):

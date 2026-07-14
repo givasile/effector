@@ -178,9 +178,7 @@ def test_derpdp_categorical_never_touches_the_jacobian(data, model):
     from tests.conftest import CountingModel
 
     jac = CountingModel(model.jacobian)
-    der = effector.DerPDP(
-        data, model.predict, jac, nof_instances="all", schema=SCHEMA
-    )
+    der = effector.DerPDP(data, model.predict, jac, nof_instances="all", schema=SCHEMA)
     der.fit(0)
     der.eval(0, LEVELS)
     der.heter_score(0)
@@ -311,9 +309,7 @@ def test_ale_nominal_all_pairs_closed_form(data, model):
 
 
 def test_ale_nominal_scalars_order_invariant(data, model):
-    base = effector.ALE(
-        data, model.predict, nof_instances="all", schema=NOMINAL_SCHEMA
-    )
+    base = effector.ALE(data, model.predict, nof_instances="all", schema=NOMINAL_SCHEMA)
     h0, i0 = base.heter_score(0), base.importance(0)
     for order in ("similarity", [2.0, 0.0, 1.0]):
         ale = effector.ALE(

@@ -153,9 +153,9 @@ def _decorate_ax(ax, xlabel=None, ylabel=None, y_limits=None):
     # entries, and a single-series axis needs no legend box at all
     ref = getattr(ax, "_effector_ref_labels", ())
     handles, labels = ax.get_legend_handles_labels()
-    kept = [(h, l) for h, l in zip(handles, labels) if l not in ref]
+    kept = [(h, lab) for h, lab in zip(handles, labels) if lab not in ref]
     if len(kept) >= 2:
-        ax.legend([h for h, _ in kept], [l for _, l in kept])
+        ax.legend([h for h, _ in kept], [lab for _, lab in kept])
     if y_limits is not None:
         ax.set_ylim(y_limits[0], y_limits[1])
 
@@ -170,16 +170,22 @@ def _repel_labels(ax, fig, pts, *, avoid=None, max_labels=20, fontsize=8):
     fig.canvas.draw()
     placed = list(avoid or [])
     placed += [
-        lbl.get_window_extent()
-        for lbl in ax.get_xticklabels() + ax.get_yticklabels()
+        lbl.get_window_extent() for lbl in ax.get_xticklabels() + ax.get_yticklabels()
     ]
     ranked = sorted(pts, key=lambda p: -(p[1] + p[2]))[:max_labels]
     ink = plt.rcParams.get("text.color", "black")
     fig_bb = fig.get_window_extent()
     for name, x, y in sorted(ranked, key=lambda p: -p[2]):
         for dx, dy in [
-            (7, 5), (7, -11), (-7, 5), (-7, -11), (7, 16), (-7, 16),
-            (7, -22), (0, 24), (0, -30),
+            (7, 5),
+            (7, -11),
+            (-7, 5),
+            (-7, -11),
+            (7, 16),
+            (-7, 16),
+            (7, -22),
+            (0, 24),
+            (0, -30),
         ]:
             ha = "left" if dx > 0 else ("center" if dx == 0 else "right")
             txt = ax.annotate(
@@ -203,9 +209,7 @@ def _repel_labels(ax, fig, pts, *, avoid=None, max_labels=20, fontsize=8):
                 end = ax.transData.inverted().transform(
                     (bb.x0 - 2 if dx > 0 else bb.x1 + 2, (bb.y0 + bb.y1) / 2)
                 )
-                ax.plot(
-                    [x, end[0]], [y, end[1]], lw=0.6, color=t.REF, zorder=2
-                )
+                ax.plot([x, end[0]], [y, end[1]], lw=0.6, color=t.REF, zorder=2)
             break
 
 
@@ -277,8 +281,7 @@ def ale_plot(
     t = theme.active()
     x_name = _feature_label(feature, feature_names)
     _set_title(ax1, x_name if title is None else title, tag)
-    ax1.plot(x, y, color=t.MEAN, linestyle="-", linewidth=2.0,
-             label="average effect")
+    ax1.plot(x, y, color=t.MEAN, linestyle="-", linewidth=2.0, label="average effect")
     _add_avg_output(ax1, avg_output)
 
     y_name = "y" if target_name is None else target_name
@@ -312,8 +315,8 @@ def ale_plot(
         # the sanctioned single-entry legend: the panel's series needs naming
         handles, labels = ax2.get_legend_handles_labels()
         ref = getattr(ax2, "_effector_ref_labels", ())
-        kept = [(h, l) for h, l in zip(handles, labels) if l not in ref]
-        ax2.legend([h for h, _ in kept], [l for _, l in kept], fontsize=8)
+        kept = [(h, lab) for h, lab in zip(handles, labels) if lab not in ref]
+        ax2.legend([h for h, _ in kept], [lab for _, lab in kept], fontsize=8)
         if dy_limits is not None:
             ax2.set_ylim(dy_limits[0], dy_limits[1])
 
@@ -544,11 +547,7 @@ def _level_layout(heights, positions, level_kind="nominal", sort=None):
     k = len(positions)
     if sort is None:
         sort = level_kind == "nominal"
-    order = (
-        np.argsort(np.asarray(heights, dtype=float))
-        if sort
-        else np.arange(k)
-    )
+    order = np.argsort(np.asarray(heights, dtype=float)) if sort else np.arange(k)
     if level_kind == "nominal":
         return order, np.arange(k, dtype=float), False
     return order, positions[order], True
@@ -566,13 +565,11 @@ def _categorical_axis(ax, positions, level_labels, level_kind="nominal"):
     generated = level_labels is None
     if generated:
         near_int = np.allclose(positions, np.round(positions), atol=1e-6)
-        level_labels = [
-            f"{v:.0f}" if near_int else f"{v:g}" for v in positions
-        ]
+        level_labels = [f"{v:.0f}" if near_int else f"{v:g}" for v in positions]
         rot = 0
     else:
-        level_labels = [str(l) for l in level_labels]
-        longest = max(len(l) for l in level_labels)
+        level_labels = [str(lab) for lab in level_labels]
+        longest = max(len(lab) for lab in level_labels)
         if longest <= 6 and k <= 6:
             rot = 0
         elif k <= 8 and longest <= 16:
@@ -581,7 +578,7 @@ def _categorical_axis(ax, positions, level_labels, level_kind="nominal"):
             rot = 45
         else:
             rot = 60
-        level_labels = [_wrap_text(l, width=12, max_lines=2) for l in level_labels]
+        level_labels = [_wrap_text(lab, width=12, max_lines=2) for lab in level_labels]
     # thinning drops labels, so it is reserved for levels whose identity
     # survives it: numbers, or named-but-ordered levels
     step = int(np.ceil(k / 8)) if (generated or level_kind == "ordinal") else 1
@@ -664,9 +661,7 @@ def plot_categorical_effect(
     order, draw_pos, use_scale = _level_layout(heights, positions, level_kind, sort)
     x = _scale_x(draw_pos, scale_x) if use_scale else draw_pos
     y = _scale_y(heights, scale_y)[order]
-    labels = (
-        [level_labels[i] for i in order] if level_labels is not None else None
-    )
+    labels = [level_labels[i] for i in order] if level_labels is not None else None
     width = _bar_width(x)
 
     yerr = None
@@ -714,7 +709,7 @@ def plot_categorical_effect(
         # sanctioned single-entry legend (like the ALE dy/dx panel)
         handles, lbls = ax.get_legend_handles_labels()
         ref = getattr(ax, "_effector_ref_labels", ())
-        kept = [(h, l) for h, l in zip(handles, lbls) if l not in ref]
+        kept = [(h, lab) for h, lab in zip(handles, lbls) if lab not in ref]
         if kept:
             ax.legend([kept[0][0]], [kept[0][1]], fontsize=8)
     return _finalize(fig, ax, show_plot)
@@ -758,9 +753,7 @@ def plot_pdp_ice_categorical(
     order, draw_pos, use_scale = _level_layout(means, positions, level_kind, sort)
     yy = yy[order]
     x = _scale_x(draw_pos, scale_x) if use_scale else draw_pos
-    labels = (
-        [level_labels[i] for i in order] if level_labels is not None else None
-    )
+    labels = [level_labels[i] for i in order] if level_labels is not None else None
     y_mean = _scale_y(yy.mean(axis=1), scale_y)
     width = _bar_width(x)
 
@@ -844,9 +837,7 @@ def plot_shap_categorical(
     levels = np.asarray(positions, dtype=float)
     order, draw_pos, use_scale = _level_layout(heights, positions, level_kind, sort)
     x = _scale_x(draw_pos, scale_x) if use_scale else draw_pos
-    labels = (
-        [level_labels[i] for i in order] if level_labels is not None else None
-    )
+    labels = [level_labels[i] for i in order] if level_labels is not None else None
     y_mean = _scale_y(heights, scale_y)[order]
     width = _bar_width(x)
 
@@ -1042,13 +1033,10 @@ def compare(
     if labels is None:
         labels = _method_labels(effects)
     elif len(labels) != len(effects):
-        raise ValueError(
-            f"got {len(labels)} labels for {len(effects)} effects"
-        )
+        raise ValueError(f"got {len(labels)} labels for {len(effects)} effects")
 
     curves = {
-        label: e.eval(f, xs, centering=centering)
-        for label, e in zip(labels, effects)
+        label: e.eval(f, xs, centering=centering) for label, e in zip(labels, effects)
     }
 
     scale_x = helpers.resolve_scale(

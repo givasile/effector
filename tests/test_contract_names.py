@@ -24,9 +24,7 @@ def _make(name, data):
 def test_eval_by_name_equals_by_index(name, global_data):
     m = _make(name, global_data)
     xs = np.linspace(-0.8, 0.8, 7)
-    np.testing.assert_array_equal(
-        eval_mean(m, "beta", xs), eval_mean(m, 1, xs)
-    )
+    np.testing.assert_array_equal(eval_mean(m, "beta", xs), eval_mean(m, 1, xs))
 
 
 @pytest.mark.parametrize("name", GLOBAL_NAMES)
@@ -63,9 +61,10 @@ def test_find_regions_by_name(global_data):
 def test_find_regions_conditioning_by_name(global_data):
     m = _make("pdp", global_data)
     part = m.find_regions("beta", candidate_conditioning_features=["alpha"])
-    assert part.to_dict() == m.find_regions(
-        1, candidate_conditioning_features=[0]
-    ).to_dict()
+    assert (
+        part.to_dict()
+        == m.find_regions(1, candidate_conditioning_features=[0]).to_dict()
+    )
 
 
 def test_synthesized_names_resolve(global_data):

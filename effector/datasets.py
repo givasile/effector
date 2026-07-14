@@ -273,14 +273,19 @@ class MedicalCosts(RealDatasetBase):
         self.target_name = "charges"
         self.feature_types = [
             "continuous",  # age
-            "nominal",     # sex
+            "nominal",  # sex
             "continuous",  # bmi
-            "ordinal",     # children
-            "nominal",     # smoker
-            "nominal",     # region
+            "ordinal",  # children
+            "nominal",  # smoker
+            "nominal",  # region
         ]
         self.category_names = [
-            None, levels["sex"], None, None, levels["smoker"], levels["region"]
+            None,
+            levels["sex"],
+            None,
+            None,
+            levels["smoker"],
+            levels["region"],
         ]
 
         X = raw[self.feature_names].to_numpy(dtype=float)

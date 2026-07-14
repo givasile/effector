@@ -89,10 +89,12 @@ def test_compare_categorical_feature():
     data = np.stack(
         [rng.uniform(-1, 1, 300), rng.integers(0, 3, 300).astype(float)], axis=1
     )
-    model = (lambda x: x[:, 0] + np.where(x[:, 1] == 2.0, 1.0, 0.0))
+    model = lambda x: x[:, 0] + np.where(x[:, 1] == 2.0, 1.0, 0.0)
     schema = {"feature_names": ["num", "cat"], "feature_types": ["cont", "nominal"]}
     pdp = effector.PDP(data, model, schema=schema)
-    ale = effector.ALE(data, model, schema={**schema, "feature_types": ["cont", "ordinal"]})
+    ale = effector.ALE(
+        data, model, schema={**schema, "feature_types": ["cont", "ordinal"]}
+    )
     fig, ax = effector.compare(pdp, ale, feature="cat", show_plot=False)
     # per-level marker series: 3 levels on the x axis
     assert all(len(ln.get_xdata()) == 3 for ln in ax.get_lines())

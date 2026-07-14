@@ -665,9 +665,7 @@ def compute_jacobian_numerically(
     return jacobian
 
 
-def interp_linear_extrap(
-    x: np.ndarray, xp: np.ndarray, fp: np.ndarray
-) -> np.ndarray:
+def interp_linear_extrap(x: np.ndarray, xp: np.ndarray, fp: np.ndarray) -> np.ndarray:
     """Piecewise-linear interpolation with linear extrapolation.
 
     Inside `[xp[0], xp[-1]]` this is `np.interp`; outside, the first/last

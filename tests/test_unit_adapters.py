@@ -208,4 +208,6 @@ def test_real_torch_forward_and_jacobian():
     model, model_jac = from_torch(lin, jacobian=True)
     check(model, X, model_jac=model_jac)
     np.testing.assert_allclose(model(X), X @ [2.0, -1.0], atol=1e-6)
-    np.testing.assert_allclose(model_jac(X), np.tile([2.0, -1.0], (len(X), 1)), atol=1e-6)
+    np.testing.assert_allclose(
+        model_jac(X), np.tile([2.0, -1.0], (len(X), 1)), atol=1e-6
+    )

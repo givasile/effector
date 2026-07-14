@@ -131,7 +131,6 @@ def test_greedy_combined_drops_a_redundant_partition():
     # selection must keep one and drop the other
     data = make_regional_data(n=800)
     m = fitted_pdp(data, gated_model)
-    fx = gated_model(data)
     p0 = m.find_regions(0)
     p2 = m.find_regions(2)
     s = ev.summarize(m, {0: p0, 2: p2}, [0, 1, 2])
@@ -275,7 +274,10 @@ def test_derpdp_report_skips_the_section(capsys):
 
     data = make_global_data(n=400)
     rep = effector.explain(
-        data, linear_model, model_jac=linear_model_jac, method="derpdp",
+        data,
+        linear_model,
+        model_jac=linear_model_jac,
+        method="derpdp",
         nof_instances="all",
     )
     assert rep.explained_variance is None
@@ -292,9 +294,7 @@ def test_column_vector_model_output_does_not_corrupt_r2():
     m = fitted_pdp(data, gated_model)
     fx = gated_model(data)
     expected = ev.surrogate_r2(m, fx, {}, [0, 1, 2])
-    np.testing.assert_allclose(
-        ev.surrogate_r2(m, fx[:, None], {}, [0, 1, 2]), expected
-    )
+    np.testing.assert_allclose(ev.surrogate_r2(m, fx[:, None], {}, [0, 1, 2]), expected)
     m._y_pred = fx[:, None]  # e.g. stamped by a plot's _avg_output
     s = ev.summarize(m, {}, [0, 1, 2])
     np.testing.assert_allclose(s["gam_r2"], expected)
@@ -305,7 +305,9 @@ def test_shapdp_importance_is_the_inherited_base_flavor():
     assert "_importance" not in effector.ShapDP.__dict__
     data = make_global_data(n=2000)
     m = effector.ShapDP(
-        data, linear_model, shap_values=analytic_shap_values(data),
+        data,
+        linear_model,
+        shap_values=analytic_shap_values(data),
         nof_instances="all",
     )
     m.fit(features="all")

@@ -130,9 +130,7 @@ def test_to_html_survives_a_leaf_with_constant_feature():
     def model(x):
         return x[:, 1] * (1 - x[:, 0]) + 0.5 * x[:, 0]
 
-    rep = effector.explain(
-        data, model, method="pdp", nof_instances="all", coverage=1.0
-    )
+    rep = effector.explain(data, model, method="pdp", nof_instances="all", coverage=1.0)
     html = rep.to_html()
     assert "no curve to draw" in html
 

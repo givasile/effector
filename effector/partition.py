@@ -354,8 +354,7 @@ class Partition:
         if region.rule.is_root:
             return self.feature_name
         return (
-            f"{self.feature_name} where "
-            f"{self._format_rule(region.rule, scale_x_list)}"
+            f"{self.feature_name} where {self._format_rule(region.rule, scale_x_list)}"
         )
 
     def _own_condition(self, region, scale_x_list=None):

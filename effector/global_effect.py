@@ -43,7 +43,6 @@ import effector.axis_partitioning as ap
 from effector import helpers, ingestion, utils
 from effector.rules import Rule
 
-
 # the shared mask-key sentinel: `mask=None` and an all-ones mask are the same
 # summary (rule M1) — that equivalence lives in `_mask_key` and nowhere else
 _ALL = b"ALL"
