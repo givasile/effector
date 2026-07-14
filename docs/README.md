@@ -39,7 +39,7 @@ cp CONTRIBUTING.md docs/docs/contributing.md
 
 ## Connection between files
 
-- `docs/docs/index.md` → images from `docs/docs/static/quickstart/readme_example_files/` (source: `notebooks/quickstart/readme_example.ipynb`)
-- `docs/docs/quickstart/simple_api.md` / `flexible_api.md` → images from `docs/docs/static/quickstart/{simple_api,flexible_api}_files/`
+- `docs/docs/index.md` → images from `docs/docs/static/quickstart/interactive_guide/`
+- `docs/docs/quickstart/simple_api.md` / `interactive/customize_fit.md` → images from `docs/docs/static/quickstart/{simple_api,flexible_api}_files/`
 - `docs/docs/quickstart/global_and_regional_effects.md` → images from `docs/docs/static/real-examples/01_bike_sharing_dataset_files/`
 - `docs/docs/api_docs/api_global.md` → images from `docs/docs/static/quickstart/simple_api_files/`

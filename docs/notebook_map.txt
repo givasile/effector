@@ -33,7 +33,6 @@ page  notebooks/real-examples/07_adult_income.ipynb                             
 # --- IMAGES (bucket a): notebooks whose figures feed authored pages ---
 image notebooks/quickstart/simple_api.ipynb                                      quickstart
 image notebooks/quickstart/flexible_api.ipynb                                    quickstart
-image notebooks/quickstart/readme_example.ipynb                                  quickstart
 image notebooks/real-examples/01_bike_sharing_dataset.ipynb                      real-examples
 
 # --- REPORTS (bucket d): to_html pages embedded in authored pages ---
