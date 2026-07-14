@@ -129,6 +129,8 @@ report = effector.explain(X_test, predict, jacobian)
 The result is a `Report`, a **value** (not a live handle on the engine), 
 that you can either export to HTML (preferred) or print in the terminal.
 
+📄 For an **in-depth analysis** of the `report.html` and `report.show()` output, see [here](./report.md).
+
 === "`report.to_html()`: a page to share"
 
     ```python
@@ -175,13 +177,6 @@ that you can either export to HTML (preferred) or print in the terminal.
         yr                 0.2351  ██████                 0.2275             1
         temp               0.2282  ██████                 0.2477             1
     ```
-
-    Read it as: a global explanation reproduces **71.5%** of the model; split
-    `hr` on `temp, workingday, yr` and it reaches **89.7%**.
-
-    The rejected splits and the partition trees follow.
-
-📄 For an in **depth analysis** of the `report.html` output and `report.show()` output, see the [here](./report.md).
 
 ---
 
