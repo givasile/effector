@@ -154,7 +154,7 @@ for depth in [1, 2, 3]:
 
      max_depth   find_regions time
     ------------------------------
-             1              0.07s
+             1              0.05s
              2              0.08s
              3              0.04s
 
@@ -170,7 +170,7 @@ rhale.find_regions(0, candidate_conditioning_features=[1])
 print(f"conditioning on x1 only: {time.time() - tic:.2f}s")
 ```
 
-    conditioning on x1 only: 0.09s
+    conditioning on x1 only: 0.06s
 
 
 ## One-shot reports
@@ -188,16 +188,22 @@ print(f"explain(): {time.time() - tic:.2f}s, {model.n_calls} model call(s)")
 report.show()
 ```
 
-    explain(): 0.22s, 10 model call(s)
+    [effector] global effects reproduce 24.6% of the model's variance; with subregions, 100.0%
+    explain(): 0.23s, 11 model call(s)
     
     RHALE report — target: y
     ============================================================
+    data: 10,000 instances × 3 features (2 continuous · 1 nominal) — target y
+    model output: mean -0.0233, std 1.43, range [-5, 5]
+    explained variance: global effects (GAM) 24.6%
+      + split x_0 (on x_1, x_2) → 100.0% (+75.4 pts, heter 1.251→0.000)
+      rejected: x_2 (on x_0, x_1) — -37.8 pts, redundant (variance already explained)
+    ------------------------------------------------------------
     feature                   importance     heter  #regions
     ------------------------------------------------------------
-    x_0                           0.7262    1.2514         5
-    x_2                           0.0091    1.0174         5
-    x_1                           0.0000    0.0000         1
+    x_0                           0.7169    0.0000         5
     ============================================================
+    the plotted features carry 99% of the total importance mass
     
     
     Feature 0 - Full partition tree:
@@ -215,25 +221,6 @@ report.show()
     Level 0🔹heter: 1.25
         Level 1🔹heter: 0.72 | 🔻0.53 (42.75%)
             Level 2🔹heter: 0.00 | 🔻0.72 (100.00%)
-    
-    
-    
-    
-    Feature 2 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x_2 🔹 [id: 0 | heter: 1.02 | inst: 10000 | w: 1.00]
-        x_1 < -0.00 🔹 [id: 1 | heter: 0.00 | inst: 4971 | w: 0.50]
-        x_1 ≥ -0.00 🔹 [id: 2 | heter: 1.43 | inst: 5029 | w: 0.50]
-            x_0 < 0.00 🔹 [id: 3 | heter: 0.72 | inst: 2558 | w: 0.26]
-            x_0 ≥ 0.00 🔹 [id: 4 | heter: 0.72 | inst: 2471 | w: 0.25]
-    --------------------------------------------------
-    Feature 2 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 1.02
-        Level 1🔹heter: 0.72 | 🔻0.30 (29.09%)
-            Level 2🔹heter: 0.36 | 🔻0.36 (49.69%)
     
     
 
@@ -255,3 +242,90 @@ Practical advice:
   could plausibly condition on.
 - `max_depth=2` (the default) is almost always enough: it already yields four
   subregions per feature.
+
+## Cross-method sanity check
+
+The one-liner `effector.explain` with every engine this notebook's model
+supports. Everything must run end to end; the closing table puts the reads
+side by side. Where methods disagree — ranking, accepted splits, R² — that is
+a property of the data/model worth a closer look, not an error.
+
+
+
+```python
+from pathlib import Path
+_out = Path("reports") / "efficiency_regional"
+_out.mkdir(parents=True, exist_ok=True)
+
+# === cross-method sweep: effector.explain on every applicable engine ======
+sweep_reports = {}
+for _m in ["pdp", "ale", "rhale", "shapdp"]:
+    _kw = {"nof_instances": 300} if _m == "shapdp" else {}
+    print(f"--- {_m} " + "-" * 50)
+    sweep_reports[_m] = effector.explain(
+        X, f, None, method=_m, schema=SCHEMA, **_kw
+    )
+    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+
+print()
+print(f"{'method':<8} {'ranking (plotted)':<44} {'GAM R2':>8} {'final R2':>9}  splits")
+for _m, _r in sweep_reports.items():
+    _rank = " > ".join(fr.name for fr in _r.features)
+    _ev = _r.explained_variance
+    if _ev:
+        _sp = "; ".join(f"{s['name']} on {s['on']}" for s in _ev["stages"]) or "none"
+        print(f"{_m:<8} {_rank:<44} {_ev['gam_r2']:>7.1%} {_ev['regional_r2']:>8.1%}  {_sp}")
+    else:
+        print(f"{_m:<8} {_rank:<44} {'-':>7} {'-':>8}  (derivative scale: no variance ledger)")
+
+print(f"\nreports stored in {_out}/")
+
+```
+
+    --- pdp --------------------------------------------------
+
+
+    [effector] global effects reproduce 24.6% of the model's variance; with subregions, 100.0%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- ale --------------------------------------------------
+    [effector] global effects reproduce 24.4% of the model's variance; with subregions, 99.9%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- rhale --------------------------------------------------
+
+
+    [effector] global effects reproduce 24.6% of the model's variance; with subregions, 100.0%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- shapdp --------------------------------------------------
+
+
+    [effector] global effects reproduce 29.1% of the model's variance; with subregions, 92.1%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    
+    method   ranking (plotted)                              GAM R2  final R2  splits
+    pdp      x_0                                            24.6%   100.0%  x_0 on x_1, x_2
+    ale      x_0                                            24.4%    99.9%  x_0 on x_1, x_2
+    rhale    x_0                                            24.6%   100.0%  x_0 on x_1, x_2
+    shapdp   x_0 > x_2                                      29.1%    92.1%  x_0 on x_1, x_2; x_2 on x_0, x_1
+    
+    reports stored in reports/efficiency_regional/
+

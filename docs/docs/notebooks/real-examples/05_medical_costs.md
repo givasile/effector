@@ -106,21 +106,28 @@ reproduce, and how much each accepted split adds.
 
 
 ```python
+from pathlib import Path
+_out = Path("reports") / "05_medical_costs"
+_out.mkdir(parents=True, exist_ok=True)
+
 report = effector.explain(
     data=data.x_train,
     model=model_forward,
+    y=data.y_train,
     schema=schema,
     method="pdp",
     nof_instances=5000,
 )
 report.show()
-report.to_html("report_medical_costs_pdp.html")  # open in browser
+report.to_html(_out / "report_pdp.html")  # open in browser
 ```
 
     [effector] global effects reproduce 84.4% of the model's variance; with subregions, 96.6%
     
     PDP report — target: charges
     ============================================================
+    data: 1,070 instances × 6 features (2 continuous · 3 nominal · 1 ordinal) — target charges
+    model output: mean 1.34e+04, std 1.17e+04, range [-100, 5.23e+04] · R² 0.945 (on this subsample)
     explained variance: global effects (GAM) 84.4%
       + split bmi (on age, smoker) → 96.6% (+12.1 pts, heter 4497.234→1229.483)
       rejected: smoker (on bmi) — -11.5 pts, redundant (variance already explained)
@@ -139,10 +146,10 @@ report.to_html("report_medical_costs_pdp.html")  # open in browser
     🌳 Full Tree Structure:
     ───────────────────────
     bmi 🔹 [id: 0 | heter: 4497.23 | inst: 1070 | w: 1.00]
-        smoker = 0.00 🔹 [id: 1 | heter: 1439.97 | inst: 841 | w: 0.79]
+        smoker = no 🔹 [id: 1 | heter: 1439.97 | inst: 841 | w: 0.79]
             age < 43.30 🔹 [id: 2 | heter: 1162.94 | inst: 485 | w: 0.45]
             age ≥ 43.30 🔹 [id: 3 | heter: 1423.27 | inst: 356 | w: 0.33]
-        smoker = 1.00 🔹 [id: 4 | heter: 1224.35 | inst: 229 | w: 0.21]
+        smoker = yes 🔹 [id: 4 | heter: 1224.35 | inst: 229 | w: 0.21]
             age < 41.00 🔹 [id: 5 | heter: 1111.57 | inst: 125 | w: 0.12]
             age ≥ 41.00 🔹 [id: 6 | heter: 1018.18 | inst: 104 | w: 0.10]
     --------------------------------------------------
@@ -154,6 +161,10 @@ report.to_html("report_medical_costs_pdp.html")  # open in browser
             Level 2🔹heter: 1229.48 | 🔻164.34 (11.79%)
     
     
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
 
 
 ## The decision sequence, step by step
@@ -302,15 +313,19 @@ data/model worth a closer look, not an error.
 
 
 ```python
+from pathlib import Path
+_out = Path("reports") / "05_medical_costs"
+_out.mkdir(parents=True, exist_ok=True)
+
 # === cross-method sweep: effector.explain on every applicable engine ======
 sweep_reports = {}
 for _m in ["pdp", "ale", "shapdp"]:
     _kw = {"nof_instances": 300} if _m == "shapdp" else {"nof_instances": 5000}
     print(f"--- {_m} " + "-" * 50)
     sweep_reports[_m] = effector.explain(
-        data.x_train, model_forward, method=_m, schema=schema, **_kw
+        data.x_train, model_forward, y=data.y_train, method=_m, schema=schema, **_kw
     )
-    sweep_reports[_m].to_html(f"report_medical_costs_{_m}.html")
+    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
 
 print()
 print(f"{'method':<8} {'ranking (plotted)':<52} {'GAM R2':>8} {'final R2':>9}  splits")
@@ -320,6 +335,8 @@ for _m, _r in sweep_reports.items():
     _sp = "; ".join(f"{s['name']} on {s['on']}" for s in _ev["stages"]) or "none"
     print(f"{_m:<8} {_rank:<52} {_ev['gam_r2']:>7.1%} {_ev['regional_r2']:>8.1%}  {_sp}")
 
+print(f"\nreports stored in {_out}/")
+
 ```
 
     --- pdp --------------------------------------------------
@@ -328,10 +345,18 @@ for _m, _r in sweep_reports.items():
     [effector] global effects reproduce 84.4% of the model's variance; with subregions, 96.6%
 
 
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
     --- ale --------------------------------------------------
 
 
     [effector] global effects reproduce 84.0% of the model's variance; with subregions, 96.1%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
 
 
     --- shapdp --------------------------------------------------
@@ -340,9 +365,15 @@ for _m, _r in sweep_reports.items():
     [effector] global effects reproduce 83.8% of the model's variance; with subregions, 96.7%
 
 
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
     
     method   ranking (plotted)                                      GAM R2  final R2  splits
     pdp      smoker > age > bmi                                     84.4%    96.6%  bmi on age, smoker
     ale      smoker > age > bmi                                     84.0%    96.1%  bmi on age, smoker
     shapdp   smoker > age > bmi                                     83.8%    96.7%  bmi on children, smoker; smoker on bmi
+    
+    reports stored in reports/05_medical_costs/
 

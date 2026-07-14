@@ -152,13 +152,17 @@ report.show()
     
     PDP report — target: y
     ============================================================
+    data: 1,000 instances × 3 features (3 continuous) — target y
+    model output: mean 4.04, std 1.66, range [0.0532, 8]
+    explained variance: global effects (GAM) 100.0%
+    ------------------------------------------------------------
     feature                   importance     heter  #regions
     ------------------------------------------------------------
     x_0                           2.0402    0.0000         1
     x_2                           1.1423    0.0000         1
     x_1                           0.9207    0.0000         1
     ============================================================
-    global effects reproduce 100.0% of the model's variance
+    the plotted features carry 100% of the total importance mass
 
 
 As we expected, all feature effects are linear. Looking closer, we can also confirm the gradients of the effects: 
@@ -337,3 +341,98 @@ As expected all methods "agree" for a linear model $f(\mathbf{x}) = \sum_{i=1}^D
 ```python
 
 ```
+
+## Cross-method sanity check
+
+The one-liner `effector.explain` with every engine this notebook's model
+supports. Everything must run end to end; the closing table puts the reads
+side by side. Where methods disagree — ranking, accepted splits, R² — that is
+a property of the data/model worth a closer look, not an error.
+
+
+
+```python
+from pathlib import Path
+_out = Path("reports") / "01_linear_model"
+_out.mkdir(parents=True, exist_ok=True)
+
+# === cross-method sweep: effector.explain on every applicable engine ======
+sweep_reports = {}
+for _m in ["pdp", "derpdp", "ale", "rhale", "shapdp"]:
+    _kw = {"nof_instances": 300} if _m == "shapdp" else {}
+    print(f"--- {_m} " + "-" * 50)
+    sweep_reports[_m] = effector.explain(
+        X, predict, predict_grad, method=_m, **_kw
+    )
+    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+
+print()
+print(f"{'method':<8} {'ranking (plotted)':<44} {'GAM R2':>8} {'final R2':>9}  splits")
+for _m, _r in sweep_reports.items():
+    _rank = " > ".join(fr.name for fr in _r.features)
+    _ev = _r.explained_variance
+    if _ev:
+        _sp = "; ".join(f"{s['name']} on {s['on']}" for s in _ev["stages"]) or "none"
+        print(f"{_m:<8} {_rank:<44} {_ev['gam_r2']:>7.1%} {_ev['regional_r2']:>8.1%}  {_sp}")
+    else:
+        print(f"{_m:<8} {_rank:<44} {'-':>7} {'-':>8}  (derivative scale: no variance ledger)")
+
+print(f"\nreports stored in {_out}/")
+
+```
+
+    --- pdp --------------------------------------------------
+    [effector] global effects reproduce 100.0% of the model's variance
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- derpdp --------------------------------------------------
+
+
+    /home/givasile/github/packages/effector/effector/report.py:305: UserWarning: Attempting to set identical low and high xlims makes transformation singular; automatically expanding.
+      ax.set_xlim(0, vmax * 1.28)
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- ale --------------------------------------------------
+    [effector] global effects reproduce 100.0% of the model's variance
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- rhale --------------------------------------------------
+    [effector] global effects reproduce 100.0% of the model's variance
+
+
+    /home/givasile/github/packages/effector/effector/report.py:305: UserWarning: Attempting to set identical low and high xlims makes transformation singular; automatically expanding.
+      ax.set_xlim(0, vmax * 1.28)
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- shapdp --------------------------------------------------
+
+
+    [effector] global effects reproduce 100.0% of the model's variance
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    
+    method   ranking (plotted)                              GAM R2  final R2  splits
+    pdp      x_0 > x_2 > x_1                               100.0%   100.0%  none
+    derpdp   x_0 > x_2 > x_1                                    -        -  (derivative scale: no variance ledger)
+    ale      x_0 > x_2 > x_1                               100.0%   100.0%  none
+    rhale    x_0 > x_2 > x_1                               100.0%   100.0%  none
+    shapdp   x_0 > x_2 > x_1                               100.0%   100.0%  none
+    
+    reports stored in reports/01_linear_model/
+

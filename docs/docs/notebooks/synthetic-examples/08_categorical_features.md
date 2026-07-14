@@ -167,34 +167,18 @@ report.show()
     
     PDP report — target: y
     ============================================================
+    data: 1,000 instances × 3 features (1 ordinal · 2 continuous) — target y
+    model output: mean 0.875, std 1.17, range [-0.993, 3]
+    explained variance: global effects (GAM) 90.5%
+      + split x1 (on level, x2) → 98.4% (+7.9 pts, heter 0.370→0.076)
+      rejected: level (on x1, x2) — -4.8 pts, redundant (variance already explained)
+    ------------------------------------------------------------
     feature                   importance     heter  #regions
     ------------------------------------------------------------
-    level                         1.1028    0.3607         5
-    x1                            0.0394    0.3701         5
-    x2                            0.0069    0.2635         1
+    level                         1.1028    0.3607         1
+    x1                            0.2291    0.0757         5
     ============================================================
-    global effects reproduce 90.5% of the model's variance; with subregions, 98.4%
-      splitting level (on x1, x2) recovers +7.0 pts
-      splitting x1 (on level, x2) recovers +7.9 pts
-    
-    
-    Feature 0 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    level 🔹 [id: 0 | heter: 0.36 | inst: 1000 | w: 1.00]
-        x2 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 498 | w: 0.50]
-        x2 ≥ 0.00 🔹 [id: 2 | heter: 0.51 | inst: 502 | w: 0.50]
-            x1 < 0.00 🔹 [id: 3 | heter: 0.26 | inst: 236 | w: 0.24]
-            x1 ≥ 0.00 🔹 [id: 4 | heter: 0.26 | inst: 266 | w: 0.27]
-    --------------------------------------------------
-    Feature 0 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.36
-        Level 1🔹heter: 0.25 | 🔻0.11 (29.38%)
-            Level 2🔹heter: 0.13 | 🔻0.13 (49.29%)
-    
-    
+    the plotted features carry 99% of the total importance mass
     
     
     Feature 1 - Full partition tree:
@@ -336,3 +320,98 @@ ale_nominal.plot(0, centering="zero_start")
 - `heter_score`/`importance` are std-type scalars in output units (the units contract) — comparable across feature types and, in magnitude, across methods; for nominal features they are order-free (all level pairs).
 - Regional effects answer stability questions per level — heterogeneity is frequency-weighted over the levels.
 - The exact formulas per method and feature type live in `docs/guides/method_semantics.md`.
+
+## Cross-method sanity check
+
+The one-liner `effector.explain` with every engine this notebook's model
+supports. Everything must run end to end; the closing table puts the reads
+side by side. Where methods disagree — ranking, accepted splits, R² — that is
+a property of the data/model worth a closer look, not an error.
+
+
+
+```python
+from pathlib import Path
+_out = Path("reports") / "08_categorical_features"
+_out.mkdir(parents=True, exist_ok=True)
+
+# === cross-method sweep: effector.explain on every applicable engine ======
+sweep_reports = {}
+for _m in ["pdp", "derpdp", "ale", "rhale", "shapdp"]:
+    _kw = {"nof_instances": 300} if _m == "shapdp" else {}
+    print(f"--- {_m} " + "-" * 50)
+    sweep_reports[_m] = effector.explain(
+        data, model.predict, model.jacobian, method=_m, schema=schema, **_kw
+    )
+    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+
+print()
+print(f"{'method':<8} {'ranking (plotted)':<44} {'GAM R2':>8} {'final R2':>9}  splits")
+for _m, _r in sweep_reports.items():
+    _rank = " > ".join(fr.name for fr in _r.features)
+    _ev = _r.explained_variance
+    if _ev:
+        _sp = "; ".join(f"{s['name']} on {s['on']}" for s in _ev["stages"]) or "none"
+        print(f"{_m:<8} {_rank:<44} {_ev['gam_r2']:>7.1%} {_ev['regional_r2']:>8.1%}  {_sp}")
+    else:
+        print(f"{_m:<8} {_rank:<44} {'-':>7} {'-':>8}  (derivative scale: no variance ledger)")
+
+print(f"\nreports stored in {_out}/")
+
+```
+
+    --- pdp --------------------------------------------------
+    [effector] global effects reproduce 90.5% of the model's variance; with subregions, 98.4%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- derpdp --------------------------------------------------
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- ale --------------------------------------------------
+
+
+    [effector] global effects reproduce 90.3% of the model's variance; with subregions, 97.4%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- rhale --------------------------------------------------
+
+
+    [effector] global effects reproduce 90.5% of the model's variance; with subregions, 98.4%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- shapdp --------------------------------------------------
+
+
+    [effector] global effects reproduce 90.4% of the model's variance; with subregions, 98.2%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    
+    method   ranking (plotted)                              GAM R2  final R2  splits
+    pdp      level > x1                                     90.5%    98.4%  x1 on level, x2
+    derpdp   level                                              -        -  (derivative scale: no variance ledger)
+    ale      level                                          90.3%    97.4%  level on x1, x2
+    rhale    level > x1                                     90.5%    98.4%  x1 on level, x2
+    shapdp   level > x1                                     90.4%    98.2%  x1 on level, x2; level on x1, x2
+    
+    reports stored in reports/08_categorical_features/
+

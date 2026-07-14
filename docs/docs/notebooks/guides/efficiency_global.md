@@ -201,14 +201,14 @@ for name in names:
     --------------------------------------
 
 
-    PDP                0.28s         0.19s
+    PDP                0.20s         0.13s
 
 
-    d-PDP              0.26s         0.04s
-    ALE                0.15s         0.04s
+    d-PDP              0.22s         0.03s
+    ALE                0.13s         0.04s
 
 
-    RHALE              0.08s         0.02s
+    RHALE              0.08s         0.03s
 
 
 
@@ -279,9 +279,9 @@ print(f"second plot (cache):                  {t2:6.2f}s")
 print(f"first plot of ANOTHER feature:        {t3:6.2f}s  (the table is shared)")
 ```
 
-    first plot (computes the SHAP table):   9.56s
+    first plot (computes the SHAP table):  10.82s
     second plot (cache):                    0.01s
-    first plot of ANOTHER feature:          0.02s  (the table is shared)
+    first plot of ANOTHER feature:          0.01s  (the table is shared)
 
 
 
@@ -322,3 +322,100 @@ Practical advice:
   effector subsamples once and every method works on the subset.
 - Binning (`binning_method`) is pure numpy and costs milliseconds — pick it
   for statistical, not computational, reasons.
+
+## Cross-method sanity check
+
+The one-liner `effector.explain` with every engine this notebook's model
+supports. Everything must run end to end; the closing table puts the reads
+side by side. Where methods disagree — ranking, accepted splits, R² — that is
+a property of the data/model worth a closer look, not an error.
+
+
+
+```python
+from pathlib import Path
+_out = Path("reports") / "efficiency_global"
+_out.mkdir(parents=True, exist_ok=True)
+
+# === cross-method sweep: effector.explain on every applicable engine ======
+sweep_reports = {}
+for _m in ["pdp", "derpdp", "ale", "rhale", "shapdp"]:
+    _kw = {"nof_instances": 300} if _m == "shapdp" else {}
+    print(f"--- {_m} " + "-" * 50)
+    sweep_reports[_m] = effector.explain(
+        X, f.predict, f.jacobian, method=_m, **_kw
+    )
+    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+
+print()
+print(f"{'method':<8} {'ranking (plotted)':<44} {'GAM R2':>8} {'final R2':>9}  splits")
+for _m, _r in sweep_reports.items():
+    _rank = " > ".join(fr.name for fr in _r.features)
+    _ev = _r.explained_variance
+    if _ev:
+        _sp = "; ".join(f"{s['name']} on {s['on']}" for s in _ev["stages"]) or "none"
+        print(f"{_m:<8} {_rank:<44} {_ev['gam_r2']:>7.1%} {_ev['regional_r2']:>8.1%}  {_sp}")
+    else:
+        print(f"{_m:<8} {_rank:<44} {'-':>7} {'-':>8}  (derivative scale: no variance ledger)")
+
+print(f"\nreports stored in {_out}/")
+
+```
+
+    --- pdp --------------------------------------------------
+
+
+    [effector] global effects reproduce 36.9% of the model's variance; with subregions, 99.7%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- derpdp --------------------------------------------------
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- ale --------------------------------------------------
+
+
+    [effector] global effects reproduce 35.0% of the model's variance; with subregions, 78.2%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- rhale --------------------------------------------------
+
+
+    [effector] global effects reproduce 3.7% of the model's variance; with subregions, 100.0%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- shapdp --------------------------------------------------
+
+
+    [effector] global effects reproduce 22.6% of the model's variance; with subregions, 81.3%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    
+    method   ranking (plotted)                              GAM R2  final R2  splits
+    pdp      x_0 > x_2                                      36.9%    99.7%  x_0 on x_1, x_2
+    derpdp   x_0                                                -        -  (derivative scale: no variance ledger)
+    ale      x_2 > x_0 > x_1                                35.0%    78.2%  x_1 on x_0, x_2
+    rhale    x_0                                             3.7%   100.0%  x_0 on x_1, x_2
+    shapdp   x_2 > x_0 > x_1                                22.6%    81.3%  x_0 on x_1, x_2; x_1 on x_0, x_2
+    
+    reports stored in reports/efficiency_global/
+

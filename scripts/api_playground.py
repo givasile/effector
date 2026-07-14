@@ -17,6 +17,8 @@
 #              and a PAIR of levels, so the categorical proposers differ.
 # =============================================================================
 
+from pathlib import Path
+
 import numpy as np
 
 # -----------------------------------------------------------------------------
@@ -88,7 +90,11 @@ schema = effector.Schema(
     target_name="rentals",
 )
 
-# The one-liner analyst
+# The one-liner analyst — reports land in scripts/reports/api_playground/
+# Anchored to this file, not the cwd, so the gitignored path holds either way.
+_out_dir = Path(__file__).parent / "reports" / "api_playground"
+_out_dir.mkdir(parents=True, exist_ok=True)
+
 for method in ["pdp", "ale", "rhale", "shapdp", "derpdp"]:
     report = effector.explain(
         data=X,
@@ -97,7 +103,7 @@ for method in ["pdp", "ale", "rhale", "shapdp", "derpdp"]:
         schema=schema,
         method=method,
     )
-    report.to_html(f"report_{method}.html")   # open in browser to see the interactive pl
+    report.to_html(_out_dir / f"report_{method}.html")   # open in browser to see the interactive pl
 
 pdp = effector.PDP(X, predict, schema=schema)
 
@@ -171,8 +177,8 @@ print("leaf:", partition.label(leaf.idx), "| heter:", round(leaf.heterogeneity, 
 # -----------------------------------------------------------------------------
 # 4. Where the names land — labels, masks, region-level eval/plot
 # -----------------------------------------------------------------------------
-# label(idx): "<feature> | <conditions>" with level names substituted, e.g.
-#   "hr | season = winter and temp ≤ 15.0"   — never "x_3 = 0.0".
+# label(idx): "<feature> where <conditions>" with level names substituted, e.g.
+#   "hr where (season = winter) and (temp ≤ 15.00)"   — never "x_3 = 0.0".
 partition.label(1)
 partition.label(leaf.idx)
 

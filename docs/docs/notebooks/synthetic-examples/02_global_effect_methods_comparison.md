@@ -580,15 +580,18 @@ report.show()
     
     PDP report — target: y
     ============================================================
+    data: 170 instances × 3 features (3 continuous) — target y
+    model output: mean 0.454, std 1.48, range [-2.92, 4.86]
+    explained variance: global effects (GAM) 70.2%
+      + split x1 (on x2, x3) → 97.6% (+27.4 pts, heter 0.775→0.348)
+      rejected: x3 (on x1) — -0.1 pts, redundant (variance already explained)
+    ------------------------------------------------------------
     feature                   importance     heter  #regions
     ------------------------------------------------------------
     x2                            1.4458    0.4223         1
-    x1                            0.5926    0.7754         7
-    x3                            0.3063    0.5464         7
+    x1                            0.3408    0.3477         7
     ============================================================
-    global effects reproduce 70.2% of the model's variance; with subregions, 97.6%
-      splitting x1 (on x2, x3) recovers +27.4 pts
-      splitting x3 (on x1) recovers +22.1 pts
+    the plotted features carry 85% of the total importance mass
     
     
     Feature 0 - Full partition tree:
@@ -608,27 +611,6 @@ report.show()
     Level 0🔹heter: 0.78
         Level 1🔹heter: 0.54 | 🔻0.24 (30.67%)
             Level 2🔹heter: 0.35 | 🔻0.19 (35.32%)
-    
-    
-    
-    
-    Feature 2 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x3 🔹 [id: 0 | heter: 0.55 | inst: 170 | w: 1.00]
-        x1 < 0.00 🔹 [id: 1 | heter: 0.32 | inst: 141 | w: 0.83]
-            x1 < -0.45 🔹 [id: 2 | heter: 0.10 | inst: 17 | w: 0.10]
-            -0.45 ≤ x1 < 0.00 🔹 [id: 3 | heter: 0.27 | inst: 124 | w: 0.73]
-        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.35 | inst: 29 | w: 0.17]
-            0.00 ≤ x1 < 0.15 🔹 [id: 5 | heter: 0.31 | inst: 13 | w: 0.08]
-            x1 ≥ 0.15 🔹 [id: 6 | heter: 0.35 | inst: 16 | w: 0.09]
-    --------------------------------------------------
-    Feature 2 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.55
-        Level 1🔹heter: 0.33 | 🔻0.22 (40.09%)
-            Level 2🔹heter: 0.27 | 🔻0.06 (18.35%)
     
     
 
@@ -672,4 +654,99 @@ print("all closed-form checks passed")
 ```
 
     all closed-form checks passed
+
+
+## Cross-method sanity check
+
+The one-liner `effector.explain` with every engine this notebook's model
+supports. Everything must run end to end; the closing table puts the reads
+side by side. Where methods disagree — ranking, accepted splits, R² — that is
+a property of the data/model worth a closer look, not an error.
+
+
+
+```python
+from pathlib import Path
+_out = Path("reports") / "02_global_effect_methods_comparison"
+_out.mkdir(parents=True, exist_ok=True)
+
+# === cross-method sweep: effector.explain on every applicable engine ======
+sweep_reports = {}
+for _m in ["pdp", "derpdp", "ale", "rhale", "shapdp"]:
+    _kw = {"nof_instances": 300} if _m == "shapdp" else {}
+    print(f"--- {_m} " + "-" * 50)
+    sweep_reports[_m] = effector.explain(
+        x, f, dfdx, method=_m, **_kw
+    )
+    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+
+print()
+print(f"{'method':<8} {'ranking (plotted)':<44} {'GAM R2':>8} {'final R2':>9}  splits")
+for _m, _r in sweep_reports.items():
+    _rank = " > ".join(fr.name for fr in _r.features)
+    _ev = _r.explained_variance
+    if _ev:
+        _sp = "; ".join(f"{s['name']} on {s['on']}" for s in _ev["stages"]) or "none"
+        print(f"{_m:<8} {_rank:<44} {_ev['gam_r2']:>7.1%} {_ev['regional_r2']:>8.1%}  {_sp}")
+    else:
+        print(f"{_m:<8} {_rank:<44} {'-':>7} {'-':>8}  (derivative scale: no variance ledger)")
+
+print(f"\nreports stored in {_out}/")
+
+```
+
+    --- pdp --------------------------------------------------
+
+
+    [effector] global effects reproduce 70.2% of the model's variance; with subregions, 97.6%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- derpdp --------------------------------------------------
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- ale --------------------------------------------------
+    [effector] global effects reproduce 92.2% of the model's variance; with subregions, 99.3%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- rhale --------------------------------------------------
+
+
+    [effector] global effects reproduce 92.9% of the model's variance; with subregions, 99.4%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- shapdp --------------------------------------------------
+
+
+    [effector] global effects reproduce 94.2% of the model's variance; with subregions, 98.9%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    
+    method   ranking (plotted)                              GAM R2  final R2  splits
+    pdp      x_1 > x_0                                      70.2%    97.6%  x_0 on x_1, x_2
+    derpdp   x_1 > x_0                                          -        -  (derivative scale: no variance ledger)
+    ale      x_1 > x_0                                      92.2%    99.3%  x_1 on x_0, x_2
+    rhale    x_1                                            92.9%    99.4%  x_1 on x_0, x_2
+    shapdp   x_1 > x_0                                      94.2%    98.9%  x_0 on x_1; x_1 on x_0, x_2
+    
+    reports stored in reports/02_global_effect_methods_comparison/
 

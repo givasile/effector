@@ -150,5 +150,7 @@ docs/site/
 docs/docs/Tutorials/
 
 .venv-*
-# generated one-click reports
+# generated one-click reports (effector.explain -> to_html)
 notebooks/**/explain_report.html
+notebooks/**/reports/
+scripts/reports/

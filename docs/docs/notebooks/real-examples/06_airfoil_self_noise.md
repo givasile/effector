@@ -88,21 +88,28 @@ global curves reproduce barely half of it.
 
 
 ```python
+from pathlib import Path
+_out = Path("reports") / "06_airfoil_self_noise"
+_out.mkdir(parents=True, exist_ok=True)
+
 report = effector.explain(
     data=data.x_train,
     model=model_forward,
+    y=data.y_train,
     schema=schema,
     method="pdp",
     nof_instances=5000,
 )
 report.show()
-report.to_html("report_airfoil_pdp.html")  # open in browser
+report.to_html(_out / "report_pdp.html")  # open in browser
 ```
 
     [effector] global effects reproduce 54.2% of the model's variance; with subregions, 82.5%
     
     PDP report — target: scaled-sound-pressure
     ============================================================
+    data: 1,202 instances × 5 features (5 continuous) — target scaled-sound-pressure
+    model output: mean 125, std 6.7, range [105, 138] · R² 0.968 (on this subsample)
     explained variance: global effects (GAM) 54.2%
       + split frequency (on chord-length, suction-side-displacement-thickness) → 82.5% (+28.3 pts, heter 5.179→2.636)
       rejected: suction-side-displacement-thickness (on frequency) — -6.6 pts, redundant (variance already explained)
@@ -136,6 +143,10 @@ report.to_html("report_airfoil_pdp.html")  # open in browser
             Level 2🔹heter: 2.64 | 🔻1.56 (37.14%)
     
     
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
 
 
 ## Why so low? The triage plane knows
@@ -291,15 +302,19 @@ data/model worth a closer look, not an error.
 
 
 ```python
+from pathlib import Path
+_out = Path("reports") / "06_airfoil_self_noise"
+_out.mkdir(parents=True, exist_ok=True)
+
 # === cross-method sweep: effector.explain on every applicable engine ======
 sweep_reports = {}
 for _m in ["pdp", "ale", "shapdp"]:
     _kw = {"nof_instances": 300} if _m == "shapdp" else {"nof_instances": 5000}
     print(f"--- {_m} " + "-" * 50)
     sweep_reports[_m] = effector.explain(
-        data.x_train, model_forward, method=_m, schema=schema, **_kw
+        data.x_train, model_forward, y=data.y_train, method=_m, schema=schema, **_kw
     )
-    sweep_reports[_m].to_html(f"report_airfoil_{_m}.html")
+    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
 
 print()
 print(f"{'method':<8} {'ranking (plotted)':<52} {'GAM R2':>8} {'final R2':>9}  splits")
@@ -309,6 +324,8 @@ for _m, _r in sweep_reports.items():
     _sp = "; ".join(f"{s['name']} on {s['on']}" for s in _ev["stages"]) or "none"
     print(f"{_m:<8} {_rank:<52} {_ev['gam_r2']:>7.1%} {_ev['regional_r2']:>8.1%}  {_sp}")
 
+print(f"\nreports stored in {_out}/")
+
 ```
 
     --- pdp --------------------------------------------------
@@ -317,10 +334,18 @@ for _m, _r in sweep_reports.items():
     [effector] global effects reproduce 54.2% of the model's variance; with subregions, 82.5%
 
 
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
     --- ale --------------------------------------------------
 
 
     [effector] global effects reproduce 43.0% of the model's variance; with subregions, 67.9%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
 
 
     --- shapdp --------------------------------------------------
@@ -329,9 +354,15 @@ for _m, _r in sweep_reports.items():
     [effector] global effects reproduce 52.6% of the model's variance; with subregions, 84.2%
 
 
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
     
     method   ranking (plotted)                                      GAM R2  final R2  splits
     pdp      frequency > suction-side-displacement-thickness > chord-length   54.2%    82.5%  frequency on chord-length, suction-side-displacement-thickness
     ale      frequency > suction-side-displacement-thickness        43.0%    67.9%  frequency on attack-angle, chord-length, suction-side-displacement-thickness
     shapdp   frequency > suction-side-displacement-thickness > chord-length   52.6%    84.2%  frequency on attack-angle, chord-length, suction-side-displacement-thickness; suction-side-displacement-thickness on attack-angle, chord-length, frequency; chord-length on attack-angle, frequency
+    
+    reports stored in reports/06_airfoil_self_noise/
 

@@ -175,55 +175,37 @@ report = effector.explain(
 report.show()
 ```
 
-    PDP importances [x1, x2, x3]: [0.007 0.    0.527]
-    [effector] global effects reproduce 8.8% of the model's variance; with subregions, 100.0%
+    PDP importances [x1, x2, x3]: [0.058 0.    0.741]
+    [effector] global effects reproduce 16.0% of the model's variance; with subregions, 100.0%
     
     PDP report — target: Y
     ============================================================
+    data: 1,000 instances × 3 features (3 continuous) — target Y
+    model output: mean 0.0519, std 1.85, range [-3.8, 3.98]
+    explained variance: global effects (GAM) 16.0%
+      + split x1 (on x3) → 100.0% (+84.0 pts, heter 1.712→0.000)
+      rejected: x3 (on x1) — -76.6 pts, redundant (variance already explained)
+    ------------------------------------------------------------
     feature                   importance     heter  #regions
     ------------------------------------------------------------
-    x3                            0.5268    1.7611         7
-    x1                            0.0070    1.7639         3
-    x2                            0.0000    0.0000         1
+    x1                            1.6976    0.0000         3
+    x3                            0.7413    1.6976         1
     ============================================================
-    global effects reproduce 8.8% of the model's variance; with subregions, 100.0%
-      splitting x3 (on x1) recovers +85.1 pts
-      splitting x1 (on x3) recovers +91.2 pts
-    
-    
-    Feature 2 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x3 🔹 [id: 0 | heter: 1.76 | inst: 1000 | w: 1.00]
-        x1 < 0.00 🔹 [id: 1 | heter: 0.85 | inst: 526 | w: 0.53]
-            x1 < -0.50 🔹 [id: 2 | heter: 0.44 | inst: 262 | w: 0.26]
-            -0.50 ≤ x1 < 0.00 🔹 [id: 3 | heter: 0.44 | inst: 264 | w: 0.26]
-        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.85 | inst: 474 | w: 0.47]
-            0.00 ≤ x1 < 0.50 🔹 [id: 5 | heter: 0.42 | inst: 226 | w: 0.23]
-            x1 ≥ 0.50 🔹 [id: 6 | heter: 0.44 | inst: 248 | w: 0.25]
-    --------------------------------------------------
-    Feature 2 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 1.76
-        Level 1🔹heter: 0.85 | 🔻0.91 (51.78%)
-            Level 2🔹heter: 0.44 | 🔻0.41 (48.73%)
-    
-    
+    the plotted features carry 100% of the total importance mass
     
     
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 1.76 | inst: 1000 | w: 1.00]
-        x3 < -0.00 🔹 [id: 1 | heter: 0.00 | inst: 502 | w: 0.50]
-        x3 ≥ -0.00 🔹 [id: 2 | heter: 0.00 | inst: 498 | w: 0.50]
+    x1 🔹 [id: 0 | heter: 1.71 | inst: 1000 | w: 1.00]
+        x3 < -0.00 🔹 [id: 1 | heter: 0.00 | inst: 483 | w: 0.48]
+        x3 ≥ -0.00 🔹 [id: 2 | heter: 0.00 | inst: 517 | w: 0.52]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.76
-        Level 1🔹heter: 0.00 | 🔻1.76 (100.00%)
+    Level 0🔹heter: 1.71
+        Level 1🔹heter: 0.00 | 🔻1.71 (100.00%)
     
     
 
@@ -276,15 +258,15 @@ partitions[0].show()
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 1.76 | inst: 1000 | w: 1.00]
-        x3 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 502 | w: 0.50]
-        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 498 | w: 0.50]
+    x1 🔹 [id: 0 | heter: 1.71 | inst: 1000 | w: 1.00]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 483 | w: 0.48]
+        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 517 | w: 0.52]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.76
-        Level 1🔹heter: 0.00 | 🔻1.76 (100.00%)
+    Level 0🔹heter: 1.71
+        Level 1🔹heter: 0.00 | 🔻1.71 (100.00%)
     
     
 
@@ -339,20 +321,20 @@ partitions[2].show()
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 1.76 | inst: 1000 | w: 1.00]
-        x1 < 0.00 🔹 [id: 1 | heter: 0.85 | inst: 526 | w: 0.53]
-            x1 < -0.60 🔹 [id: 2 | heter: 0.34 | inst: 204 | w: 0.20]
-            -0.60 ≤ x1 < 0.00 🔹 [id: 3 | heter: 0.51 | inst: 322 | w: 0.32]
-        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.85 | inst: 474 | w: 0.47]
-            0.00 ≤ x1 < 0.60 🔹 [id: 5 | heter: 0.51 | inst: 276 | w: 0.28]
-            x1 ≥ 0.60 🔹 [id: 6 | heter: 0.35 | inst: 198 | w: 0.20]
+    x3 🔹 [id: 0 | heter: 1.70 | inst: 1000 | w: 1.00]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.88 | inst: 442 | w: 0.44]
+            x1 < -0.40 🔹 [id: 2 | heter: 0.53 | inst: 246 | w: 0.25]
+            -0.40 ≤ x1 < 0.00 🔹 [id: 3 | heter: 0.34 | inst: 196 | w: 0.20]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.84 | inst: 558 | w: 0.56]
+            0.00 ≤ x1 < 0.60 🔹 [id: 5 | heter: 0.50 | inst: 335 | w: 0.34]
+            x1 ≥ 0.60 🔹 [id: 6 | heter: 0.35 | inst: 223 | w: 0.22]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.76
-        Level 1🔹heter: 0.85 | 🔻0.91 (51.78%)
-            Level 2🔹heter: 0.44 | 🔻0.40 (47.64%)
+    Level 0🔹heter: 1.70
+        Level 1🔹heter: 0.86 | 🔻0.84 (49.53%)
+            Level 2🔹heter: 0.44 | 🔻0.41 (48.25%)
     
     
 
@@ -472,15 +454,15 @@ partitions[0].show()
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 1.78 | inst: 1000 | w: 1.00]
-        x3 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 492 | w: 0.49]
-        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 508 | w: 0.51]
+    x1 🔹 [id: 0 | heter: 1.72 | inst: 1000 | w: 1.00]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 495 | w: 0.49]
+        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 505 | w: 0.51]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.78
-        Level 1🔹heter: 0.00 | 🔻1.78 (100.00%)
+    Level 0🔹heter: 1.72
+        Level 1🔹heter: 0.00 | 🔻1.72 (100.00%)
     
     
 
@@ -529,20 +511,20 @@ partitions[2].show()
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 1.77 | inst: 1000 | w: 1.00]
-        x1 < 0.00 🔹 [id: 1 | heter: 0.85 | inst: 492 | w: 0.49]
-            x1 < -0.50 🔹 [id: 2 | heter: 0.43 | inst: 245 | w: 0.24]
-            -0.50 ≤ x1 < 0.00 🔹 [id: 3 | heter: 0.43 | inst: 247 | w: 0.25]
-        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.90 | inst: 508 | w: 0.51]
-            0.00 ≤ x1 < 0.50 🔹 [id: 5 | heter: 0.46 | inst: 240 | w: 0.24]
-            x1 ≥ 0.50 🔹 [id: 6 | heter: 0.43 | inst: 268 | w: 0.27]
+    x3 🔹 [id: 0 | heter: 1.72 | inst: 1000 | w: 1.00]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.87 | inst: 495 | w: 0.49]
+            x1 < -0.50 🔹 [id: 2 | heter: 0.44 | inst: 240 | w: 0.24]
+            -0.50 ≤ x1 < 0.00 🔹 [id: 3 | heter: 0.44 | inst: 255 | w: 0.26]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.85 | inst: 505 | w: 0.51]
+            0.00 ≤ x1 < 0.50 🔹 [id: 5 | heter: 0.43 | inst: 258 | w: 0.26]
+            x1 ≥ 0.50 🔹 [id: 6 | heter: 0.42 | inst: 247 | w: 0.25]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.77
-        Level 1🔹heter: 0.88 | 🔻0.90 (50.50%)
-            Level 2🔹heter: 0.44 | 🔻0.44 (50.26%)
+    Level 0🔹heter: 1.72
+        Level 1🔹heter: 0.86 | 🔻0.86 (49.83%)
+            Level 2🔹heter: 0.43 | 🔻0.43 (49.83%)
     
     
 
@@ -650,15 +632,15 @@ partitions[0].show()
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 1.76 | inst: 1000 | w: 1.00]
-        x3 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 502 | w: 0.50]
-        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 498 | w: 0.50]
+    x1 🔹 [id: 0 | heter: 1.69 | inst: 1000 | w: 1.00]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 483 | w: 0.48]
+        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 517 | w: 0.52]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 1.76
-        Level 1🔹heter: 0.00 | 🔻1.76 (100.00%)
+    Level 0🔹heter: 1.69
+        Level 1🔹heter: 0.00 | 🔻1.69 (100.00%)
     
     
 
@@ -901,15 +883,15 @@ partitions[0].show()
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 0.92 | inst: 1000 | w: 1.00]
-        x3 < 0.00 🔹 [id: 1 | heter: 0.15 | inst: 502 | w: 0.50]
-        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.19 | inst: 498 | w: 0.50]
+    x1 🔹 [id: 0 | heter: 0.88 | inst: 1000 | w: 1.00]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.16 | inst: 483 | w: 0.48]
+        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.19 | inst: 517 | w: 0.52]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.92
-        Level 1🔹heter: 0.17 | 🔻0.75 (81.52%)
+    Level 0🔹heter: 0.88
+        Level 1🔹heter: 0.17 | 🔻0.70 (80.22%)
     
     
 
@@ -1073,4 +1055,97 @@ partitions[2].show()
     No splits found for feature 2
     
     
+
+
+## Cross-method sanity check
+
+The one-liner `effector.explain` with every engine this notebook's model
+supports. Everything must run end to end; the closing table puts the reads
+side by side. Where methods disagree — ranking, accepted splits, R² — that is
+a property of the data/model worth a closer look, not an error.
+
+
+
+```python
+from pathlib import Path
+_out = Path("reports") / "03_regional_effects_synthetic_f"
+_out.mkdir(parents=True, exist_ok=True)
+
+# === cross-method sweep: effector.explain on every applicable engine ======
+sweep_reports = {}
+for _m in ["pdp", "derpdp", "ale", "rhale", "shapdp"]:
+    _kw = {"nof_instances": 300} if _m == "shapdp" else {}
+    print(f"--- {_m} " + "-" * 50)
+    sweep_reports[_m] = effector.explain(
+        X_uncor_train, model, model_jac, method=_m, schema={"feature_names": ['x1','x2','x3'], "target_name": "Y"}, **_kw
+    )
+    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+
+print()
+print(f"{'method':<8} {'ranking (plotted)':<44} {'GAM R2':>8} {'final R2':>9}  splits")
+for _m, _r in sweep_reports.items():
+    _rank = " > ".join(fr.name for fr in _r.features)
+    _ev = _r.explained_variance
+    if _ev:
+        _sp = "; ".join(f"{s['name']} on {s['on']}" for s in _ev["stages"]) or "none"
+        print(f"{_m:<8} {_rank:<44} {_ev['gam_r2']:>7.1%} {_ev['regional_r2']:>8.1%}  {_sp}")
+    else:
+        print(f"{_m:<8} {_rank:<44} {'-':>7} {'-':>8}  (derivative scale: no variance ledger)")
+
+print(f"\nreports stored in {_out}/")
+
+```
+
+    --- pdp --------------------------------------------------
+    [effector] global effects reproduce 16.0% of the model's variance; with subregions, 100.0%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- derpdp --------------------------------------------------
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- ale --------------------------------------------------
+
+
+    [effector] global effects reproduce 14.1% of the model's variance; with subregions, 99.6%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- rhale --------------------------------------------------
+    [effector] global effects reproduce 14.6% of the model's variance; with subregions, 100.0%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- shapdp --------------------------------------------------
+
+
+    [effector] global effects reproduce 13.4% of the model's variance; with subregions, 98.5%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    
+    method   ranking (plotted)                              GAM R2  final R2  splits
+    pdp      x1 > x3                                        16.0%   100.0%  x1 on x3
+    derpdp   x3                                                 -        -  (derivative scale: no variance ledger)
+    ale      x1 > x3                                        14.1%    99.6%  x1 on x3
+    rhale    x1 > x3                                        14.6%   100.0%  x1 on x3
+    shapdp   x3 > x1                                        13.4%    98.5%  x1 on x2, x3; x3 on x1
+    
+    reports stored in reports/03_regional_effects_synthetic_f/
 

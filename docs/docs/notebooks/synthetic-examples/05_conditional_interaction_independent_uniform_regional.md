@@ -97,36 +97,19 @@ report.show()
     
     PDP report — target: y
     ============================================================
+    data: 1,000 instances × 3 features (3 continuous) — target y
+    model output: mean 1.17, std 0.803, range [-0.546, 3.38]
+    explained variance: global effects (GAM) 86.7%
+      + split x_0 (on x_1) → 99.8% (+13.1 pts, heter 0.295→0.000)
+      rejected: x_1 (on x_0) — -10.2 pts, redundant (variance already explained)
+    ------------------------------------------------------------
     feature                   importance     heter  #regions
     ------------------------------------------------------------
     x_2                           0.6679    0.0000         1
-    x_1                           0.3261    0.2919         7
-    x_0                           0.0070    0.2945         3
+    x_1                           0.3261    0.2919         1
+    x_0                           0.2917    0.0000         3
     ============================================================
-    global effects reproduce 86.7% of the model's variance; with subregions, 99.8%
-      splitting x_1 (on x_0) recovers +10.3 pts
-      splitting x_0 (on x_1) recovers +13.1 pts
-    
-    
-    Feature 1 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x_1 🔹 [id: 0 | heter: 0.29 | inst: 1000 | w: 1.00]
-        x_0 < -0.70 🔹 [id: 1 | heter: 0.15 | inst: 167 | w: 0.17]
-            x_0 < -0.90 🔹 [id: 2 | heter: 0.06 | inst: 56 | w: 0.06]
-            -0.90 ≤ x_0 < -0.70 🔹 [id: 3 | heter: 0.09 | inst: 111 | w: 0.11]
-        x_0 ≥ -0.70 🔹 [id: 4 | heter: 0.25 | inst: 833 | w: 0.83]
-            -0.70 ≤ x_0 < 0.60 🔹 [id: 5 | heter: 0.13 | inst: 648 | w: 0.65]
-            x_0 ≥ 0.60 🔹 [id: 6 | heter: 0.17 | inst: 185 | w: 0.18]
-    --------------------------------------------------
-    Feature 1 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.29
-        Level 1🔹heter: 0.23 | 🔻0.06 (21.21%)
-            Level 2🔹heter: 0.13 | 🔻0.10 (43.26%)
-    
-    
+    the plotted features carry 100% of the total importance mass
     
     
     Feature 0 - Full partition tree:
@@ -356,3 +339,100 @@ $\mp x_1^2$ (centered) with heterogeneity dropping from $\sim 0.1$ at the root
 to $\approx 0$ — the model's conditional interaction is *fully explained* by a
 single split. This is the ideal-case benchmark for regional methods: when a
 crisp subspace structure exists, the methods must find exactly it.
+
+## Cross-method sanity check
+
+The one-liner `effector.explain` with every engine this notebook's model
+supports. Everything must run end to end; the closing table puts the reads
+side by side. Where methods disagree — ranking, accepted splits, R² — that is
+a property of the data/model worth a closer look, not an error.
+
+
+
+```python
+from pathlib import Path
+_out = Path("reports") / "05_conditional_interaction_independent_uniform_regional"
+_out.mkdir(parents=True, exist_ok=True)
+
+# === cross-method sweep: effector.explain on every applicable engine ======
+sweep_reports = {}
+for _m in ["pdp", "derpdp", "ale", "rhale", "shapdp"]:
+    _kw = {"nof_instances": 300} if _m == "shapdp" else {}
+    print(f"--- {_m} " + "-" * 50)
+    sweep_reports[_m] = effector.explain(
+        x, model.predict, model.jacobian, method=_m, **_kw
+    )
+    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+
+print()
+print(f"{'method':<8} {'ranking (plotted)':<44} {'GAM R2':>8} {'final R2':>9}  splits")
+for _m, _r in sweep_reports.items():
+    _rank = " > ".join(fr.name for fr in _r.features)
+    _ev = _r.explained_variance
+    if _ev:
+        _sp = "; ".join(f"{s['name']} on {s['on']}" for s in _ev["stages"]) or "none"
+        print(f"{_m:<8} {_rank:<44} {_ev['gam_r2']:>7.1%} {_ev['regional_r2']:>8.1%}  {_sp}")
+    else:
+        print(f"{_m:<8} {_rank:<44} {'-':>7} {'-':>8}  (derivative scale: no variance ledger)")
+
+print(f"\nreports stored in {_out}/")
+
+```
+
+    --- pdp --------------------------------------------------
+
+
+    [effector] global effects reproduce 86.7% of the model's variance; with subregions, 99.8%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- derpdp --------------------------------------------------
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- ale --------------------------------------------------
+
+
+    [effector] global effects reproduce 85.3% of the model's variance; with subregions, 98.8%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- rhale --------------------------------------------------
+
+
+    [effector] global effects reproduce 70.0% of the model's variance; with subregions, 100.0%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- shapdp --------------------------------------------------
+
+
+    [effector] global effects reproduce 87.3% of the model's variance; with subregions, 96.6%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    
+    method   ranking (plotted)                              GAM R2  final R2  splits
+    pdp      x_2 > x_1 > x_0                                86.7%    99.8%  x_0 on x_1
+    derpdp   x_2                                                -        -  (derivative scale: no variance ledger)
+    ale      x_2 > x_1 > x_0                                85.3%    98.8%  x_0 on x_1
+    rhale    x_2 > x_0                                      70.0%   100.0%  x_0 on x_1
+    shapdp   x_2 > x_1 > x_0                                87.3%    96.6%  x_0 on x_1
+    
+    reports stored in reports/05_conditional_interaction_independent_uniform_regional/
+
