@@ -104,24 +104,49 @@ report.show()
 report.to_html(_out / "report_pdp.html")  # open in browser
 ```
 
-    [effector] global effects reproduce 54.2% of the model's variance; with subregions, 82.5%
+    [effector] global effects   (GAM)  -> 54.2% of the model's variance
+               regional effects (CALM) -> 82.5%
     
-    PDP report — target: scaled-sound-pressure
-    ============================================================
-    data: 1,202 instances × 5 features (5 continuous) — target scaled-sound-pressure
-    model output: mean 125, std 6.7, range [105, 138] · R² 0.968 (on this subsample)
-    explained variance: global effects (GAM) 54.2%
-      + split frequency (on chord-length, suction-side-displacement-thickness) → 82.5% (+28.3 pts, heter 5.179→2.636)
-      rejected: suction-side-displacement-thickness (on frequency) — -6.6 pts, redundant (variance already explained)
-      rejected: chord-length (on frequency) — -1.9 pts, redundant (variance already explained)
-    ------------------------------------------------------------
-    feature                   importance     heter  #regions
-    ------------------------------------------------------------
-    frequency                     4.8790    2.6361         7
-    suction-side-displacement-thickness      3.1481    4.3219         1
-    chord-length                  1.2760    2.3447         1
-    ============================================================
-    the plotted features carry 87% of the total importance mass
+      ════════════════════════════════════════════════════════════════════════
+      PDP report  ·  target: scaled-sound-pressure
+      ════════════════════════════════════════════════════════════════════════
+    
+      DATA & MODEL
+      ────────────────────────────────────────────────────────────────────────
+        instances     1,202
+        features      5  ·  5 continuous
+        model output  mean 125 · std 6.7 · range [105, 138]
+        model R²      0.968  (on this subsample)
+    
+      EXPLAINED VARIANCE
+      ────────────────────────────────────────────────────────────────────────
+        step         split on                 solo     ΔR²      R²       heter
+        ──────────────────────────────────────────────────────────────────────
+        GAM          (all features global)       —       —   54.2%           —
+      + frequency    chord-length, sucti…   +28.3%  +28.3%   82.5% 5.18 → 2.64
+        ──────────────────────────────────────────────────────────────────────
+        FINAL                                                82.5%
+    
+      REJECTED SPLITS                                            min gain 1.0%
+      ────────────────────────────────────────────────────────────────────────
+        feature      split on                 solo     ΔR²    reason
+        ──────────────────────────────────────────────────────────────────────
+      ✗ suction-side-frequency              +19.8%   -6.6%    redundant
+      ✗ chord-length frequency              +11.0%   -1.9%    redundant
+    
+        ✗ redundant: it would explain variance on its own (see solo),
+          but the accepted splits already account for it.
+    
+      FEATURES                                ranked, in the selected snapshot
+      ────────────────────────────────────────────────────────────────────────
+        feature        importance                          heter      #regions
+        ──────────────────────────────────────────────────────────────────────
+        frequency          4.8790  ██████████████████     2.6361             4
+        suction-side-d     3.1481  ████████████           4.3219             1
+        chord-length       1.2760  █████                  2.3447             1
+        ──────────────────────────────────────────────────────────────────────
+        the features above carry 87% of the total importance mass
+    
     
     
     Feature 0 - Full partition tree:
@@ -145,7 +170,7 @@ report.to_html(_out / "report_pdp.html")  # open in browser
     
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
@@ -180,10 +205,25 @@ chain = pdp.select_regions()
 chain.show()
 ```
 
-    GAM: R2 = 0.542
-      + frequency regions (on chord-length, suction-side-displacement-thickness) -> R2 = 0.825 (+28.3 pts)
-      x chord-length regions skipped (redundant, -1.9 pts)
-      x suction-side-displacement-thickness regions skipped (redundant, -6.6 pts)
+    
+      EXPLAINED VARIANCE
+      ────────────────────────────────────────────────────────────────────────
+        step         split on                 solo     ΔR²      R²       heter
+        ──────────────────────────────────────────────────────────────────────
+        GAM          (all features global)       —       —   54.2%           —
+      + frequency    chord-length, sucti…   +28.3%  +28.3%   82.5% 5.18 → 2.64
+        ──────────────────────────────────────────────────────────────────────
+        FINAL                                                82.5%
+    
+      REJECTED SPLITS                                            min gain 1.0%
+      ────────────────────────────────────────────────────────────────────────
+        feature      split on                 solo     ΔR²    reason
+        ──────────────────────────────────────────────────────────────────────
+      ✗ chord-length frequency              +11.0%   -1.9%    redundant
+      ✗ suction-side-frequency              +19.8%   -6.6%    redundant
+    
+        ✗ redundant: it would explain variance on its own (see solo),
+          but the accepted splits already account for it.
 
 
 ### Three claimants, one pot
@@ -331,30 +371,33 @@ print(f"\nreports stored in {_out}/")
     --- pdp --------------------------------------------------
 
 
-    [effector] global effects reproduce 54.2% of the model's variance; with subregions, 82.5%
+    [effector] global effects   (GAM)  -> 54.2% of the model's variance
+               regional effects (CALM) -> 82.5%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
     --- ale --------------------------------------------------
 
 
-    [effector] global effects reproduce 43.0% of the model's variance; with subregions, 67.9%
+    [effector] global effects   (GAM)  -> 43.0% of the model's variance
+               regional effects (CALM) -> 67.9%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
     --- shapdp --------------------------------------------------
 
 
-    [effector] global effects reproduce 52.6% of the model's variance; with subregions, 84.2%
+    [effector] global effects   (GAM)  -> 52.6% of the model's variance
+               regional effects (CALM) -> 84.2%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 

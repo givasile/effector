@@ -27,7 +27,7 @@ random.seed(42)
 ```
 
     WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-    I0000 00:00:1783956167.030801   66521 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    I0000 00:00:1784048612.709251    6346 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
@@ -248,26 +248,27 @@ report.to_html(_out / "report_pdp.html")   # open in browser to see the interact
 
 ```
 
-    [effector] global effects reproduce 71.3% of the model's variance; with subregions, 88.7%
+    [effector] global effects   (GAM)  -> 71.3% of the model's variance
+               regional effects (CALM) -> 88.7%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
-    W0000 00:00:1783956206.505985   66521 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
+    W0000 00:00:1784048662.864161    6346 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
 
 
-    W0000 00:00:1783956207.261146   66521 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
+    W0000 00:00:1784048663.698983    6346 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
 
 
-    W0000 00:00:1783956208.184457   66521 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
+    W0000 00:00:1784048664.757299    6346 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
 
 
-    W0000 00:00:1783956208.813327   66521 cpu_allocator_impl.cc:82] Allocation of 2007040000 exceeds 10% of free system memory.
+    W0000 00:00:1784048665.253918    6346 cpu_allocator_impl.cc:82] Allocation of 2007040000 exceeds 10% of free system memory.
 
 
-    W0000 00:00:1783956212.602379   66521 cpu_allocator_impl.cc:82] Allocation of 2007040000 exceeds 10% of free system memory.
+    W0000 00:00:1784048667.576040    6346 cpu_allocator_impl.cc:82] Allocation of 2007040000 exceeds 10% of free system memory.
 
 
 
@@ -287,10 +288,11 @@ report = effector.explain(
 report.to_html(_out / "report_rhale.html")   # open in browser to see the interactive pl
 ```
 
-    [effector] global effects reproduce 70.6% of the model's variance; with subregions, 88.4%
+    [effector] global effects   (GAM)  -> 70.6% of the model's variance
+               regional effects (CALM) -> 88.4%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
@@ -433,24 +435,49 @@ report.show()
     importances: [0.09  0.191 0.04  0.663 0.022 0.044 0.041 0.053 0.228 0.112 0.018]
 
 
-    [effector] global effects reproduce 71.7% of the model's variance; with subregions, 86.5%
+    [effector] global effects   (GAM)  -> 71.7% of the model's variance
+               regional effects (CALM) -> 86.5%
     
-    PDP report — target: bike-rentals
-    ============================================================
-    data: 2,000 instances × 11 features (5 nominal · 3 ordinal · 3 continuous) — target bike-rentals
-    model output: mean -0.0853, std 0.978, range [-1.31, 4.07] · R² 0.947 (on this subsample)
-    explained variance: global effects (GAM) 71.7%
-      + split hr (on season, workingday, yr) → 86.5% (+14.8 pts, heter 0.478→0.296)
-      rejected: workingday (on workingday) — +0.0 pts, redundant (variance already explained)
-    ------------------------------------------------------------
-    feature                   importance     heter  #regions
-    ------------------------------------------------------------
-    hr                            0.7328    0.2958         7
-    temp                          0.2281    0.2668         1
-    yr                            0.1878    0.2028         1
-    hum                           0.1155    0.1743         1
-    ============================================================
-    the plotted features carry 80% of the total importance mass
+      ════════════════════════════════════════════════════════════════════════
+      PDP report  ·  target: bike-rentals
+      ════════════════════════════════════════════════════════════════════════
+    
+      DATA & MODEL
+      ────────────────────────────────────────────────────────────────────────
+        instances     2,000
+        features      11  ·  5 nominal · 3 ordinal · 3 continuous
+        model output  mean 174 · std 177 · range [-48.9, 928]
+        model R²      0.947  (on this subsample)
+    
+      EXPLAINED VARIANCE
+      ────────────────────────────────────────────────────────────────────────
+        step         split on                 solo     ΔR²      R²       heter
+        ──────────────────────────────────────────────────────────────────────
+        GAM          (all features global)       —       —   71.7%           —
+      + hr           season, workingday,…   +14.8%  +14.8%   86.5% 0.48 → 0.30
+        ──────────────────────────────────────────────────────────────────────
+        FINAL                                                86.5%
+    
+      REJECTED SPLITS                                            min gain 1.0%
+      ────────────────────────────────────────────────────────────────────────
+        feature      split on                 solo     ΔR²    reason
+        ──────────────────────────────────────────────────────────────────────
+      ✗ workingday   workingday              +0.0%   +0.0%    redundant
+    
+        ✗ redundant: it would explain variance on its own (see solo),
+          but the accepted splits already account for it.
+    
+      FEATURES                                ranked, in the selected snapshot
+      ────────────────────────────────────────────────────────────────────────
+        feature        importance                          heter      #regions
+        ──────────────────────────────────────────────────────────────────────
+        hr                 0.7328  ██████████████████     0.2958             4
+        temp               0.2281  ██████                 0.2668             1
+        yr                 0.1878  █████                  0.2028             1
+        hum                0.1155  ███                    0.1743             1
+        ──────────────────────────────────────────────────────────────────────
+        the features above carry 80% of the total importance mass
+    
     
     
     Feature 3 - Full partition tree:
@@ -860,47 +887,51 @@ print(f"\nreports stored in {_out}/")
     --- pdp --------------------------------------------------
 
 
-    [effector] global effects reproduce 71.3% of the model's variance; with subregions, 88.7%
+    [effector] global effects   (GAM)  -> 71.3% of the model's variance
+               regional effects (CALM) -> 88.7%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
     --- derpdp --------------------------------------------------
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
     --- ale --------------------------------------------------
 
 
-    [effector] global effects reproduce 71.0% of the model's variance; with subregions, 88.8%
+    [effector] global effects   (GAM)  -> 71.0% of the model's variance
+               regional effects (CALM) -> 88.8%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
     --- rhale --------------------------------------------------
 
 
-    [effector] global effects reproduce 70.6% of the model's variance; with subregions, 88.4%
+    [effector] global effects   (GAM)  -> 70.6% of the model's variance
+               regional effects (CALM) -> 88.4%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
     --- shapdp --------------------------------------------------
 
 
-    [effector] global effects reproduce 75.0% of the model's variance; with subregions, 88.4%
+    [effector] global effects   (GAM)  -> 75.0% of the model's variance
+               regional effects (CALM) -> 88.4%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 

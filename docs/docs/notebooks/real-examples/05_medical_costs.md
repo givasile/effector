@@ -122,24 +122,49 @@ report.show()
 report.to_html(_out / "report_pdp.html")  # open in browser
 ```
 
-    [effector] global effects reproduce 84.4% of the model's variance; with subregions, 96.6%
+    [effector] global effects   (GAM)  -> 84.4% of the model's variance
+               regional effects (CALM) -> 96.6%
     
-    PDP report — target: charges
-    ============================================================
-    data: 1,070 instances × 6 features (2 continuous · 3 nominal · 1 ordinal) — target charges
-    model output: mean 1.34e+04, std 1.17e+04, range [-100, 5.23e+04] · R² 0.945 (on this subsample)
-    explained variance: global effects (GAM) 84.4%
-      + split bmi (on age, smoker) → 96.6% (+12.1 pts, heter 4497.234→1229.483)
-      rejected: smoker (on bmi) — -11.5 pts, redundant (variance already explained)
-      rejected: age (on bmi, children, smoker) — +0.4 pts, below the 1.0-pt threshold
-    ------------------------------------------------------------
-    feature                   importance     heter  #regions
-    ------------------------------------------------------------
-    smoker                     9741.7124 4202.7570         1
-    age                        3665.6089 1547.5959         1
-    bmi                        2669.0218 1229.4831         7
-    ============================================================
-    the plotted features carry 91% of the total importance mass
+      ════════════════════════════════════════════════════════════════════════
+      PDP report  ·  target: charges
+      ════════════════════════════════════════════════════════════════════════
+    
+      DATA & MODEL
+      ────────────────────────────────────────────────────────────────────────
+        instances     1,070
+        features      6  ·  2 continuous · 3 nominal · 1 ordinal
+        model output  mean 1.34e+04 · std 1.17e+04 · range [-100, 5.23e+04]
+        model R²      0.945  (on this subsample)
+    
+      EXPLAINED VARIANCE
+      ────────────────────────────────────────────────────────────────────────
+        step         split on                 solo     ΔR²      R²       heter
+        ──────────────────────────────────────────────────────────────────────
+        GAM          (all features global)       —       —   84.4%           —
+      + bmi          age, smoker            +12.1%  +12.1%   96.6% 4497 → 1229
+        ──────────────────────────────────────────────────────────────────────
+        FINAL                                                96.6%
+    
+      REJECTED SPLITS                                            min gain 1.0%
+      ────────────────────────────────────────────────────────────────────────
+        feature      split on                 solo     ΔR²    reason
+        ──────────────────────────────────────────────────────────────────────
+      ✗ smoker       bmi                    +11.1%  -11.5%    redundant
+      ✗ age          bmi, children, smok…    +0.1%   +0.4%    below threshold
+    
+        ✗ redundant: it would explain variance on its own (see solo),
+          but the accepted splits already account for it.
+    
+      FEATURES                                ranked, in the selected snapshot
+      ────────────────────────────────────────────────────────────────────────
+        feature        importance                          heter      #regions
+        ──────────────────────────────────────────────────────────────────────
+        smoker          9741.7124  ██████████████████  4202.7570             1
+        age             3665.6089  ███████             1547.5959             1
+        bmi             2669.0218  █████               1229.4831             4
+        ──────────────────────────────────────────────────────────────────────
+        the features above carry 91% of the total importance mass
+    
     
     
     Feature 2 - Full partition tree:
@@ -163,7 +188,7 @@ report.to_html(_out / "report_pdp.html")  # open in browser
     
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
@@ -181,10 +206,25 @@ chain = pdp.select_regions()
 chain.show()
 ```
 
-    GAM: R2 = 0.844
-      + bmi regions (on age, smoker) -> R2 = 0.966 (+12.1 pts)
-      x age regions skipped (below_threshold, +0.4 pts)
-      x smoker regions skipped (redundant, -11.5 pts)
+    
+      EXPLAINED VARIANCE
+      ────────────────────────────────────────────────────────────────────────
+        step         split on                 solo     ΔR²      R²       heter
+        ──────────────────────────────────────────────────────────────────────
+        GAM          (all features global)       —       —   84.4%           —
+      + bmi          age, smoker            +12.1%  +12.1%   96.6% 4497 → 1229
+        ──────────────────────────────────────────────────────────────────────
+        FINAL                                                96.6%
+    
+      REJECTED SPLITS                                            min gain 1.0%
+      ────────────────────────────────────────────────────────────────────────
+        feature      split on                 solo     ΔR²    reason
+        ──────────────────────────────────────────────────────────────────────
+      ✗ age          bmi, children, smok…    +0.1%   +0.4%    below threshold
+      ✗ smoker       bmi                    +11.1%  -11.5%    redundant
+    
+        ✗ redundant: it would explain variance on its own (see solo),
+          but the accepted splits already account for it.
 
 
 ### Two claimants, one pot
@@ -342,30 +382,33 @@ print(f"\nreports stored in {_out}/")
     --- pdp --------------------------------------------------
 
 
-    [effector] global effects reproduce 84.4% of the model's variance; with subregions, 96.6%
+    [effector] global effects   (GAM)  -> 84.4% of the model's variance
+               regional effects (CALM) -> 96.6%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
     --- ale --------------------------------------------------
 
 
-    [effector] global effects reproduce 84.0% of the model's variance; with subregions, 96.1%
+    [effector] global effects   (GAM)  -> 84.0% of the model's variance
+               regional effects (CALM) -> 96.1%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
     --- shapdp --------------------------------------------------
 
 
-    [effector] global effects reproduce 83.8% of the model's variance; with subregions, 96.7%
+    [effector] global effects   (GAM)  -> 83.8% of the model's variance
+               regional effects (CALM) -> 96.7%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 

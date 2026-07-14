@@ -118,30 +118,55 @@ report.show()
 report.to_html(_out / "report_pdp.html")  # open in browser
 ```
 
-    [effector] global effects reproduce 72.5% of the model's variance; with subregions, 86.0%
+    [effector] global effects   (GAM)  -> 72.5% of the model's variance
+               regional effects (CALM) -> 86.0%
     
-    PDP report — target: income>50K
-    ============================================================
-    data: 5,000 instances × 12 features (4 continuous · 7 nominal · 1 ordinal) — target income>50K
-    model output: mean 0.249, std 0.309, range [0.000225, 0.999] · accuracy 0.879 (on this subsample)
-    explained variance: global effects (GAM) 72.5%
-      + split education-num (on age, capital-gain, marital-status) → 80.4% (+7.9 pts, heter 0.069→0.040)
-      + split capital-gain (on age, education-num, marital-status) → 83.2% (+2.9 pts, heter 0.254→0.162)
-      + split capital-loss (on age, capital-gain, marital-status) → 85.0% (+1.7 pts, heter 0.108→0.084)
-      + split hours-per-week (on age, capital-gain, marital-status) → 86.0% (+1.0 pts, heter 0.064→0.045)
-      rejected: age (on hours-per-week, marital-status) — +0.7 pts, below the 1.0-pt threshold
-      rejected: relationship (on age, marital-status) — +0.3 pts, below the 1.0-pt threshold
-    ------------------------------------------------------------
-    feature                   importance     heter  #regions
-    ------------------------------------------------------------
-    capital-gain                  0.1096    0.1621         7
-    age                           0.0709    0.0862         1
-    education-num                 0.0699    0.0404         7
-    capital-loss                  0.0659    0.0836         7
-    relationship                  0.0525    0.0561         1
-    hours-per-week                0.0351    0.0448         7
-    ============================================================
-    the plotted features carry 75% of the total importance mass
+      ════════════════════════════════════════════════════════════════════════
+      PDP report  ·  target: income>50K
+      ════════════════════════════════════════════════════════════════════════
+    
+      DATA & MODEL
+      ────────────────────────────────────────────────────────────────────────
+        instances     5,000
+        features      12  ·  4 continuous · 7 nominal · 1 ordinal
+        model output  mean 0.249 · std 0.309 · range [0.000225, 0.999]
+        model accuracy0.879  (on this subsample)
+    
+      EXPLAINED VARIANCE
+      ────────────────────────────────────────────────────────────────────────
+        step         split on                 solo     ΔR²      R²       heter
+        ──────────────────────────────────────────────────────────────────────
+        GAM          (all features global)       —       —   72.5%           —
+      + education-numage, capital-gain, …    +7.9%   +7.9%   80.4% 0.07 → 0.04
+      + capital-gain age, education-num,…    +6.4%   +2.9%   83.2% 0.25 → 0.16
+      + capital-loss age, capital-gain, …    +5.5%   +1.7%   85.0% 0.11 → 0.08
+      + hours-per-weeage, capital-gain, …    +5.5%   +1.0%   86.0% 0.06 → 0.04
+        ──────────────────────────────────────────────────────────────────────
+        FINAL                                                86.0%
+    
+      REJECTED SPLITS                                            min gain 1.0%
+      ────────────────────────────────────────────────────────────────────────
+        feature      split on                 solo     ΔR²    reason
+        ──────────────────────────────────────────────────────────────────────
+      ✗ age          hours-per-week, mar…    +5.1%   +0.7%    below threshold
+      ✗ relationship age, marital-status     +3.9%   +0.3%    below threshold
+    
+        ✗ redundant: it would explain variance on its own (see solo),
+          but the accepted splits already account for it.
+    
+      FEATURES                                ranked, in the selected snapshot
+      ────────────────────────────────────────────────────────────────────────
+        feature        importance                          heter      #regions
+        ──────────────────────────────────────────────────────────────────────
+        capital-gain       0.1096  ██████████████████     0.1621             4
+        age                0.0709  ████████████           0.0862             1
+        education-num      0.0699  ███████████            0.0404             4
+        capital-loss       0.0659  ███████████            0.0836             4
+        relationship       0.0525  █████████              0.0561             1
+        hours-per-week     0.0351  ██████                 0.0448             4
+        ──────────────────────────────────────────────────────────────────────
+        the features above carry 75% of the total importance mass
+    
     
     
     Feature 8 - Full partition tree:
@@ -228,11 +253,11 @@ report.to_html(_out / "report_pdp.html")  # open in browser
     
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
-    /home/givasile/github/packages/effector/effector/visualization.py:357: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
+    /home/givasile/github/packages/effector/effector/visualization.py:360: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
       fig, ax = plt.subplots()
 
 
@@ -250,13 +275,28 @@ chain = pdp.select_regions()
 chain.show()
 ```
 
-    GAM: R2 = 0.725
-      + education-num regions (on age, capital-gain, marital-status) -> R2 = 0.804 (+7.9 pts)
-      + capital-gain regions (on age, education-num, marital-status) -> R2 = 0.832 (+2.9 pts)
-      + capital-loss regions (on age, capital-gain, marital-status) -> R2 = 0.850 (+1.7 pts)
-      + hours-per-week regions (on age, capital-gain, marital-status) -> R2 = 0.860 (+1.0 pts)
-      x age regions skipped (below_threshold, +0.7 pts)
-      x relationship regions skipped (below_threshold, +0.3 pts)
+    
+      EXPLAINED VARIANCE
+      ────────────────────────────────────────────────────────────────────────
+        step         split on                 solo     ΔR²      R²       heter
+        ──────────────────────────────────────────────────────────────────────
+        GAM          (all features global)       —       —   72.5%           —
+      + education-numage, capital-gain, …    +7.9%   +7.9%   80.4% 0.07 → 0.04
+      + capital-gain age, education-num,…    +6.4%   +2.9%   83.2% 0.25 → 0.16
+      + capital-loss age, capital-gain, …    +5.5%   +1.7%   85.0% 0.11 → 0.08
+      + hours-per-weeage, capital-gain, …    +5.5%   +1.0%   86.0% 0.06 → 0.04
+        ──────────────────────────────────────────────────────────────────────
+        FINAL                                                86.0%
+    
+      REJECTED SPLITS                                            min gain 1.0%
+      ────────────────────────────────────────────────────────────────────────
+        feature      split on                 solo     ΔR²    reason
+        ──────────────────────────────────────────────────────────────────────
+      ✗ age          hours-per-week, mar…    +5.1%   +0.7%    below threshold
+      ✗ relationship age, marital-status     +3.9%   +0.3%    below threshold
+    
+        ✗ redundant: it would explain variance on its own (see solo),
+          but the accepted splits already account for it.
 
 
 ## Look at the headline split: `capital-gain`
@@ -381,34 +421,37 @@ print(f"\nreports stored in {_out}/")
     --- pdp --------------------------------------------------
 
 
-    [effector] global effects reproduce 72.5% of the model's variance; with subregions, 86.0%
+    [effector] global effects   (GAM)  -> 72.5% of the model's variance
+               regional effects (CALM) -> 86.0%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
-    /home/givasile/github/packages/effector/effector/visualization.py:357: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
+    /home/givasile/github/packages/effector/effector/visualization.py:360: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
       fig, ax = plt.subplots()
 
 
     --- ale --------------------------------------------------
 
 
-    [effector] global effects reproduce 75.3% of the model's variance; with subregions, 82.9%
+    [effector] global effects   (GAM)  -> 75.3% of the model's variance
+               regional effects (CALM) -> 82.9%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
     --- shapdp --------------------------------------------------
 
 
-    [effector] global effects reproduce 64.2% of the model's variance; with subregions, 73.5%
+    [effector] global effects   (GAM)  -> 64.2% of the model's variance
+               regional effects (CALM) -> 73.5%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
