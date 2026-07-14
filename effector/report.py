@@ -29,8 +29,45 @@ from typing import List, Optional
 import numpy as np
 
 from effector import explained_variance as _ev
-from effector import helpers, method_registry
+from effector import method_registry
 from effector.partition import Partition
+
+# The two charsets `Report.show` draws with. Unicode by default; `ascii=True`
+# for terminals, CI logs and Windows consoles that mangle box-drawing glyphs.
+_UNICODE_GLYPHS = {
+    "dash": "─",
+    "heavy": "═",
+    "bar": "█",
+    "arrow": "→",
+    "cross": "✗",
+    "plus": "+",
+    "dot": "·",
+    "em": "—",
+    "ell": "…",
+    "dr2": "ΔR²",
+    "r2": "R²",
+}
+_ASCII_GLYPHS = {
+    "dash": "-",
+    "heavy": "=",
+    "bar": "#",
+    "arrow": "->",
+    "cross": "x",
+    "plus": "+",
+    "dot": "*",
+    "em": "-",
+    "ell": "..",
+    "dr2": "dR2",
+    "r2": "R2",
+}
+
+
+def _clip(text, width, ell="…"):
+    """Truncate to `width`, marking the cut with an ellipsis. Conditioning-
+    feature lists ("season, workingday, yr") outgrow their column on real data;
+    a silently overflowing cell would shear the whole table."""
+    text = str(text)
+    return text if len(text) <= width else text[: width - len(ell)] + ell
 
 
 @contextlib.contextmanager
@@ -172,29 +209,6 @@ class Report:
         return self._effect
 
     # -- terminal summary ------------------------------------------------------
-    def _summary_lines(self):
-        """The data+model summary as 1–2 plain lines (self-containment: a
-        reader should not need the notebook to know what was explained)."""
-        s = self.summary
-        if not s:
-            return []
-        ft = s.get("feature_types", {})
-        kinds = " · ".join(
-            f"{v} {k}" for k, v in ft.items() if v
-        )
-        lines = [
-            f"data: {s['n_instances']:,} instances × {s['n_features']} "
-            f"features ({kinds}) — target {self.target_name}"
-        ]
-        pred = (
-            f"model output: mean {s['pred_mean']:.3g}, std {s['pred_std']:.3g}, "
-            f"range [{s['pred_min']:.3g}, {s['pred_max']:.3g}]"
-        )
-        if s.get("score") is not None:
-            pred += f" · {s['score_kind']} {s['score']:.3f} (on this subsample)"
-        lines.append(pred)
-        return lines
-
     def _ev_headline(self):
         """The explained-variance one-liner, or `None` when the section is
         absent (derivative-scale method / degenerate model output)."""
@@ -206,70 +220,191 @@ class Report:
             line += f"; with subregions, {ev['regional_r2']:.1%}"
         return line
 
-    def show(self):
-        """Print the report in reading order: the explained-variance decision
-        sequence first, then the ranked feature table (final-CALM values —
-        split features at the instance-weighted mean of their subregions),
-        then each accepted partition tree.
+    def _regions_of(self, fr, accepted):
+        """How many regions this feature carries in the selected snapshot: its
+        leaves if the split was accepted, else 1 (it stayed global)."""
+        in_calm = (
+            fr.partition is not None
+            and len(fr.partition["regions"]) > 1
+            and (accepted is None or fr.feature in accepted)
+        )
+        return len(fr.partition["regions"]) if in_calm else 1
+
+    def show(self, ascii=False):
+        """Print the report as three tables: what was explained (data + model),
+        the explained-variance decision sequence (accepted splits, then the
+        rejected ones), and the ranked feature table (final-CALM values — split
+        features at the instance-weighted mean of their subregions). Each
+        accepted partition tree follows.
+
+        Args:
+            ascii: draw with plain ASCII instead of box-drawing/block
+                characters, for terminals and logs that mangle unicode.
 
         Works on unbound reports (rebuilt via `from_dict`) too.
         """
+        g = _ASCII_GLYPHS if ascii else _UNICODE_GLYPHS
+        dash, heavy, bar, arrow, cross, dot, em = (
+            g["dash"],
+            g["heavy"],
+            g["bar"],
+            g["arrow"],
+            g["cross"],
+            g["dot"],
+            g["em"],  # the "not applicable" placeholder
+        )
+        # every table body is INDENT + TABLE wide, and the rules match it, so a
+        # column set that does not sum to TABLE shears the table visibly.
+        INDENT, TABLE = 4, 70
+
+        def p(line=""):
+            print(line.rstrip())
+
+        def rule(ch=dash, width=TABLE, indent=INDENT):
+            p(" " * indent + ch * width)
+
+        def section(name, note=""):
+            p()
+            head = " " * (INDENT - 2) + name
+            if note:
+                pad = INDENT + TABLE - len(head) - len(note)
+                head += " " * max(2, pad) + note
+            p(head)
+            rule(dash, TABLE + 2, INDENT - 2)
+
+        def pct(v):
+            return f"{v:.1%}"
+
+        def pts(v):
+            return f"{v * 100:+.1f}"
+
         title = method_registry.resolve(self.method_name).display_name
-        print(f"\n{title} report — target: {self.target_name}")
-        print("=" * 60)
-        for line in self._summary_lines():
-            print(line)
+        p()
+        rule(heavy, TABLE + 2, INDENT - 2)
+        p(f"  {title} report  {dot}  target: {self.target_name}")
+        rule(heavy, TABLE + 2, INDENT - 2)
+
+        # -- data & model ------------------------------------------------------
+        s = self.summary
+        if s:
+            section("DATA & MODEL")
+            kinds = f" {dot} ".join(
+                f"{v} {k}" for k, v in s.get("feature_types", {}).items() if v
+            )
+            rows = [
+                ("instances", f"{s['n_instances']:,}"),
+                ("features", f"{s['n_features']}  {dot}  {kinds}"),
+                (
+                    "model output",
+                    f"mean {s['pred_mean']:.3g} {dot} std {s['pred_std']:.3g} "
+                    f"{dot} range [{s['pred_min']:.3g}, {s['pred_max']:.3g}]",
+                ),
+            ]
+            if s.get("score") is not None:
+                kind = s["score_kind"]
+                if ascii:
+                    kind = kind.replace("²", "2")
+                rows.append((f"model {kind}", f"{s['score']:.3f}  (on this subsample)"))
+            for k, v in rows:
+                p(f"{' ' * INDENT}{k:<14}{v}")
+
+        # -- explained variance ------------------------------------------------
         ev = self.explained_variance
         accepted = {st["feature"] for st in ev["stages"]} if ev else None
-        if self._ev_headline():
-            print(f"explained variance: global effects (GAM) {ev['gam_r2']:.1%}")
+        if ev and self._ev_headline():
+
+            def heter_cell(st):
+                if st.get("heter_before") is None:
+                    return em
+                return f"{st['heter_before']:.2f} {arrow} {st['heter_after']:.2f}"
+
+            # 13 + on + 7 + 8 + 8 + het = 70. `het` is charset-dependent:
+            # "0.47 -> 0.28" (ascii) is one glyph wider than "0.47 → 0.28",
+            # and an exact-width field would butt against the R2 column.
+            het_w = 12 + len(arrow) - 1
+            on_w = 70 - 13 - 7 - 8 - 8 - het_w
+            section("EXPLAINED VARIANCE")
+            p(
+                f"{' ' * INDENT}{'step':<13}{'split on':<{on_w}}{'solo':>7}"
+                f"{g['dr2']:>8}{g['r2']:>8}{'heter':>{het_w}}"
+            )
+            rule()
+            p(
+                f"{' ' * INDENT}{'GAM':<13}"
+                f"{'(all features global)':<{on_w}}"
+                f"{em:>7}{em:>8}{pct(ev['gam_r2']):>8}{em:>{het_w}}"
+            )
             for st in ev["stages"]:
-                heter = (
-                    f", heter {st['heter_before']:.3f}→{st['heter_after']:.3f}"
-                    if st["heter_before"] is not None
-                    else ""
+                p(
+                    f"  {g['plus']} {st['name']:<13.13}"
+                    f"{_clip(st['on'], on_w - 1, g['ell']):<{on_w}}"
+                    f"{pts(st['solo_delta_r2']):>7}{pts(st['delta_r2']):>8}"
+                    f"{pct(st['cum_r2']):>8}{heter_cell(st):>{het_w}}"
                 )
-                print(
-                    f"  + split {st['name']} (on {st['on']}) → {st['cum_r2']:.1%}"
-                    f" ({st['delta_r2'] * 100:+.1f} pts{heter})"
+            rule()
+            p(
+                f"{' ' * INDENT}{'FINAL':<13}{'':<23}{'':>7}{'':>8}"
+                f"{pct(ev['regional_r2']):>8}"
+            )
+
+            if ev["skipped"]:
+                # 13 + 22 + 7 + 8 + 4 + 16 = 70
+                section("REJECTED SPLITS", f"min gain {ev['min_gain'] * 100:.1f} pts")
+                p(
+                    f"{' ' * INDENT}{'feature':<13}{'split on':<22}{'solo':>7}"
+                    f"{g['dr2']:>8}    {'reason':<16}"
                 )
-            for sk in ev["skipped"]:
-                why = (
-                    "redundant (variance already explained)"
-                    if sk["reason"] == "redundant"
-                    else f"below the {ev['min_gain'] * 100:.1f}-pt threshold"
+                rule()
+                for sk in ev["skipped"]:
+                    why = (
+                        "redundant"
+                        if sk["reason"] == "redundant"
+                        else "below threshold"
+                    )
+                    p(
+                        f"  {cross} {sk['name']:<13.13}"
+                        f"{_clip(sk['on'], 21, g['ell']):<22}"
+                        f"{pts(sk['solo_delta_r2']):>7}"
+                        f"{pts(sk['delta_r2']):>8}    {why:<16}"
+                    )
+                p()
+                p(
+                    f"{' ' * INDENT}{cross} redundant: it would explain variance"
+                    " on its own (see solo),"
                 )
-                print(
-                    f"  rejected: {sk['name']} (on {sk['on']}) — "
-                    f"{sk['delta_r2'] * 100:+.1f} pts, {why}"
+                p(
+                    f"{' ' * (INDENT + 2)}but the accepted splits already"
+                    " account for it."
                 )
-            print("-" * 60)
-        print(f"{'feature':<24}{'importance':>12}{'heter':>10}{'#regions':>10}")
-        print("-" * 60)
+
+        # -- the ranked features -----------------------------------------------
+        # 14 + 11 + 2 + 18 + 11 + 14 = 70
+        section("FEATURES", "ranked, in the selected snapshot")
+        p(
+            f"{' ' * INDENT}{'feature':<14}{'importance':>11}  {'':<18}"
+            f"{'heter':>11}{'#regions':>14}"
+        )
+        rule()
+        imax = max((fr.importance for fr in self.features), default=0.0)
         for fr in self.features:
-            in_calm = (
-                fr.partition is not None
-                and len(fr.partition["regions"]) > 1
-                and (accepted is None or fr.feature in accepted)
+            n = int(round(18 * fr.importance / imax)) if imax > 0 else 0
+            p(
+                f"{' ' * INDENT}{fr.name:<14.14}{fr.importance:>11.4f}  "
+                f"{bar * n:<18}{fr.heter_score:>11.4f}"
+                f"{self._regions_of(fr, accepted):>14d}"
             )
-            nregions = len(fr.partition["regions"]) if in_calm else 1
-            print(
-                f"{fr.name:<24}{fr.importance:>12.4f}{fr.heter_score:>10.4f}"
-                f"{nregions:>10d}"
-            )
-        print("=" * 60)
         cov = self.config.get("coverage_achieved")
         if cov is not None:
-            print(
-                f"the plotted features carry {cov:.0%} of the total "
-                "importance mass"
+            rule()
+            p(
+                f"{' ' * INDENT}the features above carry {cov:.0%} of the total"
+                " importance mass"
             )
+        p()
+
+        # -- the trees ---------------------------------------------------------
         for fr in self.features:
-            if (
-                fr.partition is not None
-                and len(fr.partition["regions"]) > 1
-                and (accepted is None or fr.feature in accepted)
-            ):
+            if self._regions_of(fr, accepted) > 1:
                 p = Partition.from_dict(fr.partition)
                 if self._effect is not None:
                     # bound: rule text resolves level names and raw units
@@ -318,8 +453,9 @@ class Report:
         Returns:
             `None`, or `(fig, ax)` when `show_plot=False`.
         """
-        from effector import theme
         import matplotlib.pyplot as plt
+
+        from effector import theme
 
         t = theme.active()
         rows = self._sorted_overview()
@@ -359,8 +495,9 @@ class Report:
         (right) share one sorted feature axis, value labels at the tips, the
         heterogeneity threshold as an inline hairline. One figure instead of
         two — the triage plane in bar form."""
-        from effector import theme
         import matplotlib.pyplot as plt
+
+        from effector import theme
 
         t = theme.active()
         rows = self._sorted_overview()
@@ -431,9 +568,7 @@ class Report:
         from effector.visualization import triage_scatter
 
         thr = self.config.get("heter_threshold")
-        pts = [
-            (o["name"], o["importance"], o["heter_score"]) for o in self.overview
-        ]
+        pts = [(o["name"], o["importance"], o["heter_score"]) for o in self.overview]
         by_feature = {o["feature"]: o for o in self.overview}
         arrows = {}
         ev = self.explained_variance
@@ -477,8 +612,9 @@ class Report:
         ordered swatch key beneath the bar, which doubles as the reading
         order.
         """
-        from effector import theme
         import matplotlib.pyplot as plt
+
+        from effector import theme
 
         t = theme.active()
         ev = self.explained_variance
@@ -516,9 +652,7 @@ class Report:
                 edgecolor=surface,
                 linewidth=2,
             )
-            inside = (
-                f"{label} · {value}" if label == "global effects" else value
-            )
+            inside = f"{label} · {value}" if label == "global effects" else value
             if self._text_width(fig, inside, 8) + 8 < width * ax_w:
                 ax.text(
                     left + width / 2,
@@ -747,9 +881,7 @@ class Report:
             out.append(f"<p class='caption'>{sentence}.</p>")
             if ev["gam_r2"] > 0:
                 out.append(
-                    self._img(
-                        self._ev_ledger_fig(), alt="explained-variance ledger"
-                    )
+                    self._img(self._ev_ledger_fig(), alt="explained-variance ledger")
                 )
             else:
                 out.append(
@@ -831,9 +963,7 @@ class Report:
             def _heter_cell(entry):
                 if entry.get("heter_before") is None:
                     return "·"
-                return (
-                    f"{entry['heter_before']:.3f} → {entry['heter_after']:.3f}"
-                )
+                return f"{entry['heter_before']:.3f} → {entry['heter_after']:.3f}"
 
             for st in ev["stages"]:
                 out.append(
@@ -857,13 +987,10 @@ class Report:
                 )
             out.append("</table>")
         out.append(
-            "<details><summary>Bar view — importance and heterogeneity"
-            "</summary>"
+            "<details><summary>Bar view — importance and heterogeneity</summary>"
         )
         out.append(
-            self._img(
-                self._overview_bars_fig(), alt="importance and heterogeneity"
-            )
+            self._img(self._overview_bars_fig(), alt="importance and heterogeneity")
         )
         out.append("</details></section>")
 
@@ -879,8 +1006,7 @@ class Report:
                 blk.append("<div class='grid'>")
                 for leaf in part.leaves:
                     drop = (
-                        f" · −{(1 - leaf.heterogeneity / root_h) * 100:.0f}% "
-                        "vs global"
+                        f" · −{(1 - leaf.heterogeneity / root_h) * 100:.0f}% vs global"
                         if root_h
                         else ""
                     )
@@ -955,9 +1081,7 @@ class Report:
                 "</span></div>"
             )
             if in_calm:
-                st = next(
-                    (s for s in ev["stages"] if s["feature"] == fr.feature), None
-                )
+                st = next((s for s in ev["stages"] if s["feature"] == fr.feature), None)
                 if st is not None:
                     out.append(
                         f"<p class='caption'>Split on <b>{esc(st['on'])}</b> "
@@ -1023,8 +1147,7 @@ class Report:
         # -- 3 · global baseline — the counterfactual ---------------------------
         if ev and accepted:
             out.append(
-                "<section id='baseline'>"
-                "<h2>3 · Global baseline — without regions</h2>"
+                "<section id='baseline'><h2>3 · Global baseline — without regions</h2>"
             )
             out.append(
                 "<p class='caption'>What you would believe about the split "
@@ -1096,7 +1219,7 @@ class Report:
         def _unify(groups, get, set_):
             for axs in groups.values():
                 lims = [get(a) for a in axs]
-                lo, hi = min(l[0] for l in lims), max(l[1] for l in lims)
+                lo, hi = min(lim[0] for lim in lims), max(lim[1] for lim in lims)
                 for a in axs:
                     set_(a, lo, hi)
 
