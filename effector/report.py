@@ -110,10 +110,20 @@ def _print_explained_variance(ev, *, ascii=False):
         # absolute move (+18.2% takes 71.5% to 89.7%), not a relative one.
         return f"{v * 100:+.1f}%"
 
+    def hnum(v):
+        # heter scores are output-unit quantities: dollars run to thousands,
+        # standardized targets to fractions. Keep each value at <= 4 glyphs so
+        # the before -> after pair never shears into the R2 column.
+        if v < 10:
+            return f"{v:.2f}"
+        if v < 10_000:
+            return f"{v:.0f}"
+        return f"{v / 1000:.0f}k"
+
     def heter_cell(st):
         if st.get("heter_before") is None:
             return em
-        return f"{st['heter_before']:.2f} {arrow} {st['heter_after']:.2f}"
+        return f"{hnum(st['heter_before'])} {arrow} {hnum(st['heter_after'])}"
 
     # 13 + on + 8 + 8 + 8 + het = 70. `solo`/`dR2` are 8 wide because a
     # signed percent runs to 7 glyphs ("+100.0%") and needs a space.
