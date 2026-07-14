@@ -269,19 +269,31 @@ API surface; a stored partition would be.
 `importance(feature, mask=None) -> float >= 0` is the method-agnostic scalar
 measuring how much the **mean effect** of a feature varies — the μ-twin of
 `heter_score` (which measures per-instance spread), evaluated the same way it is:
-continuous features over the uniform grid `heter_score` averages, discrete
-features frequency-weighted over levels. It is centering-invariant (no
-`centering` kwarg — the signature enforces it, and the std of the mean effect is
-invariant to the additive centering constant) and model-free (re-summarized from
-the cached local effects; the masked variant re-summarizes the subset through the
-same memo). The default is the standard deviation of the mean effect; ShapDP
-overrides it with the canonical `mean(|phi_s|)` over the (masked) instances, and
-d-PDP with the mean `|derivative|` (its mean effect is already a derivative, so
-the *dispersion* would be ~0 for a linear model). `importances(mask=None) ->
-(D,)` is the per-feature vector, warning once (R9) for feature types a method
-cannot explain. effector never sees `y`, so loss/permutation importance is out of
-scope by construction — importance here is a property of the fitted effect, not
-of a held-out error.
+continuous features over the **(masked) data values**, discrete features
+frequency-weighted over levels. It is centering-invariant (no `centering` kwarg —
+the signature enforces it, and the std of the mean effect is invariant to the
+additive centering constant) and model-free (re-summarized from the cached local
+effects; the masked variant re-summarizes the subset through the same memo).
+
+Like `heter_score`, it is a **std-type quantity in output units** (R2), which is
+what makes it comparable across methods and features. The default — the standard
+deviation of the mean effect — is therefore the *only* definition for PDP, ALE,
+RHALE and **ShapDP**: for a linear model all four recover `|a_j| * std(x_j)`.
+**d-PDP is the one override**: its mean effect is already a derivative, whose
+dispersion is ~0 for a locally-linear model (a useless ranking), so it uses the
+mean `|derivative|` over the (masked) data values, bridged into output units by
+the feature's dispersion — which recovers the same `|a_j| * std(x_j)`.
+
+*(Historical note: ShapDP once overrode this with the canonical `mean(|phi_s|)`.
+That was removed — it is an L1 functional, off by the distribution-dependent
+`E|x|/std(x)` factor, and φ absorbs half of each pairwise interaction, which the
+other methods' importances exclude. Both biases made ShapDP the triage-plane
+outlier. See `docs/method_semantics.md`.)*
+
+`importances(mask=None) -> (D,)` is the per-feature vector, warning once (R9) for
+feature types a method cannot explain. effector never sees `y`, so
+loss/permutation importance is out of scope by construction — importance here is
+a property of the fitted effect, not of a held-out error.
 
 ## R14 — Two-block lifecycle
 

@@ -181,9 +181,12 @@ regional machinery; a subclass that checks a cache is a bug by definition.
 
 5. **If your method doesn't fit the mold**, override a *named hook* — never
    bypass the gates. Legal override points: `_eval_mean` (exact evaluation
-   off the payload, like (d-)PDP), `_importance` (a method-canonical scalar,
-   like ShapDP's mean |φ|), `_compute_norm_const` / `_mean_norm_const` (a
-   non-scalar centering constant, like PDP's per-instance array).
+   off the payload, like (d-)PDP), `_importance` (a method-canonical scalar —
+   the one live override is DerPDP's bridged `mean(|derivative|)`, because its
+   mean effect is *already* a derivative; whatever you return must still be a
+   std-type quantity in output units, per R2/R13), `_compute_norm_const` /
+   `_mean_norm_const` (a non-scalar centering constant, like PDP's
+   per-instance array).
 
 ---
 

@@ -294,10 +294,14 @@ importances(mask=None, rule=None)          -> (D,)   # NaN + one warning for uns
 `heter_score` (which measures per-instance spread), in the same output units
 over the same data weighting. Model-free, centering-invariant (no `centering`
 kwarg by design). Default: the std of the mean effect over the (masked) data
-values (linear model: `|coefficient| * std(x)`); `ShapDP` overrides with the
-canonical `mean(|phi|)`; `DerPDP` with `mean(|derivative|) * std(x)`. effector
-never sees `y`, so loss/permutation importance is out of scope by construction
-— importance here is a property of the fitted effect.
+values (linear model: `|coefficient| * std(x)`) — and that default is what PDP,
+ALE, RHALE **and ShapDP** all use. `DerPDP` is the one override:
+`mean(|derivative|) * std(x)`, because its mean effect is already a derivative,
+so the *dispersion* would be ~0 for a linear model. All four recover
+`|coefficient| * std(x)` on a linear model, which is the point — the scalars are
+comparable across methods. effector never sees `y`, so loss/permutation
+importance is out of scope by construction — importance here is a property of
+the fitted effect.
 
 **Importance and heterogeneity are orthogonal axes in one currency.** Both are
 target-unit std-type quantities: importance = the size of the typical claim
