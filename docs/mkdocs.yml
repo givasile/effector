@@ -2,7 +2,6 @@ site_name: effector
 
 nav:
   - effector: index.md
-  - Quickstart: quickstart.md
   - Guides: guides.md
   - Examples: examples.md
   - API Docs: api_docs.md
