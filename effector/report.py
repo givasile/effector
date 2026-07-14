@@ -210,15 +210,22 @@ class Report:
 
     # -- terminal summary ------------------------------------------------------
     def _ev_headline(self):
-        """The explained-variance one-liner, or `None` when the section is
-        absent (derivative-scale method / degenerate model output)."""
+        """The explained-variance headline, as printable lines; `None` when the
+        section is absent (derivative-scale method / degenerate model output).
+
+        Two lines, one per surrogate, so the reader sees *which model* each
+        number belongs to: the additive GAM read off the global curves, and the
+        CALM read off the regional ones. The `->` column is aligned across both.
+        """
         ev = self.explained_variance
         if not ev:
             return None
-        line = f"global effects reproduce {ev['gam_r2']:.1%} of the model's variance"
+        lines = [
+            f"global effects   (GAM)  -> {ev['gam_r2']:.1%} of the model's variance"
+        ]
         if ev["stages"]:
-            line += f"; with subregions, {ev['regional_r2']:.1%}"
-        return line
+            lines.append(f"regional effects (CALM) -> {ev['regional_r2']:.1%}")
+        return lines
 
     def _regions_of(self, fr, accepted):
         """How many regions this feature carries in the selected snapshot: its
@@ -276,7 +283,10 @@ class Report:
             return f"{v:.1%}"
 
         def pts(v):
-            return f"{v * 100:+.1f}"
+            # A change in R2 is a difference of two percentages. We print it with
+            # a "%" for one consistent unit across the table; read it as an
+            # absolute move (+18.2% takes 71.5% to 89.7%), not a relative one.
+            return f"{v * 100:+.1f}%"
 
         title = method_registry.resolve(self.method_name).display_name
         p()
@@ -318,40 +328,42 @@ class Report:
                     return em
                 return f"{st['heter_before']:.2f} {arrow} {st['heter_after']:.2f}"
 
-            # 13 + on + 7 + 8 + 8 + het = 70. `het` is charset-dependent:
-            # "0.47 -> 0.28" (ascii) is one glyph wider than "0.47 → 0.28",
-            # and an exact-width field would butt against the R2 column.
+            # 13 + on + 8 + 8 + 8 + het = 70. `solo`/`dR2` are 8 wide because a
+            # signed percent runs to 7 glyphs ("+100.0%") and needs a space.
+            # `het` is charset-dependent: "0.47 -> 0.28" (ascii) is one glyph
+            # wider than "0.47 → 0.28", and an exact-width field would butt
+            # against the R2 column.
             het_w = 12 + len(arrow) - 1
-            on_w = 70 - 13 - 7 - 8 - 8 - het_w
+            on_w = 70 - 13 - 8 - 8 - 8 - het_w
             section("EXPLAINED VARIANCE")
             p(
-                f"{' ' * INDENT}{'step':<13}{'split on':<{on_w}}{'solo':>7}"
+                f"{' ' * INDENT}{'step':<13}{'split on':<{on_w}}{'solo':>8}"
                 f"{g['dr2']:>8}{g['r2']:>8}{'heter':>{het_w}}"
             )
             rule()
             p(
                 f"{' ' * INDENT}{'GAM':<13}"
                 f"{'(all features global)':<{on_w}}"
-                f"{em:>7}{em:>8}{pct(ev['gam_r2']):>8}{em:>{het_w}}"
+                f"{em:>8}{em:>8}{pct(ev['gam_r2']):>8}{em:>{het_w}}"
             )
             for st in ev["stages"]:
                 p(
                     f"  {g['plus']} {st['name']:<13.13}"
                     f"{_clip(st['on'], on_w - 1, g['ell']):<{on_w}}"
-                    f"{pts(st['solo_delta_r2']):>7}{pts(st['delta_r2']):>8}"
+                    f"{pts(st['solo_delta_r2']):>8}{pts(st['delta_r2']):>8}"
                     f"{pct(st['cum_r2']):>8}{heter_cell(st):>{het_w}}"
                 )
             rule()
             p(
-                f"{' ' * INDENT}{'FINAL':<13}{'':<23}{'':>7}{'':>8}"
+                f"{' ' * INDENT}{'FINAL':<13}{'':<{on_w}}{'':>8}{'':>8}"
                 f"{pct(ev['regional_r2']):>8}"
             )
 
             if ev["skipped"]:
-                # 13 + 22 + 7 + 8 + 4 + 16 = 70
-                section("REJECTED SPLITS", f"min gain {ev['min_gain'] * 100:.1f} pts")
+                # 13 + 21 + 8 + 8 + 4 + 16 = 70
+                section("REJECTED SPLITS", f"min gain {ev['min_gain']:.1%}")
                 p(
-                    f"{' ' * INDENT}{'feature':<13}{'split on':<22}{'solo':>7}"
+                    f"{' ' * INDENT}{'feature':<13}{'split on':<21}{'solo':>8}"
                     f"{g['dr2']:>8}    {'reason':<16}"
                 )
                 rule()
@@ -363,8 +375,8 @@ class Report:
                     )
                     p(
                         f"  {cross} {sk['name']:<13.13}"
-                        f"{_clip(sk['on'], 21, g['ell']):<22}"
-                        f"{pts(sk['solo_delta_r2']):>7}"
+                        f"{_clip(sk['on'], 20, g['ell']):<21}"
+                        f"{pts(sk['solo_delta_r2']):>8}"
                         f"{pts(sk['delta_r2']):>8}    {why:<16}"
                     )
                 p()
@@ -625,7 +637,7 @@ class Report:
                     st["name"],
                     st["delta_r2"],
                     t.CAT[(i + 1) % len(t.CAT)],
-                    f"{st['delta_r2'] * 100:+.1f} pts",
+                    f"{st['delta_r2']:+.1%}",
                 )
             )
         rest = max(1.0 - ev["regional_r2"], 0.0)
@@ -946,7 +958,7 @@ class Report:
                 "global curves, each round applies the split with the largest "
                 "explained-variance gain, measured <i>on top of the splits "
                 "above it</i>, and stops when no remaining split adds at "
-                f"least {ev['min_gain'] * 100:.1f} pts. A real split (its "
+                f"least {ev['min_gain']:.1%}. A real split (its "
                 "heterogeneity does drop) can still add nothing — or even "
                 "hurt, by double-counting — when its variance is already "
                 "explained by an earlier split.</p>"
@@ -970,7 +982,7 @@ class Report:
                     f"<tr><td>+ split {esc(st['name'])} "
                     f"(on {esc(st['on'])})</td>"
                     f"<td>{st['n_regions']}</td><td>{_heter_cell(st)}</td>"
-                    f"<td>{st['delta_r2'] * 100:+.1f} pts → "
+                    f"<td>{st['delta_r2']:+.1%} → "
                     f"<b>{st['cum_r2']:.1%}</b></td></tr>"
                 )
             for sk in ev["skipped"]:
@@ -983,7 +995,7 @@ class Report:
                     f"<tr class='dim'><td>rejected · {esc(sk['name'])} "
                     f"(on {esc(sk['on'])})</td>"
                     f"<td>{sk['n_regions']}</td><td>{_heter_cell(sk)}</td>"
-                    f"<td>{sk['delta_r2'] * 100:+.1f} pts — {why}</td></tr>"
+                    f"<td>{sk['delta_r2']:+.1%} — {why}</td></tr>"
                 )
             out.append("</table>")
         out.append(
@@ -1086,7 +1098,7 @@ class Report:
                     out.append(
                         f"<p class='caption'>Split on <b>{esc(st['on'])}</b> "
                         f"into {st['n_regions']} regions — worth "
-                        f"<b>{st['delta_r2'] * 100:+.1f} pts</b> of explained "
+                        f"<b>{st['delta_r2']:+.1%}</b> of explained "
                         "variance on top of the splits above it; importance "
                         "and heterogeneity here are the instance-weighted "
                         "means over the subregions. The global counterpart "
@@ -1128,7 +1140,7 @@ class Report:
                     "adds no explained variance beyond the splits kept there — "
                     "the same variance is already read elsewhere"
                     if sk["reason"] == "redundant"
-                    else f"adds only {sk['delta_r2'] * 100:+.1f} pts, below the "
+                    else f"adds only {sk['delta_r2']:+.1%}, below the "
                     f"{ev['min_gain'] * 100:.1f}-pt threshold"
                 )
                 out.append(
@@ -1705,5 +1717,8 @@ def _explain_effect(
     report._bind(effect)
     headline = report._ev_headline()
     if headline:
-        print(f"[effector] {headline}")
+        prefix = "[effector] "
+        print(f"{prefix}{headline[0]}")
+        for line in headline[1:]:
+            print(f"{' ' * len(prefix)}{line}")
     return report

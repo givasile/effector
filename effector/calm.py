@@ -275,12 +275,12 @@ class CALM:
     def show(self):
         """Print the snapshot: R², the decision that created it, its partitions."""
         head = "GAM" if self.is_gam else f"CALM {self.index}"
-        print(f"{head}: R2 = {self.r2:.3f}")
+        print(f"{head}: R2 = {self.r2:.1%}")
         if self.stage is not None:
             print(
                 f"  + split {self.stage['name']} on {self.stage['on']} "
                 f"({self.stage['n_regions']} regions, "
-                f"{self.stage['delta_r2'] * 100:+.1f} pts)"
+                f"{self.stage['delta_r2']:+.1%})"
             )
         for f in self.features:
             self.partitions[f].show()
@@ -389,20 +389,20 @@ class CalmSequence:
 
     def show(self):
         """Print the decision sequence: GAM R², each accepted split, the rejected ones."""
-        print(f"GAM: R2 = {self.gam_r2:.3f}")
+        print(f"GAM: R2 = {self.gam_r2:.1%}")
         for c in self.calms[1:]:
             st = c.stage
             if st is None:
-                print(f"  + CALM {c.index} -> R2 = {c.r2:.3f}")
+                print(f"  + CALM {c.index} -> R2 = {c.r2:.1%}")
                 continue
             print(
                 f"  + {st['name']} regions (on {st['on']}) -> "
-                f"R2 = {st['cum_r2']:.3f} ({st['delta_r2'] * 100:+.1f} pts)"
+                f"R2 = {st['cum_r2']:.1%} ({st['delta_r2']:+.1%})"
             )
         for sk in self.skipped:
             print(
                 f"  x {sk['name']} regions skipped ({sk['reason']}, "
-                f"{sk['delta_r2'] * 100:+.1f} pts)"
+                f"{sk['delta_r2']:+.1%})"
             )
 
     def __repr__(self):
