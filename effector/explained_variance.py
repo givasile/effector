@@ -177,7 +177,7 @@ def select(effect, partitions: dict, features: list, min_gain: float = 0.01):
         partitions: `{feature_index: Partition}` — bound; single-leaf ones
             ignored.
         features: feature indices the surrogates sum over.
-        min_gain: smallest R² marginal worth a stage (default 1 pt) — below
+        min_gain: smallest R² marginal worth a stage (default 1%) — below
             it a split is skipped as `below_threshold`.
 
     Returns:

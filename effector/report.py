@@ -70,6 +70,106 @@ def _clip(text, width, ell="…"):
     return text if len(text) <= width else text[: width - len(ell)] + ell
 
 
+def _print_explained_variance(ev, *, ascii=False):
+    """Print the EXPLAINED VARIANCE and REJECTED SPLITS tables from an
+    explained-variance payload (`Report.explained_variance`, or a
+    `CalmSequence`'s decision-sequence keys). Shared by `Report.show` and
+    `CalmSequence.show`, so the ledger reads the same everywhere.
+
+    Args:
+        ev: dict with `gam_r2`, `regional_r2`, `min_gain`, `stages`, `skipped`.
+        ascii: draw with plain ASCII instead of box-drawing characters.
+    """
+    g = _ASCII_GLYPHS if ascii else _UNICODE_GLYPHS
+    dash, arrow, cross, em = g["dash"], g["arrow"], g["cross"], g["em"]
+    # every table body is INDENT + TABLE wide, and the rules match it, so a
+    # column set that does not sum to TABLE shears the table visibly.
+    INDENT, TABLE = 4, 70
+
+    def p(line=""):
+        print(line.rstrip())
+
+    def rule(ch=dash, width=TABLE, indent=INDENT):
+        p(" " * indent + ch * width)
+
+    def section(name, note=""):
+        p()
+        head = " " * (INDENT - 2) + name
+        if note:
+            pad = INDENT + TABLE - len(head) - len(note)
+            head += " " * max(2, pad) + note
+        p(head)
+        rule(dash, TABLE + 2, INDENT - 2)
+
+    def pct(v):
+        return f"{v:.1%}"
+
+    def pts(v):
+        # A change in R2 is a difference of two percentages. We print it with
+        # a "%" for one consistent unit across the table; read it as an
+        # absolute move (+18.2% takes 71.5% to 89.7%), not a relative one.
+        return f"{v * 100:+.1f}%"
+
+    def heter_cell(st):
+        if st.get("heter_before") is None:
+            return em
+        return f"{st['heter_before']:.2f} {arrow} {st['heter_after']:.2f}"
+
+    # 13 + on + 8 + 8 + 8 + het = 70. `solo`/`dR2` are 8 wide because a
+    # signed percent runs to 7 glyphs ("+100.0%") and needs a space.
+    # `het` is charset-dependent: "0.47 -> 0.28" (ascii) is one glyph
+    # wider than "0.47 → 0.28", and an exact-width field would butt
+    # against the R2 column.
+    het_w = 12 + len(arrow) - 1
+    on_w = 70 - 13 - 8 - 8 - 8 - het_w
+    section("EXPLAINED VARIANCE")
+    p(
+        f"{' ' * INDENT}{'step':<13}{'split on':<{on_w}}{'solo':>8}"
+        f"{g['dr2']:>8}{g['r2']:>8}{'heter':>{het_w}}"
+    )
+    rule()
+    p(
+        f"{' ' * INDENT}{'GAM':<13}"
+        f"{'(all features global)':<{on_w}}"
+        f"{em:>8}{em:>8}{pct(ev['gam_r2']):>8}{em:>{het_w}}"
+    )
+    for st in ev["stages"]:
+        p(
+            f"  {g['plus']} {st['name']:<13.13}"
+            f"{_clip(st['on'], on_w - 1, g['ell']):<{on_w}}"
+            f"{pts(st['solo_delta_r2']):>8}{pts(st['delta_r2']):>8}"
+            f"{pct(st['cum_r2']):>8}{heter_cell(st):>{het_w}}"
+        )
+    rule()
+    p(
+        f"{' ' * INDENT}{'FINAL':<13}{'':<{on_w}}{'':>8}{'':>8}"
+        f"{pct(ev['regional_r2']):>8}"
+    )
+
+    if ev["skipped"]:
+        # 13 + 21 + 8 + 8 + 4 + 16 = 70
+        section("REJECTED SPLITS", f"min gain {ev['min_gain']:.1%}")
+        p(
+            f"{' ' * INDENT}{'feature':<13}{'split on':<21}{'solo':>8}"
+            f"{g['dr2']:>8}    {'reason':<16}"
+        )
+        rule()
+        for sk in ev["skipped"]:
+            why = "redundant" if sk["reason"] == "redundant" else "below threshold"
+            p(
+                f"  {cross} {sk['name']:<13.13}"
+                f"{_clip(sk['on'], 20, g['ell']):<21}"
+                f"{pts(sk['solo_delta_r2']):>8}"
+                f"{pts(sk['delta_r2']):>8}    {why:<16}"
+            )
+        p()
+        p(
+            f"{' ' * INDENT}{cross} redundant: it would explain variance"
+            " on its own (see solo),"
+        )
+        p(f"{' ' * (INDENT + 2)}but the accepted splits already account for it.")
+
+
 @contextlib.contextmanager
 def _offscreen_figures():
     """Build figures without ever putting them on screen.
@@ -229,13 +329,20 @@ class Report:
 
     def _regions_of(self, fr, accepted):
         """How many regions this feature carries in the selected snapshot: its
-        leaves if the split was accepted, else 1 (it stayed global)."""
+        leaves if the split was accepted, else 1 (it stayed global).
+
+        Leaves, not tree nodes — the same count the explained-variance stages
+        and the §2 leaf plots use."""
         in_calm = (
             fr.partition is not None
             and len(fr.partition["regions"]) > 1
             and (accepted is None or fr.feature in accepted)
         )
-        return len(fr.partition["regions"]) if in_calm else 1
+        if not in_calm:
+            return 1
+        regions = fr.partition["regions"]
+        parents = {r["parent_idx"] for r in regions if r["parent_idx"] is not None}
+        return sum(1 for r in regions if r["idx"] not in parents)
 
     def show(self, ascii=False):
         """Print the report as three tables: what was explained (data + model),
@@ -251,15 +358,7 @@ class Report:
         Works on unbound reports (rebuilt via `from_dict`) too.
         """
         g = _ASCII_GLYPHS if ascii else _UNICODE_GLYPHS
-        dash, heavy, bar, arrow, cross, dot, em = (
-            g["dash"],
-            g["heavy"],
-            g["bar"],
-            g["arrow"],
-            g["cross"],
-            g["dot"],
-            g["em"],  # the "not applicable" placeholder
-        )
+        dash, heavy, bar, dot = g["dash"], g["heavy"], g["bar"], g["dot"]
         # every table body is INDENT + TABLE wide, and the rules match it, so a
         # column set that does not sum to TABLE shears the table visibly.
         INDENT, TABLE = 4, 70
@@ -278,15 +377,6 @@ class Report:
                 head += " " * max(2, pad) + note
             p(head)
             rule(dash, TABLE + 2, INDENT - 2)
-
-        def pct(v):
-            return f"{v:.1%}"
-
-        def pts(v):
-            # A change in R2 is a difference of two percentages. We print it with
-            # a "%" for one consistent unit across the table; read it as an
-            # absolute move (+18.2% takes 71.5% to 89.7%), not a relative one.
-            return f"{v * 100:+.1f}%"
 
         title = method_registry.resolve(self.method_name).display_name
         p()
@@ -322,72 +412,7 @@ class Report:
         ev = self.explained_variance
         accepted = {st["feature"] for st in ev["stages"]} if ev else None
         if ev and self._ev_headline():
-
-            def heter_cell(st):
-                if st.get("heter_before") is None:
-                    return em
-                return f"{st['heter_before']:.2f} {arrow} {st['heter_after']:.2f}"
-
-            # 13 + on + 8 + 8 + 8 + het = 70. `solo`/`dR2` are 8 wide because a
-            # signed percent runs to 7 glyphs ("+100.0%") and needs a space.
-            # `het` is charset-dependent: "0.47 -> 0.28" (ascii) is one glyph
-            # wider than "0.47 → 0.28", and an exact-width field would butt
-            # against the R2 column.
-            het_w = 12 + len(arrow) - 1
-            on_w = 70 - 13 - 8 - 8 - 8 - het_w
-            section("EXPLAINED VARIANCE")
-            p(
-                f"{' ' * INDENT}{'step':<13}{'split on':<{on_w}}{'solo':>8}"
-                f"{g['dr2']:>8}{g['r2']:>8}{'heter':>{het_w}}"
-            )
-            rule()
-            p(
-                f"{' ' * INDENT}{'GAM':<13}"
-                f"{'(all features global)':<{on_w}}"
-                f"{em:>8}{em:>8}{pct(ev['gam_r2']):>8}{em:>{het_w}}"
-            )
-            for st in ev["stages"]:
-                p(
-                    f"  {g['plus']} {st['name']:<13.13}"
-                    f"{_clip(st['on'], on_w - 1, g['ell']):<{on_w}}"
-                    f"{pts(st['solo_delta_r2']):>8}{pts(st['delta_r2']):>8}"
-                    f"{pct(st['cum_r2']):>8}{heter_cell(st):>{het_w}}"
-                )
-            rule()
-            p(
-                f"{' ' * INDENT}{'FINAL':<13}{'':<{on_w}}{'':>8}{'':>8}"
-                f"{pct(ev['regional_r2']):>8}"
-            )
-
-            if ev["skipped"]:
-                # 13 + 21 + 8 + 8 + 4 + 16 = 70
-                section("REJECTED SPLITS", f"min gain {ev['min_gain']:.1%}")
-                p(
-                    f"{' ' * INDENT}{'feature':<13}{'split on':<21}{'solo':>8}"
-                    f"{g['dr2']:>8}    {'reason':<16}"
-                )
-                rule()
-                for sk in ev["skipped"]:
-                    why = (
-                        "redundant"
-                        if sk["reason"] == "redundant"
-                        else "below threshold"
-                    )
-                    p(
-                        f"  {cross} {sk['name']:<13.13}"
-                        f"{_clip(sk['on'], 20, g['ell']):<21}"
-                        f"{pts(sk['solo_delta_r2']):>8}"
-                        f"{pts(sk['delta_r2']):>8}    {why:<16}"
-                    )
-                p()
-                p(
-                    f"{' ' * INDENT}{cross} redundant: it would explain variance"
-                    " on its own (see solo),"
-                )
-                p(
-                    f"{' ' * (INDENT + 2)}but the accepted splits already"
-                    " account for it."
-                )
+            _print_explained_variance(ev, ascii=ascii)
 
         # -- the ranked features -----------------------------------------------
         # 14 + 11 + 2 + 18 + 11 + 14 = 70
@@ -989,7 +1014,7 @@ class Report:
                 why = (
                     "redundant (variance already explained)"
                     if sk["reason"] == "redundant"
-                    else f"below the {ev['min_gain'] * 100:.1f}-pt threshold"
+                    else f"below the {ev['min_gain']:.1%} threshold"
                 )
                 out.append(
                     f"<tr class='dim'><td>rejected · {esc(sk['name'])} "
@@ -1141,7 +1166,7 @@ class Report:
                     "the same variance is already read elsewhere"
                     if sk["reason"] == "redundant"
                     else f"adds only {sk['delta_r2']:+.1%}, below the "
-                    f"{ev['min_gain'] * 100:.1f}-pt threshold"
+                    f"{ev['min_gain']:.1%} threshold"
                 )
                 out.append(
                     f"<p class='note'>A split on <b>{esc(sk['on'])}</b> into "
@@ -1483,7 +1508,7 @@ def explain(
             `None` (default) uses the median across the supported features —
             the same convention as `find_regions(features="heterogeneous")`.
         min_r2_gain: smallest explained-variance marginal (fraction of
-            `Var(f̂)`, default 0.01 = 1 pt) a split must add — on top of the
+            `Var(f̂)`, default 0.01 = 1%) a split must add — on top of the
             splits already applied — to earn a snapshot in the CALM chain
             and its regional plots; splits below it are skipped as redundant
             or below-threshold.
@@ -1534,14 +1559,18 @@ def _model_summary(effect, y=None):
     kinds = {}
     for t in effect.feature_types:
         kinds[t] = kinds.get(t, 0) + 1
+    # display units: the figures rescale through the schema's scale_y, so the
+    # header must speak the same units or the two contradict each other
+    sy = effect.scale_y
+    disp = fx * sy["std"] + sy["mean"] if sy is not None else fx
     summary = {
         "n_instances": int(n),
         "n_features": int(d),
         "feature_types": kinds,
-        "pred_mean": float(np.mean(fx)),
-        "pred_std": float(np.std(fx)),
-        "pred_min": float(np.min(fx)),
-        "pred_max": float(np.max(fx)),
+        "pred_mean": float(np.mean(disp)),
+        "pred_std": float(np.std(disp)),
+        "pred_min": float(np.min(disp)),
+        "pred_max": float(np.max(disp)),
         "score": None,
         "score_kind": None,
     }
