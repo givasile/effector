@@ -24,28 +24,28 @@ In `report.show()`, the same information compresses to one ASCII tree per
 accepted split, printed after the tables:
 
 ```text
-    hr 🔹 [id: 0 | heter: 0.49 | inst: 2000 | w: 1.00]
-        workingday = no 🔹 [id: 1 | heter: 0.35 | inst: 641 | w: 0.32]
-            temp < 6.19 🔹 [id: 2 | heter: 0.24 | inst: 310 | w: 0.15]
-            temp ≥ 6.19 🔹 [id: 3 | heter: 0.31 | inst: 331 | w: 0.17]
-        workingday = yes 🔹 [id: 4 | heter: 0.36 | inst: 1359 | w: 0.68]
-            yr = 2011 🔹 [id: 5 | heter: 0.26 | inst: 701 | w: 0.35]
-            yr = 2012 🔹 [id: 6 | heter: 0.33 | inst: 658 | w: 0.33]
+    hr 🔹 [id: 0 | heter: 0.48 | inst: 2000 | w: 1.00]
+        workingday = no 🔹 [id: 1 | heter: 0.37 | inst: 614 | w: 0.31]
+            temp < 4.50 🔹 [id: 2 | heter: 0.24 | inst: 248 | w: 0.12]
+            temp ≥ 4.50 🔹 [id: 3 | heter: 0.32 | inst: 366 | w: 0.18]
+        workingday = yes 🔹 [id: 4 | heter: 0.34 | inst: 1386 | w: 0.69]
+            yr = 2011 🔹 [id: 5 | heter: 0.25 | inst: 696 | w: 0.35]
+            yr = 2012 🔹 [id: 6 | heter: 0.32 | inst: 690 | w: 0.34]
 ```
 
 ## Reading a tree
 
 Chips read `[id | heterogeneity | #instances | weight]`, and heterogeneity
-**drops** as you walk down: 0.49 → 0.35 → 0.24. Every node is addressable by
+**drops** as you walk down: 0.48 → 0.37 → 0.24. Every node is addressable by
 its `id`; the leaves are the regions the report plots.
 
-Rules speak your schema: `workingday = no`, `yr = 2011`, `temp < 6.19` (°C,
+Rules speak your schema: `workingday = no`, `yr = 2011`, `temp < 4.50` (°C,
 not z scores), never `x_6 ≤ -1.35`. That is the
 [input layer](./../input_guide.md) paying off.
 
 ???+ question "Why is the ranked table's `heter` different from the tree's root?"
 
-    They answer different questions. The tree's root (0.49) is `hr` **before**
+    They answer different questions. The tree's root (0.48) is `hr` **before**
     the split; [the ranked features](./ranked_features.md) table (0.288) is
     `hr` **after** it, averaged over the leaves. The gap between them is what
     the split bought you.
@@ -53,7 +53,7 @@ not z scores), never `x_6 ≤ -1.35`. That is the
 ## A split feature's section
 
 An accepted split feature opens with a caption that quotes its ledger row
-(`Split on temp, workingday, yr into 4 regions — worth +18.2% ...`), then the
+(`Split on temp, workingday, yr into 4 regions — worth +17.5% ...`), then the
 partition tree, then a **grid of per leaf plots**, one effect curve per
 leaf:
 

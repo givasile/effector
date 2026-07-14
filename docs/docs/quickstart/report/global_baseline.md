@@ -37,7 +37,7 @@ So the report can be **checked, not just trusted**. Put `hr` here against its
 subregions in [the regional analysis](./regional_analysis.md): the global
 curve is not wrong, it is the correct average; the baseline shows what that
 average was hiding, and the [ledger](./explained_variance.md) prices the
-difference (`+18.2%`). It is also the explanation you would have shipped with
+difference (`+15.5%`). It is also the explanation you would have shipped with
 a purely global method; keeping it visible is what makes the regional claim
 falsifiable.
 

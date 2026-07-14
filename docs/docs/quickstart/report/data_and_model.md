@@ -21,8 +21,8 @@ In `report.show()` it is the first table:
   ────────────────────────────────────────────────────────────────────────
     instances     2,000
     features      11  ·  5 nominal · 3 ordinal · 3 continuous
-    model output  mean 0.0237 · std 0.973 · range [-1.03, 3.72]
-    model R²      0.955  (on this subsample)
+    model output  mean 174 · std 177 · range [-48.9, 928]
+    model R²      0.947  (on this subsample)
 ```
 
 On the HTML page the same facts render as chips under the title, next to a
@@ -32,7 +32,7 @@ On the HTML page the same facts render as chips under the title, next to a
 target bike-rentals · 11 features · 4 plotted
 
 [ data 10,000 × 11 ]  [ 5 nominal · 3 ordinal · 3 continuous ]
-[ model output -0.0755 ± 0.979 in [-1.34, 4.33] ]  [ R² 0.952 on this subsample ]
+[ model output 176 ± 178 in [-53, 975] ]  [ R² 0.952 on this subsample ]
 ```
 
 The two examples above show different numbers on purpose: they are two runs of
@@ -68,11 +68,15 @@ you say otherwise.
     [schema](./../input_guide.md).
 
 👉 **`model output`** is mean, std and range of the model's predictions on the
-subsample. The numbers are in the **model's own output units**: this model was
-trained on a standardized target, so they hover around 0 ± 1, while the report's
-figures rescale to raw bike rentals through the schema's `scale_y`. Use this
-row to anchor magnitudes: an importance of 0.74 is large *because* the model's
-whole output spread is 0.97.
+subsample, printed in the **same units the figures draw**: when your
+[schema](./../input_guide.md) carries a `scale_y`, the row rescales to raw
+units (here, bike rentals), exactly like every plot's y-axis. Use it as a
+sanity anchor: a model that predicts a mean of 174 bikes in [-48.9, 928] is
+predicting sane counts. One caveat: the `importance` and `heter` columns
+further down stay in the **model's own output units** (here a standardized
+target), because they are the same numbers the live verbs
+(`pdp.importance(...)`) return; anchor those against the model's output std in
+its own units, not against this row.
 
 👉 **`model R²`** appears only when you pass `y=`. It is the model's own
 accuracy against the ground truth, scored on this subsample; it is **not** the

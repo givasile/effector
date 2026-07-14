@@ -43,10 +43,11 @@ In `report.show()`:
   ────────────────────────────────────────────────────────────────────────
     step         split on                 solo     ΔR²      R²       heter
     ──────────────────────────────────────────────────────────────────────
-    GAM          (all features global)       —       —   71.5%           —
-  + hr           temp, workingday, yr   +18.2%  +18.2%   89.7% 0.49 → 0.29
+    GAM          (all features global)       —       —   71.7%           —
+  + hr           temp, workingday, yr   +15.5%  +15.5%   87.2% 0.48 → 0.29
+  + hum          hr, temp, weathersit    +1.8%   +1.4%   88.6% 0.17 → 0.15
     ──────────────────────────────────────────────────────────────────────
-    FINAL                                                89.7%
+    FINAL                                                88.6%
 ```
 
 On the HTML page the same ledger appears as one 0 to 100% bar of the model's
@@ -55,20 +56,23 @@ unexplained:
 
 ![The explained-variance ledger bar](./../../static/quickstart/report_guide/ev_ledger.png)
 
-The bar rounds a wide segment's label to whole percents (`72%`); the table
-keeps one decimal (`71.5%`). The HTML page also repeats the ledger as a
-**decision sequence** table, which adds the *rejected* candidates as dim rows;
-those are [the next component](./rejected_splits.md) of this guide.
+The bar rounds a wide segment's label to whole percents (`71%`); the table
+keeps one decimal. (The bar above comes from the report embedded in
+[the guide's map](./../report.md), the default `nof_instances=10_000` run; the
+`.show()` block is the `2_000` run, so the values differ slightly.) The HTML
+page also repeats the ledger as a **decision sequence** table, which adds the
+*rejected* candidates as dim rows; those are
+[the next component](./rejected_splits.md) of this guide.
 
 ## Reading the table
 
 Top to bottom is **the order it was decided**.
 
-1. **`GAM`**: the starting point. Every feature global, no regions: `71.5%`.
-2. **`+ hr`**: one row per accepted split, in acceptance order. Splitting `hr`
-   on `temp, workingday, yr` buys `+18.2%` and collapses `hr`'s heterogeneity
-   from 0.49 to 0.29.
-3. **`FINAL`**: the running total where the selection stopped: `89.7%`.
+1. **`GAM`**: the starting point. Every feature global, no regions: `71.7%`.
+2. **`+ hr`**, **`+ hum`**: one row per accepted split, in acceptance order.
+   Splitting `hr` on `temp, workingday, yr` buys `+15.5%` and collapses `hr`'s
+   heterogeneity from 0.48 to 0.29; splitting `hum` then adds `+1.4%` more.
+3. **`FINAL`**: the running total where the selection stopped: `88.6%`.
 
 | column | meaning |
 |---|---|
@@ -80,8 +84,8 @@ Top to bottom is **the order it was decided**.
 ???+ warning "Every number lives on the same 0 to 100% scale"
 
     `solo` and `ΔR²` are **absolute, additive** amounts of the model's
-    variance, not relative changes: `+18.2%` takes you from 71.5% to
-    **89.7%**, not to 71.5% × 1.182. You can add and subtract every number in
+    variance, not relative changes: `+15.5%` takes you from 71.7% to
+    **87.2%**, not to 71.7% × 1.155. You can add and subtract every number in
     this table.
 
 ## Why two gain columns
@@ -100,12 +104,15 @@ So `ΔR²` is a *sequential* gain: the value of this split given everything
 accepted before it. `solo` is the same split measured against the GAM alone.
 For the first accepted split the two are equal by construction. When they
 diverge, two splits are explaining overlapping variance, and the sequence
-keeps only the first: that is exactly the story
+charges only the marginal part: `hum`'s split would buy `+1.8%` on its own,
+but `hr`'s split already claimed some of that variance, so it adds `+1.4%`.
+Pushed to the extreme, a split whose marginal is ~zero is dropped as
+redundant: that is exactly the story
 [the rejected splits table](./rejected_splits.md) tells, one page ahead.
 
 The `heter` column is the same accounting seen from the feature's side: the
-split resolved part of `hr`'s spread (0.49 → 0.29, in the output's units), and
-that resolved spread is where the `+18.2%` came from.
+split resolved part of `hr`'s spread (0.48 → 0.29, in the output's units), and
+that resolved spread is where the `+15.5%` came from.
 
 ## When there is no ledger
 

@@ -157,26 +157,33 @@ that you can either export to HTML (preferred) or print in the terminal.
       ────────────────────────────────────────────────────────────────────────
         instances     2,000
         features      11  ·  5 nominal · 3 ordinal · 3 continuous
-        model output  mean 0.0237 · std 0.973 · range [-1.03, 3.72]
-        model R²      0.955  (on this subsample)
+        model output  mean 174 · std 177 · range [-48.9, 928]
+        model R²      0.947  (on this subsample)
 
       EXPLAINED VARIANCE
       ────────────────────────────────────────────────────────────────────────
         step         split on                 solo     ΔR²      R²       heter
         ──────────────────────────────────────────────────────────────────────
-        GAM          (all features global)       —       —   71.5%           —
-      + hr           temp, workingday, yr    +18.2   +18.2   89.7% 0.49 → 0.29
+        GAM          (all features global)       —       —   71.7%           —
+      + hr           temp, workingday, yr   +15.5%  +15.5%   87.2% 0.48 → 0.29
+      + hum          hr, temp, weathersit    +1.8%   +1.4%   88.6% 0.17 → 0.15
         ──────────────────────────────────────────────────────────────────────
-        FINAL                                                 89.7%
+        FINAL                                                88.6%
 
       FEATURES                                ranked, in the selected snapshot
       ────────────────────────────────────────────────────────────────────────
         feature        importance                          heter      #regions
         ──────────────────────────────────────────────────────────────────────
-        hr                 0.7370  ██████████████████     0.2880             7
-        yr                 0.2351  ██████                 0.2275             1
-        temp               0.2282  ██████                 0.2477             1
+        hr                 0.7314  ██████████████████     0.2882             4
+        temp               0.2281  ██████                 0.2668             1
+        yr                 0.1878  █████                  0.2028             1
+        hum                0.1020  ███                    0.1525             4
+        ──────────────────────────────────────────────────────────────────────
+        the features above carry 80% of the total importance mass
     ```
+
+    (the REJECTED SPLITS table and the partition trees follow; see
+    [the report guide](./report.md))
 
 ---
 

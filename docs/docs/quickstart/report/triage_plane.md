@@ -50,8 +50,8 @@ analysis goes hunting. In the figure, `hr` sits alone in that corner.
 An arrow marks each split the decision sequence **accepted**: from the
 feature's global point to its instance weighted mean across the subregions.
 `hr` starts at heterogeneity 0.48 and lands at 0.29: the split resolved that
-much spread, and it is the same `0.49 → 0.29` movement the
-[explained variance ledger](./explained_variance.md) charges `+18.2%` for.
+much spread, and it is the same `0.48 → 0.29` movement the
+[explained variance ledger](./explained_variance.md) charges `+15.5%` for.
 
 ???+ question "Why does `workingday` have no arrow?"
 

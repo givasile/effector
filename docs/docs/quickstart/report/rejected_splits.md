@@ -22,11 +22,9 @@ In `report.show()`, right under the
   ────────────────────────────────────────────────────────────────────────
     feature      split on                 solo     ΔR²    reason
     ──────────────────────────────────────────────────────────────────────
-  ✗ yr           hr, workingday          +2.6%   -0.8%    redundant
-  ✗ temp         hum, workingday         +1.6%   +0.3%    below threshold
-  ✗ hum          hr, temp                +1.2%   +0.7%    below threshold
-  ✗ mnth         hum, season, temp       +0.7%   +0.4%    below threshold
-  ✗ workingday   hr, yr                  +5.9%   -4.9%    redundant
+  ✗ temp         hr, hum                 +1.7%   +0.9%    below threshold
+  ✗ yr           hr, hum                 +1.5%   -0.1%    redundant
+  ✗ workingday   hr, yr                  +4.9%   -4.3%    redundant
 
     ✗ redundant: it would explain variance on its own (see solo),
       but the accepted splits already account for it.
@@ -61,9 +59,9 @@ already accepted.
 
 ???+ warning "Read `solo` against `ΔR²`"
 
-    `workingday` would have been worth **+5.9% on its own**: the second
+    `workingday` would have been worth **+4.9% on its own**: the second
     strongest split in the model. But once `hr` is split (and `hr`'s split
-    already conditions on `workingday`), it adds **−4.9%**. It is not
+    already conditions on `workingday`), it adds **−4.3%**. It is not
     useless; it is **redundant**. The `solo` column is what separates the
     two verdicts, and it is why the column exists.
 

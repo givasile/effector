@@ -40,20 +40,20 @@ that has neither your model nor your data.
 Before anything else, `explain` prints the one number worth having:
 
 ```text
-[effector] global effects   (GAM)  -> 71.5% of the model's variance
-           regional effects (CALM) -> 89.7%
+[effector] global effects   (GAM)  -> 71.7% of the model's variance
+           regional effects (CALM) -> 88.6%
 ```
 
 👉 **How much of your model does this explanation actually capture?** Each line
 is a surrogate you could actually ship. The **GAM** is the purely global read:
-one curve per feature, no regions; it reproduces 71.5% of the model's variance.
-The **CALM** allows subregions and reaches 89.7%.
+one curve per feature, no regions; it reproduces 71.7% of the model's variance.
+The **CALM** allows subregions and reaches 88.6%.
 You may interpret them both as: 
 
 ???+ note "How to read the headline"
 
-    *The global effects (GAM) explain the black-box model with 71.5% fidelity*.
-	*The regional effects (CALM) explain the black-box model with 89.7% fidelity*.
+    *The global effects (GAM) explain the black-box model with 71.7% fidelity*.
+	*The regional effects (CALM) explain the black-box model with 88.6% fidelity*.
 
 The second line only appears when a split was accepted; a model that is already
 additive prints one line, and that is the correct answer.
@@ -78,27 +78,26 @@ Three tables, then the partition trees.
   ────────────────────────────────────────────────────────────────────────
     instances     2,000
     features      11  ·  5 nominal · 3 ordinal · 3 continuous
-    model output  mean 0.0237 · std 0.973 · range [-1.03, 3.72]
-    model R²      0.955  (on this subsample)
+    model output  mean 174 · std 177 · range [-48.9, 928]
+    model R²      0.947  (on this subsample)
 
   EXPLAINED VARIANCE
   ────────────────────────────────────────────────────────────────────────
     step         split on                 solo     ΔR²      R²       heter
     ──────────────────────────────────────────────────────────────────────
-    GAM          (all features global)       —       —   71.5%           —
-  + hr           temp, workingday, yr   +18.2%  +18.2%   89.7% 0.49 → 0.29
+    GAM          (all features global)       —       —   71.7%           —
+  + hr           temp, workingday, yr   +15.5%  +15.5%   87.2% 0.48 → 0.29
+  + hum          hr, temp, weathersit    +1.8%   +1.4%   88.6% 0.17 → 0.15
     ──────────────────────────────────────────────────────────────────────
-    FINAL                                                89.7%
+    FINAL                                                88.6%
 
   REJECTED SPLITS                                            min gain 1.0%
   ────────────────────────────────────────────────────────────────────────
     feature      split on                 solo     ΔR²    reason
     ──────────────────────────────────────────────────────────────────────
-  ✗ yr           hr, workingday          +2.6%   -0.8%    redundant
-  ✗ temp         hum, workingday         +1.6%   +0.3%    below threshold
-  ✗ hum          hr, temp                +1.2%   +0.7%    below threshold
-  ✗ mnth         hum, season, temp       +0.7%   +0.4%    below threshold
-  ✗ workingday   hr, yr                  +5.9%   -4.9%    redundant
+  ✗ temp         hr, hum                 +1.7%   +0.9%    below threshold
+  ✗ yr           hr, hum                 +1.5%   -0.1%    redundant
+  ✗ workingday   hr, yr                  +4.9%   -4.3%    redundant
 
     ✗ redundant: it would explain variance on its own (see solo),
       but the accepted splits already account for it.
@@ -107,11 +106,12 @@ Three tables, then the partition trees.
   ────────────────────────────────────────────────────────────────────────
     feature        importance                          heter      #regions
     ──────────────────────────────────────────────────────────────────────
-    hr                 0.7370  ██████████████████     0.2880             7
-    yr                 0.2351  ██████                 0.2275             1
-    temp               0.2282  ██████                 0.2477             1
+    hr                 0.7314  ██████████████████     0.2882             4
+    temp               0.2281  ██████                 0.2668             1
+    yr                 0.1878  █████                  0.2028             1
+    hum                0.1020  ███                    0.1525             4
     ──────────────────────────────────────────────────────────────────────
-    the features above carry 81% of the total importance mass
+    the features above carry 80% of the total importance mass
 ```
 
 ???+ tip "Terminals that mangle box-drawing characters"

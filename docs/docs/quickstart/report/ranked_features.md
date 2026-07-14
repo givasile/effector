@@ -22,11 +22,12 @@ In `report.show()`, the last table before the trees:
   ────────────────────────────────────────────────────────────────────────
     feature        importance                          heter      #regions
     ──────────────────────────────────────────────────────────────────────
-    hr                 0.7370  ██████████████████     0.2880             7
-    yr                 0.2351  ██████                 0.2275             1
-    temp               0.2282  ██████                 0.2477             1
+    hr                 0.7314  ██████████████████     0.2882             4
+    temp               0.2281  ██████                 0.2668             1
+    yr                 0.1878  █████                  0.2028             1
+    hum                0.1020  ███                    0.1525             4
     ──────────────────────────────────────────────────────────────────────
-    the features above carry 81% of the total importance mass
+    the features above carry 80% of the total importance mass
 ```
 
 On the HTML page the same ranking appears twice in the Overview section: as
@@ -49,19 +50,20 @@ units**, so they are comparable across features and across methods.
 - **`importance`**: how much the feature's mean effect moves the output.
 - **`heter`**: how much the per instance effects still spread around that
   mean. High heterogeneity is the signal that one curve is not enough.
-- **`#regions`**: 1 means the feature stayed global; more means its split was
-  accepted.
+- **`#regions`**: the **leaves** of the feature's accepted partition — the
+  subregions the regional analysis actually plots; 1 means the feature stayed
+  global.
 
 The block bar next to `importance` is relative, scaled to the strongest
 feature in the table.
 
-???+ question "Why does `hr`'s heter read 0.288 and not 0.49?"
+???+ question "Why does `hr`'s heter read 0.288 and not 0.48?"
 
     Because the header says so: **ranked, in the selected snapshot**. `hr`
-    carries 7 regions, so its `importance` and `heter` are the instance
-    weighted means *across* those regions. 0.49 is `hr` before the split; the
+    carries 4 regions, so its `importance` and `heter` are the instance
+    weighted means *across* those regions. 0.48 is `hr` before the split; the
     gap between the two is what the split bought, and it is exactly the
-    `0.49 → 0.29` entry of the
+    `0.48 → 0.29` entry of the
     [explained variance ledger](./explained_variance.md).
 
 ## Importance is not the whole story
@@ -96,7 +98,7 @@ ranked, still measured, just not drawn.
     The search runs **wide**: every supported feature is ranked and every
     heterogeneous one is offered to the selector. `top_k` and `coverage` only
     decide how many features are *drawn*. The footer tells you what the cut
-    cost: `the features above carry 81% of the total importance mass` (the
+    cost: `the features above carry 80% of the total importance mass` (the
     HTML caption adds `target 80%, ceiling top_k = 5`).
 
 ---
