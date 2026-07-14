@@ -1,10 +1,13 @@
 # Changelog
 
-# [Unreleased]
+# [0.5.0] - 2026-07-14
 
 ### Breaking
 
 - **`Regional*` classes removed** (`RegionalPDP`, `RegionalDerPDP`, `RegionalALE`, `RegionalRHALE`, `RegionalShapDP`) with no backward-compatibility shim. Regional questions are now asked on the **global** effect object via `find_regions(feature) -> Partition` (design contract R12: partitions are values, not stored state). Migration: `RegionalPDP(X, f).fit(0); r.summary(0); r.plot(0, i)` → `pdp = PDP(X, f); pdp.fit(0); part = pdp.find_regions(0); part.show(); part.plot(i)`. The old `space_partitioner=` fit kwarg becomes the `finder=` kwarg of `find_regions`; `r.eval(0, i, xs, heterogeneity=True)` (tuple) splits into `part.eval(i, xs)` + `part.eval_heter(i, xs)`.
+- **Two-block lifecycle (R14)**: `fit` computes the frame-gated local effects — the *only* model touch — and every summary (centering included) is a memoized, model-free reduction on top. The `points_for_centering` fit kwarg and the `requires_refit` machinery are gone; changing `centering` at `eval`/`plot` time never recomputes local effects behind your back.
+- **Scalar units contract**: `heter_score` and `importance` now return values in **output units** (RMS over the data), directly comparable to the target's scale and to each other. Slope-scale methods (RHALE, DerPDP) are bridged by the feature's std; nominal features use order-free all-pairs level differences. `ShapDP` no longer overrides `importance` with `mean(|φ|)` — it inherits the shared default. Any thresholds tuned against the old variance-flavored numbers must be recalibrated.
+- `Report.to_html(path)` writes the file and returns `None` (it used to return the multi-megabyte HTML string, echoing it in interactive shells).
 
 ### Added
 
@@ -14,6 +17,23 @@
 - An invisible bounded-LRU **masked-summary memo** on the effect, keyed by `(feature, fit_epoch, mask)`, so repeated masked calls (the split search re-proposing candidate masks, a plot after a search) skip re-summarization. It is semantically transparent — a refit bumps the epoch and invalidates it; it never changes an answer, only its latency.
 - **`effector.explain(data, model, ...) -> Report`** — a one-call pipeline: fit once, rank features by `importance` (R13), draw the mean-effect + heterogeneity curves for the top-k, and `find_regions` (R12) on the heterogeneous ones. Returns a serializable `Report` value (`effector.Report`) with `show()` (importance-ranked table + region trees), `plot_importance()`, `to_html()` (a self-contained page — every figure inlined as a base64 PNG, no external assets), and `to_dict()`/`from_dict()` (round-trips without an effect). All model calls happen through the single `fit`; the rest is model-free, so the cost does not grow with `top_k`.
 - **`importance(feature, mask=None) -> float`** and **`importances(mask=None) -> (D,)`** on every global class (design contract R13) — the μ-twin of `heter_score`: the dispersion of the *mean* effect, evaluated the same way (continuous → std over the (masked) data values; discrete → frequency-weighted std over levels). PDP, ALE, RHALE and ShapDP all use that one default; DerPDP is the sole override (bridged `mean(|derivative|)`, since its mean effect is already a derivative). Model-free, centering-invariant (no `centering` kwarg), masked variant free through the memo. `importances` returns `NaN` (with one `UserWarning`) for feature types a method cannot explain. effector never sees `y`, so loss/permutation importance is out of scope by construction.
+- **`effector.adapters`** — model wrappers that make the numpy-only final pass explicit: `from_sklearn(estimator)`, `classifier_proba(predict_proba, class_)`, `from_torch(module)`, and `check(model, X)` (the two-row handshake probe). An adapter *returns* a plain callable; it never installs one behind your back.
+- **Feature names as strings everywhere**: every verb that takes a feature (`plot`, `eval`, `importance`, `heter_score`, `find_regions`, ...) accepts the schema name (`"hr"`) as well as the index.
+- **Plural `find_regions(features=...)`**: a list, `"all"`, or `"heterogeneous"` (above-median `heter_score`) returns `{name: Partition}` — the input `select_regions` and `plot_triage` eat.
+- **`select_regions(partitions=None, ..., min_r2_gain=0.01) -> CalmSequence`** — greedy explained-variance selection across features: starting from the GAM (every feature global), each round applies the split with the largest *sequential* R² gain and stops when no remaining split adds `min_r2_gain` of `Var(f̂)`. Returns the chain `[GAM, calm1, ...]` of **CALM** snapshots (`effector.CALM` / `effector.CalmSequence` — serializable value objects with stamped per-feature `importances`/`heter_scores`, `plot_triage`, `bind(effect)`); rejected splits land in `.skipped` with a reason (`redundant` / `below_threshold`). `CalmSequence.show()` prints the same EXPLAINED VARIANCE / REJECTED SPLITS tables as the report. Derivative-scale methods (`DerPDP`) raise: summing their curves does not approximate `f̂`.
+- **Explained variance in the report**: `explain` opens with the headline — the share of the model's variance the GAM (global curves only) and the final CALM (with the accepted splits) reproduce — and the report carries the full decision sequence as a ledger (table + bar): sequential ΔR² per accepted split, a counterfactual `solo` column per rejected one. Features whose split was rejected keep their global read; the regional plots are demoted with the reason.
+- **`effector.rules`** — the predicate algebra under regions: `Interval`, `LevelSet`, `Rule` (a normalized conjunction of per-feature conditions) with `contains`/`intersect`/`refine`/`format` and a string parser that resolves schema level names (`rule="workingday == no"`). `Partition`/`Region` are rule-primary (v2 serialization: rules + stamped stats, never masks); masked verbs accept `rule=` sugar wherever `mask=` is accepted.
+- **`effector.compare(effect_a, effect_b, feature=...)`** — overlay fitted engines on one feature's axis — and **`effector.plot_triage(effect, partitions=None)`** — the importance × heterogeneity plane, with before/after arrows when partitions are passed.
+- **`grid(feature)`** and **`.explain(...)`** on every engine: the model-free evaluation grid, and the one-liner without leaving a constructed session.
+- **Categorical capability matrix completed**: `DerPDP` handles ordinal/nominal features via ICE level differences (transition bars, no jacobian on discrete axes); `RHALE` on a nominal feature falls back to ALE instead of raising — no method/type holes remain.
+- **Dataset loaders** `effector.datasets.MedicalCosts`, `AirfoilSelfNoise`, `AdultIncome` (+ the corresponding real-example notebooks).
+
+### Changed
+
+- **Plot redesign across every figure**: titles carry the identity (feature · method · global/regional), rules read `where (workingday = no) and (temp < 6.86)` and resolve schema level names, categorical plots draw at the labeled levels with per-level counts, one tick/legend discipline, semantic theme tokens, ALE panel redesign, triage labels repel. `report.to_html()` reads like the pipeline: triage overview first, per-feature global + regional, before/after arrows, shared y across the page and shared x per feature.
+- **`Report.show()` prints tables** — DATA & MODEL (in `scale_y` units, matching the figures), the EXPLAINED VARIANCE ledger with the `solo` column, REJECTED SPLITS with reasons, and the ranked FEATURES table (`#regions` = accepted leaves) — followed by the accepted partition trees. Unicode box-drawing by default, `show(ascii=True)` for terminals that mangle it. R² and every ΔR² print as `%` — one unit everywhere (read `+18.3%` as an absolute move on the 0–100% R² scale).
+- **ShapDP payloads are pure numpy** (binned means replace `scipy.interpolate` splines on the eval path) and the global-effect base dispatches continuous/categorical kernels in one place — no output change, one seam for new methods.
+- internal (no output change): tightened the compute/draw boundary (R1). `visualization.plot_pdp_ice` no longer computes the mean line or std/std-err band from the raw ICE table — the PDP method hands it the pre-computed curve + band (the band is now definitionally `sqrt(eval_heter)`, the single source of heterogeneity). PDP's per-instance `norm_const` reduction moved from a `np.ndim` branch in the base `eval` to an overridable `_mean_norm_const` hook. Centering-grid resolution now flows from the single `helpers.NOF_INTERNAL_POINTS` knob instead of a hard-coded `30`.
 
 ### Notes
 
@@ -22,10 +42,10 @@
 ### Fixed
 
 - global effects: a centering-triggered auto-refit (e.g. `fit(centering=False, order=[...])` then `eval`/`plot` with centering) no longer discards the method-specific `fit` kwargs — `order`/`binning_method` (and `use_vectorized`) are replayed from the original `fit`, overriding only `centering`, instead of silently falling back to the defaults
-
-### Changed
-
-- internal (no output change): tightened the compute/draw boundary (R1). `visualization.plot_pdp_ice` no longer computes the mean line or std/std-err band from the raw ICE table — the PDP method hands it the pre-computed curve + band (the band is now definitionally `sqrt(eval_heter)`, the single source of heterogeneity). PDP's per-instance `norm_const` reduction moved from a `np.ndim` branch in the base `eval` to an overridable `_mean_norm_const` hook. Centering-grid resolution now flows from the single `helpers.NOF_INTERNAL_POINTS` knob instead of a hard-coded `30`.
+- the split search no longer overflows on a high-cardinality categorical conditioning feature (the subset enumeration is capped)
+- the numerical jacobian tolerates models that return `(N, 1)` column vectors instead of `(N,)`
+- `Report.to_html` renders a note instead of crashing when an accepted rule pins the feature of interest to a single value inside a leaf (no axis to draw a curve over)
+- `Report.show`/`to_html`: the DATA & MODEL header now speaks the figures' `scale_y` units (it printed raw model-output units); the `#regions` column counts a partition's **leaves** (it counted tree nodes, disagreeing with the regional section); the HTML rejected-split notes say `%` like every other surface (two `-pt` leftovers)
 
 # [0.4.0] - 2026-07-06
 
