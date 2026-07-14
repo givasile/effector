@@ -132,8 +132,8 @@ The shared arguments are `features` (an index/name, a list, or `"all"`) and
 curves are meaningful raw), the accumulation based methods fit centered
 (`centering=True`, an ALE curve is only defined up to a constant).
 
-📄 The full binning story, with the effect of each method on real data, is in
-[Customize `.fit()`](./../flexible_api.md).
+📄 The knobs at work, on a model built to punish bad defaults, are in
+[Customize `.fit()`](./customize_fit.md).
 
 ---
 
@@ -141,4 +141,4 @@ curves are meaningful raw), the accumulation based methods fit centered
 
 - [`plot`](./plot.md): the next verb
 - [The interactive API](./../interactive_api.md): back to the guide's map
-- [Customize `.fit()`](./../flexible_api.md): binning, in depth
+- [Customize `.fit()`](./customize_fit.md): the knobs, at work

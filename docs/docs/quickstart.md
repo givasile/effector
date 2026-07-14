@@ -16,6 +16,7 @@ Start here:
         - [Configuring the report](./report/configuration/): every knob of `explain(...)`
     - [(c) The interactive API](./interactive_api/): the five engines, global and regional effects
         - [Construct and fit](./interactive/construct_and_fit/): the five engines and `.fit()`
+        - [Customize `.fit()`](./interactive/customize_fit/): binning, centering, search depth
         - [`plot`](./interactive/plot/): effects and their heterogeneity, drawn
         - [`eval`](./interactive/eval/): effects as numbers, model free
         - [`importance` and `heter_score`](./interactive/scores/): the twin scalars, in output units
@@ -25,8 +26,7 @@ Start here:
 
 Going deeper:
 
-- [The mental model](./mental_model/): the thinking behind the API — one engine, values not state, two entrances
-- [Customize `.fit()`](./flexible_api/): binning, centering, finders
-- [The package manual](./manual/): the full architecture and every verb in depth
+- [The mental model](./../guides/mental_model/): the thinking behind the API; one engine, values not state, two entrances
+- [The guides](./../guides/): the math reference, the design contract, the efficiency guides
 
 ---
