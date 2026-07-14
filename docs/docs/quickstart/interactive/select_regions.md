@@ -31,19 +31,37 @@ chain.show()
 ```
 
 ```text
-GAM: R2 = 72.3%
-  + hr regions (on temp, workingday, yr) -> R2 = 90.6% (+18.3%)
-  + temp regions (on hr, hum) -> R2 = 92.0% (+1.4%)
-  x yr regions skipped (redundant, -0.8%)
-  x weekday regions skipped (below_threshold, +0.2%)
-  x workingday regions skipped (redundant, -4.8%)
-  x hum regions skipped (below_threshold, +0.2%)
+  EXPLAINED VARIANCE
+  ────────────────────────────────────────────────────────────────────────
+    step         split on                 solo     ΔR²      R²       heter
+    ──────────────────────────────────────────────────────────────────────
+    GAM          (all features global)       —       —   72.3%           —
+  + hr           temp, workingday, yr   +18.3%  +18.3%   90.6% 0.47 → 0.26
+  + temp         hr, hum                 +2.4%   +1.4%   92.0% 0.22 → 0.19
+    ──────────────────────────────────────────────────────────────────────
+    FINAL                                                92.0%
+
+  REJECTED SPLITS                                            min gain 1.0%
+  ────────────────────────────────────────────────────────────────────────
+    feature      split on                 solo     ΔR²    reason
+    ──────────────────────────────────────────────────────────────────────
+  ✗ yr           hr, workingday          +2.7%   -0.8%    redundant
+  ✗ weekday      hr, temp, yr            +0.4%   +0.2%    below threshold
+  ✗ workingday   hr, yr                  +6.2%   -4.8%    redundant
+  ✗ hum          hr, temp                +2.2%   +0.2%    below threshold
+
+    ✗ redundant: it would explain variance on its own (see solo),
+      but the accepted splits already account for it.
 ```
 
+These are the same two tables the report's `.show()` prints; here they are
+computed live. `chain.show(ascii=True)` draws them in plain ASCII for
+terminals that mangle box-drawing characters.
+
 Six candidates went in; two came out. `workingday`'s split genuinely
-resolves spread, yet it is **redundant**: `hr`'s split already conditions on
-it, so applying it would double count (`-4.8%`). This is
-[the rejected splits](./../report/rejected_splits.md) story, computed live.
+resolves spread (see its `solo`), yet it is **redundant**: `hr`'s split
+already conditions on it, so applying it would double count (`-4.8%`). This
+is [the rejected splits](./../report/rejected_splits.md) story.
 
 👉 `partitions=` is optional: `pdp.select_regions()` runs the search itself,
 with the same `features` / `finder` / `candidate_conditioning_features`
@@ -61,7 +79,7 @@ snapshot per accepted split, R² non decreasing along it.
 | `chain.final` | the last snapshot: what the report renders as §2 |
 | `chain.gam_r2` / `chain.regional_r2` | the headline numbers |
 | `chain.stages` / `chain.skipped` | accepted and rejected splits, with reasons |
-| `chain.show()` | the trace above |
+| `chain.show()` | the ledger tables above |
 | `chain.to_dict()` / `bind(effect)` | serialize / re attach |
 
 ```python

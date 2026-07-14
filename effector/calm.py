@@ -387,23 +387,27 @@ class CalmSequence:
             c.bind(effect)
         return self
 
-    def show(self):
-        """Print the decision sequence: GAM R², each accepted split, the rejected ones."""
-        print(f"GAM: R2 = {self.gam_r2:.1%}")
-        for c in self.calms[1:]:
-            st = c.stage
-            if st is None:
-                print(f"  + CALM {c.index} -> R2 = {c.r2:.1%}")
-                continue
-            print(
-                f"  + {st['name']} regions (on {st['on']}) -> "
-                f"R2 = {st['cum_r2']:.1%} ({st['delta_r2']:+.1%})"
-            )
-        for sk in self.skipped:
-            print(
-                f"  x {sk['name']} regions skipped ({sk['reason']}, "
-                f"{sk['delta_r2']:+.1%})"
-            )
+    def show(self, ascii=False):
+        """Print the decision sequence as the report's ledger tables:
+        EXPLAINED VARIANCE (the GAM, each accepted split, the FINAL R²),
+        then REJECTED SPLITS with the reason each one was refused.
+
+        Args:
+            ascii: draw with plain ASCII instead of box-drawing characters,
+                for terminals and logs that mangle unicode.
+        """
+        from effector.report import _print_explained_variance
+
+        _print_explained_variance(
+            {
+                "gam_r2": self.gam_r2,
+                "regional_r2": self.regional_r2,
+                "min_gain": self.min_gain,
+                "stages": [st for st in self.stages if st is not None],
+                "skipped": self.skipped,
+            },
+            ascii=ascii,
+        )
 
     def __repr__(self):
         return (
