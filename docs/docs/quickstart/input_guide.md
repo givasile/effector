@@ -5,9 +5,9 @@ title: The input layer
 ???+ success "Description"
 
     The in-depth guide to part **(a)** of [`effector`'s API](./simple_api.md):
-    the numpy-only contract, wrapping any model (sklearn, torch, keras,
-    classifiers, DataFrame pipelines), and the `schema` that makes the whole
-    explanation speak your vocabulary.
+    the numpy-only contract, wrapping any model (regressor or classifier;
+    sklearn, torch, keras, DataFrame pipeline), and the `schema` that makes the
+    whole explanation speak your vocabulary.
 
 ???+ note "Reading time"
 
@@ -56,7 +56,10 @@ batching) belong, because only you know them.
     effector.PDP(X, model, schema=schema)         # the final pass is yours
     ```
 
-## The model
+## The model: regression
+
+Your model returns a number per row. Wrap it so that number arrives as a numpy
+`(N,)` array, and every method works on it unchanged.
 
 === "Already numpy"
 
@@ -112,17 +115,6 @@ batching) belong, because only you know them.
     model = lambda X: net.predict(X, verbose=0).ravel()
     ```
 
-=== "Classifiers"
-
-    Class labels are not a regression surface, so `effector` explains a
-    **per-class probability** instead: one explanation per class.
-
-    ```python
-    model = effector.adapters.classifier_proba(clf, class_="yes")   # P(class="yes")
-    ```
-
-    Loop over `clf.classes_` if you want every class explained.
-
 === "A DataFrame-hungry pipeline"
 
     If your model *needs* a DataFrame (a `ColumnTransformer` / `OneHotEncoder`
@@ -145,25 +137,213 @@ batching) belong, because only you know them.
     You own the reconstruction, so it is visible and testable; `effector` never
     guesses how to call your model.
 
+## The model: classification
+
+A classifier's `predict` returns **labels**. You cannot average, subtract or
+integrate a label; a feature effect does all three. There is no "average effect
+of `temp` on the label `rain`".
+
+So `effector` never explains labels. It explains the **probability surface**
+behind them:
+
+$$
+f(x) = P(\text{class} = k \mid x) \in [0, 1]
+$$
+
+That is a real-valued function of `x`: a regression surface like any other.
+Every method (`PDP`, `ALE`, `RHALE`, `ShapDP`, …) applies to it unchanged.
+Classification is not a mode in `effector`; it is a wrapper you write once.
+
+???+ danger "You must pick one class"
+
+    One explanation explains **one** class. `P(class = k)` is a different
+    surface for every `k`: different shape, different story. A multiclass model
+    has no single "the" explanation.
+
+    - **Binary**: explain the positive class. The other one is its mirror,
+      `1 - p`, so it adds nothing.
+    - **Multiclass**: loop; one explanation per class.
+
+    Effects then read in **probability units**: a `+0.12` on the `y`-axis means
+    *this feature value pushes P(class = k) up by 12 percentage points*. Say so
+    in the schema and every plot and table is labelled for you:
+    `target_name="P(rain)"`.
+
+=== "scikit-learn"
+
+    `from_sklearn` **refuses** a classifier; that refusal is the whole point.
+    Use `classifier_proba`: it is `predict_proba(X)[:, k]` with the class lookup
+    done for you (a label from `clf.classes_`, or a column index).
+
+    ```python
+    model = effector.adapters.classifier_proba(clf, class_="yes")   # P(class="yes")
+
+    schema = effector.Schema(feature_names=[...], target_name="P(yes)")
+    effector.PDP(X, model, schema=schema).plot(feature=0)
+    ```
+
+    Anything that duck-types sklearn works too (`XGBClassifier`,
+    `LGBMClassifier`, a fitted `Pipeline`); all it needs is `.predict_proba`
+    and `.classes_`.
+
+    One explanation per class:
+
+    ```python
+    for k, name in enumerate(clf.classes_):
+        model_k = effector.adapters.classifier_proba(clf, class_=name)
+        effector.PDP(X, model_k, schema=schema).plot(feature=0)
+    ```
+
+=== "PyTorch"
+
+    A classification head emits **logits**; turn them into the probability of
+    one class yourself:
+
+    ```python
+    import torch
+
+    net.eval()
+    device = next(net.parameters()).device
+    k = 2                             # the class you are explaining
+
+    def model(X):                     # numpy (N, D) -> numpy (N,)
+        with torch.no_grad():
+            t = torch.as_tensor(X, dtype=torch.float32, device=device)
+            p = torch.softmax(net(t), dim=1)      # (N, C)
+            return p[:, k].cpu().numpy()
+    ```
+
+    For a single-logit binary head, swap `softmax` for
+    `torch.sigmoid(net(t)).ravel()`.
+
+=== "TensorFlow / Keras"
+
+    A Keras model whose last layer is already a `softmax` returns the
+    probabilities directly; just select the column:
+
+    ```python
+    k = 2                             # the class you are explaining
+    model = lambda X: net.predict(X, verbose=0)[:, k]
+    ```
+
+    A binary `sigmoid` head returns `(N, 1)`, so `.ravel()` is all you need.
+    If the model emits raw logits, apply the softmax yourself first, exactly as
+    in the PyTorch tab.
+
+=== "Anything else"
+
+    The contract has not changed: hand `effector` a callable that takes
+    `(N, D)` numpy in and returns `(N,)` numpy out, whose values happen to be
+    the probability of your chosen class.
+
+    ```python
+    model = lambda X: my_model.probabilities(X)[:, k]
+    effector.adapters.check(model, X)     # probe it on 2 rows before you commit
+    ```
+
+???+ question "Why four adapters and not twelve?"
+
+    You may have noticed the gaps: there is no `from_keras`, and no torch
+    classifier adapter. That is deliberate. One rule decides:
+
+    👉 **An adapter exists only where it stands on a guarantee, or does work you
+    would plausibly get wrong.**
+
+    ✅ sklearn **guarantees** that `predict_proba` returns a normalized
+    `(N, C)` and that `classes_` names its columns. `classifier_proba` can
+    therefore turn `class_="yes"` into the right column, safely, every time.
+
+    ✅ A torch jacobian is **subtle**: autograd, eval mode, the sum-backward
+    trick. `from_torch(net, jacobian=True)` writes it so you don't.
+
+    ⚠️ A torch or keras classification head guarantees **nothing**. Logits,
+    log-softmax and probabilities look identical from the outside. An adapter
+    would have to guess, and a wrong guess is *silent*: `softmax(softmax(z))`
+    still lands in `[0, 1]`, still passes every check, and quietly flattens
+    your explanation into a lie.
+
+    So `effector` does not guess. Where the convention runs out, the honest
+    wrapper is three lines, you can read them, and they are in the tabs above.
+
 ## The jacobian (optional)
 
-Only `RHALE` and `DerPDP` use it, and only to go faster: without it they fall
-back to a numerical jacobian (central finite differences).
+Only `RHALE` and `DerPDP` use it. It is `numpy → numpy` like everything else,
+one gradient row per input row:
 
 ```python
-model, model_jac = effector.adapters.from_torch(net, jacobian=True)
-effector.RHALE(X, model, model_jac).plot(feature=0)
+model_jac(X)      # (N, D) -> (N, D);  row i = ∇f(x_i)
 ```
 
-Or by hand, since it too is just `numpy → numpy`:
+Skip it and they still work: they fall back to a central finite difference
+(`utils.compute_jacobian_numerically`, `eps=1e-6`). You pay `2 × D` extra model
+calls and you lose exactness, so give them the real thing when your framework
+can produce it.
 
-```python
-def model_jac(X):                     # numpy (N, D) -> numpy (N, D)
-    t = torch.as_tensor(X, dtype=torch.float32,
-                        device=device).requires_grad_(True)
-    net(t).sum().backward()
-    return t.grad.cpu().numpy()
-```
+???+ tip "The sum trick, once"
+
+    Every autodiff snippet below backpropagates `f(X).sum()`, not a loop over
+    rows. That is exact, not an approximation: row `i`'s output depends only on
+    row `i`'s input, so `∂(Σⱼ f(xⱼ)) / ∂xᵢ` collapses to `∇f(xᵢ)`. One backward
+    pass gives you the whole `(N, D)` table.
+
+=== "PyTorch"
+
+    The adapter hands you both callables:
+
+    ```python
+    model, model_jac = effector.adapters.from_torch(net, jacobian=True)
+    effector.RHALE(X, model, model_jac).plot(feature=0)
+    ```
+
+    By hand, when your forward pass needs something special:
+
+    ```python
+    def model_jac(X):                     # numpy (N, D) -> numpy (N, D)
+        t = torch.as_tensor(X, dtype=torch.float32,
+                            device=device).requires_grad_(True)
+        net(t).sum().backward()
+        return t.grad.cpu().numpy()
+    ```
+
+=== "TensorFlow / Keras"
+
+    `GradientTape` is the same trick with a different spelling:
+
+    ```python
+    import tensorflow as tf
+
+    def model_jac(X):                     # numpy (N, D) -> numpy (N, D)
+        t = tf.convert_to_tensor(X, dtype=tf.float32)
+        with tf.GradientTape() as tape:
+            tape.watch(t)
+            y = tf.reduce_sum(net(t))
+        return tape.gradient(y, t).numpy()
+    ```
+
+=== "JAX"
+
+    `grad` differentiates one row; `vmap` maps it over all of them:
+
+    ```python
+    import jax, jax.numpy as jnp
+
+    grad_f = jax.vmap(jax.grad(lambda x: f(x[None, :])[0]))
+
+    def model_jac(X):                     # numpy (N, D) -> numpy (N, D)
+        return np.asarray(grad_f(jnp.asarray(X)))
+    ```
+
+=== "scikit-learn"
+
+    Usually there is nothing to hand over; scikit-learn models do not expose a jacobian.
+
+
+???+ danger "Not every model has a derivative"
+
+    `RHALE` and `DerPDP` are built on the pointwise derivative, so they are the
+    **wrong tools for a tree ensemble**. Reach for `ALE` instead: it differences
+    across bin edges rather than infinitesimally, so it reads a step function
+    correctly. `PDP` and `ShapDP` never touch a jacobian at all.
 
 ## The schema
 
@@ -291,8 +471,5 @@ effector.PDP(df, model)
 
 ## Where to next
 
-- [The one-liner and the report](./report.md): what to do once the inputs are in
-- [The interactive API](./interactive_api.md): drive the analysis yourself
-- [Method semantics](../guides/method_semantics.md): what each method computes per feature type
-- [The design contract](../guides/design.md): R8 (constructor) and R10 (numpy-only), the authoritative spec
-- [API docs](../api_docs/api_ingestion.md): `Schema` and `from_dataframe`
+- **(b)** [The one-liner and the report](./report.md): what to do once the inputs are in
+- **(c)** [The interactive API](./interactive_api.md): drive the analysis yourself

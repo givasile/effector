@@ -1,6 +1,9 @@
 # Explicit notebook -> docs mapping. Format: kind  source_notebook  dest_subdir
 # kind = page  : convert saved outputs to a committed doc page under docs/docs/notebooks/<dest>
 # kind = image : harvest the notebook's figures into docs/docs/static/<dest> (feeds authored pages)
+# kind = report: 3rd column is a METHOD, not a dest; copies the notebook's
+#                reports/<stem>/report_<method>.html (gitignored, so run the
+#                notebook first) into docs/docs/static/reports/<stem>_<method>.html
 # Notebooks absent from this file are not part of the docs.
 # quickstart notebooks are image-only: their content is retold by the
 # hand-written pages in docs/docs/quickstart/, which read from static/.
@@ -32,3 +35,7 @@ image notebooks/quickstart/simple_api.ipynb                                     
 image notebooks/quickstart/flexible_api.ipynb                                    quickstart
 image notebooks/quickstart/readme_example.ipynb                                  quickstart
 image notebooks/real-examples/01_bike_sharing_dataset.ipynb                      real-examples
+
+# --- REPORTS (bucket d): to_html pages embedded in authored pages ---
+# 3rd column = method. Keep in sync with the .show() example in quickstart/report.md.
+report notebooks/real-examples/01_bike_sharing_dataset.ipynb                     pdp
