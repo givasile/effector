@@ -2,13 +2,9 @@ site_name: effector
 
 nav:
   - effector: index.md
-  - Quickstart: quickstart.md
-  - API Docs: api_docs.md
-  - Design:
-      - The design contract (R1-R11): design.md
-      - Method semantics by feature type: method_semantics.md
   - Guides: guides.md
   - Examples: examples.md
+  - API Docs: api_docs.md
   - Contributing: contributing.md
   - Changelog: changelog.md
 
@@ -77,7 +73,11 @@ markdown_extensions:
       custom_checkbox: true
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - attr_list

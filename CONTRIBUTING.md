@@ -126,10 +126,67 @@ make docs-serve  # preview the docs locally
 
 ## Design contract
 
-Code changes must follow the core rules (R1–R9) in
+Code changes must follow the core rules (R1–R14) in
 [docs/design.md](docs/design.md) — lifecycle, heterogeneity surface, centering
-vocabulary, registries, plot/constructor/error contracts. The
-`tests/test_contract_*.py` layer enforces most of them mechanically.
+vocabulary, registries, plot/constructor/error contracts, and the two-block
+lifecycle constitution (R14: every effect object is two caches and one config,
+owned entirely by `GlobalEffectBase`). The `tests/test_contract_*.py` layer
+enforces most of them mechanically — `tests/test_contract_lifecycle.py` pins
+the exact model-call budget of every lifecycle step, so an extra model touch
+or a lost cache hit is a failing test, not a slow regression.
+
+---
+
+## Writing a new effect method
+
+A method is a **frame declaration plus three pure kernels** — nothing else.
+The base class owns all caching, retriggering, masking, centering, and the
+regional machinery; a subclass that checks a cache is a bug by definition.
+
+1. **Answer the one semantic question: what is your frame?** The frame is the
+   discretization your local effect is defined on — the config parameters
+   whose change makes your cached local effects meaningless. ALE's is its
+   fixed bin grid, categorical (RH)ALE's is the level order; RHALE and ShapDP
+   have none (their local effects are instance-anchored). Declare it in
+   `_frame_from_config(feature) -> tuple` of primitives. The base compares it
+   on every access and recomputes/bumps the epoch when it changes — that is
+   the entire invalidation story, and you never write any of it.
+
+2. **Implement the three kernels** (all independently testable with plain
+   numpy arrays):
+
+   - `_compute_local(feature, frame) -> dict` — the ONLY kernel that may call
+     the model. Return `{"frame": frame, ...instance-aligned arrays}` so any
+     boolean `(N,)` mask can slice your local effects in one expression.
+     Feature-independent raw material (a jacobian, a SHAP table) is computed
+     once per object and shared across features.
+   - `_summarize(feature, mask=None, **config) -> dict` — pure numpy: derive
+     the payload (whatever `eval`/`plot` read) from the cached local effects
+     restricted to `mask`.
+   - `_eval_payload(feature, params, x, heterogeneity=False)` — pure reader:
+     the uncentered mean effect (and h(x)) read off a payload. Same payload +
+     same x → same answer; no model, no state.
+
+3. **Expose the public surface as thin declarations**: `fit` calls
+   `self._fit_loop(features, centering, **your_config)`; `plot` reads
+   `self._summary(feature, mask)` / `self._centering_const(...)` and draws.
+   With that, `eval`, `eval_heter`, `heter_score`, `importance`,
+   `find_regions`, the `mask=` surfaces and the `Partition` sugar all work
+   without another line of code.
+
+4. **Copy [`tests/toy_method.py`](tests/toy_method.py)** — the ~60-line
+   reference implementation the contract suite itself runs — as your starting
+   point, and register the method in `effector/method_registry.py`; the
+   contract tests parametrize over the registry and referee compliance.
+
+5. **If your method doesn't fit the mold**, override a *named hook* — never
+   bypass the gates. Legal override points: `_eval_mean` (exact evaluation
+   off the payload, like (d-)PDP), `_importance` (a method-canonical scalar —
+   the one live override is DerPDP's bridged `mean(|derivative|)`, because its
+   mean effect is *already* a derivative; whatever you return must still be a
+   std-type quantity in output units, per R2/R13), `_compute_norm_const` /
+   `_mean_norm_const` (a non-scalar centering constant, like PDP's
+   per-instance array).
 
 ---
 

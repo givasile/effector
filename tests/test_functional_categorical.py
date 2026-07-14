@@ -88,9 +88,9 @@ def test_pdp_heterogeneity_closed_form(data, model):
     h = pdp.eval_heter(0, LEVELS)
     np.testing.assert_allclose(h, expected, atol=1e-10)
 
-    # heter_score = freq-weighted mean of h over levels
+    # heter_score = RMS: sqrt of the freq-weighted mean of h over levels
     np.testing.assert_allclose(
-        pdp.heter_score(0), np.average(expected, weights=w), atol=1e-10
+        pdp.heter_score(0), np.sqrt(np.average(expected, weights=w)), atol=1e-10
     )
 
 
@@ -112,18 +112,78 @@ def test_pdp_nominal_same_math_as_ordinal(data, model):
 
 
 # ---------------------------------------------------------------------------
-# DerPDP — continuous only
+# DerPDP — discrete derivative of the ICE curves (marginal distribution)
 # ---------------------------------------------------------------------------
 
 
-def test_derpdp_categorical_raises(data, model):
-    der = effector.DerPDP(data, model.predict, model.jacobian, schema=SCHEMA)
-    with pytest.raises(ValueError, match="does not support ordinal.*use PDP"):
-        der.fit(0)
-    with pytest.raises(ValueError, match="does not support ordinal"):
-        der.eval(0, LEVELS)
-    # continuous features still work
-    der.fit(1)
+def derpdp_transition_stats(data):
+    """Closed-form marginal transition stats: unlike ALE's conditional S_t,
+    EVERY instance contributes to every transition."""
+    g = gate_values(data)
+    mus = np.array([(A[t] - A[t - 1]) + (B[t] - B[t - 1]) * g.mean() for t in (1, 2)])
+    variances = np.array([(B[t] - B[t - 1]) ** 2 * g.var() for t in (1, 2)])
+    return mus, variances
+
+
+def test_derpdp_ordinal_step_into_level(data, model):
+    der = effector.DerPDP(
+        data, model.predict, model.jacobian, nof_instances="all", schema=SCHEMA
+    )
+    mus, variances = derpdp_transition_stats(data)
+    # eval at levels follows ALE's step-into convention (v_0 = first transition)
+    np.testing.assert_allclose(
+        der.eval(0, LEVELS, centering=False), [mus[0], mus[0], mus[1]], atol=1e-10
+    )
+    np.testing.assert_allclose(
+        der.eval_heter(0, LEVELS),
+        [variances[0], variances[0], variances[1]],
+        atol=1e-10,
+    )
+
+
+def test_derpdp_ordinal_scalars_bridged(data, model):
+    der = effector.DerPDP(
+        data, model.predict, model.jacobian, nof_instances="all", schema=SCHEMA
+    )
+    mus, variances = derpdp_transition_stats(data)
+    w = level_weights(data)
+    h = np.array([variances[0], variances[0], variances[1]])
+    m = np.array([mus[0], mus[0], mus[1]])
+    code_std = np.std(data[:, 0])  # levels are the codes here
+    np.testing.assert_allclose(
+        der.heter_score(0), np.sqrt(np.average(h, weights=w)) * code_std, atol=1e-10
+    )
+    np.testing.assert_allclose(
+        der.importance(0), np.average(np.abs(m), weights=w) * code_std, atol=1e-10
+    )
+
+
+def test_derpdp_nominal_all_pairs_scalars(data, model):
+    der = effector.DerPDP(
+        data, model.predict, model.jacobian, nof_instances="all", schema=NOMINAL_SCHEMA
+    )
+    g = gate_values(data)
+    H2, I2 = 0.0, 0.0
+    w = level_weights(data)
+    for a in range(3):
+        for b in range(a + 1, 3):
+            d = (A[b] - A[a]) + (B[b] - B[a]) * g  # marginal: ALL instances
+            H2 += w[a] * w[b] * d.var()
+            I2 += w[a] * w[b] * d.mean() ** 2
+    np.testing.assert_allclose(der.heter_score(0), np.sqrt(H2), atol=1e-10)
+    np.testing.assert_allclose(der.importance(0), np.sqrt(I2), atol=1e-10)
+
+
+def test_derpdp_categorical_never_touches_the_jacobian(data, model):
+    from tests.conftest import CountingModel
+
+    jac = CountingModel(model.jacobian)
+    der = effector.DerPDP(data, model.predict, jac, nof_instances="all", schema=SCHEMA)
+    der.fit(0)
+    der.eval(0, LEVELS)
+    der.heter_score(0)
+    der.importance(0)
+    assert jac.n_calls == 0  # discrete derivative = ICE differences, no jac
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +221,17 @@ def test_ale_heterogeneity_step_into_level(data, model):
     )
 
 
+def test_ale_ordinal_heter_score_bridged(data, model):
+    # units contract: H = sqrt(freq-weighted mean of step variances) * std(codes)
+    # (per-gap slope dispersion x typical code-space excursion = output units)
+    ale = effector.ALE(data, model.predict, nof_instances="all", schema=SCHEMA)
+    _, variances = transition_stats(data, model)
+    w = level_weights(data)
+    h = np.array([variances[0], variances[0], variances[1]])
+    expected = np.sqrt(np.average(h, weights=w)) * np.std(data[:, 0])
+    np.testing.assert_allclose(ale.heter_score(0), expected, atol=1e-10)
+
+
 def test_ale_freq_weighted_centering(data, model):
     ale = effector.ALE(data, model.predict, nof_instances="all", schema=SCHEMA)
     w = level_weights(data)
@@ -175,7 +246,7 @@ def test_ale_eval_at_non_level_raises(data, model):
 
 
 # ---------------------------------------------------------------------------
-# RHALE — ordinal via discrete derivative + level grouping; nominal rejected
+# RHALE — ordinal via discrete derivative + level grouping; nominal = ALE
 # ---------------------------------------------------------------------------
 
 
@@ -195,7 +266,7 @@ def test_rhale_greedy_groups_levels_and_stays_exact(data, model):
         data, model.predict, model.jacobian, nof_instances="all", schema=SCHEMA
     )
     rhale.fit(0, binning_method="greedy", centering="zero_start")
-    limits = rhale.feature_effect["feature_0"]["limits"]
+    limits = rhale.payload(0)["limits"]
     # candidate edges are exactly the integer level codes
     np.testing.assert_allclose(limits, np.round(limits), atol=1e-12)
     # accumulated values at the levels stay exact whatever the grouping,
@@ -208,13 +279,99 @@ def test_rhale_greedy_groups_levels_and_stays_exact(data, model):
         np.testing.assert_allclose(y, [0.0, mus[0], mus[0] + mus[1]], atol=1e-10)
 
 
-def test_rhale_nominal_raises(data, model):
-    types = [NOMINAL, CONTINUOUS, CONTINUOUS]
-    rhale = effector.RHALE(
-        data, model.predict, model.jacobian, schema={"feature_types": types}
+# ---------------------------------------------------------------------------
+# nominal scalars — all-pairs, order-free (units contract)
+# ---------------------------------------------------------------------------
+
+NOMINAL_SCHEMA = {"feature_types": [NOMINAL, CONTINUOUS, CONTINUOUS]}
+
+
+def pairwise_scalar_gt(data):
+    """Closed-form all-pairs scalars: H² = ½ΣΣ w_a w_b Var[d_ab] (as a<b sum),
+    I² likewise over the squared pair means."""
+    g = gate_values(data)
+    w = level_weights(data)
+    H2, I2 = 0.0, 0.0
+    for a in range(3):
+        for b in range(a + 1, 3):
+            sel = np.isin(data[:, 0], [a, b])
+            d = (A[b] - A[a]) + (B[b] - B[a]) * g[sel]
+            H2 += w[a] * w[b] * d.var()
+            I2 += w[a] * w[b] * d.mean() ** 2
+    return np.sqrt(H2), np.sqrt(I2)
+
+
+def test_ale_nominal_all_pairs_closed_form(data, model):
+    ale = effector.ALE(data, model.predict, nof_instances="all", schema=NOMINAL_SCHEMA)
+    H_gt, I_gt = pairwise_scalar_gt(data)
+    np.testing.assert_allclose(ale.heter_score(0), H_gt, atol=1e-10)
+    np.testing.assert_allclose(ale.importance(0), I_gt, atol=1e-10)
+
+
+def test_ale_nominal_scalars_order_invariant(data, model):
+    base = effector.ALE(data, model.predict, nof_instances="all", schema=NOMINAL_SCHEMA)
+    h0, i0 = base.heter_score(0), base.importance(0)
+    for order in ("similarity", [2.0, 0.0, 1.0]):
+        ale = effector.ALE(
+            data, model.predict, nof_instances="all", schema=NOMINAL_SCHEMA
+        )
+        ale.fit(0, order=order)
+        np.testing.assert_allclose(ale.heter_score(0), h0, atol=1e-12)
+        np.testing.assert_allclose(ale.importance(0), i0, atol=1e-12)
+
+
+def test_ale_nominal_scalars_masked(data, model):
+    # mask away level 2: the only surviving pair is (0, 1), weights renormalized
+    mask = ~np.isclose(data[:, 0], 2.0)
+    ale = effector.ALE(data, model.predict, nof_instances="all", schema=NOMINAL_SCHEMA)
+    g = gate_values(data)
+    sel = np.isin(data[:, 0], [0, 1])
+    d = (A[1] - A[0]) + (B[1] - B[0]) * g[sel]
+    counts = np.array([(data[mask, 0] == k).sum() for k in (0, 1)], dtype=float)
+    w = counts / counts.sum()
+    np.testing.assert_allclose(
+        ale.heter_score(0, mask=mask), np.sqrt(w[0] * w[1] * d.var()), atol=1e-10
     )
-    with pytest.raises(ValueError, match="does not support nominal.*use ALE or PDP"):
-        rhale.fit(0)
+    np.testing.assert_allclose(
+        ale.importance(0, mask=mask),
+        np.sqrt(w[0] * w[1] * d.mean() ** 2),
+        atol=1e-10,
+    )
+
+
+def test_ale_nominal_scalars_model_free_after_fit(data, model):
+    from tests.conftest import CountingModel
+
+    counting = CountingModel(model.predict)
+    ale = effector.ALE(data, counting, nof_instances="all", schema=NOMINAL_SCHEMA)
+    ale.fit(0)
+    n0 = counting.n_calls
+    mask = np.isin(data[:, 0], [0, 1])
+    ale.heter_score(0)
+    ale.importance(0)
+    ale.heter_score(0, mask=mask)
+    ale.importance(0, mask=mask)
+    assert counting.n_calls == n0  # scalars re-summarize cache (a'), no model
+
+
+def test_rhale_nominal_equals_ale_nominal(data, model):
+    # nominal FOI: RHALE is ALE exactly — one bin per transition, no grouping,
+    # whatever binning_method the config declares (it is a continuous/ordinal
+    # knob); heterogeneity matches too
+    types = [NOMINAL, CONTINUOUS, CONTINUOUS]
+    schema = {"feature_types": types}
+    ale = effector.ALE(data, model.predict, nof_instances="all", schema=schema)
+    rhale = effector.RHALE(
+        data, model.predict, model.jacobian, nof_instances="all", schema=schema
+    )
+    rhale.fit(0, binning_method="dp", centering="zero_start")
+    y_ale = ale.eval(0, LEVELS, centering="zero_start")
+    y_rhale = rhale.eval(0, LEVELS, centering="zero_start")
+    np.testing.assert_allclose(y_rhale, y_ale, atol=1e-10)
+    np.testing.assert_allclose(
+        rhale.eval_heter(0, LEVELS), ale.eval_heter(0, LEVELS), atol=1e-10
+    )
+    np.testing.assert_allclose(rhale.heter_score(0), ale.heter_score(0), atol=1e-10)
 
 
 # ---------------------------------------------------------------------------
@@ -268,9 +425,9 @@ def test_registry_capability_matrix_agreement():
 
     matrix = {
         "pdp": {CONTINUOUS, ORDINAL, NOMINAL},
-        "derpdp": {CONTINUOUS},
+        "derpdp": {CONTINUOUS, ORDINAL, NOMINAL},
         "ale": {CONTINUOUS, ORDINAL, NOMINAL},
-        "rhale": {CONTINUOUS, ORDINAL},
+        "rhale": {CONTINUOUS, ORDINAL, NOMINAL},
         "shapdp": {CONTINUOUS, ORDINAL, NOMINAL},
     }
     for name, expected in matrix.items():
@@ -309,7 +466,7 @@ def test_ale_refit_on_centering_change_preserves_order(data, model):
     y = ale.eval(0, np.array(order), centering="zero_integral")
 
     # the custom order must survive the centering-triggered refit
-    np.testing.assert_array_equal(ale.feature_effect["feature_0"]["levels"], order)
+    np.testing.assert_array_equal(ale.payload(0)["levels"], order)
 
     # and the centered answer must equal fitting centered with that order upfront
     ref = effector.ALE(data, model.predict, nof_instances="all", schema=SCHEMA)
@@ -337,8 +494,8 @@ def test_ale_similarity_order_runs_and_is_deterministic(data, model):
     a2 = effector.ALE(data, model.predict, schema={"feature_types": types})
     a2.fit(0, order="similarity")
     np.testing.assert_array_equal(
-        a1.feature_effect["feature_0"]["levels"],
-        a2.feature_effect["feature_0"]["levels"],
+        a1.payload(0)["levels"],
+        a2.payload(0)["levels"],
     )
 
 

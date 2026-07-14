@@ -570,6 +570,56 @@ def compute_local_effects_categorical(
     )
 
 
+def compute_local_effects_level_pairs(
+    data: np.ndarray, model: typing.Callable, levels: np.ndarray, feature: int
+) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    r"""Local effects of a discrete feature over *all* level pairs.
+
+    The order-free raw material for the nominal scalars
+    (method_semantics.md): for every unordered pair $a < b$ of level indices
+    (ascending value order), every instance whose value is $v_a$ or $v_b$
+    contributes the raw difference $f(x \mid x_s = v_b) - f(x \mid x_s = v_a)$
+    — the model is only ever queried at real levels, and no level order
+    enters. The chain transitions of
+    :func:`compute_local_effects_categorical` are the $(t-1, t)$ subset.
+
+    Cost: each instance participates in $K-1$ pairs, so the model sees
+    $\approx 2N(K-1)$ rows in total — bounded by ``cat_limit``.
+
+    Returns:
+        pair_lo: (M,) level index $a$ of each contribution
+        pair_hi: (M,) level index $b$ of each contribution
+        effects: (M,) the raw differences $f(v_b, x_c) - f(v_a, x_c)$
+        instance_idx: (M,) the row index each contribution comes from —
+            regional masks restrict contributions through it
+    """
+    col = data[:, feature]
+    rows = np.arange(data.shape[0])
+    pair_lo, pair_hi, effects, instance_idx = [], [], [], []
+    for a in range(len(levels)):
+        for b in range(a + 1, len(levels)):
+            mask = np.isclose(col, levels[a]) | np.isclose(col, levels[b])
+            if not mask.any():
+                continue
+            x_hi = data[mask].copy()
+            x_hi[:, feature] = levels[b]
+            x_lo = data[mask].copy()
+            x_lo[:, feature] = levels[a]
+            d = np.asarray(model(x_hi)) - np.asarray(model(x_lo))
+            effects.append(d)
+            pair_lo.append(np.full(d.shape[0], a, dtype=int))
+            pair_hi.append(np.full(d.shape[0], b, dtype=int))
+            instance_idx.append(rows[mask])
+    if not effects:
+        raise ValueError(f"feature {feature}: no instances found at any level pair")
+    return (
+        np.concatenate(pair_lo),
+        np.concatenate(pair_hi),
+        np.concatenate(effects),
+        np.concatenate(instance_idx),
+    )
+
+
 def compute_jacobian_numerically(
     model: typing.Callable, data: np.ndarray, eps: float = 1e-6
 ) -> np.ndarray:
@@ -607,8 +657,50 @@ def compute_jacobian_numerically(
         data_plus[:, f] += eps
         data_minus = copy.deepcopy(data)
         data_minus[:, f] -= eps
-        jacobian[:, f] = (model(data_plus) - model(data_minus)) / (2 * eps)
+        # reshape(-1): tolerate (N, 1) column-vector model outputs, like the
+        # rest of the pipeline does
+        plus = np.asarray(model(data_plus), dtype=float).reshape(-1)
+        minus = np.asarray(model(data_minus), dtype=float).reshape(-1)
+        jacobian[:, f] = (plus - minus) / (2 * eps)
     return jacobian
+
+
+def interp_linear_extrap(x: np.ndarray, xp: np.ndarray, fp: np.ndarray) -> np.ndarray:
+    """Piecewise-linear interpolation with linear extrapolation.
+
+    Inside `[xp[0], xp[-1]]` this is `np.interp`; outside, the first/last
+    segment's slope is extended — parity with
+    `scipy.interpolate.interp1d(kind="linear", fill_value="extrapolate")`.
+    A single knot yields a constant. `xp` must be strictly increasing; the
+    call sites (bin centers of `find_limits` limits that survived
+    `raise_if_no_binning`) guarantee it.
+
+    Examples:
+        >>> xp, fp = np.array([0.5, 1.5]), np.array([1.0, 3.0])
+        >>> interp_linear_extrap(np.array([0.0, 0.5, 1.0, 2.0]), xp, fp)
+        array([0., 1., 2., 4.])
+        >>> interp_linear_extrap(np.array([0.0, 5.0]), np.array([1.0]), np.array([2.0]))
+        array([2., 2.])
+
+    Args:
+        x: positions to evaluate at, (T)
+        xp: knot positions, strictly increasing, (K)
+        fp: knot values, (K)
+
+    Returns:
+        the interpolated/extrapolated values at `x`, (T)
+    """
+    x = np.asarray(x, dtype=float)
+    xp = np.asarray(xp, dtype=float)
+    fp = np.asarray(fp, dtype=float)
+    if len(xp) == 1:
+        return np.full(x.shape, fp[0])
+    y = np.interp(x, xp, fp)
+    slope_lo = (fp[1] - fp[0]) / (xp[1] - xp[0])
+    slope_hi = (fp[-1] - fp[-2]) / (xp[-1] - xp[-2])
+    y = np.where(x < xp[0], fp[0] + slope_lo * (x - xp[0]), y)
+    y = np.where(x > xp[-1], fp[-1] + slope_hi * (x - xp[-1]), y)
+    return y
 
 
 def mean_1d_linspace(

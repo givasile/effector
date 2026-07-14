@@ -55,6 +55,17 @@ docs-images:  ## refresh static images for authored pages from notebooks (docs/n
 		rm -rf "$$tmp"; \
 	done
 
+.PHONY: docs-reports
+docs-reports:  ## harvest one-click report pages from notebooks (docs/notebook_map.txt)
+	@mkdir -p docs/docs/static/reports
+	@grep '^report' docs/notebook_map.txt | while read _ src method; do \
+		nb=$$(basename "$$src" .ipynb); dir=$$(dirname "$$src"); \
+		out="docs/docs/static/reports/$${nb}_$${method}.html"; \
+		echo "harvesting $$dir/reports/$$nb/report_$$method.html -> $$out"; \
+		cp "$$dir/reports/$$nb/report_$$method.html" "$$out" || \
+			{ echo "  MISSING: run the notebook first (reports/ is gitignored)"; exit 1; }; \
+	done
+
 # Housekeeping --------------------------------------------------------------
 .PHONY: clean
 clean:  ## delete compiled Python files

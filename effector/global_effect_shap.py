@@ -18,8 +18,6 @@ try:
 except ImportError:
     shapiq = None
 
-from scipy.interpolate import interp1d
-
 import effector.axis_partitioning as ap
 import effector.utils as utils
 
@@ -52,7 +50,9 @@ def _compute_shap_values(
                 "Install it with `pip install effector[shap]`."
             )
         explainer_defaults = {"masker": data, "seed": random_state}
-        explanation_defaults = {"max_evals": budget}
+        # silent squashes shap's per-call progress bars (notebook hygiene);
+        # user explanation_kwargs override it
+        explanation_defaults = {"max_evals": budget, "silent": True}
     elif backend == "shapiq":
         if shapiq is None:
             raise ImportError(
@@ -84,6 +84,26 @@ def _compute_shap_values(
 
 
 class ShapDP(GlobalEffectBase):
+    r"""SHAP Dependence Plot: per-instance SHAP values against the feature
+    value, with a curve fitted through them.
+
+    ```python
+    sdp = effector.ShapDP(X, model, nof_instances=500)
+    sdp.plot("hr")   # SHAP scatter + fitted curve
+    ```
+
+    The curve $\hat{f}^{SDP}_j(x_j)$ is fit to the SHAP cloud
+    $\{(x_j^i, \hat{\phi}_j(x_j^i))\}_{i=1}^N$: the axis is binned and the
+    per-bin SHAP means are interpolated piecewise-linearly. The
+    heterogeneity is the per-bin variance of the SHAP values.
+
+    !!! warning "The slow one"
+        SHAP values are expensive — cost grows with instances and features.
+        Keep `nof_instances` modest (default `1_000`) and raise `budget`
+        only if the estimate looks noisy. Requires the `shap` or `shapiq`
+        package: `pip install effector[shap]`.
+    """
+
     CAT_STRATEGY = "per_level_stats"
 
     DEFAULT_CENTERING: Union[bool, str] = "zero_integral"
@@ -103,105 +123,71 @@ class ShapDP(GlobalEffectBase):
         shap_explainer_kwargs: Optional[dict] = None,
         shap_explanation_kwargs: Optional[dict] = None,
     ):
-        r"""
-        Constructor of the ShapDP class.
+        r"""Build a ShapDP explainer. SHAP values are computed lazily, on the
+        first query.
 
         ??? note "Definition"
 
-            The value of a coalition of $S$ features is estimated as:
+            The value of a coalition $S$ of features is estimated as:
             $$
-            \hat{v}(S) = {1 \over N} \sum_{i=1}^N [f(\mathbf{x}_S \cup \mathbf{x}_C^i) - f(\mathbf{x}^i) ]
+            \hat{v}(S) = {1 \over N} \sum_{i=1}^N
+            [f(\mathbf{x}_S \cup \mathbf{x}_C^i) - f(\mathbf{x}^i)]
             $$
-            $\hat{v}(S)$ quantifies the contribution when the features in $S$ are set to $\mathbf{x}_S$.
-            For all instances, we compute two outputs:
+            i.e. the average change in the output when the features in $S$
+            are set to $\mathbf{x}_S$ and the rest are left as observed.
 
-              - $f(\mathbf{x}_S \cup \mathbf{x}_C^i)$ is the output of the model when the features in $S$ are set to $\mathbf{x}_S$ and the rest of the features are left as they are
-              - $f(\mathbf{x}^i)$ is the output of the model when the instance is left as is
-            The average difference (over all instances) between these two outputs is the value of the coalition $S$.
-
-            The contribution of a feature $j$ added to a coalition $S$ is estimated as:
+            The contribution of feature $j$ added to a coalition $S$ is:
             $$
             \hat{\Delta}_{S, j} = \hat{v}(S \cup \{j\}) - \hat{v}(S)
             $$
 
-            The SHAP value of a feature $j$ with value $x_j$ is the average contribution of feature $j$ across all possible coalitions with a weight $w_{S, j}$:
-
+            The SHAP value of feature $j$ at value $x_j$ averages this
+            contribution over all coalitions, weighted so that every
+            coalition size counts equally:
             $$
-            \hat{\phi}_j(x_j) = {1 \over N} \sum_{S \subseteq \{1, \dots, D\} \setminus \{j\}} w_{S, j} \hat{\Delta}_{S, j}
+            \hat{\phi}_j(x_j) = \sum_{S \subseteq \{1, \dots, D\}
+            \setminus \{j\}} w_{S, j} \hat{\Delta}_{S, j}
             $$
 
-            where $w_{S, j}$ assures that the contribution of feature $j$ is the same for all coalitions of the same size. For example, there are $D-1$ ways for $x_j$ to enter a coalition of $|S| = 1$ feature, so $w_{S, j} = {1 \over D (D-1)}$ for each of them. In contrast, there is only one way for $x_j$ to enter a coaltion of $|S|=0$ (to be the first specified feature), so $w_{S, j} = {1 \over D}$.
-
-            The SHAP Dependence Plot (SHAP-DP) is a spline $\hat{f}^{SDP}_j(x_j)$ fit to the dataset $\{(x_j^i, \hat{\phi}_j(x_j^i))\}_{i=1}^N$ using the `UnivariateSpline` function from `scipy.interpolate`.
-
-        ??? note "Notes"
-
-            * The required parameters are `data` and `model`. The rest are optional.
-            * SHAP values are computed using either the [`shap`](https://shap.readthedocs.io/en/latest/) package (`backend="shap"`) or the [`shapiq`](https://shapiq.readthedocs.io/en/latest/) package (`backend="shapiq"`).
-            * SHAP values are centered by default, i.e., the average SHAP value is subtracted from the SHAP values.
-            * More details on the SHAP values can be found in the [original paper](https://arxiv.org/abs/1705.07874) and in the book [Interpreting Machine Learning Models with SHAP](https://christophmolnar.com/books/shap/)
+            The SHAP-DP curve $\hat{f}^{SDP}_j(x_j)$ is fit to
+            $\{(x_j^i, \hat{\phi}_j(x_j^i))\}_{i=1}^N$: the axis is split
+            into bins and the per-bin SHAP means are interpolated
+            piecewise-linearly (linear extrapolation beyond the outer bin
+            centers). See the
+            [original paper](https://arxiv.org/abs/1705.07874).
 
         Args:
-            data: the design matrix
-
-                - shape: `(N,D)`
-            model: the black-box model. Must be a `Callable` with:
-
-                - input: `ndarray` of shape `(N, D)`
-                - output: `ndarray` of shape `(N,)`
-
-            axis_limits: The limits of the feature effect plot along each axis
-
-                - use a `ndarray` of shape `(2, D)`, to specify them manually
-                - use `None`, to be inferred from the data
-
-            nof_instances: maximum number of instances to be used for SHAP estimation.
-
-                - use `"all"`, for using all instances.
-                - use an `int`, for using `nof_instances` instances.
-
-            schema: input metadata (R10) — an `effector.Schema` or a plain `dict`
-                with any of the keys `feature_names`, `feature_types`,
-                `cat_limit`, `target_name`, `scale_x_list`, `scale_y`
-
-                - omitted fields are auto-inferred from `data` (numpy
-                  heuristics) or synthesized (`["x_0", ...]`, `"y"`); to start
-                  from a DataFrame use `effector.from_dataframe`
-                - explicit fields always win over inference
-
-            random_state: seed for every internal random step (`nof_instances` subsampling and the shap/shapiq explainer, unless overridden via `shap_explainer_kwargs`)
-
-                - use an `int` (default: `21`), for reproducible output; two identical constructions give identical results
-                - use `None`, for non-deterministic behavior
-
-            shap_values: The SHAP values of the model
-
-                - if shap values are already computed, they can be passed here
-                - if `None`, the SHAP values will be computed using the `shap` package
-
-            backend: Package to compute SHAP values
-
-                - use `"shap"` for the `shap` package (default)
-                - use `"shapiq"` for the `shapiq` package
-
-            budget: budget for the SHAP approximation (default 512)
-
-                - increasing the budget improves the approximation at the cost of slower computation
-
-            shap_explainer_kwargs: keyword arguments for the `shap.Explainer` /
-                `shapiq.Explainer` (depending on `backend`). The constructor's
-                `random_state` is used as the backend seed (`seed=` for `shap`,
-                `random_state=` for `shapiq`) unless you pass your own here.
-                See `effector.global_effect_shap._compute_shap_values` — the
+            data: the design matrix, shape `(N, D)` — numpy only.
+            model: the black-box model — a `Callable` mapping `(N, D)`
+                arrays to `(N,)` predictions.
+            axis_limits: per-feature plot limits, shape `(2, D)`; `None`
+                (default) infers them from `data`.
+            nof_instances: max instances used for SHAP estimation (default
+                `1_000` — deliberately lower than other methods, SHAP is
+                expensive); an `int` subsamples randomly, `"all"` keeps
+                everything.
+            schema: input metadata — an `effector.Schema` or a plain `dict`
+                with any of `feature_names`, `feature_types`, `cat_limit`,
+                `target_name`, `scale_x_list`, `scale_y`; omitted fields are
+                inferred from `data`, explicit ones win. Coming from a
+                DataFrame? Use `effector.from_dataframe`.
+            random_state: seed for every internal random step, including the
+                shap/shapiq explainer (default `21`, reproducible); `None`
+                for non-deterministic behavior.
+            shap_values: precomputed SHAP values, shape `(N, D)`; if given,
+                the backend is never called.
+            backend: `"shap"` (default) or `"shapiq"` — the package that
+                computes the SHAP values.
+            budget: max model evaluations per instance for the SHAP
+                approximation (default `512`); higher = more accurate,
+                slower.
+            shap_explainer_kwargs: extra kwargs for `shap.Explainer` /
+                `shapiq.Explainer` (they override the defaults, including
+                the seed). See
+                `effector.global_effect_shap._compute_shap_values` — the
                 single place the explainer is constructed and invoked.
-            shap_explanation_kwargs: keyword arguments for computing the SHAP
-                values with the chosen backend (same code path as above).
-
-        Notes:
-            SHAP values are expensive to compute.
-            To speed up the computation consider using a subset of the dataset.
-            The `nof_instances` parameter controls the number of instances used for computing the SHAP values.
-            The default value is `1_000` instances, which is a good trade-off between speed and accuracy.
+            shap_explanation_kwargs: extra kwargs for the explanation call
+                of the chosen backend (same code path as above).
         """
         self.shap_values = shap_values if shap_values is not None else None
         if backend not in ["shap", "shapiq"]:
@@ -220,10 +206,12 @@ class ShapDP(GlobalEffectBase):
             random_state=random_state,
         )
 
-    def _compute_local_effects(self, feature: int) -> None:
-        """Step 2: the SHAP values are the local effect — computed once by the
-        backend (or injected via `shap_values=`), feature-independent. Fill the
-        whole `(N,D)` table on first use and cache this feature's column."""
+    def _compute_local_cont(self, feature: int, frame: tuple) -> dict:
+        """Cache-(a) kernel: the SHAP values are the local effect — computed
+        once per object by the backend (or injected via `shap_values=`),
+        feature-independent (hence the class-level cat alias below). Fill the
+        whole `(N,D)` table on first use; each feature's entry is a column
+        view of it (no frame — instance-anchored)."""
         if self.shap_values is None:
             self.shap_values = _compute_shap_values(
                 self.model,
@@ -234,9 +222,27 @@ class ShapDP(GlobalEffectBase):
                 self.shap_explanation_kwargs,
                 self.random_state,
             )
-        self.local_effects["feature_" + str(feature)] = self.shap_values[:, feature]
+        return {"frame": frame, "phi": self.shap_values[:, feature]}
 
-    def _summarize(
+    _compute_local_cat = _compute_local_cont
+
+    # `_importance` is deliberately NOT overridden: the inherited std of the
+    # binned mean-φ curve is variance-consistent with PDP/ALE (≈ √V_j; for a
+    # linear model `|coefficient| * std(x)`). The once-canonical `mean(|φ|)`
+    # is an L1 functional — off by the distribution-dependent E|x|/std(x) —
+    # and φ absorbs half of each pairwise interaction, which the other
+    # methods' importances exclude; it made ShapDP the triage outlier.
+
+    def _masked_phi(self, feature: int, mask):
+        """(positions, φ) of the SHAP cloud restricted to `mask` (None = all)."""
+        yy = self._local[feature]["phi"]
+        xx = self.data[:, feature]
+        if mask is not None:
+            yy = yy[mask]
+            xx = xx[mask]
+        return xx, yy
+
+    def _summarize_cont(
         self,
         feature: int,
         mask=None,
@@ -245,119 +251,67 @@ class ShapDP(GlobalEffectBase):
         ] = "dp",
         binning_scope: str = "global",
     ) -> typing.Dict:
-        """Step 3 (pure numpy): bin/aggregate the cached SHAP column over the
-        subregion `mask` (None = all) — a spline of per-bin mean/variance for
-        continuous features, per-level mean/variance for discrete ones.
+        """Summary kernel (pure numpy): bin the cached SHAP column over the
+        subregion `mask` (None = all) — per-bin mean/variance of φ, read back
+        by piecewise-linear interpolation between the bin centers.
 
         `binning_scope` (masked only): `"global"` bins over the frozen global
         frame, `"effective"` packs the bins into the masked column's own
         `[min, max]` (see `fit`)."""
-        self._ensure_local_effects(feature)
-        yy = self.local_effects["feature_" + str(feature)]
-        xx = self.data[:, feature]
-        if mask is not None:
-            yy = yy[mask]
-            xx = xx[mask]
-
-        if self._is_cat(feature):
-            # per-level mean/variance of the shap values with a step lookup —
-            # no spline, no order enters the math (method_semantics.md)
-            levels = np.unique(xx)
-            codes = utils.codes_from_levels(
-                xx, levels, feature, self.feature_names[feature]
-            )
-            limits = np.arange(len(levels) + 1, dtype=float) - 0.5
-            feature_effect_dict = utils.compute_ale_params(
-                codes.astype(float), yy, limits
-            )
-            return {
-                "bin_effect": feature_effect_dict["bin_effect"],
-                "bin_variance": feature_effect_dict["bin_variance"],
-                "levels": levels,
-                "is_cat": True,
-                "xx": xx,
-                "yy": yy,
-            }
-
-        binning = (
-            ap.return_default(binning_method)
-            if isinstance(binning_method, str)
-            else binning_method
+        xx, yy = self._masked_phi(feature, mask)
+        return self._bin_local_effects(
+            feature, xx, yy, mask, binning_method, binning_scope
         )
-        if mask is not None and binning_scope == "effective":
-            limits_range = np.asarray(self._effective_limits(feature, mask))
-        else:
-            limits_range = self.axis_limits[:, feature]
-        limits = binning.find_limits(xx, yy, limits_range)
-        utils.raise_if_no_binning(limits, feature, binning)
-        feature_effect_dict = utils.compute_ale_params(xx, yy, limits)
-        feature_effect_dict["alg_params"] = binning
 
-        # Compute bin edges and bin centers, then piecewise-linear interpolation
-        bin_centers = (limits[:-1] + limits[1:]) / 2
-        if len(bin_centers) == 1:
-            # a single bin (e.g. an unstructured φ that the adaptive binning
-            # rightly refuses to split): interp1d on one knot divides by a
-            # zero span and returns nan everywhere — use the constant instead
-            mean_val = float(feature_effect_dict["bin_effect"][0])
-            var_val = float(feature_effect_dict["bin_variance"][0])
-
-            def mean_spline(x, _v=mean_val):
-                return np.full(np.shape(x), _v)
-
-            def var_spline(x, _v=var_val):
-                return np.full(np.shape(x), _v)
-        else:
-            mean_spline = interp1d(
-                bin_centers,
-                feature_effect_dict["bin_effect"],
-                kind="linear",
-                fill_value="extrapolate",
-            )
-            var_spline = interp1d(
-                bin_centers,
-                feature_effect_dict["bin_variance"],
-                kind="linear",
-                fill_value="extrapolate",
-            )
-        return {
-            "spline_mean": mean_spline,
-            "spline_var": var_spline,
-            "xx": xx,
-            "yy": yy,
-        }
-
-    def _fit_feature(
+    def _summarize_cat(
         self,
         feature: int,
+        mask=None,
         binning_method: Union[
             str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
         ] = "dp",
         binning_scope: str = "global",
     ) -> typing.Dict:
-        return self._summarize(
-            feature, None, binning_method=binning_method, binning_scope=binning_scope
+        # per-level mean/variance of the shap values with a step lookup —
+        # no interpolation, no order enters the math (method_semantics.md)
+        xx, yy = self._masked_phi(feature, mask)
+        levels = np.unique(xx)
+        codes = utils.codes_from_levels(
+            xx, levels, feature, self.feature_names[feature]
         )
+        limits = np.arange(len(levels) + 1, dtype=float) - 0.5
+        feature_effect_dict = utils.compute_ale_params(codes.astype(float), yy, limits)
+        return {
+            "bin_effect": feature_effect_dict["bin_effect"],
+            "bin_variance": feature_effect_dict["bin_variance"],
+            "levels": levels,
+        }
 
-    def _eval_unnorm(
-        self, feature: int, x: np.ndarray, heterogeneity: bool = False, params=None
+    def _eval_payload_cont(
+        self, feature: int, params: dict, x: np.ndarray, heterogeneity: bool = False
     ):
-        if params is None:
-            params = self.feature_effect["feature_" + str(feature)]
-        if params.get("is_cat"):
-            codes = utils.codes_from_levels(
-                x, params["levels"], feature, self.feature_names[feature]
-            )
-            y = params["bin_effect"][codes]
-            if heterogeneity:
-                return y, params["bin_variance"][codes]
-            return y
-        y = params["spline_mean"](x)
+        # piecewise-linear between the bin centers, linear extrapolation
+        # beyond the outer ones (a single bin reads as a constant)
+        centers = (params["limits"][:-1] + params["limits"][1:]) / 2
+        y = utils.interp_linear_extrap(x, centers, params["bin_effect"])
         if heterogeneity:
-            # variance is non-negative by definition; linear extrapolation of the
-            # per-bin variance beyond the outer bin centers (fill_value=
-            # "extrapolate") can dip below 0, so clamp it.
-            return y, np.maximum(params["spline_var"](x), 0.0)
+            # variance is non-negative by definition; the linear extrapolation
+            # beyond the outer bin centers can dip below 0, so clamp it
+            var = np.maximum(
+                utils.interp_linear_extrap(x, centers, params["bin_variance"]), 0.0
+            )
+            return y, var
+        return y
+
+    def _eval_payload_cat(
+        self, feature: int, params: dict, x: np.ndarray, heterogeneity: bool = False
+    ):
+        codes = utils.codes_from_levels(
+            x, params["levels"], feature, self.feature_names[feature]
+        )
+        y = params["bin_effect"][codes]
+        if heterogeneity:
+            return y, params["bin_variance"][codes]
         return y
 
     def fit(
@@ -365,61 +319,68 @@ class ShapDP(GlobalEffectBase):
         features: Union[int, str, List] = "all",
         *,
         centering: Union[bool, str] = True,
-        points_for_centering: int = helpers.NOF_INTERNAL_POINTS,
         binning_method: Union[
             str, ap.DynamicProgramming, ap.Agglomerative, ap.Quantile, ap.Fixed
         ] = "dp",
         binning_scope: str = "global",
     ) -> None:
-        r"""Fit the SHAP Dependence Plot to the data.
+        r"""Declare per-feature defaults and warm the caches.
 
-        Notes:
-            The SHAP Dependence Plot (SDP) $\hat{f}^{SDP}_j(x_j)$ is a spline fit to
-            the dataset $\{(x_j^i, \hat{\phi}_j(x_j^i))\}_{i=1}^N$
-            using the `UnivariateSpline` function from `scipy.interpolate`.
+        ```python
+        sdp.fit("hr", binning_method="dp")
+        ```
 
-            The SHAP standard deviation, $\hat{\sigma}^{SDP}_j(x_j)$, is a spline fit            to the absolute value of the residuals, i.e., to the dataset $\{(x_j^i, |\hat{\phi}_j(x_j^i) - \hat{f}^{SDP}_j(x_j^i)|)\}_{i=1}^N$, using the `UnivariateSpline` function from `scipy.interpolate`.
+        !!! note "fit is optional — but it pays the SHAP bill"
+            Any query computes what it needs lazily with these defaults; the
+            first one triggers the (expensive) SHAP computation for the whole
+            `(N, D)` table. `fit` lets you pay that cost upfront.
+
+        The curve is the piecewise-linear interpolation of the per-bin SHAP
+        means (linear extrapolation beyond the outer bin centers); the
+        heterogeneity is the same interpolation of the per-bin SHAP
+        *variances*, clamped at zero.
 
         Args:
-            features: the features to fit.
-                - If set to "all", all the features will be fitted.
-            centering:
-                - If set to False, no centering will be applied.
-                - If set to "zero_integral" or True, the integral of the feature effect will be set to zero.
-                - If set to "zero_mean", the mean of the feature effect will be set to zero.
+            features: feature(s) to fit — index, name, list, or `"all"`.
+            centering: default centering for this feature's queries —
+                `False` (none), `True`/`"zero_integral"` (center around the
+                y axis), or `"zero_start"` (start at `y=0`).
+            binning_method: how the axis is split before fitting the curve:
 
-            points_for_centering: number of linspaced points along the feature axis used for centering.
+                - `"dp"` (default): dynamic programming — optimal
+                  variable-size bins
+                - `"agglomerative"`: bottom-up merging of small bins
+                  (`"greedy"` is a deprecated alias)
+                - `"quantile"`: equal-frequency bins
+                - `"fixed"`: equal-width bins
 
-            binning_method: the binning method to be used for fitting a piecewise linear function to the SHAP values.
-
-                - If set to "greedy", the greedy binning method will be used.
-                - If set to "fixed", the fixed binning method will be used.
+                For custom parameters pass an instance from
+                `effector.axis_partitioning`, e.g.
+                `DynamicProgramming(max_nof_bins=30)`.
 
             binning_scope: the x-range the binner covers when a *masked*
                 summary re-bins a subregion (`eval`/`eval_heter`/`plot`/
-                `heter_score` with `mask=`; the regional split search)
+                `heter_score` with `mask=`; the regional split search):
 
-                - `"global"` (default): the frozen global `axis_limits` — one
-                  frame for every subregion, directly comparable
-                - `"effective"`: the masked column's own `[min, max]` — bins
-                  packed into the subregion, finer resolution
+                - `"global"` (default): the frozen global `axis_limits` —
+                  one frame for every subregion, directly comparable
+                - `"effective"`: the masked column's own `[min, max]` —
+                  bins packed into the subregion, finer resolution
 
-                Recorded at fit and replayed by every masked call, so the
-                split search and the display always share the same scope.
-                Ignored when no mask is involved.
+                Recorded at fit and replayed by every masked call. Ignored
+                when no mask is involved.
         """
         check_binning_scope(binning_scope)
         self._fit_loop(
             features,
             centering,
-            points_for_centering,
             binning_method=binning_method,
             binning_scope=binning_scope,
         )
 
     def plot(
         self,
-        feature: int,
+        feature: Union[int, str],
         heterogeneity: Union[bool, str] = "shap_values",
         centering: Union[bool, str] = True,
         nof_points: int = 100,
@@ -431,98 +392,90 @@ class ShapDP(GlobalEffectBase):
         only_shap_values: bool = False,
         show_plot: bool = True,
         mask: Optional[np.ndarray] = None,
+        rule=None,
         feature_label: Optional[str] = None,
     ) -> Union[Tuple, None]:
-        """
-        Plot the SHAP Dependence Plot (SDP) of the s-th feature.
+        """Plot the SHAP-DP of `feature`, by default with the SHAP scatter.
+
+        ```python
+        sdp.plot("hr")                       # fitted curve + SHAP scatter
+        sdp.plot("hr", heterogeneity="std")  # curve ± std band
+        ```
 
         Args:
-            feature: index of the plotted feature
-            heterogeneity: whether to output the heterogeneity of the SHAP values
+            feature: index or name of the feature to plot.
+            heterogeneity: what to draw around the fitted curve:
 
-                - If `heterogeneity` is `False`, no heterogeneity is plotted
-                - If `heterogeneity` is `True` or `"std"`, the standard deviation of the shap values is plotted
-                - If `heterogeneity` is `"shap_values"`, the shap values are scattered on top of the SHAP curve
+                - `False`: the curve only
+                - `True` or `"std"`: ± one std of the SHAP values per bin
+                - `"shap_values"` (default): the SHAP values scattered on
+                  top of the curve
 
-            centering: whether to center the SDP
-
-                - If `centering` is `False`, the SHAP curve is not centered
-                - If `centering` is `True` or `zero_integral`, the SHAP curve is centered around the `y` axis.
-                - If `centering` is `zero_start`, the SHAP curve starts from `y=0`.
-
-            nof_points: number of points to evaluate the SDP plot
-            scale_x: dictionary with keys "mean" and "std" for scaling the x-axis
-            scale_y: dictionary with keys "mean" and "std" for scaling the y-axis
-            nof_shap_values: number of shap values to show on top of the SHAP curve
-            show_avg_output: whether to show the average output of the model
-            y_limits: limits of the y-axis
-            only_shap_values: whether to plot only the shap values
-            show_plot: whether to show the plot
-            mask: optional boolean `(N,)` selecting a subregion — plot the
-                SHAP-DP *within* it (the masked φ re-binned/re-splined from the
-                cached attributions, no model calls), with the x-axis windowed
-                to the subregion's own interval
-            feature_label: optional display name for the feature axis (e.g. a
-                regional node's name), overriding `feature_names[feature]`
+            centering: `False` (none), `True`/`"zero_integral"` (center
+                around the y axis), or `"zero_start"` (start at `y=0`).
+            nof_points: grid size of the x axis (default `100`).
+            scale_x: `None` or `{"mean": m, "std": s}` to undo a
+                standardization of the x axis for display.
+            scale_y: same, for the y axis.
+            nof_shap_values: how many SHAP values to scatter (default
+                `100`), or `"all"`.
+            show_avg_output: draw the model's average output as a
+                horizontal line.
+            y_limits: `(low, high)` for the y axis; `None` = automatic.
+            only_shap_values: scatter the SHAP values without the fitted
+                curve.
+            show_plot: if `False`, return the figure and axes instead of
+                showing.
+            mask: boolean `(N,)` selecting a subregion — plot the SHAP-DP
+                *within* it (the masked SHAP values re-binned from the
+                cached attributions, no model calls), x axis windowed to the
+                subregion's own interval.
+            rule: sugar over `mask` — an `effector.Rule` or a rule string,
+                applied to the effect's data. Mutually exclusive with `mask`.
+            feature_label: display title for the figure (e.g. a regional
+                node's label with its rule); defaults to the feature name.
+                The x-axis always keeps the plain feature name.
         """
+        feature = self._resolve_feature(feature)
         heterogeneity = helpers.prep_confidence_interval(heterogeneity)
         centering = helpers.prep_centering(centering)
         scale_x = helpers.resolve_scale(
             scale_x, self.scale_x_list[feature] if self.scale_x_list else None
         )
         scale_y = helpers.resolve_scale(scale_y, self.scale_y)
-        mask = self._prep_mask(mask)
-        feature_names = list(self.feature_names)
-        if feature_label is not None:
-            feature_names[feature] = feature_label
+        mask = self._resolve_mask(mask, rule)
+        feature_names = self.feature_names
+        # C2: title = feature (or leaf label); method · scope = corner tag
+        title = feature_label if feature_label is not None else feature_names[feature]
+        tag = f"SHAP-DP · {'regional' if mask is not None else 'global'}"
 
-        if mask is not None:
-            # transient subregion payload from the cached attributions —
-            # pure numpy, nothing stored (the masked-plot path)
-            if not self._is_cat(feature):
-                self._effective_limits(feature, mask)  # degeneracy guard
-            self._ensure_local_effects(feature)
-            m_params = self._summarize(
-                feature, mask, **self._replay_fit_kwargs(feature)
-            )
-            m_norm = (
-                self._compute_norm_const(
-                    feature, method=centering, params=m_params, mask=mask
-                )
-                if centering is not False
-                else 0.0
-            )
+        if mask is not None and not self._is_cat(feature):
+            self._effective_limits(feature, mask)  # degeneracy guard
 
-        params_key = "feature_" + str(feature)
+        # one path for global and masked alike (R14): pick the payload, read it
+        params = self._summary(feature, mask)
+        norm = (
+            self._centering_const(feature, mask, centering)
+            if centering is not False
+            else 0.0
+        )
+        avg_output = self._avg_output(mask, scale_y) if show_avg_output else None
+
         if self._is_cat(feature):
-            if mask is not None:
-                # the masked payload's frame: the levels observed *within* the
-                # subregion (its φ were re-binned per level by _summarize)
-                params = m_params
-                levels, labels = self._level_display(feature, params["levels"])
-                y_levels = self._eval_unnorm(feature, levels, params=params) - m_norm
-                data = self.data[mask]
-            else:
-                # fit if needed, then draw per-level bars (+ the shap cloud)
-                self.eval(feature, self._levels(feature)[:1], centering=centering)
-                params = self.feature_effect[params_key]
-                levels, labels = self._level_display(feature)
-                y_levels = self.eval(feature, levels, centering=centering)
-                data = self.data
-            avg_output = (
-                helpers.prep_avg_output(data, self.model, None, scale_y)
-                if show_avg_output
-                else None
-            )
-            title = "SHAP Dependence Plot (SHAP-DP)"
+            # the payload's frame: the levels observed within the (masked) data
+            levels, labels = self._level_display(feature, params["levels"])
+            y_levels = self._eval_payload(feature, params, levels) - norm
+            level_kind = self.feature_types[feature]
+            level_counts = self._level_counts_for(feature, mask, levels)
             if heterogeneity == "shap_values":
-                yy = params["yy"]
-                if centering is not False:
-                    yy = yy - (m_norm if mask is not None else params["norm_const"])
+                # the scatter cloud comes from cache (a) — the same (masked)
+                # φ the payload was summarized from, by construction
+                xx, phi = self._masked_phi(feature, mask)
+                yy = phi - norm
                 return vis.plot_shap_categorical(
                     levels,
                     y_levels,
-                    params["xx"],
+                    xx,
                     yy,
                     feature,
                     title=title,
@@ -536,9 +489,12 @@ class ShapDP(GlobalEffectBase):
                     y_limits=y_limits,
                     show_plot=show_plot,
                     random_state=self.random_state,
+                    tag=tag,
+                    level_kind=level_kind,
+                    level_counts=level_counts,
                 )
             variances = (
-                self._eval_unnorm(feature, levels, heterogeneity=True, params=params)[1]
+                self._eval_payload(feature, params, levels, heterogeneity=True)[1]
                 if heterogeneity is not False
                 else None
             )
@@ -557,65 +513,28 @@ class ShapDP(GlobalEffectBase):
                 target_name=self.target_name,
                 y_limits=y_limits,
                 show_plot=show_plot,
+                tag=tag,
+                level_kind=level_kind,
+                level_counts=level_counts,
             )
 
-        if mask is not None:
-            # the masked payload's frame: x spans the subregion's effective
-            # interval, the cloud is the masked φ (already filtered by
-            # _summarize) — model-free
-            lo, hi = self._effective_limits(feature, mask)
-            x = np.linspace(lo, hi, nof_points)
-            y = self._eval_unnorm(feature, x, params=m_params)
-            if centering is not False:
-                y = y - m_norm
-            y_std = (
-                np.sqrt(np.maximum(m_params["spline_var"](x), 0.0))
-                if heterogeneity == "std"
-                else None
-            )
-            _, ind = helpers.prep_nof_instances(
-                nof_shap_values, len(m_params["yy"]), self.random_state
-            )
-            yy = m_params["yy"][ind] if heterogeneity == "shap_values" else None
-            if yy is not None and centering is not False:
-                yy = yy - m_norm
-            xx = m_params["xx"][ind] if heterogeneity == "shap_values" else None
-            data = self.data[mask]
-        else:
-            x = np.linspace(
-                self.axis_limits[0, feature], self.axis_limits[1, feature], nof_points
-            )
-
-            # get the SHAP curve
-            y = self.eval(feature, x, centering=centering)
-            y_std = (
-                np.sqrt(self.feature_effect["feature_" + str(feature)]["spline_var"](x))
-                if heterogeneity == "std"
-                else None
-            )
-
-            # get some SHAP values
-            _, ind = helpers.prep_nof_instances(
-                nof_shap_values, self.data.shape[0], self.random_state
-            )
-            yy = (
-                self.feature_effect["feature_" + str(feature)]["yy"][ind]
-                if heterogeneity == "shap_values"
-                else None
-            )
-            if yy is not None and centering is not False:
-                yy = yy - self.feature_effect["feature_" + str(feature)]["norm_const"]
-            xx = (
-                self.feature_effect["feature_" + str(feature)]["xx"][ind]
-                if heterogeneity == "shap_values"
-                else None
-            )
-            data = self.data
-
-        if show_avg_output:
-            avg_output = helpers.prep_avg_output(data, self.model, None, scale_y)
-        else:
-            avg_output = None
+        # continuous: the x-axis spans the (effective) interval; the cloud is
+        # the (masked) φ from cache (a) — the same instances the payload was
+        # summarized from, model-free
+        lo, hi = self._effective_limits(feature, mask)
+        x = np.linspace(lo, hi, nof_points)
+        y = self._eval_payload(feature, params, x) - norm
+        y_std = (
+            np.sqrt(self._eval_payload(feature, params, x, heterogeneity=True)[1])
+            if heterogeneity == "std"
+            else None
+        )
+        col, phi = self._masked_phi(feature, mask)
+        _, ind = helpers.prep_nof_instances(
+            nof_shap_values, len(phi), self.random_state
+        )
+        yy = phi[ind] - norm if heterogeneity == "shap_values" else None
+        xx = col[ind] if heterogeneity == "shap_values" else None
 
         ret = vis.plot_shap(
             x,
@@ -633,6 +552,8 @@ class ShapDP(GlobalEffectBase):
             y_limits=y_limits,
             only_shap_values=only_shap_values,
             show_plot=show_plot,
+            title=title,
+            tag=tag,
         )
 
         return ret

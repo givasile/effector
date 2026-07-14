@@ -31,30 +31,35 @@ DEFAULT_CAT_LIMIT = 10
 
 @dataclass(frozen=True)
 class Schema:
-    """The single metadata argument of every effector constructor (R10).
+    """The single metadata argument of every effector constructor.
 
-    All fields are optional; whatever is not declared is inferred from the numpy
-    data (type heuristic) or synthesized (`x_0…`, `"y"`). `effector.from_dataframe`
-    populates one from a DataFrame's names/dtypes/levels. A `Schema` holds no
-    data, so one instance can be reused across method constructions. Constructors
-    also accept a plain dict with the same keys.
+    ```python
+    schema = effector.Schema(
+        feature_names=["hr", "temp", "workingday"],
+        feature_types=["ordinal", "continuous", "nominal"],
+        target_name="count",
+    )
+    pdp = effector.PDP(X, model, schema=schema)
+    ```
 
-    Fields:
-        feature_names: one name per column.
-        feature_types: one of `"continuous" | "ordinal" | "nominal"` per column
-            (aliases `"cont"` → continuous, `"cat"` → nominal).
-        cat_limit: cardinality threshold for the int-column heuristic
-            (default 10).
-        target_name: name of the model output (default `"y"`).
-        scale_x_list: per-feature `{"mean": .., "std": ..}` dicts (or None
-            entries) to display plots in original units; plot-time `scale_x`
-            overrides.
-        scale_y: `{"mean": .., "std": ..}` for the output axis; plot-time
-            `scale_y` overrides.
-        category_names: per-feature list of human-readable level names for a
-            categorical (ordinal/nominal) feature — one name per observed level
-            in ascending order — shown on the plot axis instead of the numeric
-            codes. `None` entries (and non-categorical features) keep the codes.
+    Every field is optional: whatever you do not declare is inferred from the
+    numpy data (type heuristic) or synthesized (`x_0…`, `"y"`). A `Schema`
+    holds no data, so one instance can be reused across method constructions.
+    Constructors also accept a plain dict with the same keys.
+
+    | Field | Meaning |
+    |---|---|
+    | `feature_names` | one name per column (default `x_0, x_1, …`) |
+    | `feature_types` | `"continuous"` / `"ordinal"` / `"nominal"` per column (aliases: `"cont"` → continuous, `"cat"` → nominal) |
+    | `cat_limit` | cardinality threshold for the int-column type heuristic (default 10) |
+    | `target_name` | name of the model output (default `"y"`) |
+    | `scale_x_list` | per-feature `{"mean": .., "std": ..}` dicts (or `None` entries) to display plots in original units; plot-time `scale_x` overrides |
+    | `scale_y` | `{"mean": .., "std": ..}` for the output axis; plot-time `scale_y` overrides |
+    | `category_names` | per categorical (ordinal/nominal) feature: one human-readable name per observed level in ascending order, shown on the plot axis instead of the numeric codes; `None` entries keep the codes |
+
+    !!! tip "Coming from pandas"
+        `effector.from_dataframe(df)` populates a `Schema` from a DataFrame's
+        names/dtypes/levels — inspect the result, then pass it on.
     """
 
     feature_names: typing.Optional[list] = None
@@ -77,7 +82,18 @@ class ColumnEncoding:
 
 @dataclass(frozen=True)
 class FeatureMetadata:
-    """Resolved input metadata, stored by every effect class as `feature_metadata`."""
+    """Resolved input metadata — what every effect object stores as `feature_metadata`.
+
+    ```python
+    pdp.feature_metadata.feature_names   # ['hr', 'temp', 'workingday']
+    pdp.feature_metadata.feature_types   # ['ordinal', 'continuous', 'nominal']
+    ```
+
+    The read-only result of ingestion: `Schema` fields merged with inference,
+    every gap filled. You never construct one — read it off a fitted object.
+    Fields mirror `Schema`, except everything is resolved: types are canonical
+    strings and `category_names` is a `{feature_idx: {level_value: name}}` map.
+    """
 
     feature_names: list
     feature_types: list  # canonical three-way strings
@@ -368,6 +384,19 @@ def ingest(
             f"data has non-numeric dtype {data.dtype}; encode it to a numeric "
             f"matrix first (see effector.from_dataframe for DataFrame columns)"
         )
+    if not callable(model):
+        raise TypeError(
+            f"`model` must be a numpy->numpy callable, got "
+            f"{type(model).__name__}. Wrap your model first — see "
+            f"effector.adapters (from_sklearn / classifier_proba / from_torch) "
+            f"or write the wrapper yourself, then verify it with "
+            f"effector.adapters.check(model, X)."
+        )
+    if model_jac is not None and not callable(model_jac):
+        raise TypeError(
+            f"`model_jac` must be a numpy->numpy callable, got "
+            f"{type(model_jac).__name__}."
+        )
     matrix = data
     dim = matrix.shape[1]
 
@@ -433,21 +462,37 @@ def ingest(
 
 
 def from_dataframe(df, *, cat_limit: int = DEFAULT_CAT_LIMIT):
-    """Extract a numpy matrix and a populated `Schema` from a pandas DataFrame.
+    """Extract a numpy matrix and a populated `Schema` from a pandas DataFrame — data only.
 
-    A pure convenience for the common "I started from a DataFrame" case. It
-    reads column names, maps dtypes to feature types, and pulls categorical
-    level labels, returning `(X, schema)` so you can call any effector
-    constructor as `Method(X, model, schema=schema)`.
+    ```python
+    X, schema = effector.from_dataframe(df)
+    pdp = effector.PDP(X, model, schema=schema)
+    ```
 
-    It does **not** touch your model: effector is numpy-only, so `model` must be
-    a numpy->numpy callable. If your model consumes a DataFrame (e.g. an sklearn
-    Pipeline), wrap it yourself into a numpy->numpy function.
+    Constructors hard-reject a DataFrame as `data` (effector is numpy-only);
+    this is the opt-in door. It reads column names, maps dtypes to feature
+    types, encodes non-numeric columns to float codes, and records the level
+    labels in `category_names`:
 
-    The returned schema is a *proposal you should inspect* — in particular the
-    int-column type guess (ordinal vs continuous vs a label-encoded nominal) is
-    the one thing no extractor can know for sure. Override any field you don't
-    like before passing it on.
+    | DataFrame dtype | feature type | encoded as |
+    |---|---|---|
+    | float | continuous | values as-is |
+    | int | ordinal if `nunique < cat_limit`, else continuous | values as-is |
+    | bool | ordinal | `False, True` → `0.0, 1.0` |
+    | `Categorical`, ordered | ordinal | category codes |
+    | `Categorical`, unordered | nominal | category codes |
+    | object / string | nominal | codes of `astype("category")` |
+    | anything else | — | raises `ValueError` |
+
+    !!! warning "The schema is a proposal — inspect it"
+        The int-column guess (ordinal vs continuous vs a label-encoded
+        nominal) is the one thing no extractor can know for sure; it also
+        fires a `UserWarning`. Override any field before passing the schema on.
+
+    !!! note "Never touches the model"
+        `model` must already be a numpy->numpy callable. If your model
+        consumes a DataFrame (e.g. an sklearn Pipeline), wrap it yourself —
+        see `effector.adapters`.
 
     Args:
         df: a pandas DataFrame with numeric / bool / categorical / string
@@ -459,6 +504,11 @@ def from_dataframe(df, *, cat_limit: int = DEFAULT_CAT_LIMIT):
         `(X, schema)` where `X` is a `(N, D)` float64 numpy array and `schema`
         is an `effector.Schema` with `feature_names`, `feature_types`,
         `cat_limit`, and `category_names` populated.
+
+    Raises:
+        TypeError: `df` is not a pandas DataFrame.
+        ValueError: a column contains missing values (the error names the
+            column — impute or drop first), or has an unsupported dtype.
     """
     if not is_dataframe(df):
         raise TypeError(

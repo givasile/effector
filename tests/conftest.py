@@ -16,6 +16,8 @@ Regional methods run on the gated-linear model from the functional anchor
 which runs on N=50 / budget=128 to keep the gate fast.
 """
 
+from contextlib import contextmanager
+
 import matplotlib
 
 matplotlib.use("Agg")
@@ -46,13 +48,6 @@ D_GLOBAL = 3
 COEF = np.array([2.0, -3.0, 0.5])
 
 GLOBAL_NAMES = ["pdp", "derpdp", "ale", "rhale", "shapdp"]
-REGIONAL_NAMES = [
-    "regional_pdp",
-    "regional_derpdp",
-    "regional_ale",
-    "regional_rhale",
-    "regional_shapdp",
-]
 
 
 def linear_model(x):
@@ -178,6 +173,18 @@ class CountingModel:
         return self.fn(x)
 
 
+@contextmanager
+def budget(*counters, expected):
+    """Assert the exact number of model calls a block issues (R14 budgets):
+    the sum of the given `CountingModel` counters must grow by `expected`."""
+    before = sum(c.n_calls for c in counters)
+    yield
+    got = sum(c.n_calls for c in counters) - before
+    assert got == expected, (
+        f"model-call budget violated: expected exactly {expected} calls, got {got}"
+    )
+
+
 def gated_model(x):
     y = np.zeros_like(x[:, 0])
     ind = np.logical_and(x[:, 1] > 0, x[:, 2] == 0)
@@ -204,49 +211,57 @@ def make_regional_data(n=N_REGIONAL, seed=21):
     )
 
 
-def make_regional(name, data, **kwargs):
-    """Construct a fresh (unfitted) regional-effect object of the given kind."""
-    if name == "regional_pdp":
-        return effector.RegionalPDP(data, gated_model, **kwargs)
-    if name == "regional_derpdp":
-        return effector.RegionalDerPDP(
-            data, gated_model, model_jac=gated_model_jac, **kwargs
-        )
-    if name == "regional_ale":
-        return effector.RegionalALE(data, gated_model, **kwargs)
-    if name == "regional_rhale":
-        return effector.RegionalRHALE(
-            data, gated_model, model_jac=gated_model_jac, **kwargs
-        )
-    if name == "regional_shapdp":
-        return effector.RegionalShapDP(data, gated_model, **kwargs)
-    raise ValueError(f"unknown regional method: {name}")
-
-
-def fit_regional(name, data):
-    """Fit feature 0 the standard way for the contract tests.
-
-    RegionalShapDP: N=50 / budget=128 and seeded explainer, per the runtime
-    budget (PLAN II §5) — shap cost stays ~seconds and the tree is stable.
-    """
-    if name == "regional_shapdp":
-        np.random.seed(0)
-        reg = make_regional(
-            name, data[:50], budget=128, shap_explainer_kwargs={"seed": 0}
-        )
-        reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
-        return reg
-    reg = make_regional(name, data)
-    reg.fit(0, space_partitioner=effector.space_partitioning.Best(max_depth=2))
-    return reg
-
-
 @pytest.fixture(scope="module")
 def regional_data():
     return make_regional_data()
 
 
-@pytest.fixture(scope="module", params=REGIONAL_NAMES)
-def fitted_regional(request, regional_data):
-    """One fitted regional object per method, cached for the whole module."""
-    return request.param, fit_regional(request.param, regional_data)
+# ---------------------------------------------------------------------------
+# find_regions registry (the 5 GLOBAL classes on the gated model): regional
+# questions are now asked via GlobalEffectBase.find_regions -> Partition.
+# ---------------------------------------------------------------------------
+
+
+def make_gated_global(name, data, **kwargs):
+    """Construct a fresh global-effect object on the gated-linear model."""
+    if name == "pdp":
+        return effector.PDP(data, gated_model, **kwargs)
+    if name == "derpdp":
+        return effector.DerPDP(data, gated_model, model_jac=gated_model_jac, **kwargs)
+    if name == "ale":
+        return effector.ALE(data, gated_model, **kwargs)
+    if name == "rhale":
+        return effector.RHALE(data, gated_model, model_jac=gated_model_jac, **kwargs)
+    if name == "shapdp":
+        return effector.ShapDP(data, gated_model, **kwargs)
+    raise ValueError(f"unknown global method: {name}")
+
+
+def fit_and_find(name, data):
+    """Fit feature 0 on the gated model and return (effect, partition).
+
+    ShapDP: N=50 / budget=128 / seeded explainer to keep the gate fast and the
+    tree stable (mirrors the old fit_regional convention)."""
+    finder = effector.space_partitioning.Best(max_depth=2)
+    if name == "shapdp":
+        np.random.seed(0)
+        fx = make_gated_global(
+            "shapdp",
+            data[:50],
+            budget=128,
+            shap_explainer_kwargs={"seed": 0},
+            nof_instances="all",
+        )
+        fx.fit(0, centering=False)
+        return fx, fx.find_regions(0, finder=finder)
+    fx = make_gated_global(name, data, nof_instances="all")
+    fx.fit(0, centering=False)
+    return fx, fx.find_regions(0, finder=finder)
+
+
+@pytest.fixture(scope="module", params=GLOBAL_NAMES)
+def fitted_partition(request, regional_data):
+    """One (name, effect, partition) triple per global method, module-cached."""
+    name = request.param
+    effect, part = fit_and_find(name, regional_data)
+    return name, effect, part

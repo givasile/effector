@@ -11,18 +11,39 @@ BIG_M = 1e8
 EPS = 1e-8
 
 
-def prep_features(feat: typing.Union[str, int, list], D: int) -> list:
+def resolve_feature_name(
+    feature: str, feature_names: typing.Optional[list], D: int
+) -> int:
+    """Resolve a feature name to its index via `feature_names` (R9 errors)."""
+    if feature_names is None:
+        raise ValueError(
+            f"Cannot resolve feature name {feature!r}: no feature names are "
+            "available; use an integer index"
+        )
+    try:
+        return feature_names.index(feature)
+    except ValueError:
+        raise ValueError(
+            f"Unknown feature {feature!r}; available features: {feature_names}"
+        ) from None
+
+
+def prep_features(
+    feat: typing.Union[str, int, list],
+    D: int,
+    feature_names: typing.Optional[list] = None,
+) -> list:
     """Normalize the `features` argument to a list of valid feature indices.
 
-    Accepts an `int`, a `list` of ints, or the string `"all"`; anything else
-    raises `TypeError`, and out-of-range indices raise `ValueError` (R9).
+    Accepts an `int`, a feature name, a `list` of ints/names, or the string
+    `"all"`; anything else raises `TypeError`, and out-of-range indices or
+    unknown names raise `ValueError` (R9). Names are resolved against
+    `feature_names`.
     """
     if isinstance(feat, str):
-        if feat != "all":
-            raise ValueError(
-                f"Invalid features argument: {feat!r}; the only valid string is 'all'"
-            )
-        return [i for i in range(D)]
+        if feat == "all":
+            return [i for i in range(D)]
+        feat = [feat]
 
     if isinstance(feat, bool):
         raise TypeError(f"Invalid features argument of type bool: {feat!r}")
@@ -31,24 +52,33 @@ def prep_features(feat: typing.Union[str, int, list], D: int) -> list:
     if not isinstance(feat, list):
         raise TypeError(
             f"Invalid features argument of type {type(feat).__name__}: {feat!r}; "
-            "use an int, a list of ints, or 'all'"
+            "use an int, a feature name, a list of ints/names, or 'all'"
         )
 
+    out = []
     for f in feat:
+        if isinstance(f, str):
+            out.append(resolve_feature_name(f, feature_names, D))
+            continue
         if isinstance(f, bool) or not isinstance(f, int):
-            raise TypeError(f"Feature indices must be ints, got {f!r}")
+            raise TypeError(f"Feature indices must be ints or names, got {f!r}")
         if not 0 <= f < D:
             raise ValueError(
                 f"Feature index {f} out of range for data with {D} features"
             )
-    return feat
+        out.append(f)
+    return out
 
 
 def prep_conditioning_features(
-    ccf: typing.Union[str, list], feature: int, D: int
+    ccf: typing.Union[str, list],
+    feature: int,
+    D: int,
+    feature_names: typing.Optional[list] = None,
 ) -> list:
     """Normalize the `candidate_conditioning_features` argument: `"all"` means
-    every feature except the feature of interest."""
+    every feature except the feature of interest; list entries may be indices
+    or feature names."""
     if isinstance(ccf, str):
         if ccf != "all":
             raise ValueError(
@@ -56,6 +86,11 @@ def prep_conditioning_features(
                 "the only valid string is 'all'"
             )
         return [i for i in range(D) if i != feature]
+    if isinstance(ccf, list):
+        return [
+            resolve_feature_name(f, feature_names, D) if isinstance(f, str) else f
+            for f in ccf
+        ]
     return ccf
 
 

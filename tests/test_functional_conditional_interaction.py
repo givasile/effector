@@ -112,7 +112,7 @@ class TestHeterogeneity:
             features=feature,
             binning_method=effector.axis_partitioning.Fixed(nof_bins=NOF_BINS),
         )
-        bin_var = ale.feature_effect[f"feature_{feature}"]["bin_variance"]
+        bin_var = ale.payload(feature)["bin_variance"]
         gt_var = bench.ale_bin_variance_gt(feature, nof_bins=NOF_BINS)
         mask = ~np.isnan(gt_var)  # the jump bin's variance is an artifact
         np.testing.assert_allclose(bin_var[mask], gt_var[mask], atol=ATOL)
@@ -129,58 +129,58 @@ class TestHeterogeneity:
             features=feature,
             binning_method=effector.axis_partitioning.Fixed(nof_bins=NOF_BINS),
         )
-        bin_var = rhale.feature_effect[f"feature_{feature}"]["bin_variance"]
+        bin_var = rhale.payload(feature)["bin_variance"]
         gt_var = bench.rhale_bin_variance_gt(feature, nof_bins=NOF_BINS)
         np.testing.assert_allclose(bin_var, gt_var, atol=ATOL)
 
 
 class TestRegionalEffects:
-    """F2: the strongest guard for the regional refactor (PLAN III steps 2.5-2.7)."""
+    """F2: the strongest guard for the regional refactor (PLAN III steps 2.5-2.7).
+
+    Regional questions are now asked on a GLOBAL effect via find_regions, which
+    returns a `Partition` value. Region 0 is the root; level-1 regions are the
+    two children of the optimal x2 split.
+    """
 
     @pytest.fixture(scope="class", params=["pdp", "ale", "rhale"])
-    def fitted(self, request, bench, data):
+    def partition(self, request, bench, data):
         if request.param == "pdp":
-            reg = effector.RegionalPDP(
-                data, bench.model.predict, axis_limits=bench.axis_limits
-            )
+            fx = effector.PDP(data, bench.model.predict, axis_limits=bench.axis_limits)
         elif request.param == "ale":
-            reg = effector.RegionalALE(
-                data, bench.model.predict, axis_limits=bench.axis_limits
-            )
+            fx = effector.ALE(data, bench.model.predict, axis_limits=bench.axis_limits)
         else:
-            reg = effector.RegionalRHALE(
+            fx = effector.RHALE(
                 data,
                 bench.model.predict,
                 bench.model.jacobian,
                 axis_limits=bench.axis_limits,
             )
-        reg.fit(0)
-        return reg
+        fx.fit(0)
+        return fx.find_regions(0, finder=effector.space_partitioning.Best(max_depth=2))
 
-    def test_split_is_on_x2_at_zero(self, fitted, bench):
-        tree = fitted.tree["feature_0"]
-        children = [n for n in tree.nodes if n.info["level"] == 1]
+    def test_split_is_on_x2_at_zero(self, partition, bench):
+        children = [r for r in partition if r.level == 1]
         assert len(children) == 2
-        for node in children:
-            assert node.info["foc_index"] == bench.regional_split_feature
-            assert (
-                abs(node.info["foc_split_position"] - bench.regional_split_position)
-                <= 0.15
-            )
+        for region in children:
+            assert region.rule.features == (bench.regional_split_feature,)
+            interval = region.rule[bench.regional_split_feature]
+            pos = interval.hi if np.isfinite(interval.hi) else interval.lo
+            assert abs(pos - bench.regional_split_position) <= 0.15
 
-    def test_region_effects_are_plus_minus_x_squared(self, fitted, bench):
-        tree = fitted.tree["feature_0"]
-        children = [n for n in tree.nodes if n.info["level"] == 1]
-        for node in children:
-            side = "left" if node.info["comparison"] == "<=" else "right"
-            y, heter = fitted.eval(0, node.idx, XS, heterogeneity=True, centering=True)
+    def test_region_effects_are_plus_minus_x_squared(self, partition, bench):
+        children = [r for r in partition if r.level == 1]
+        for region in children:
+            interval = region.rule[bench.regional_split_feature]
+            # x < t (upper-bounded) is the left child; x >= t the right
+            side = "left" if not np.isfinite(interval.lo) else "right"
+            y = partition.eval(region.idx, XS, centering=True)
+            heter = partition.eval_heter(region.idx, XS)
             gt = bench.regional_effect_gt(side, XS)
             np.testing.assert_allclose(y, gt, atol=ATOL)
             np.testing.assert_allclose(heter, np.zeros_like(XS), atol=ATOL)
 
-    def test_split_removes_the_heterogeneity(self, fitted):
-        tree = fitted.tree["feature_0"]
-        root = next(n for n in tree.nodes if n.info["level"] == 0)
-        children = [n for n in tree.nodes if n.info["level"] == 1]
-        for node in children:
-            assert node.info["heterogeneity"] < 0.1 * root.info["heterogeneity"]
+    def test_split_removes_the_heterogeneity(self, partition):
+        root = next(r for r in partition if r.level == 0)
+        children = [r for r in partition if r.level == 1]
+        for region in children:
+            assert region.heterogeneity < 0.1 * root.heterogeneity

@@ -1098,3 +1098,360 @@ renders fine on new. Figures in `scripts/proto_masked_figs/`.
 evaluation" section (per-method frozen-vs-recomputed table), regional
 quickstart "under the hood" note with the ad-hoc `plot(mask=X[:, 6] > 0.5)`
 example.
+
+---
+
+## 27. 2026-07-08 — Regional* deleted; find_regions → Partition (values-not-state, R12) (tag: theory+code)  [docs/design.md R12; branch `feat/find-regions`]
+
+**What:** collapsed the 5 `Regional*` classes (pure scaffolding after R11) into
+one query on the global effect: `find_regions(feature) -> Partition`. The
+`Partition` is a value object (ordered `Region`s = mask + heterogeneity + split
+metadata, with `show`/`eval`/`eval_heter`/`plot`/`to_dict`); nothing region-shaped
+is stored on the effect. Backward compatibility waived — no shim.
+
+**Why (R12 — regions are values, not state):** *store what is canonical (a fit),
+return what is exploratory (a partition).* A partition depends on the search
+config, so there is no single canonical one to store; storing it created the
+staleness/identity machinery R11 still carried. Two consequences pinned as
+contract: (1) a **finder seam** — a finder consumes only `(score_fn, data,
+metadata, own config)` and returns a `Partition`, so new finders (ICE clustering,
+subgroup discovery, groupby) plug in with zero changes elsewhere, and the
+`BIG_M` guard lives in the finder not the effect; (2) an **invisible memo** — a
+bounded-LRU keyed by `(feature, fit_epoch, mask)` accelerates repeated masked
+summaries (split search, plot-after-search) and is semantically transparent (a
+refit bumps the epoch and invalidates it). A cache is not API surface; a stored
+partition would be.
+
+**Verification:** RC1–RC9 ported to `find_regions`; a temporary parity net proved
+the new tree byte-identical to the old `Regional*` tree (pdp, rhale) before the
+cutover; the four-regions two-level ground truth and the categorical capability
+matrix pass unchanged through the new API.
+
+---
+
+## 28. 2026-07-08 — Importance: the μ-twin of heter_score (R13) (tag: theory+code)  [docs/design.md R13; branch `feat/find-regions`]
+
+**What:** `importance(feature, mask=None) -> float >= 0` (+ `importances() -> (D,)`)
+on every global class. It is the μ-twin of `heter_score`: heter_score measures the
+per-instance *spread* of the effect, importance measures how much the *mean*
+effect varies — evaluated identically (continuous: std over heter_score's uniform
+grid; discrete: frequency-weighted std over levels). ShapDP overrides with the
+canonical `mean(|phi|)`; DerPDP with mean `|derivative|` (its mean effect is
+already a derivative, so the dispersion would be ~0 for a linear model).
+
+**Why (constraints that shaped it):** effector never sees `y`, so
+permutation/loss importance is out by construction — importance is a property of
+the fitted effect. It must be model-free and centering-invariant. Two design
+pivots fell out of that: (1) the std of the mean effect is invariant to the
+additive centering constant → no `centering` kwarg, and `centering=False` in the
+kernel avoids any refit; (2) PDP/DerPDP recompute their ICE table on the *unmasked*
+eval path, so importance routes through the *masked* path with an all-ones mask
+(≡ None by M1) to read the cached ICE — model-free for every method after the one
+lazy touch. Closed form on the linear anchor pins it: importance ratio = |coef|
+ratio for all five methods.
+
+---
+
+## 29. 2026-07-08 — One-click report: effector.explain -> Report (tag: code)  [design goal (b); branch `feat/find-regions`]
+
+**What:** `effector.explain(data, model, ...) -> Report` runs the whole pipeline
+in one call — fit once, rank by importance (R13), curves for the top-k,
+find_regions (R12) on the heterogeneous ones — and returns a `Report` value:
+`show()` (ranked table + region trees), `plot_importance()`, `to_html()` (a
+self-contained page, every figure a base64 PNG data URI), `to_dict`/`from_dict`
+(round-trips without an effect). This is the "(b) one-click auto-explanation" end
+goal made concrete; it consumes the Phase A/B surfaces (find_regions, importance)
+and stores only values.
+
+**Why (the model-free trap it had to dodge):** the whole point is "one fit's
+worth of model calls, stable as top_k grows." But PDP/DerPDP recompute their ICE
+on the *unmasked* eval path and on *off-grid* points, so a naive 100-point
+unmasked display curve re-touched the model per feature. Fix: route every reported
+surface (eval / eval_heter / heter_score) through the *masked* path with an
+all-ones mask (≡ unmasked by M1) and, for PDP/DerPDP, evaluate on their cache grid
+(discrete features on their levels). After `importances()` computes the local
+effects once, the report is model-free — pinned by a contract test that holds the
+model-call count fixed across top_k=1 vs 3.
+
+---
+
+## 30. 2026-07-08 — Proposers grow a named family (PR-D) (tag: code)  [proposer seam, design.md R12; branch `feat/rules-algebra`]
+
+```
+finder(categorical_proposer=, continuous_proposer=)
+        │ "one_vs_rest" | "subsets" | "ordered" | "multiway"     (categorical)
+        │ "threshold" | "quantiles"                              (continuous)
+        ▼
+proposer_factory (the raw seam, unchanged) ──► CandidateSplits ──► same search
+```
+
+**What:** the proposer seam gets its promised family: categorical `subsets`
+(every subset-vs-complement pair, capped), `ordered` (contiguous cuts after
+ordering the levels — natural for ordinal, `similarity_order` seriation for
+nominal, or an explicit order), `multiway` (one child per level), and
+continuous `quantiles` (one k-way candidate per child count, edges at the
+marginal quantiles — x-only, no effect signal threaded through). Selected per
+feature type from the finder constructor, names or instances.
+
+**Why:** the PR-C refactor made candidates *parent rule → child conditions*
+precisely so richer proposals need zero finder changes — this cashes that in.
+Defaults stay `one_vs_rest`/`threshold`, byte-identical to the goldens; the
+kwargs are sugar over the `proposer_factory` attribute, which remains the
+extension point for custom proposers.
+
+**Changes:** `effector/proposers.py` (4 classes + registry +
+`make_proposer_factory`), finder kwargs in `space_partitioning.py`, unit tests
+per proposer + a k>2 level-wise construction test + an RC5 smoke, api docs.
+
+---
+
+## 31. 2026-07-09 — One engine, no chauffeur (tag: theory)  [api shell; design.md R1/R12/R14; branch `feat/api-shell`]
+
+```
+                ┌── effector.explain(X, model, schema)      ← one-liner entrance
+                │       (a session nobody interrupted)
+X, schema ──────┤
+predict ────────┤
+(via adapters,  │   pdp = PDP(X, predict, schema)           ← workbench entrance
+ user's pass)   └─► ONE stateful engine, pytorch-style:
+                    data + model + two caches, everything
+                    else on the fly
+                        │
+                        ├─ importances / heter_score ──► plot_triage(pdp)
+                        ├─ plot(f, rule=str|Rule)                          (b)(c)
+                        ├─ find_regions(features=...) ──► {name: Partition} (d)
+                        └─ ...                        ──► plot_triage(pdp, parts) (e)
+                    compare(pdp, rhale, feature=...)        ← stands above, stateless
+```
+
+**Verdict: there will be no Explainer class.** We flirted with a "session"
+facade and killed it. The engine object already *is* the session — like a
+pytorch model, it's the one object you live with in the notebook: constructed
+once, holding only what's expensive (data, model, the two R14 caches),
+producing everything else on demand. The user's variables hold the decisions
+(`parts = ...`); the library never remembers anything behind your back. Two
+APIs is how packages rot (matplotlib pyplot vs OO) — we keep one.
+
+**What we build instead** — five stateless things: **adapters** (facilitation
+functions; the final pass is always the user's, `adapters.check` is the
+handshake), **feature names** on every verb, **plot_triage** (the importance ×
+heterogeneity plane; with partitions → before/after arrows — the figure this
+package exists for), **plural find_regions** (`features=` → `{name:
+Partition}`), **compare** (a free function standing over fitted engines).
+`rule=` stays `str | Rule`; a node is plotted via `parts[i].rule` — already
+works, gets documented. `explain()` stays the separate one-shot entrance — a
+step *beside* the pipeline, not in it.
+
+**The canonical workflow** (bike-sharing notebook, cell by cell): (a) select →
+(b) triage → (c) global effect plots → (d) find_regions on the heterogeneous →
+leaf plots → (e) triage again with arrows: importance shifted right,
+heterogeneity shifted down. Classification = per-class proba wrapper.
+Interactions v0 = the Dx1 heter vector we already have.
+
+## 32. 2026-07-09 — The great cleanup: three living docs, one manual (tag: code)  [branch `chore/cleanup-and-docs`]
+
+```
+before: PLAN.html  STATUS.md  FIND_REGIONS_PLAN.md  KERNEL_DISPATCH_PLAN.md
+        scripts/{20+ probes, figures, PDFs, sketches}  effector_manual.md (R11, unpublished)
+        EFFECTOR_COOKBOOK.md (unpublished)  PLAN.md (1534 lines, ⅔ executed)
+
+after:  PLAN.md ──── next steps        (the map)
+        LOGBOOK.md ─ story of changes  (the trail)          + docs site:
+        EFFECTOR_VISION.md ─ the destination                  manual.md (R14)
+                                                              API gaps closed
+        scripts/ = api_playground.py + global_runtimes.py     stale refs gone
+```
+
+**What.** Every point-in-time planning doc deleted after mining its
+unexecuted ideas (Phase D interactive spec, vision A/B backlog, categorical
+P3, small parked items) into the rewritten PLAN.md — now ~230 lines: workflow,
+DONE stubs pointing at LOGBOOK #1–#31, an ordered Part IV backlog (land the
+chain → F2a interaction vector → hardening → Phase D → F2b/F4/F3 → 1.0.0),
+and a parking lot. The vision report became `EFFECTOR_VISION.md` at the root,
+reconciled to what shipped (scorecard: A1/A7/A9/B1/B2/B4/B5 done). The R11-era
+package manual + cookbook were folded into ONE published docs page
+(`manual.md`, updated to R14, with the Regional*→find_regions migration
+table). `scripts/` keeps only the interactive playground and the runtime
+benchmark.
+
+**Why.** The stray docs had started disagreeing with each other (three
+contract levels in circulation: R11, R13, R14) — one source of truth per
+altitude: PLAN = future, LOGBOOK = past, VISION = destination, docs site =
+present.
+
+**Changes.** Docs completeness pass alongside: API reference gained
+ingestion (Schema/from_dataframe), FeatureEffect, set_theme, benchmarks, and
+uniform member lists (importance/find_regions/eval_heter now visible on every
+class); orphaned pages (api_extras, guides/methods) linked; last stale
+references retired (simple_api `.summary()`, 04_no2 `RegionalPDP/RHALE`
+headers, R1-R13 nav title); `explain_report.html` gitignored.
+
+## 33. 2026-07-11 — Explained variance: the report says what the curves keep (tag: code)  [PLAN Part IV; variance ledger WS1+WS2; branch `feat/explained-variance`]
+
+```
+                Var(f̂(X))  = the 100% bar (one prediction pass, cached)
+
+  GAM surrogate                       CALM surrogate
+  g(x) = c + Σⱼ curveⱼ(xⱼ)            g(x) = c_R(x) + Σⱼ curve_{j|Rⱼ(x)}(xⱼ)
+  read off cache (b), zero refits     leaf-conditional under OWN partition,
+        │                             offsets = joint lstsq on region dummies
+        ▼                                   │
+  "global effects reproduce 72%" ────────►  "with subregions, 91%"
+                                            + per-split gains (+12 pts …)
+```
+
+**What.** `explain()`/`Report` gain a label-free explained-variance section
+(`effector/explained_variance.py`): surrogate R² of the additive read-off of
+the cached curves against `f̂(X)`, global and with subregions, plus per-split
+ΔR² gains — rendered next to both triage plots, printed by `explain` and
+`show`. Scope is report-only (`to_gam()`/`to_calm()` deferred until the CALM
+paper is out); no ledger-shares table (a re-normalization of the triage plane
+— the new information is the R² pair and the gains). Riding along (WS1):
+ShapDP's `mean(|φ|)` importance override deleted — it inherits the std-of-
+binned-μ default, variance-consistent with PDP/ALE (`≈ √V_j`).
+
+**Why.** The units contract made importance/heter_score output-unit numbers;
+one denominator upgrades them to variance accounting and buys the sentence
+that sells regional analysis: *the curves explain x%, the splits recover
+another y*. Verified against closed-form Sobol decompositions (sign-flip
+10%→100%, ConditionalInteractionUniform 86%→100%, bike sharing 72%→91%).
+Semantics settled in-session: each feature leaf-conditional under its own
+partition only; combined figure = greedy forward selection over partitions
+(overlapping partitions double-count interaction deviations in the curves —
+applying all blindly can score below the best single split; greedy also
+matches find_regions' own greedy-R² objective). Curves are read through the
+model-free `_summary`/`_eval_payload` path — the whole section costs exactly
+one extra model call (`f̂(X)`, reused by plots).
+
+**Changes.** `effector/explained_variance.py` (new leaf module) +
+`Report.explained_variance` field, show/to_html/to_dict wiring, `explain`
+headline print; ShapDP override deleted (`global_effect_shap.py`), importance
+docstring + `method_semantics.md` updated; `tests/test_explained_variance.py`
+(analytic Sobol/switch/joint-offset/greedy/budget pins), ShapDP closed form
+in `test_contract_importance.py` now `|a|·std(x)`; all notebooks re-executed,
+docs pages regenerated.
+
+## 34. 2026-07-11 — Explained variance becomes a decision sequence (tag: code)  [variance ledger follow-up; branch `feat/explained-variance`]
+
+**What.** The explained-variance payload switches currency: per-split *solo*
+gains (counterfactuals that need not add up) are replaced by **sequential
+marginal gains along the greedy path** — stages sum exactly to
+`regional_r2 − gam_r2`, and a redundant split reads ~0 instead of a
+paradoxical "+7.5 pts but skipped". Greedy stops at `min_r2_gain` (new
+`explain()` knob, default 1 pt); splits left out are classified `redundant`
+(variance already explained) or `below_threshold`. Each split also carries
+its static heterogeneity pair (root → weighted leaves). New surfaces: the
+**ledger bar** in §1 (one 0–100% bar of Var(f̂): global-effects share, one
+segment per kept split, unexplained tail — the reading protocol at a
+glance), the **decision-ledger table** in §3 (running R², heterogeneity
+column, skipped rows dimmed with reason), and §2 **demotion**: a skipped
+split keeps its section but trades tree+regional plots for a one-line
+pointer. Solo gains stay in `to_dict()` for programmatic consumers only.
+
+**Why.** Users read "+7.5 pts" as a promise; showing it next to "redundant"
+contradicts itself. Sequential marginals are the only display currency that
+adds up, and the greedy order gives the report a hierarchy: which features to
+read globally, which regionally, which to skip. Re-measuring each round (not
+stale snapshot promises) is what catches redundancy; heterogeneity proposes,
+R² disposes. Everything subtler — solo-vs-marginal attribution, Shapley
+smearing, promise-vs-delivery divergence — is CALM-paper scope.
+
+**Changes.** `explained_variance.summarize` → `stages`/`skipped`/`min_gain`
+payload (+`_heter_pair`); `report.py`: `min_r2_gain` param + config chip,
+`_ev_ledger_fig`, §1 bar, §2 demotion note, §3 ledger table, `show()`
+sequence lines; tests updated + `test_min_gain_threshold_gates_the_stages`,
+`test_to_html_demotes_skipped_splits`.
+
+## 35. 2026-07-13 — The CALM chain: select_regions + snapshot-major report (tag: architecture + code)  [branch `feat/calm-chain`, stacked on #59]
+
+**What.** The decision sequence is reified into first-class values and the
+report is restructured around it. New: `CALM` (one snapshot of the analysis —
+global effects everywhere except the accepted splits, surrogate R² and
+per-feature importance/heterogeneity stamped on it; weighted-mean bridge for
+split features) and `CalmSequence` (the chain `[GAM, calm1, ...]` plus
+`.skipped`), returned by the new engine verb **`select_regions`** —
+`find_regions` proposes per-feature candidates, `select_regions` decides
+across features which earn their explained-variance keep.
+`explained_variance.summarize` is now a thin serializer over `select`.
+`explain()` searches wide (`features="heterogeneous"`), ranks and displays by
+**final-CALM importance** with a coverage cut (show features until
+`coverage=0.8` of importance mass, ceiling `top_k=5`, accepted splits always
+shown; achieved share printed). Report reading order: §1 ledger bar FIRST +
+weighted-mean-arrow triage + ranked table in CALM values + decision table;
+§2 regional analysis = the final CALM (split features as leaf groups in rule
+order, no global fig); §3 global baseline = the split features' global curves
+only — the counterfactual "what you'd believe without regions". Also:
+public `effect.grid(feature)`, `effect.explain()` mirror (shared
+`_explain_effect`, respects prior fit config via `_ensure_local`),
+`Report.to_dict` schema_version, numerical jacobian tolerates (N,1) outputs.
+
+**Why.** This is the final architecture for the presentation/paper: one set
+of primitives, two entry altitudes, and the value ladder Rule → Region →
+Partition → CALM → Report. Each accepted split is a model of increased
+complexity; the chain makes that a holdable object (per-snapshot triage,
+future `calm.predict`), and the report tells its story in reading order:
+what the analysis explains (ledger), the selected snapshot (regional), and
+what you'd have believed without it (baseline).
+
+**Changes.** New `effector/calm.py`; `global_effect.py` (`select_regions`,
+`grid`, `explain`); `explained_variance.py` (`select` + thin `summarize`);
+`report.py` (snapshot-major render, `_triage_fig` from stored scalars,
+coverage cut); `visualization.triage_scatter`; `method_registry.name_of`;
+`utils.compute_jacobian_numerically` column-vector fix; `tests/test_calm.py`
+(10 pins: chain invariants, weighted-mean identity, round-trip/rebind,
+budget) + report/EV test updates; mental_model.md (six-step workflow with
+*e. Select*). All 20 example notebooks gain a cross-method
+`explain()`-sweep section, executed end to end.
+
+## 36. 2026-07-13 — Plots learn to shine: the design-review decisions land (tag: design + code)  [plot_design_review/ draft; branch `feat/plot-redesign`]
+
+**Agreed.** The per-plot design review (rendered mockups in
+`plot_design_review/draft.pdf`) was accepted with these calls: (C1) reports
+always render in the *active* house theme (`rc_context` inside `to_html`, so
+`set_theme` swaps the whole report look); (C2) the title carries the identity
+— feature name, or `feature where (rule)` on leaves — left-aligned and
+wrapped, with the constant `METHOD · global/regional` context demoted to a
+muted corner tag, and the x-label back to the plain feature name; (C3) rule
+text is terse and raw-unit — `hr where (workingday = no) and (temp < 6.81)`,
+parens only for ≥2 conditions, level names and inverse scaling wherever the
+schema carries them; (C4) never label every level — ordinals thin to ≤8
+integer majors with minors marking each level, nominal labels wrap at ~12
+chars and rotate 30/45/60 by crowding; (C5) y-harmonization shares only
+output-unit panels across features — (RH)ALE's Δy/Δx panel is per-unit-of-x
+and now unions within a feature only; (C6) reference lines (threshold, avg
+output, zero) become hairlines with inline tags, never legend entries, and
+single-series axes drop the legend box. Per figure: triage gets greedy label
+repel with hairline leaders (top-20 cap), a two-entry legend ("global
+effects"/"regional effects") and one mild-orange arrow style; categorical
+bars stay vertical with rotated+wrapped ticks, nominal levels sorted by
+effect value (drawn at ranks — scale never touches ranks), ALE's
+accumulation line only on ordinals, and a muted per-level `n=…` (≤10
+levels); the ledger keeps values inside segments only where they measurably
+fit and moves identity to an ordered swatch key beneath the bar, titled just
+"Explained variance"; the report's two bar views merge into one paired
+importance|heterogeneity figure sorted by the plotted value with value
+labels and `· split` tags. Two additions: `explain(..., y=None)` puts a
+data+model summary at the head of `show()`/`to_html` (N×D, type counts,
+f̂(X) stats, and R²/accuracy on the explained subsample when `y` is given),
+and ShapDP passes `silent=True` to shap by default (notebook hygiene, with
+keras `verbose=0` in 01/04).
+
+**Why.** The end user only ever sees the plots; every defect the review
+caught was presentation, not information — colliding ledger labels,
+tick mush on 24-level ordinals, standardized values leaking into rules,
+method names squatting on every title while the actual identity hid in the
+x-label, and a dimensionally meaningless dy/dx union that flattened panels
+to a line.
+
+**Changes.** `theme.py` (ARROW/REF/TAG tokens); `visualization.py`
+(`_wrap_text`/`_set_title`/`_ref_line`/`_repel_labels`/`_level_layout`/
+`_categorical_axis`/`_level_counts`, redesigned ale/triage/categorical
+draw fns); `rules.py` (`Rule.format` parens); `partition.py` +
+`space_partitioning.py` (" where " labels); the three method classes
+(title/tag, `level_kind`, counts, ordinal-gated connect line);
+`report.py` (theme ctx, dpi 150, harmonize fix, `_overview_bars_fig`,
+key-below ledger, stats-only figcaptions, `summary` field + `y=`);
+`global_effect_shap.py` (`silent`); tests (goldens/labels/masked/harmonize
+updated + `test_plot_policies.py` pins); notebooks 01/04 gain full
+`effector.Schema`s with `category_names` + scales, 05-07 pass `y=`; all
+five real-example notebooks re-executed, every report regenerated.

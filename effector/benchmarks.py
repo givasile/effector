@@ -6,8 +6,8 @@ distribution has different PDP/ALE/SHAP curves. Each class below bundles one suc
 pair and exposes its closed-form effects, so the class name states the exact
 scope of validity of every ``*_gt`` method.
 
-The derivations live in ``notebooks/synthetic-examples/`` (05, 06, 07) and
-``notebooks/synthetic-examples/02_global_effect_methods_comparison.ipynb``;
+The derivations live in ``notebooks/synthetic-examples/`` (05, 06, 07) and, for
+``CorrelatedInteraction``, in the RHALE paper (https://arxiv.org/abs/2309.11193);
 the notebooks and ``tests/test_functional_*.py`` both consume the functions
 defined here, so the two can never disagree about the right answer.
 
@@ -270,7 +270,7 @@ class CorrelatedInteraction:
     The only pair where PDP, ALE, RHALE and SHAP provably *differ*; each
     ``*_gt`` is the correct answer for that method's own definition.
 
-    Derivations: notebooks/synthetic-examples/02_global_effect_methods_comparison.ipynb
+    Derivations: Gkolemis et al. 2023, https://arxiv.org/abs/2309.11193
     """
 
     dim = 3

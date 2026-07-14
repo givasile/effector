@@ -5,6 +5,7 @@
 - Description: Global effects (PDP, ALE, RHALE) on a model with a
   conditional interaction; each estimate is compared — and tested — against
   its analytical formula from `effector.benchmarks`.
+- 📄 The whole notebook in one page: [PDP report](https://xai-effector.github.io/static/reports/05_conditional_interaction_independent_uniform_global_pdp.html)
 
 In this example, we show global effects of a model with conditional interactions using PDP, ALE, and RHALE.
 In particular, we:
@@ -175,6 +176,98 @@ Are the PDP effects intuitive?
 * For $x_2$, the effect is constant when $x_2 < 0$ or $x_2>0$ but has a positive jump of $\frac{2}{3}$ when moving from $x_2^-$ to $x_2^+$. It makes sense; when $x_2 < 0$ the active term is $-(x_1^i)^2 \mathbb{1}_{x_2 < 0} $ which adds a negative quantity to the output and when $x_2 \geq 0$ the active term is $(x_1^i)^2 \mathbb{1}_{x_2 \geq 0}$ that adds something postive. Therefore in the transmission we observe a non-linearity.
 * For $x_3$, the effect is  $e^{x_3}$, as expected, since only the this term corresponds to $x_3$ and has no interaction with other variables.
 
+### Feature importance and one-click explanation (new API)
+
+Beyond plotting each effect, `effector` can summarize *how much* each feature
+matters and produce a single auto-explanation:
+
+- `fx.importances()` returns a per-feature importance = the dispersion of the
+  mean effect (the $\mu$-twin of heterogeneity). Here $x_2$ (the jump) and
+  $x_3$ (the $e^{x_3}$ curve) should rank above the flat-on-average $x_1$.
+- `effector.explain(...)` runs the whole pipeline and returns a serializable
+  `Report` with a self-contained HTML view.
+
+
+```python
+# per-feature importance = dispersion of the mean effect (mu-twin of heterogeneity)
+print("importances:", np.round(pdp.importances(), 3))
+
+# one-click auto-explanation -> Report (serializable; self-contained HTML)
+report = effector.explain(x, model.predict, method="pdp", nof_instances="all")
+report.show()
+
+# the whole notebook, in one page: the report published with this example
+from pathlib import Path
+_out = Path("reports") / "05_conditional_interaction_independent_uniform_global"
+_out.mkdir(parents=True, exist_ok=True)
+report.to_html(_out / "report_pdp.html")
+
+```
+
+    importances: [0.007 0.326 0.668]
+    [effector] global effects   (GAM)  -> 86.7% of the model's variance
+               regional effects (CALM) -> 99.8%
+    
+      ════════════════════════════════════════════════════════════════════════
+      PDP report  ·  target: y
+      ════════════════════════════════════════════════════════════════════════
+    
+      DATA & MODEL
+      ────────────────────────────────────────────────────────────────────────
+        instances     1,000
+        features      3  ·  3 continuous
+        model output  mean 1.17 · std 0.803 · range [-0.546, 3.38]
+    
+      EXPLAINED VARIANCE
+      ────────────────────────────────────────────────────────────────────────
+        step         split on                 solo     ΔR²      R²       heter
+        ──────────────────────────────────────────────────────────────────────
+        GAM          (all features global)       —       —   86.7%           —
+      + x_0          x_1                    +13.1%  +13.1%   99.8% 0.29 → 0.00
+        ──────────────────────────────────────────────────────────────────────
+        FINAL                                                99.8%
+    
+      REJECTED SPLITS                                            min gain 1.0%
+      ────────────────────────────────────────────────────────────────────────
+        feature      split on                 solo     ΔR²    reason
+        ──────────────────────────────────────────────────────────────────────
+      ✗ x_1          x_0                    +10.3%  -10.2%    redundant
+    
+        ✗ redundant: it would explain variance on its own (see solo),
+          but the accepted splits already account for it.
+    
+      FEATURES                                ranked, in the selected snapshot
+      ────────────────────────────────────────────────────────────────────────
+        feature        importance                          heter      #regions
+        ──────────────────────────────────────────────────────────────────────
+        x_2                0.6679  ██████████████████     0.0000             1
+        x_1                0.3261  █████████              0.2919             1
+        x_0                0.2917  ████████               0.0000             2
+        ──────────────────────────────────────────────────────────────────────
+        the features above carry 100% of the total importance mass
+    
+    
+    
+    Feature 0 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x_0 🔹 [id: 0 | heter: 0.29 | inst: 1000 | w: 1.00]
+        x_1 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 488 | w: 0.49]
+        x_1 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 512 | w: 0.51]
+    --------------------------------------------------
+    Feature 0 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.29
+        Level 1🔹heter: 0.00 | 🔻0.29 (100.00%)
+    
+    
+
+
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
 ## ALE
 
 ### Effector
@@ -192,19 +285,19 @@ for feature in [0, 1, 2]:
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_18_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_20_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_18_1.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_20_1.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_18_2.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_20_2.png)
     
 
 
@@ -290,7 +383,7 @@ plt.show()
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_26_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_28_0.png)
     
 
 
@@ -335,19 +428,19 @@ for feature in [0, 1, 2]:
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_30_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_32_0.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_30_1.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_32_1.png)
     
 
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_30_2.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_32_2.png)
     
 
 
@@ -424,7 +517,7 @@ plt.show()
 
 
     
-![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_38_0.png)
+![png](05_conditional_interaction_independent_uniform_global_files/05_conditional_interaction_independent_uniform_global_40_0.png)
     
 
 
@@ -442,3 +535,93 @@ Are the RHALE effects intuitive?
 
 RHALE does not add something new, compared to ALE and PDP, for features $x_1$ and $x_3$. 
 For $x_2$, however, it does not capture the abrupt increase by $+\frac{2}{3}$ units when moving from $x_2^-$ to $x_2^+$, which can be considered as an error mode of RHALE. In fact, RHALE requires a differentiable black box model, and since $f$ is not differentiable with respect to $x_2$, that is why we get a slightly misleading result.
+
+## Cross-method sanity check
+
+The one-liner `effector.explain` with every engine this notebook's model
+supports. Everything must run end to end; the closing table puts the reads
+side by side. Where methods disagree — ranking, accepted splits, R² — that is
+a property of the data/model worth a closer look, not an error.
+
+
+
+```python
+from pathlib import Path
+_out = Path("reports") / "05_conditional_interaction_independent_uniform_global"
+_out.mkdir(parents=True, exist_ok=True)
+
+# === cross-method sweep: effector.explain on every applicable engine ======
+sweep_reports = {}
+for _m in ["pdp", "derpdp", "ale", "rhale", "shapdp"]:
+    _kw = {"nof_instances": 300} if _m == "shapdp" else {}
+    print(f"--- {_m} " + "-" * 50)
+    sweep_reports[_m] = effector.explain(
+        x, model.predict, model.jacobian, method=_m, **_kw
+    )
+    if _m != "pdp":  # the published report is the narrated one above
+        sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+
+print()
+print(f"{'method':<8} {'ranking (plotted)':<44} {'GAM R2':>8} {'final R2':>9}  splits")
+for _m, _r in sweep_reports.items():
+    _rank = " > ".join(fr.name for fr in _r.features)
+    _ev = _r.explained_variance
+    if _ev:
+        _sp = "; ".join(f"{s['name']} on {s['on']}" for s in _ev["stages"]) or "none"
+        print(f"{_m:<8} {_rank:<44} {_ev['gam_r2']:>7.1%} {_ev['regional_r2']:>8.1%}  {_sp}")
+    else:
+        print(f"{_m:<8} {_rank:<44} {'-':>7} {'-':>8}  (derivative scale: no variance ledger)")
+
+print(f"\nreports stored in {_out}/")
+
+```
+
+    --- pdp --------------------------------------------------
+    [effector] global effects   (GAM)  -> 86.7% of the model's variance
+               regional effects (CALM) -> 99.8%
+    --- derpdp --------------------------------------------------
+
+
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- ale --------------------------------------------------
+    [effector] global effects   (GAM)  -> 85.3% of the model's variance
+               regional effects (CALM) -> 98.8%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- rhale --------------------------------------------------
+    [effector] global effects   (GAM)  -> 70.0% of the model's variance
+               regional effects (CALM) -> 100.0%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- shapdp --------------------------------------------------
+
+
+    [effector] global effects   (GAM)  -> 87.3% of the model's variance
+               regional effects (CALM) -> 96.6%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    
+    method   ranking (plotted)                              GAM R2  final R2  splits
+    pdp      x_2 > x_1 > x_0                                86.7%    99.8%  x_0 on x_1
+    derpdp   x_2                                                -        -  (derivative scale: no variance ledger)
+    ale      x_2 > x_1 > x_0                                85.3%    98.8%  x_0 on x_1
+    rhale    x_2 > x_0                                      70.0%   100.0%  x_0 on x_1
+    shapdp   x_2 > x_1 > x_0                                87.3%    96.6%  x_0 on x_1
+    
+    reports stored in reports/05_conditional_interaction_independent_uniform_global/
+

@@ -6,6 +6,7 @@
   SHAP-DP and their regional counterparts applied to a known black-box
   function with an interaction term, under uncorrelated and correlated
   features.
+- 📄 The whole notebook in one page: [PDP report](https://xai-effector.github.io/static/reports/03_regional_effects_synthetic_f_pdp.html)
 
 This tutorial provides a gentle overview of Regional Effect methods and introduces the `Effector` package. Regional Effects serve as a bridge between local and global feature effects. Αs shown in [REPID](https://proceedings.mlr.press/v151/herbinger22a/herbinger22a.pdf), regional effect methods split the feature space in subregions where the feature interactions are minimized.
 
@@ -153,50 +154,103 @@ pdp = effector.PDP(data=X_uncor_train, model=model, schema={"feature_names": ['x
 
 
 
-#### Regional PDP
+#### Feature importance and the one-click report
 
-Regional PDP will search for explanations that minimize the interaction-related heterogeneity.
+Before drilling into regional effects manually, we can let `effector` rank the features
+for us. `importances()` returns, per feature, the *dispersion of the mean effect* — the
+$\mu$-twin of heterogeneity. `effector.explain(...)` runs the whole pipeline in one call:
+rank features by importance, plot the top ones, and automatically `find_regions` on the
+heterogeneous ones, returning a serializable `Report`.
 
 
 ```python
-regional_pdp = effector.RegionalPDP(data=X_uncor_train, model=model, schema={"feature_names": ['x1','x2','x3']}, axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
-space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
-regional_pdp.fit(features="all", space_partitioner=space_partitioner)
+# per-feature importance (mean-effect dispersion); x1 and x3 carry the interaction
+print("PDP importances [x1, x2, x3]:", np.round(pdp.importances(), 3))
+
+# one-click auto-explanation -> Report (values, serializable, self-contained HTML)
+report = effector.explain(
+    X_uncor_train, model, method="pdp",
+    schema={"feature_names": ['x1', 'x2', 'x3'], "target_name": "Y"},
+    nof_instances="all",
+)
+report.show()
+
+# the whole notebook, in one page: the report published with this example
+from pathlib import Path
+_out = Path("reports") / "03_regional_effects_synthetic_f"
+_out.mkdir(parents=True, exist_ok=True)
+report.to_html(_out / "report_pdp.html")
+
 ```
 
-      0%|          | 0/3 [00:00<?, ?it/s]
-
-    100%|██████████| 3/3 [00:00<00:00, 145.39it/s]
-
+    PDP importances [x1, x2, x3]: [0.045 0.    0.573]
+    [effector] global effects   (GAM)  -> 10.4% of the model's variance
+               regional effects (CALM) -> 100.0%
     
-
-
-
-```python
-regional_pdp.summary(features=0)
-```
-
+      ════════════════════════════════════════════════════════════════════════
+      PDP report  ·  target: Y
+      ════════════════════════════════════════════════════════════════════════
+    
+      DATA & MODEL
+      ────────────────────────────────────────────────────────────────────────
+        instances     1,000
+        features      3  ·  3 continuous
+        model output  mean -0.048 · std 1.84 · range [-3.93, 3.82]
+    
+      EXPLAINED VARIANCE
+      ────────────────────────────────────────────────────────────────────────
+        step         split on                 solo     ΔR²      R²       heter
+        ──────────────────────────────────────────────────────────────────────
+        GAM          (all features global)       —       —   10.4%           —
+      + x1           x3                     +89.6%  +89.6%  100.0% 1.74 → 0.00
+        ──────────────────────────────────────────────────────────────────────
+        FINAL                                               100.0%
+    
+      REJECTED SPLITS                                            min gain 1.0%
+      ────────────────────────────────────────────────────────────────────────
+        feature      split on                 solo     ΔR²    reason
+        ──────────────────────────────────────────────────────────────────────
+      ✗ x3           x1                     +83.6%  -82.4%    redundant
+    
+        ✗ redundant: it would explain variance on its own (see solo),
+          but the accepted splits already account for it.
+    
+      FEATURES                                ranked, in the selected snapshot
+      ────────────────────────────────────────────────────────────────────────
+        feature        importance                          heter      #regions
+        ──────────────────────────────────────────────────────────────────────
+        x1                 1.7402  ██████████████████     0.0000             2
+        x3                 0.5731  ██████                 1.7403             1
+        ──────────────────────────────────────────────────────────────────────
+        the features above carry 100% of the total importance mass
+    
     
     
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 3.20 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 475 | w: 0.47]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 525 | w: 0.53]
+    x1 🔹 [id: 0 | heter: 1.74 | inst: 1000 | w: 1.00]
+        x3 < -0.00 🔹 [id: 1 | heter: 0.00 | inst: 513 | w: 0.51]
+        x3 ≥ -0.00 🔹 [id: 2 | heter: 0.00 | inst: 487 | w: 0.49]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.20
-        Level 1🔹heter: 0.00 | 🔻3.20 (100.00%)
+    Level 0🔹heter: 1.74
+        Level 1🔹heter: 0.00 | 🔻1.74 (100.00%)
     
     
 
+
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+The same survey as one picture: `effector.plot_triage` puts importance on the x-axis and heterogeneity on the y-axis. Here x1 lands **top-left** — its *global* mean effect is flat (near-zero importance) yet its heterogeneity is the highest of all features: the +3/-3 slopes cancel in the average. That corner is exactly where `find_regions` pays off — the effect is hiding, not absent.
 
 
 ```python
-[regional_pdp.plot(feature=0, node_idx=i, heterogeneity="ice", centering=True, y_limits=[-5, 5]) for i in [1,2]]
+effector.plot_triage(pdp)
 ```
 
 
@@ -205,9 +259,68 @@ regional_pdp.summary(features=0)
     
 
 
+#### Regional PDP
+
+Regional PDP will search for explanations that minimize the interaction-related heterogeneity.
+
+
+```python
+# Regional effects are queried from the *global* effect via `find_regions`,
+# which returns `Partition` value objects (nothing is stored on the effect).
+# Here we use the *plural* form, `find_regions(features=...)`: one call that
+# runs the search per feature and returns a `{feature_name: Partition}` dict
+# (`features` also accepts "heterogeneous" to target only the features whose
+# heter_score is at or above the median).
+pdp = effector.PDP(
+    data=X_uncor_train, model=model,
+    schema={"feature_names": ['x1', 'x2', 'x3']},
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
+    nof_instances="all",
+)
+pdp.fit("all", centering=True)
+
+finder = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
+parts = pdp.find_regions(features="all", finder=finder)  # {name: Partition} — the plural form
+partitions = [parts[name] for name in ["x1", "x2", "x3"]]
+```
+
+
+```python
+partitions[0].show()
+```
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_13_1.png)
+    
+    Feature 0 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    x1 🔹 [id: 0 | heter: 1.74 | inst: 1000 | w: 1.00]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 513 | w: 0.51]
+        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 487 | w: 0.49]
+    --------------------------------------------------
+    Feature 0 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 1.74
+        Level 1🔹heter: 0.00 | 🔻1.74 (100.00%)
+    
+    
+
+
+
+```python
+[partitions[0].plot(idx, heterogeneity="ice", centering=True, y_limits=[-5, 5]) for idx in [1, 2]]
+```
+
+
+    
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_17_0.png)
+    
+
+
+
+    
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_17_1.png)
     
 
 
@@ -220,27 +333,23 @@ regional_pdp.summary(features=0)
 
 
 ```python
-regional_pdp.summary(features=1)
+partitions[1].show()
 ```
 
     
     
     Feature 1 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x2 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
+    No splits found for feature 1
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.00
+    No splits found for feature 1
     
     
 
 
 
 ```python
-regional_pdp.summary(features=2)
+partitions[2].show()
 ```
 
     
@@ -248,39 +357,52 @@ regional_pdp.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 3.12 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.74 | inst: 497 | w: 0.50]
-            x1 ≤ -0.60 🔹 [id: 2 | heter: 0.12 | inst: 222 | w: 0.22]
-            x1 > -0.60 🔹 [id: 3 | heter: 0.25 | inst: 275 | w: 0.28]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.71 | inst: 503 | w: 0.50]
-            x1 ≤ 0.40 🔹 [id: 5 | heter: 0.12 | inst: 179 | w: 0.18]
-            x1 > 0.40 🔹 [id: 6 | heter: 0.27 | inst: 324 | w: 0.32]
+    x3 🔹 [id: 0 | heter: 1.74 | inst: 1000 | w: 1.00]
+        x1 < 0.00 🔹 [id: 1 | heter: 0.85 | inst: 502 | w: 0.50]
+            x1 < -0.60 🔹 [id: 2 | heter: 0.34 | inst: 202 | w: 0.20]
+            -0.60 ≤ x1 < 0.00 🔹 [id: 3 | heter: 0.51 | inst: 300 | w: 0.30]
+        x1 ≥ 0.00 🔹 [id: 4 | heter: 0.86 | inst: 498 | w: 0.50]
+            0.00 ≤ x1 < 0.60 🔹 [id: 5 | heter: 0.51 | inst: 288 | w: 0.29]
+            x1 ≥ 0.60 🔹 [id: 6 | heter: 0.37 | inst: 210 | w: 0.21]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.12
-        Level 1🔹heter: 0.72 | 🔻2.40 (76.85%)
-            Level 2🔹heter: 0.21 | 🔻0.52 (71.51%)
+    Level 0🔹heter: 1.74
+        Level 1🔹heter: 0.86 | 🔻0.88 (50.63%)
+            Level 2🔹heter: 0.44 | 🔻0.41 (48.25%)
     
     
 
 
 
 ```python
-regional_pdp.plot(feature=2, node_idx=1, heterogeneity="ice", centering=True, y_limits=[-5, 5])
-regional_pdp.plot(feature=2, node_idx=2, heterogeneity="ice", centering=True, y_limits=[-5, 5])
+partitions[2].plot(1, heterogeneity="ice", centering=True, y_limits=[-5, 5])
+partitions[2].plot(2, heterogeneity="ice", centering=True, y_limits=[-5, 5])
 ```
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_16_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_20_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_16_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_20_1.png)
+    
+
+
+Triage, after: with `partitions=` the same plane shows the before→after story — arrows run from x1's global point to its leaves. Both leaves jump **right** (within each subregion the effect is strongly decisive, |slope| = 3) and **down** (the heterogeneity is explained). A hidden effect became two visible ones.
+
+
+```python
+effector.plot_triage(pdp, partitions={"x1": partitions[0]})
+```
+
+
+    
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_22_0.png)
     
 
 
@@ -319,19 +441,19 @@ pdp = effector.PDP(data=X_cor_train, model=model, schema={"feature_names": ['x1'
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_20_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_26_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_20_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_26_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_20_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_26_2.png)
     
 
 
@@ -346,21 +468,21 @@ pdp = effector.PDP(data=X_cor_train, model=model, schema={"feature_names": ['x1'
 
 
 ```python
-regional_pdp = effector.RegionalPDP(data=X_cor_train, model=model, schema={"feature_names": ['x1','x2','x3']}, axis_limits=np.array([[-1,1],[-1,1],[-1,1]]).T)
-# space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
-regional_pdp.fit(features="all") # , space_partitioner=space_partitioner, centering=True)
+pdp = effector.PDP(
+    data=X_cor_train, model=model,
+    schema={"feature_names": ['x1', 'x2', 'x3']},
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
+    nof_instances="all",
+)
+pdp.fit("all", centering=True)
+
+# finder="best" is the default Best() partitioner
+partitions = {feat: pdp.find_regions(feat, finder="best") for feat in range(3)}
 ```
-
-      0%|          | 0/3 [00:00<?, ?it/s]
-
-    100%|██████████| 3/3 [00:00<00:00, 86.75it/s]
-
-    
-
 
 
 ```python
-regional_pdp.summary(features=0)
+partitions[0].show()
 ```
 
     
@@ -368,60 +490,56 @@ regional_pdp.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 3.20 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 479 | w: 0.48]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 521 | w: 0.52]
+    x1 🔹 [id: 0 | heter: 1.75 | inst: 1000 | w: 1.00]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 467 | w: 0.47]
+        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 533 | w: 0.53]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 3.20
-        Level 1🔹heter: 0.00 | 🔻3.20 (100.00%)
+    Level 0🔹heter: 1.75
+        Level 1🔹heter: 0.00 | 🔻1.75 (100.00%)
     
     
 
 
 
 ```python
-regional_pdp.plot(feature=0, node_idx=1, heterogeneity="ice", centering=True, y_limits=[-5, 5])
-regional_pdp.plot(feature=0, node_idx=2, heterogeneity="ice", centering=True, y_limits=[-5, 5])
+partitions[0].plot(1, heterogeneity="ice", centering=True, y_limits=[-5, 5])
+partitions[0].plot(2, heterogeneity="ice", centering=True, y_limits=[-5, 5])
 ```
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_24_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_30_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_24_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_30_1.png)
     
 
 
 
 ```python
-regional_pdp.summary(features=1)
+partitions[1].show()
 ```
 
     
     
     Feature 1 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x2 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
+    No splits found for feature 1
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.00
+    No splits found for feature 1
     
     
 
 
 
 ```python
-regional_pdp.summary(features=2)
+partitions[2].show()
 ```
 
     
@@ -429,39 +547,39 @@ regional_pdp.summary(features=2)
     Feature 2 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x3 🔹 [id: 0 | heter: 2.96 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.77 | inst: 479 | w: 0.48]
-            x1 ≤ -0.50 🔹 [id: 2 | heter: 0.18 | inst: 235 | w: 0.23]
-            x1 > -0.50 🔹 [id: 3 | heter: 0.20 | inst: 244 | w: 0.24]
-        x1 > 0.00 🔹 [id: 4 | heter: 0.79 | inst: 521 | w: 0.52]
-            x1 ≤ 0.50 🔹 [id: 5 | heter: 0.22 | inst: 260 | w: 0.26]
-            x1 > 0.50 🔹 [id: 6 | heter: 0.20 | inst: 261 | w: 0.26]
+    x3 🔹 [id: 0 | heter: 1.75 | inst: 1000 | w: 1.00]
+        x1 < -0.10 🔹 [id: 1 | heter: 0.81 | inst: 415 | w: 0.41]
+            x1 < -0.60 🔹 [id: 2 | heter: 0.34 | inst: 215 | w: 0.21]
+            -0.60 ≤ x1 < -0.10 🔹 [id: 3 | heter: 0.42 | inst: 200 | w: 0.20]
+        x1 ≥ -0.10 🔹 [id: 4 | heter: 0.93 | inst: 585 | w: 0.58]
+            -0.10 ≤ x1 < 0.40 🔹 [id: 5 | heter: 0.42 | inst: 274 | w: 0.27]
+            x1 ≥ 0.40 🔹 [id: 6 | heter: 0.51 | inst: 311 | w: 0.31]
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 2.96
-        Level 1🔹heter: 0.78 | 🔻2.18 (73.65%)
-            Level 2🔹heter: 0.20 | 🔻0.58 (74.29%)
+    Level 0🔹heter: 1.75
+        Level 1🔹heter: 0.88 | 🔻0.87 (49.86%)
+            Level 2🔹heter: 0.43 | 🔻0.44 (50.69%)
     
     
 
 
 
 ```python
-regional_pdp.plot(feature=2, node_idx=1, heterogeneity="ice", centering=True, y_limits=[-5, 5])
-regional_pdp.plot(feature=2, node_idx=2, heterogeneity="ice", centering=True, y_limits=[-5, 5])
+partitions[2].plot(1, heterogeneity="ice", centering=True, y_limits=[-5, 5])
+partitions[2].plot(2, heterogeneity="ice", centering=True, y_limits=[-5, 5])
 ```
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_27_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_33_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_27_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_33_1.png)
     
 
 
@@ -505,19 +623,19 @@ rhale.plot(feature=2, centering=True, heterogeneity="std", show_avg_output=False
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_31_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_37_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_31_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_37_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_31_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_37_2.png)
     
 
 
@@ -527,33 +645,22 @@ The disadvantage of RHALE plot is that it does not reveal the type of heterogene
 
 
 ```python
-regional_rhale = effector.RegionalRHALE(
-    data=X_uncor_train, 
-    model=model, 
-    model_jac= model_jac, 
+rhale = effector.RHALE(
+    data=X_uncor_train, model=model, model_jac=model_jac,
     schema={"feature_names": ['x1', 'x2', 'x3']},
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
-
-binning_method = effector.axis_partitioning.Fixed(11, min_points_per_bin=0)
-space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
-regional_rhale.fit(
-    features="all",
-    space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10),
-    binning_method=binning_method
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
+    nof_instances="all",
 )
+binning_method = effector.axis_partitioning.Fixed(11, min_points_per_bin=0)
+rhale.fit("all", binning_method=binning_method, centering=True)
 
+finder = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
+partitions = {feat: rhale.find_regions(feat, finder=finder) for feat in range(3)}
 ```
-
-      0%|          | 0/3 [00:00<?, ?it/s]
-
-    100%|██████████| 3/3 [00:00<00:00, 151.83it/s]
-
-    
-
 
 
 ```python
-regional_rhale.summary(features=0)
+partitions[0].show()
 ```
 
     
@@ -561,73 +668,65 @@ regional_rhale.summary(features=0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 8.91 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.00 | inst: 475 | w: 0.47]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.00 | inst: 525 | w: 0.53]
+    x1 🔹 [id: 0 | heter: 1.73 | inst: 1000 | w: 1.00]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.00 | inst: 513 | w: 0.51]
+        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.00 | inst: 487 | w: 0.49]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 8.91
-        Level 1🔹heter: 0.00 | 🔻8.91 (100.00%)
+    Level 0🔹heter: 1.73
+        Level 1🔹heter: 0.00 | 🔻1.73 (100.00%)
     
     
 
 
 
 ```python
-regional_rhale.plot(feature=0, node_idx=1, heterogeneity="std", centering=True, y_limits=[-5, 5])
-regional_rhale.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, y_limits=[-5, 5])
+partitions[0].plot(1, heterogeneity="std", centering=True, y_limits=[-5, 5])
+partitions[0].plot(2, heterogeneity="std", centering=True, y_limits=[-5, 5])
 ```
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_35_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_35_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_1.png)
     
 
 
 
 ```python
-regional_rhale.summary(features=1)
+partitions[1].show()
 ```
 
     
     
     Feature 1 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x2 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
+    No splits found for feature 1
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.00
+    No splits found for feature 1
     
     
 
 
 
 ```python
-regional_rhale.summary(features=2)
+partitions[2].show()
 ```
 
     
     
     Feature 2 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x3 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
+    No splits found for feature 2
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.00
+    No splits found for feature 2
     
     
 
@@ -662,19 +761,19 @@ rhale.fit(features="all", binning_method=binning_method, centering=True)
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_47_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_47_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_41_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_47_2.png)
     
 
 
@@ -689,86 +788,63 @@ rhale.fit(features="all", binning_method=binning_method, centering=True)
 
 
 ```python
-regional_rhale = effector.RegionalRHALE(
-    data=X_cor_train, 
-    model=model, 
-    model_jac= model_jac, 
+rhale = effector.RHALE(
+    data=X_cor_train, model=model, model_jac=model_jac,
     schema={"feature_names": ['x1', 'x2', 'x3']},
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
-
-binning_method = effector.axis_partitioning.Fixed(10, min_points_per_bin=0)
-space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
-regional_rhale.fit(
-    features="all",
-    space_partitioner = space_partitioner,
-    binning_method=binning_method,
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
+    nof_instances="all",
 )
+binning_method = effector.axis_partitioning.Fixed(10, min_points_per_bin=0)
+rhale.fit("all", binning_method=binning_method, centering=True)
 
+finder = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.3, numerical_features_grid_size=10)
+partitions = {feat: rhale.find_regions(feat, finder=finder) for feat in range(3)}
 ```
-
-      0%|          | 0/3 [00:00<?, ?it/s]
-
-    100%|██████████| 3/3 [00:00<00:00, 1108.82it/s]
-
-    
-
 
 
 ```python
-regional_rhale.summary(features=0)
+partitions[0].show()
 ```
 
     
     
     Feature 0 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x1 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
+    No splits found for feature 0
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.00
+    No splits found for feature 0
     
     
 
 
 
 ```python
-regional_rhale.summary(features=1)
+partitions[1].show()
 ```
 
     
     
     Feature 1 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x2 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
+    No splits found for feature 1
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.00
+    No splits found for feature 1
     
     
 
 
 
 ```python
-regional_rhale.summary(features=2)
+partitions[2].show()
 ```
 
     
     
     Feature 2 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x3 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
+    No splits found for feature 2
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.00
+    No splits found for feature 2
     
     
 
@@ -794,19 +870,19 @@ shap.fit("all", binning_method=binning_method)
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_50_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_56_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_50_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_56_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_50_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_56_2.png)
     
 
 
@@ -821,32 +897,21 @@ shap.fit("all", binning_method=binning_method)
 
 
 ```python
-regional_shap = effector.RegionalShapDP(
-    data=X_uncor_train, 
-    model=model, 
+shap = effector.ShapDP(
+    data=X_uncor_train, model=model,
     schema={"feature_names": ['x1', 'x2', 'x3']},
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
-
-space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, numerical_features_grid_size=10)
-regional_shap.fit(
-    features="all",
-    binning_method = effector.axis_partitioning.Fixed(nof_bins=5, min_points_per_bin=0),
-    space_partitioner=space_partitioner
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
+    nof_instances="all",
 )
+shap.fit("all", binning_method=effector.axis_partitioning.Fixed(nof_bins=5, min_points_per_bin=0))
+
+finder = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, numerical_features_grid_size=10)
+partitions = {feat: shap.find_regions(feat, finder=finder) for feat in range(3)}
 ```
-
-      0%|          | 0/3 [00:00<?, ?it/s]
-
-     33%|███▎      | 1/3 [00:00<00:00,  2.47it/s]
-
-    100%|██████████| 3/3 [00:00<00:00,  6.46it/s]
-
-    
-
 
 
 ```python
-regional_shap.summary(0)
+partitions[0].show()
 ```
 
     
@@ -854,76 +919,65 @@ regional_shap.summary(0)
     Feature 0 - Full partition tree:
     🌳 Full Tree Structure:
     ───────────────────────
-    x1 🔹 [id: 0 | heter: 0.85 | inst: 1000 | w: 1.00]
-        x3 ≤ 0.00 🔹 [id: 1 | heter: 0.03 | inst: 475 | w: 0.47]
-        x3 > 0.00 🔹 [id: 2 | heter: 0.03 | inst: 525 | w: 0.53]
+    x1 🔹 [id: 0 | heter: 0.90 | inst: 1000 | w: 1.00]
+        x3 < 0.00 🔹 [id: 1 | heter: 0.17 | inst: 513 | w: 0.51]
+        x3 ≥ 0.00 🔹 [id: 2 | heter: 0.17 | inst: 487 | w: 0.49]
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
     🌳 Tree Summary:
     ─────────────────
-    Level 0🔹heter: 0.85
-        Level 1🔹heter: 0.03 | 🔻0.82 (96.45%)
+    Level 0🔹heter: 0.90
+        Level 1🔹heter: 0.17 | 🔻0.73 (80.85%)
     
     
 
 
 
 ```python
-regional_shap.plot(feature=0, node_idx=1, heterogeneity="std", centering=True, y_limits=[-5, 5])
-regional_shap.plot(feature=0, node_idx=2, heterogeneity="std", centering=True, y_limits=[-5, 5])
+partitions[0].plot(1, heterogeneity="std", centering=True, y_limits=[-5, 5])
+partitions[0].plot(2, heterogeneity="std", centering=True, y_limits=[-5, 5])
 ```
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_54_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_60_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_54_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_60_1.png)
     
 
 
 
 ```python
-regional_shap.summary(features=1)
+partitions[1].show()
 ```
 
     
     
     Feature 1 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x2 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
+    No splits found for feature 1
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.00
+    No splits found for feature 1
     
     
 
 
 
 ```python
-regional_shap.summary(features=2)
+partitions[2].show()
 ```
 
     
     
     Feature 2 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x3 🔹 [id: 0 | heter: 0.78 | inst: 1000 | w: 1.00]
-        x1 ≤ 0.00 🔹 [id: 1 | heter: 0.26 | inst: 497 | w: 0.50]
-        x1 > 0.00 🔹 [id: 2 | heter: 0.36 | inst: 503 | w: 0.50]
+    No splits found for feature 2
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.78
-        Level 1🔹heter: 0.31 | 🔻0.47 (60.08%)
+    No splits found for feature 2
     
     
 
@@ -952,19 +1006,19 @@ shap = effector.ShapDP(data=X_cor_train, model=model, schema={"feature_names": [
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_59_0.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_65_0.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_59_1.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_65_1.png)
     
 
 
 
     
-![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_59_2.png)
+![png](03_regional_effects_synthetic_f_files/03_regional_effects_synthetic_f_65_2.png)
     
 
 
@@ -979,84 +1033,152 @@ shap = effector.ShapDP(data=X_cor_train, model=model, schema={"feature_names": [
 
 
 ```python
-regional_shap = effector.RegionalShapDP(
-    data=X_cor_train, 
-    model=model, 
+shap = effector.ShapDP(
+    data=X_cor_train, model=model,
     schema={"feature_names": ['x1', 'x2', 'x3']},
-    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T) 
-
-space_partitioner = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, numerical_features_grid_size=10)
-regional_shap.fit(
-    features="all",
-    space_partitioner=space_partitioner
+    axis_limits=np.array([[-1, 1], [-1, 1], [-1, 1]]).T,
+    nof_instances="all",
 )
+shap.fit("all")
+
+finder = effector.space_partitioning.Best(min_heterogeneity_decrease_pcg=0.6, numerical_features_grid_size=10)
+partitions = {feat: shap.find_regions(feat, finder=finder) for feat in range(3)}
 ```
-
-      0%|          | 0/3 [00:00<?, ?it/s]
-
-     33%|███▎      | 1/3 [00:00<00:00,  2.42it/s]
-
-    100%|██████████| 3/3 [00:00<00:00,  6.28it/s]
-
-    
-
 
 
 ```python
-regional_shap.summary(0)
+partitions[0].show()
 ```
 
     
     
     Feature 0 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x1 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
+    No splits found for feature 0
     --------------------------------------------------
     Feature 0 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.00
+    No splits found for feature 0
     
     
 
 
 
 ```python
-regional_shap.summary(1)
+partitions[1].show()
 ```
 
     
     
     Feature 1 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x2 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
+    No splits found for feature 1
     --------------------------------------------------
     Feature 1 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.00
+    No splits found for feature 1
     
     
 
 
 
 ```python
-regional_shap.summary(2)
+partitions[2].show()
 ```
 
     
     
     Feature 2 - Full partition tree:
-    🌳 Full Tree Structure:
-    ───────────────────────
-    x3 🔹 [id: 0 | heter: 0.00 | inst: 1000 | w: 1.00]
+    No splits found for feature 2
     --------------------------------------------------
     Feature 2 - Statistics per tree level:
-    🌳 Tree Summary:
-    ─────────────────
-    Level 0🔹heter: 0.00
+    No splits found for feature 2
     
     
+
+
+## Cross-method sanity check
+
+The one-liner `effector.explain` with every engine this notebook's model
+supports. Everything must run end to end; the closing table puts the reads
+side by side. Where methods disagree — ranking, accepted splits, R² — that is
+a property of the data/model worth a closer look, not an error.
+
+
+
+```python
+from pathlib import Path
+_out = Path("reports") / "03_regional_effects_synthetic_f"
+_out.mkdir(parents=True, exist_ok=True)
+
+# === cross-method sweep: effector.explain on every applicable engine ======
+sweep_reports = {}
+for _m in ["pdp", "derpdp", "ale", "rhale", "shapdp"]:
+    _kw = {"nof_instances": 300} if _m == "shapdp" else {}
+    print(f"--- {_m} " + "-" * 50)
+    sweep_reports[_m] = effector.explain(
+        X_uncor_train, model, model_jac, method=_m, schema={"feature_names": ['x1','x2','x3'], "target_name": "Y"}, **_kw
+    )
+    if _m != "pdp":  # the published report is the narrated one above
+        sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+
+print()
+print(f"{'method':<8} {'ranking (plotted)':<44} {'GAM R2':>8} {'final R2':>9}  splits")
+for _m, _r in sweep_reports.items():
+    _rank = " > ".join(fr.name for fr in _r.features)
+    _ev = _r.explained_variance
+    if _ev:
+        _sp = "; ".join(f"{s['name']} on {s['on']}" for s in _ev["stages"]) or "none"
+        print(f"{_m:<8} {_rank:<44} {_ev['gam_r2']:>7.1%} {_ev['regional_r2']:>8.1%}  {_sp}")
+    else:
+        print(f"{_m:<8} {_rank:<44} {'-':>7} {'-':>8}  (derivative scale: no variance ledger)")
+
+print(f"\nreports stored in {_out}/")
+
+```
+
+    --- pdp --------------------------------------------------
+    [effector] global effects   (GAM)  -> 10.4% of the model's variance
+               regional effects (CALM) -> 100.0%
+    --- derpdp --------------------------------------------------
+
+
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- ale --------------------------------------------------
+    [effector] global effects   (GAM)  -> 6.1% of the model's variance
+               regional effects (CALM) -> 99.8%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- rhale --------------------------------------------------
+    [effector] global effects   (GAM)  -> 10.4% of the model's variance
+               regional effects (CALM) -> 100.0%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    --- shapdp --------------------------------------------------
+
+
+    [effector] global effects   (GAM)  -> 20.6% of the model's variance
+               regional effects (CALM) -> 98.4%
+
+
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
+
+
+    
+    method   ranking (plotted)                              GAM R2  final R2  splits
+    pdp      x1 > x3                                        10.4%   100.0%  x1 on x3
+    derpdp   x3                                                 -        -  (derivative scale: no variance ledger)
+    ale      x1 > x3                                         6.1%    99.8%  x1 on x3
+    rhale    x1 > x3                                        10.4%   100.0%  x1 on x3
+    shapdp   x3 > x1                                        20.6%    98.4%  x1 on x2, x3; x3 on x1
+    
+    reports stored in reports/03_regional_effects_synthetic_f/
 

@@ -23,7 +23,7 @@ maintainers = [
 license = {text = "MIT License"}
 requires-python = ">=3.10"
 keywords = ["explainability", "interpretability", "machine learning", "deep learning", "regional XAI", "feature effect"]
-version = "0.4.0"
+version = "0.5.0"
 readme = "README.md"
 dependencies = [
     "matplotlib",
@@ -52,6 +52,7 @@ test = [
     "numba>=0.60; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "ucimlrepo",
     "pandas",  # DataFrame-ingestion tests only; never a runtime dependency (R10)
+    "scikit-learn",  # adapter tests only; never a runtime dependency
 ]
 docs = [
     "mkdocs",
@@ -61,11 +62,13 @@ docs = [
     "mkdocs-glightbox",
     "nbconvert",  # docs-pages/docs-images: convert saved notebook outputs, no execution
     "jupyter-core",
+    "ipykernel",  # local notebook re-execution (jupyter nbconvert --execute)
 ]
 dev = [
     {include-group = "test"},
     {include-group = "docs"},
     "ruff",
+    "pyqt5",  # GUI backend for matplotlib, so scripts/api_playground.py pops up windows
 ]
 
 [tool.pytest.ini_options]

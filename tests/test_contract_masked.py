@@ -300,21 +300,18 @@ def test_m5_binning_scope_controls_masked_bins(name, global_data):
 
     m_eff = make_global(name, global_data)
     m_eff.fit(features=0, binning_scope="effective")
-    p_eff = m_eff._summarize(0, mask, **m_eff._replay_fit_kwargs(0))
+    p_eff = m_eff._summary(0, mask)
 
     m_glob = make_global(name, global_data)
     m_glob.fit(features=0)  # default: "global"
-    p_glob = m_glob._summarize(0, mask, **m_glob._replay_fit_kwargs(0))
+    p_glob = m_glob._summary(0, mask)
 
     def limits_of(p):
-        if "limits" in p:
-            return np.asarray(p["limits"], dtype=float)
-        # ShapDP keeps the spline, not the limits: read the spline knots' span
-        return np.asarray(p["spline_mean"].x, dtype=float)
+        return np.asarray(p["limits"], dtype=float)
 
     # the mask (x0 < 0.3) shares the global LEFT edge, so the scopes separate
     # on the right: effective bins stop at the masked max, global bins keep
-    # covering the full axis (ShapDP knots are bin centers — compare vs hi)
+    # covering the full axis
     eff = limits_of(p_eff)
     glob = limits_of(p_glob)
     assert eff[0] >= lo - 1e-12 and eff[-1] <= hi + 1e-12
@@ -340,8 +337,11 @@ def test_m6_masked_plot_window_and_label(name, global_data):
     xlo, xhi = ax_main.get_xlim()
     pad = 0.1 * (hi - lo)
     assert xlo >= lo - pad and xhi <= hi + pad
+    # feature_label lands as the (left-aligned) title; the x-axis keeps the
+    # plain feature name
+    assert ax_main.get_title(loc="left") == "x_0 | region"
     labeled = ax[-1] if isinstance(ax, tuple) else ax
-    assert labeled.get_xlabel() == "x_0 | region"
+    assert labeled.get_xlabel() == "x_0"
 
 
 @pytest.mark.parametrize("name", params(CAT_NAMES))
@@ -352,3 +352,73 @@ def test_m6_masked_plot_categorical_smoke(name):
     mask = data[:, 2] > 0
     ret = m.plot(1, show_plot=False, mask=mask)
     assert isinstance(ret, tuple) and len(ret) == 2
+
+
+# ---------------------------------------------------------------------------
+# M7 — the masked-summary memo is semantically INVISIBLE: a cache hit returns
+# exactly what a cold twin computes; a refit with different fit kwargs bumps the
+# fit-epoch so no stale masked answer is served; repeated calls are stable.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", params())
+def test_m7_memo_matches_cold_twin(name):
+    data = make_global_data()
+    mask = half_mask(data)
+
+    warm = make_global(name, data, nof_instances="all")
+    warm.fit(features=0, centering=False)
+    _ = warm.eval(0, XS, centering=False, mask=mask)  # warm the memo
+    y_warm = warm.eval(0, XS, centering=False, mask=mask)  # cache hit
+    h_warm = warm.eval_heter(0, XS, mask=mask)
+
+    cold = make_global(name, data, nof_instances="all")
+    cold.fit(features=0, centering=False)
+    y_cold = cold.eval(0, XS, centering=False, mask=mask)
+    h_cold = cold.eval_heter(0, XS, mask=mask)
+
+    np.testing.assert_allclose(y_warm, y_cold, atol=1e-12)
+    np.testing.assert_allclose(h_warm, h_cold, atol=1e-12)
+
+
+def test_m7_refit_invalidates_memo():
+    import effector
+    import effector.axis_partitioning as ap
+
+    # a quadratic model has non-zero, binning-dependent RHALE heterogeneity, so
+    # a coarse vs fine binning genuinely changes the masked score
+    def quad(x):
+        return x[:, 0] ** 2
+
+    def quad_jac(x):
+        jac = np.zeros_like(x)
+        jac[:, 0] = 2 * x[:, 0]
+        return jac
+
+    data = make_global_data()
+    mask = half_mask(data)
+
+    rhale = effector.RHALE(data, quad, model_jac=quad_jac, nof_instances="all")
+    rhale.fit(0, binning_method=ap.Fixed(nof_bins=3), centering=False)
+    v_coarse = rhale.heter_score(0, mask=mask)  # warms the memo at epoch e
+
+    rhale.fit(0, binning_method=ap.Fixed(nof_bins=40), centering=False)
+    v_fine_warm = rhale.heter_score(0, mask=mask)  # epoch bumped -> recomputed
+
+    cold = effector.RHALE(data, quad, model_jac=quad_jac, nof_instances="all")
+    cold.fit(0, binning_method=ap.Fixed(nof_bins=40), centering=False)
+    v_fine_cold = cold.heter_score(0, mask=mask)
+
+    # the two binnings genuinely differ (test is meaningful) ...
+    assert v_coarse != v_fine_cold
+    # ... and the refit served the NEW value, not the stale cached one
+    assert v_fine_warm == v_fine_cold
+
+
+@pytest.mark.parametrize("name", params())
+def test_m7_heter_score_masked_stable(name):
+    data = make_global_data()
+    mask = half_mask(data)
+    m = make_global(name, data, nof_instances="all")
+    m.fit(features=0, centering=False)
+    assert m.heter_score(0, mask=mask) == m.heter_score(0, mask=mask)
