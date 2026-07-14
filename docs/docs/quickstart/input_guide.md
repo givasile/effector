@@ -388,7 +388,7 @@ flowchart TD
 feature can use thresholds (`season ≤ spring`); splits on a nominal one cannot,
 and its effects are computed order-free (all-pairs level differences). Get the
 type wrong and the explanation answers the wrong question. See
-[method semantics](../guides/method_semantics.md).
+[the methods reference](../guides/methods.md).
 
 ### Level names
 

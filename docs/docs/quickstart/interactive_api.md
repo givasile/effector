@@ -100,5 +100,5 @@ of the frozen `Report`. The bridge back: `pdp.explain()` produces the same
 
 - [The verbs](#the-verbs): the seven in-depth pages above
 - [effector's report](./report.md): the one-liner, in depth
-- [The mental model](./mental_model.md): *why* the API is shaped this way
+- [The mental model](./../guides/mental_model.md): *why* the API is shaped this way
 - [API docs](./../api_docs.md): the reference

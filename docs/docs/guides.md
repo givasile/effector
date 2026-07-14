@@ -1,5 +1,7 @@
-- [Methods — the math reference](./guides/methods.md): How each method (PDP, ALE, RHALE) defines and estimates the global effect and its heterogeneity, with the exact formulas behind the plots
-- [The design contract (R1–R14)](./guides/design.md): The normative rules the API is built on
-- [Method semantics by feature type](./guides/method_semantics.md): What each method computes for numerical, categorical and binary features
-- [Efficiency of global methods](./notebooks/guides/efficiency_global.md): Compares the global methods in terms of runtime
-- [Efficiency of regional methods](./notebooks/guides/efficiency_regional.md): Compares the regional methods in terms of runtime
+**Guides:**
+
+- [The mental model](./guides/mental_model.md): the thinking behind the API; one engine, values not state, two entrances
+- [Methods: the math reference](./guides/methods.md): how each method defines the effect, its heterogeneity, and the two scalars, per feature type
+- [The design contract](./guides/design.md): the rules the API is built on, R1 to R14, one breath each
+- [Efficiency of global methods](./notebooks/guides/efficiency_global.md): count the model calls; everything after the fit is free
+- [Efficiency of regional methods](./notebooks/guides/efficiency_regional.md): the regional search costs zero model calls
