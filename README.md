@@ -13,18 +13,17 @@
 
 ---
 
-`effector` an eXplainable AI package for **tabular data**. It:
+`effector` is an eXplainable AI package for **tabular data**. It:
 
-- creates [global and regional](https://xai-effector.github.io/quickstart/global_and_regional_effects/) effect plots
-- has a [simple API](https://xai-effector.github.io/quickstart/simple_api/) with smart defaults, but can become [flexible](https://xai-effector.github.io/quickstart/flexible_api/) if needed
-- is model agnostic; can explain [any underlying ML model](https://xai-effector.github.io/)
-- integrates easily with popular ML libraries, like [Scikit-Learn, Tensorflow and Pytorch](https://xai-effector.github.io/quickstart/simple_api/#__tabbed_2_2)
-- is fast, for both [global](https://xai-effector.github.io/notebooks/guides/efficiency_global/) and [regional](https://xai-effector.github.io/notebooks/guides/efficiency_global/) methods
-- provides a large collection of [global and regional effects methods](https://xai-effector.github.io/#supported-methods)
+- explains any black-box model with [global and regional effects](https://xai-effector.github.io/quickstart/global_and_regional_effects/): what each feature does, and where the average hides something
+- produces a report in one line: [`effector.explain(X, model)`](https://xai-effector.github.io/quickstart/report/) fits, ranks the features, hunts for subregions, and writes a single self-contained HTML page
+- offers an [interactive API](https://xai-effector.github.io/quickstart/interactive_api/) when you want the controls: five engines ([PDP, d-PDP, ALE, RHALE, SHAP-DP](#supported-methods)), one verb set
+- is model agnostic: any callable `numpy → numpy` works, and [adapters](https://xai-effector.github.io/quickstart/input_guide/) wrap scikit-learn, PyTorch, classifiers and DataFrame pipelines
+- is fast, for both [global](https://xai-effector.github.io/notebooks/guides/efficiency_global/) and [regional](https://xai-effector.github.io/notebooks/guides/efficiency_regional/) methods: everything after the fit is free
 
 ---
 
-📖 [Documentation](https://xai-effector.github.io/) | 🔍 [Intro to global and regional effects](https://xai-effector.github.io/quickstart/global_and_regional_effects/) | 🔧 [API](https://xai-effector.github.io/api/) | 🏗 [Examples](https://xai-effector.github.io/examples)
+📖 [Documentation](https://xai-effector.github.io/) | 🚀 [Quickstart](https://xai-effector.github.io/quickstart/simple_api/) | 🔧 [API](https://xai-effector.github.io/api_docs/) | 🏗 [Examples](https://xai-effector.github.io/examples/)
 
 ---
 
@@ -36,9 +35,9 @@ Effector requires Python 3.10+:
 pip install effector
 ```
 
-This installs a lightweight core (`numpy`, `scipy`, `matplotlib`, `tqdm`) that covers PDP, ALE, RHALE and their regional variants.
+This installs a lightweight core (`numpy`, `scipy`, `matplotlib`, `tqdm`) that covers PDP, ALE, RHALE and their regional effects.
 
-`ShapDP` (and its `find_regions`) needs the heavier `shap`/`shapiq` backends (which pull in `numba`, `scikit-learn`, `pandas`, ...). Install them only if you use those methods:
+`ShapDP` needs the heavier `shap`/`shapiq` backends (which pull in `numba`, `scikit-learn`, `pandas`, ...). Install them only if you use that method:
 
 ```bash
 pip install effector[shap]
@@ -48,207 +47,224 @@ pip install effector[shap]
 
 ## Quickstart
 
-### Train an ML model
+### (a) The inputs
+
+A dataset as a numpy array, a model as a `numpy → numpy` callable, and, optionally, a schema so the explanation speaks your vocabulary:
 
 ```python
 import effector
-import keras
-import numpy as np
-import tensorflow as tf
+from sklearn.ensemble import HistGradientBoostingRegressor
 
-np.random.seed(42)
-tf.random.set_seed(42)
+data = effector.datasets.BikeSharing()  # standardized numpy arrays
+model = HistGradientBoostingRegressor(random_state=21).fit(data.x_train, data.y_train)
+predict = effector.adapters.from_sklearn(model)  # a plain numpy -> numpy callable
 
-# Load dataset
-bike_sharing = effector.datasets.BikeSharing(pcg_train=0.8)
-X_train, Y_train = bike_sharing.x_train, bike_sharing.y_train
-X_test, Y_test = bike_sharing.x_test, bike_sharing.y_test
-
-# Define and train a neural network
-model = keras.Sequential([
-    keras.layers.Dense(1024, activation="relu"),
-    keras.layers.Dense(512, activation="relu"),
-    keras.layers.Dense(256, activation="relu"),
-    keras.layers.Dense(1)
-])
-model.compile(optimizer="adam", loss="mse", metrics=["mae", keras.metrics.RootMeanSquaredError()])
-model.fit(X_train, Y_train, batch_size=512, epochs=20, verbose=1)
-model.evaluate(X_test, Y_test, verbose=1)
-```
-
-### Wrap it in a callable
-
-```python
-def predict(x):
-    return model(x).numpy().squeeze()
-```
-
-### Explain it with global effect plots
-
-```python
-# Initialize the Partial Dependence Plot (PDP) object
-pdp = effector.PDP(
-    X_test,  # Use the test set as background data
-    predict,  # Prediction function
-    schema={  # (optional) metadata: names, types, target name, axis scaling
-        "feature_names": bike_sharing.feature_names,
-        "target_name": bike_sharing.target_name,
-    },
-)
-
-# Plot the effect of a feature
-pdp.plot(
-    feature=3,  # Select the 3rd feature (feature: hour)
-    nof_ice=200,  # (optional) Number of Individual Conditional Expectation (ICE) curves to plot
-    scale_x={"mean": bike_sharing.x_test_mu[3], "std": bike_sharing.x_test_std[3]},  # (optional) Scale x-axis
-    scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},  # (optional) Scale y-axis
-    centering=True,  # (optional) Center PDP and ICE curves
-    show_avg_output=True,  # (optional) Display the average prediction
-    y_limits=[-200, 1000]  # (optional) Set y-axis limits
+schema = effector.Schema(
+    feature_names=data.feature_names,
+    feature_types=[
+        "nominal", "nominal", "ordinal", "ordinal", "nominal", "nominal",
+        "nominal", "ordinal", "continuous", "continuous", "continuous",
+    ],
+    category_names=[
+        ["winter", "spring", "summer", "fall"],
+        ["2011", "2012"],
+        ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+        None,
+        ["no", "yes"],
+        ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+        ["no", "yes"],
+        ["clear", "mist", "light rain/snow", "heavy rain"],
+        None, None, None,
+    ],
+    scale_x_list=[
+        {"mean": data.x_train_mu[i], "std": data.x_train_std[i]}
+        for i in range(data.x_train.shape[1])
+    ],
+    scale_y={"mean": data.y_train_mu, "std": data.y_train_std},
+    target_name="bike-rentals",
 )
 ```
 
-![Feature effect plot](https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/quickstart/readme_example_files/readme_example_4_0.png)
+📄 In depth: [the input layer](https://xai-effector.github.io/quickstart/input_guide/); pandas, sklearn, torch, classifiers, feature types, units.
 
-### Explain it with regional effect plots
+### (b) The one-liner
 
 ```python
-# Fit a global PDP
-pdp = effector.PDP(
-    X_test,  # Test set data
-    predict,  # Prediction function
-    schema={  # metadata: names, types, target name, axis scaling
-        "feature_names": bike_sharing.feature_names,
-        "target_name": bike_sharing.target_name,
-    },
+report = effector.explain(
+    data.x_train, predict, y=data.y_train, schema=schema, nof_instances=5000
 )
-pdp.fit(features=3)
-
-# per-feature mean/std used to display axes in the original units
-scale_x_list = [
-    {"mean": bike_sharing.x_test_mu[i], "std": bike_sharing.x_test_std[i]}
-    for i in range(X_test.shape[1])
-]
-
-# Search for subregions of the 3rd feature (temperature) and print the tree
-partition = pdp.find_regions(feature=3)
-partition.show(scale_x_list=scale_x_list)
 ```
 
+It fits once, ranks the features, hunts for subregions where the average is hiding something, keeps only the splits that pay for themselves, and opens with the one number worth having:
+
+```text
+[effector] global effects   (GAM)  -> 72.3% of the model's variance
+           regional effects (CALM) -> 92.0%
 ```
+
+The result is a `Report`, a value you can export or print:
+
+```python
+report.to_html("report.html")  # a single self-contained page; mail it, commit it
+report.show()                  # the same story, as terminal tables
+```
+
+```text
+  ════════════════════════════════════════════════════════════════════════
+  PDP report  ·  target: bike-rentals
+  ════════════════════════════════════════════════════════════════════════
+
+  DATA & MODEL
+  ────────────────────────────────────────────────────────────────────────
+    instances     5,000
+    features      11  ·  5 nominal · 3 ordinal · 3 continuous
+    model output  mean 188 · std 176 · range [-19.5, 948]
+    model R²      0.960  (on this subsample)
+
+  EXPLAINED VARIANCE
+  ────────────────────────────────────────────────────────────────────────
+    step         split on                 solo     ΔR²      R²       heter
+    ──────────────────────────────────────────────────────────────────────
+    GAM          (all features global)       —       —   72.3%           —
+  + hr           temp, workingday, yr   +18.3%  +18.3%   90.6% 0.47 → 0.26
+  + temp         hr, hum                 +2.4%   +1.4%   92.0% 0.22 → 0.19
+    ──────────────────────────────────────────────────────────────────────
+    FINAL                                                92.0%
+
+  REJECTED SPLITS                                            min gain 1.0%
+  ────────────────────────────────────────────────────────────────────────
+    feature      split on                 solo     ΔR²    reason
+    ──────────────────────────────────────────────────────────────────────
+  ✗ yr           hr, workingday          +2.7%   -0.8%    redundant
+  ✗ hum          hr, temp                +2.2%   +0.2%    below threshold
+  ✗ weekday      hr, temp, yr            +0.4%   +0.2%    below threshold
+  ✗ workingday   hr, yr                  +6.2%   -4.8%    redundant
+
+    ✗ redundant: it would explain variance on its own (see solo),
+      but the accepted splits already account for it.
+
+  FEATURES                                ranked, in the selected snapshot
+  ────────────────────────────────────────────────────────────────────────
+    feature        importance                          heter      #regions
+    ──────────────────────────────────────────────────────────────────────
+    hr                 0.7273  ██████████████████     0.2608             4
+    yr                 0.2271  ██████                 0.2088             1
+    temp               0.2098  █████                  0.1874             4
+    hum                0.0932  ██                     0.1221             1
+    ──────────────────────────────────────────────────────────────────────
+    the features above carry 82% of the total importance mass
+```
+
+(the accepted partition trees follow)
+
+📄 In depth: [the report](https://xai-effector.github.io/quickstart/report/); the explained variance ledger, the triage plane, the regional analysis, every knob of `explain(...)`.
+
+### (c) The interactive API
+
+The same engine, as a live handle you query as you go:
+
+```python
+pdp = effector.PDP(data.x_train, predict, schema=schema, nof_instances=5000)
+
+pdp.plot("hr")                        # the global effect, ICE curves behind it
+pdp.heter_score("hr")                 # 0.47: the average hides a lot
+partition = pdp.find_regions("hr")    # where is it hiding it?
+partition.show()
+```
+
+```text
 Feature 3 - Full partition tree:
 🌳 Full Tree Structure:
 ───────────────────────
-hr 🔹 [id: 0 | heter: 0.27 | inst: 3476 | w: 1.00]
-    workingday = 0.00 🔹 [id: 1 | heter: 0.14 | inst: 1114 | w: 0.32]
-        temp ≤ 8.44 🔹 [id: 2 | heter: 0.07 | inst: 576 | w: 0.17]
-        temp > 8.44 🔹 [id: 3 | heter: 0.10 | inst: 538 | w: 0.15]
-    workingday ≠ 0.00 🔹 [id: 4 | heter: 0.14 | inst: 2362 | w: 0.68]
-        yr = 0.00 🔹 [id: 5 | heter: 0.06 | inst: 1220 | w: 0.35]
-        yr ≠ 0.00 🔹 [id: 6 | heter: 0.12 | inst: 1142 | w: 0.33]
+hr 🔹 [id: 0 | heter: 0.47 | inst: 5000 | w: 1.00]
+    workingday = no 🔹 [id: 1 | heter: 0.33 | inst: 1545 | w: 0.31]
+        temp < 6.86 🔹 [id: 2 | heter: 0.22 | inst: 778 | w: 0.16]
+        temp ≥ 6.86 🔹 [id: 3 | heter: 0.26 | inst: 767 | w: 0.15]
+    workingday = yes 🔹 [id: 4 | heter: 0.34 | inst: 3455 | w: 0.69]
+        yr = 2011 🔹 [id: 5 | heter: 0.23 | inst: 1720 | w: 0.34]
+        yr = 2012 🔹 [id: 6 | heter: 0.31 | inst: 1735 | w: 0.35]
 --------------------------------------------------
 Feature 3 - Statistics per tree level:
 🌳 Tree Summary:
 ─────────────────
-Level 0🔹heter: 0.27
-    Level 1🔹heter: 0.14 | 🔻0.13 (47.97%)
-        Level 2🔹heter: 0.08 | 🔻0.05 (39.15%)
+Level 0🔹heter: 0.47
+    Level 1🔹heter: 0.34 | 🔻0.13 (28.12%)
+        Level 2🔹heter: 0.26 | 🔻0.08 (22.91%)
 ```
 
-The summary of feature `hr` (hour) says that its effect on the output is highly dependent on the value of features:
-- `workingday`, whether it is a workingday or not
-- `temp`, what is the temperature the specific hour
-- `yr`, whether it is the first or the second year of the dataset
+The effect of `hr` depends on `workingday` (commute peaks vs a midday plateau), and within each branch on `temp` and `yr`. Plot the effect inside a region:
 
-Let's see how the effect changes on these subregions!
+```python
+partition.plot(2)  # hr, on non-working days, in the cold
+```
+
+<table>
+  <tr>
+    <td><img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/quickstart/interactive_guide/pdp_hr.png" alt="Global effect of hr with ICE curves"></td>
+    <td><img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/quickstart/interactive_guide/pdp_hr_leaf1.png" alt="Effect of hr on cold non-working days"></td>
+  </tr>
+</table>
+
+Every verb answers one question:
+
+| verb                    | question it answers                    |
+|-------------------------|----------------------------------------|
+| `.plot(f)`              | what does feature `f` do?              |
+| `.eval(f, xs)`          | …as numbers, on my grid                |
+| `.importance(f)`        | how much does `f` move the output?     |
+| `.heter_score(f)`       | is the average hiding something?       |
+| `.find_regions(f)`      | *where* is it hiding it?               |
+| `.select_regions()`     | which splits actually earn their keep? |
+| `.fit(features, **cfg)` | (optional) tune the method first       |
+
+📄 In depth: [the interactive API](https://xai-effector.github.io/quickstart/interactive_api/); construct and fit, [customizing `.fit()`](https://xai-effector.github.io/quickstart/interactive/customize_fit/), plot, eval, scores, regions.
 
 ---
-#### Is it workingday or not?
 
-```python
-# Plot regional effects after the first-level split (workingday vs non-workingday)
-for region in partition:  # region ids depend on the fitted tree
-    if region.level != 1:  # Keep only the regions of the first-level split
-        continue
-    partition.plot(
-        region.idx,  # Region index (workingday / non-workingday)
-        nof_ice=200,  # Number of ICE curves
-        scale_x_list=scale_x_list,  # Scale features by mean and std
-        scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},  # Scale the target
-        y_limits=[-200, 1000]  # Set y-axis limits
-    )
-```
+## Documentation map
 
-<table>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/quickstart/readme_example_files/readme_example_6_0.png" alt="Feature effect plot"></td>
-    <td><img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/quickstart/readme_example_files/readme_example_6_1.png" alt="Feature effect plot"></td>
-  </tr>
-</table>
+Start here:
 
+- [What are global and regional effects](https://xai-effector.github.io/quickstart/global_and_regional_effects/): the concepts
+- [`effector`'s API](https://xai-effector.github.io/quickstart/simple_api/): the whole API in 3 minutes
+    - [(a) The input layer](https://xai-effector.github.io/quickstart/input_guide/): numpy, models, adapters, the schema
+    - [(b) `effector`'s report](https://xai-effector.github.io/quickstart/report/): the one-liner, `.show()`, and the HTML page
+    - [(c) The interactive API](https://xai-effector.github.io/quickstart/interactive_api/): the five engines, global and regional effects
 
-#### Second-level splits: is it hot or cold? is it 2011 or 2012?
+Going deeper:
 
-```python
-# Plot regional effects after second-level splits (temperature on non-workingdays, year on workingdays)
-for region in partition:
-    if region.level != 2:  # Keep only the regions of the second-level splits
-        continue
-    partition.plot(
-        region.idx,  # Region index of the second-level splits
-        nof_ice=200,  # Number of ICE curves
-        scale_x_list=scale_x_list,  # Scale features by mean and std
-        scale_y={"mean": bike_sharing.y_test_mu, "std": bike_sharing.y_test_std},  # Scale target
-        y_limits=[-200, 1000]  # Set y-axis limits
-    )
-
-```
-
-<table>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/quickstart/readme_example_files/readme_example_7_0.png" alt="Feature effect plot"></td>
-    <td><img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/quickstart/readme_example_files/readme_example_7_1.png" alt="Feature effect plot"></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/quickstart/readme_example_files/readme_example_7_2.png" alt="Feature effect plot"></td>
-    <td><img src="https://raw.githubusercontent.com/givasile/effector/main/docs/docs/static/quickstart/readme_example_files/readme_example_7_3.png" alt="Feature effect plot"></td>
-  </tr>
-</table>
+- [The mental model](https://xai-effector.github.io/guides/mental_model/): the thinking behind the API; one engine, values not state, two entrances
+- [Methods: the math reference](https://xai-effector.github.io/guides/methods/): how each method defines the effect, its heterogeneity, and the two scalars
+- [The design contract](https://xai-effector.github.io/guides/design/): the rules the API is built on, one breath each
+- [Efficiency of global](https://xai-effector.github.io/notebooks/guides/efficiency_global/) and [regional](https://xai-effector.github.io/notebooks/guides/efficiency_regional/) methods: count the model calls
 
 ---
 
 ## Supported Methods
 
-`effector` implements global and regional effect methods:
+Every method computes global effects, and regional effects via `.find_regions(feature)`:
 
-Every global effect class exposes `.find_regions(feature)` for the regional analysis:
-
-| Method  | Global Effect  | Regional Effect      | Reference | ML model          | Speed                                        |
-|---------|----------------|----------------------|-----------|-------------------|----------------------------------------------|
-| PDP     | `PDP`          | `PDP().find_regions` | [PDP](https://projecteuclid.org/euclid.aos/1013203451) | any               | Fast for a small dataset                     |
-| d-PDP   | `DerPDP`       | `DerPDP().find_regions`| [d-PDP](https://arxiv.org/abs/1309.6392) | differentiable    | Fast for a small dataset      |
-| ALE     | `ALE`          | `ALE().find_regions` | [ALE](https://academic.oup.com/jrsssb/article/82/4/1059/7056085) | any | Fast                                         |
-| RHALE   | `RHALE`        | `RHALE().find_regions`| [RHALE](https://ebooks.iospress.nl/doi/10.3233/FAIA230354) | differentiable    | Very fast                                    |
-| SHAP-DP | `ShapDP`       | `ShapDP().find_regions`| [SHAP](https://papers.nips.cc/paper/7062-a-unified-approach-to-interpreting-model-predictions) | any | Fast for a small dataset and a light ML model |
+| Method  | Class    | Reference | ML model | Speed |
+|---------|----------|-----------|----------|-------|
+| PDP     | `PDP`    | [Friedman, 2001](https://projecteuclid.org/euclid.aos/1013203451) | any | fast for a small dataset |
+| d-PDP   | `DerPDP` | [Goldstein et al., 2013](https://arxiv.org/abs/1309.6392) | differentiable | fast for a small dataset |
+| ALE     | `ALE`    | [Apley & Zhu, 2020](https://academic.oup.com/jrsssb/article/82/4/1059/7056085) | any | fast |
+| RHALE   | `RHALE`  | [Gkolemis et al., 2023](https://ebooks.iospress.nl/doi/10.3233/FAIA230354) | differentiable | very fast |
+| SHAP-DP | `ShapDP` | [Lundberg & Lee, 2017](https://papers.nips.cc/paper/7062-a-unified-approach-to-interpreting-model-predictions) | any | fast for a small dataset and a light model |
 
 ---
 
-## Method Selection Guide
+## Choosing a method
 
-From the runtime persepective there are three criterias:
+Three questions decide: is the dataset **small** (N < 10K) or **large**? Is the model **light** (< 0.1s per call) or **heavy**? Is it **differentiable** or not?
 
-- is the dataset `small` (N<10K) or `large` (N>10K instances) ? 
-- is the ML model `light` (runtime < 0.1s) or `heavy` (runtime > 0.1s) ?
-- is the ML model `differentiable` or `non-differentiable` ?
-
-Trust us and follow this guide:
-
-- `light` + `small` + `differentiable` = `any([PDP, RHALE, ShapDP, ALE, DerPDP])` 
-- `light` + `small` + `non-differentiable`: `[PDP, ALE, ShapDP]`
-- `heavy` + `small` + `differentiable` = `any([PDP, RHALE, ALE, DerPDP])`
-- `heavy` + `small` + `non differentiable` = `any([PDP, ALE])`
-- `big` +  `not differentiable` = `ALE`
-- `big` +  `differentiable` = `RHALE` 
+| your case | use |
+|---|---|
+| small + light | any: `PDP`, `ALE`, `ShapDP`; plus `RHALE`, `DerPDP` if differentiable |
+| small + heavy | `PDP`, `ALE`; plus `RHALE`, `DerPDP` if differentiable |
+| large + differentiable | `RHALE` |
+| large + non-differentiable | `ALE` |
 
 ---
 
@@ -332,8 +348,6 @@ Papers that have inspired `effector`:
 ## License
 
 `effector` is released under the [MIT License](https://github.com/givasile/effector/blob/main/LICENSE).
-
-
 
 ---
 
