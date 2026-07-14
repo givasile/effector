@@ -150,7 +150,7 @@ docs/site/
 docs/docs/Tutorials/
 
 .venv-*
-# generated one-click reports (effector.explain -> to_html)
-notebooks/**/explain_report.html
+# generated one-click reports (effector.explain -> to_html); the published ones
+# are harvested into docs/docs/static/reports/ by `make docs-reports`
 notebooks/**/reports/
 scripts/reports/

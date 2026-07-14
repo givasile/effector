@@ -9,6 +9,7 @@
   decision sequence shows why `smoker` — the most important feature in the
   model — is *redundant as a split*: `bmi` and `smoker` are two claimants of
   the same interaction pot.
+- 📄 The whole notebook in one page: [PDP report](https://xai-effector.github.io/static/reports/05_medical_costs_pdp.html)
 
 The dataset: 1,338 insurance policyholders with 6 features (`age`, `sex`,
 `bmi`, `children`, `smoker`, `region`); the target is the yearly medical
@@ -365,7 +366,8 @@ for _m in ["pdp", "ale", "shapdp"]:
     sweep_reports[_m] = effector.explain(
         data.x_train, model_forward, y=data.y_train, method=_m, schema=schema, **_kw
     )
-    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+    if _m != "pdp":  # the published report is the narrated one above
+        sweep_reports[_m].to_html(_out / f"report_{_m}.html")
 
 print()
 print(f"{'method':<8} {'ranking (plotted)':<52} {'GAM R2':>8} {'final R2':>9}  splits")
@@ -384,12 +386,6 @@ print(f"\nreports stored in {_out}/")
 
     [effector] global effects   (GAM)  -> 84.4% of the model's variance
                regional effects (CALM) -> 96.6%
-
-
-    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-      fig.tight_layout()
-
-
     --- ale --------------------------------------------------
 
 

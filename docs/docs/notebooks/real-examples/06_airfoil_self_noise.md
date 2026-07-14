@@ -9,6 +9,7 @@
   of `frequency` on `chord-length` / `suction-side-displacement-thickness`
   recovers **+28 pts** in one move. Three features claim the same
   interaction pot; the decision sequence pays it once.
+- 📄 The whole notebook in one page: [PDP report](https://xai-effector.github.io/static/reports/06_airfoil_self_noise_pdp.html)
 
 The dataset: 1,503 wind-tunnel measurements of NACA 0012 airfoil sections at
 various angles of attack and wind speeds. Five features — `frequency` (Hz),
@@ -170,7 +171,7 @@ report.to_html(_out / "report_pdp.html")  # open in browser
     
 
 
-    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
@@ -354,7 +355,8 @@ for _m in ["pdp", "ale", "shapdp"]:
     sweep_reports[_m] = effector.explain(
         data.x_train, model_forward, y=data.y_train, method=_m, schema=schema, **_kw
     )
-    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+    if _m != "pdp":  # the published report is the narrated one above
+        sweep_reports[_m].to_html(_out / f"report_{_m}.html")
 
 print()
 print(f"{'method':<8} {'ranking (plotted)':<52} {'GAM R2':>8} {'final R2':>9}  splits")
@@ -373,12 +375,6 @@ print(f"\nreports stored in {_out}/")
 
     [effector] global effects   (GAM)  -> 54.2% of the model's variance
                regional effects (CALM) -> 82.5%
-
-
-    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-      fig.tight_layout()
-
-
     --- ale --------------------------------------------------
 
 
@@ -386,7 +382,7 @@ print(f"\nreports stored in {_out}/")
                regional effects (CALM) -> 67.9%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
@@ -397,7 +393,7 @@ print(f"\nreports stored in {_out}/")
                regional effects (CALM) -> 84.2%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 

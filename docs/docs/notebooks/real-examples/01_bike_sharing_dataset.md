@@ -6,6 +6,7 @@
   triage → look → find regions → triage with arrows** — explaining a neural
   network trained on hourly bike-rental counts, with per-method deep dives
   (PDP, RHALE, SHAP-DP) on the `hour` feature.
+- 📄 The whole notebook in one page: [PDP report](https://xai-effector.github.io/static/reports/01_bike_sharing_dataset_pdp.html)
 
 This notebook analyzes the Capital Bikeshare system's rental data from 2011-2012. We'll explore how various factors influence bike rental patterns using advanced machine learning techniques.
 The [Bike-Sharing Dataset](https://archive.ics.uci.edu/ml/datasets/bike+sharing+dataset) contains:
@@ -27,7 +28,7 @@ random.seed(42)
 ```
 
     WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-    I0000 00:00:1784048612.709251    6346 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    I0000 00:00:1784068177.633870   24871 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
@@ -230,72 +231,6 @@ schema = effector.Schema(
 
 ```
 
-
-```python
-from pathlib import Path
-_out = Path("reports") / "01_bike_sharing_dataset"
-_out.mkdir(parents=True, exist_ok=True)
-
-report = effector.explain(
-        data=X_train.to_numpy(),
-        model=model_forward,
-        model_jac=model_jac,
-        y=Y_train.to_numpy().squeeze(),
-        schema=schema,
-        method="PDP",
-    )
-report.to_html(_out / "report_pdp.html")   # open in browser to see the interactive pl
-
-```
-
-    [effector] global effects   (GAM)  -> 71.3% of the model's variance
-               regional effects (CALM) -> 88.7%
-
-
-    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-      fig.tight_layout()
-
-
-    W0000 00:00:1784048662.864161    6346 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
-
-
-    W0000 00:00:1784048663.698983    6346 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
-
-
-    W0000 00:00:1784048664.757299    6346 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
-
-
-    W0000 00:00:1784048665.253918    6346 cpu_allocator_impl.cc:82] Allocation of 2007040000 exceeds 10% of free system memory.
-
-
-    W0000 00:00:1784048667.576040    6346 cpu_allocator_impl.cc:82] Allocation of 2007040000 exceeds 10% of free system memory.
-
-
-
-```python
-from pathlib import Path
-_out = Path("reports") / "01_bike_sharing_dataset"
-_out.mkdir(parents=True, exist_ok=True)
-
-report = effector.explain(
-        data=X_train.to_numpy(),
-        model=model_forward,
-        model_jac=model_jac,
-        y=Y_train.to_numpy().squeeze(),
-        schema=schema,
-        method="RHALE",
-    )
-report.to_html(_out / "report_rhale.html")   # open in browser to see the interactive pl
-```
-
-    [effector] global effects   (GAM)  -> 70.6% of the model's variance
-               regional effects (CALM) -> 88.4%
-
-
-    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-      fig.tight_layout()
-
-
 ## Survey all features: the triage plane
 
 Instead of eyeballing every feature's plot one by one, `effector.plot_triage` surveys them in a single figure: importance to the right, heterogeneity up. The top-right corner — important *and* heterogeneous — is the to-do list: those are the features whose mean effect hides something and where `find_regions` should look. The horizontal hairline is the median-heterogeneity threshold, the same convention `find_regions(features="heterogeneous")` uses.
@@ -317,7 +252,7 @@ effector.plot_triage(pdp, features=[2, 3, 8, 9, 10])
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_18_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_16_0.png)
     
 
 
@@ -330,31 +265,31 @@ for i in [2, 3, 8, 9, 10]:
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_19_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_0.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_19_1.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_1.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_19_2.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_2.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_19_3.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_3.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_19_4.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_17_4.png)
     
 
 
@@ -387,7 +322,7 @@ fe.plot(
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_23_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_21_0.png)
     
 
 
@@ -401,7 +336,7 @@ pdp.plot(feature="hr", centering=True, scale_x=scale_x, scale_y=scale_y, show_av
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_25_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_23_0.png)
     
 
 
@@ -416,10 +351,7 @@ vector (the dispersion of each feature's mean effect — the $\mu$-twin of heter
 # per-feature importance = dispersion of the mean effect (mu-twin of heterogeneity)
 print("importances:", np.round(pdp.importances(), 3))
 
-# one-click auto-explanation -> Report (serializable; self-contained HTML).
-# We let the auto-search condition on the categorical drivers (season, yr, holiday,
-# weekday, workingday, weathersit) -- exactly the low-cardinality features the
-# regional analysis below splits on.
+# one-click auto-explanation -> Report (serializable; self-contained HTML)
 report = effector.explain(
     X_train.to_numpy(),
     model_forward,
@@ -427,16 +359,22 @@ report = effector.explain(
     method="pdp",
     schema=schema,
     nof_instances=2000,
-    candidate_conditioning_features=[0, 1, 4, 5, 6, 7],
 )
 report.show()
+
+# the whole notebook, in one page: the report published with this example
+from pathlib import Path
+_out = Path("reports") / "01_bike_sharing_dataset"
+_out.mkdir(parents=True, exist_ok=True)
+report.to_html(_out / "report_pdp.html")
+
 ```
 
     importances: [0.09  0.191 0.04  0.663 0.022 0.044 0.041 0.053 0.228 0.112 0.018]
 
 
     [effector] global effects   (GAM)  -> 71.7% of the model's variance
-               regional effects (CALM) -> 86.5%
+               regional effects (CALM) -> 88.6%
     
       ════════════════════════════════════════════════════════════════════════
       PDP report  ·  target: bike-rentals
@@ -454,15 +392,18 @@ report.show()
         step         split on                 solo     ΔR²      R²       heter
         ──────────────────────────────────────────────────────────────────────
         GAM          (all features global)       —       —   71.7%           —
-      + hr           season, workingday,…   +14.8%  +14.8%   86.5% 0.48 → 0.30
+      + hr           temp, workingday, yr   +15.5%  +15.5%   87.2% 0.48 → 0.29
+      + hum          hr, temp, weathersit    +1.8%   +1.4%   88.6% 0.17 → 0.15
         ──────────────────────────────────────────────────────────────────────
-        FINAL                                                86.5%
+        FINAL                                                88.6%
     
       REJECTED SPLITS                                            min gain 1.0%
       ────────────────────────────────────────────────────────────────────────
         feature      split on                 solo     ΔR²    reason
         ──────────────────────────────────────────────────────────────────────
-      ✗ workingday   workingday              +0.0%   +0.0%    redundant
+      ✗ temp         hr, hum                 +1.7%   +0.9%    below threshold
+      ✗ yr           hr, hum                 +1.5%   -0.1%    redundant
+      ✗ workingday   hr, yr                  +4.9%   -4.3%    redundant
     
         ✗ redundant: it would explain variance on its own (see solo),
           but the accepted splits already account for it.
@@ -471,10 +412,10 @@ report.show()
       ────────────────────────────────────────────────────────────────────────
         feature        importance                          heter      #regions
         ──────────────────────────────────────────────────────────────────────
-        hr                 0.7328  ██████████████████     0.2958             4
+        hr                 0.7314  ██████████████████     0.2882             4
         temp               0.2281  ██████                 0.2668             1
         yr                 0.1878  █████                  0.2028             1
-        hum                0.1155  ███                    0.1743             1
+        hum                0.1020  ███                    0.1525             4
         ──────────────────────────────────────────────────────────────────────
         the features above carry 80% of the total importance mass
     
@@ -485,8 +426,8 @@ report.show()
     ───────────────────────
     hr 🔹 [id: 0 | heter: 0.48 | inst: 2000 | w: 1.00]
         workingday = no 🔹 [id: 1 | heter: 0.37 | inst: 614 | w: 0.31]
-            season = winter 🔹 [id: 2 | heter: 0.26 | inst: 154 | w: 0.08]
-            season ∈ {spring, summer, fall} 🔹 [id: 3 | heter: 0.34 | inst: 460 | w: 0.23]
+            temp < 4.50 🔹 [id: 2 | heter: 0.24 | inst: 248 | w: 0.12]
+            temp ≥ 4.50 🔹 [id: 3 | heter: 0.32 | inst: 366 | w: 0.18]
         workingday = yes 🔹 [id: 4 | heter: 0.34 | inst: 1386 | w: 0.69]
             yr = 2011 🔹 [id: 5 | heter: 0.25 | inst: 696 | w: 0.35]
             yr = 2012 🔹 [id: 6 | heter: 0.32 | inst: 690 | w: 0.34]
@@ -496,9 +437,34 @@ report.show()
     ─────────────────
     Level 0🔹heter: 0.48
         Level 1🔹heter: 0.35 | 🔻0.13 (26.67%)
-            Level 2🔹heter: 0.30 | 🔻0.05 (15.62%)
+            Level 2🔹heter: 0.29 | 🔻0.06 (17.80%)
     
     
+    
+    
+    Feature 9 - Full partition tree:
+    🌳 Full Tree Structure:
+    ───────────────────────
+    hum 🔹 [id: 0 | heter: 0.17 | inst: 2000 | w: 1.00]
+        temp < 13.71 🔹 [id: 1 | heter: 0.15 | inst: 1338 | w: 0.67]
+            weathersit = light rain/snow 🔹 [id: 2 | heter: 0.33 | inst: 146 | w: 0.07]
+            weathersit ∈ {clear, mist, heavy rain} 🔹 [id: 3 | heter: 0.12 | inst: 1192 | w: 0.60]
+        temp ≥ 13.71 🔹 [id: 4 | heter: 0.18 | inst: 662 | w: 0.33]
+            hr = 17.00 🔹 [id: 5 | heter: 0.19 | inst: 33 | w: 0.02]
+            hr ∈ {0.00, 1.00, 2.00, …} (23 levels) 🔹 [id: 6 | heter: 0.17 | inst: 629 | w: 0.31]
+    --------------------------------------------------
+    Feature 9 - Statistics per tree level:
+    🌳 Tree Summary:
+    ─────────────────
+    Level 0🔹heter: 0.17
+        Level 1🔹heter: 0.16 | 🔻0.01 (7.69%)
+            Level 2🔹heter: 0.15 | 🔻0.01 (5.23%)
+    
+    
+
+
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
 
 
 ### PDP - regional
@@ -544,13 +510,13 @@ for r in part_pdp:
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_30_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_28_0.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_30_1.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_28_1.png)
     
 
 
@@ -563,7 +529,7 @@ pdp_reg.plot("hr", rule=part_pdp[1].rule, centering=True, scale_x=scale_x, scale
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_32_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_30_0.png)
     
 
 
@@ -577,25 +543,25 @@ for r in part_pdp:
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_33_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_31_0.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_33_1.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_31_1.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_33_2.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_31_2.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_33_3.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_31_3.png)
     
 
 
@@ -610,7 +576,7 @@ effector.plot_triage(pdp_reg, features=[2, 3, 8, 9, 10], partitions={"hr": part_
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_35_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_33_0.png)
     
 
 
@@ -624,7 +590,7 @@ rhale.plot(feature="hr", heterogeneity="std", centering=True, scale_x=scale_x, s
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_37_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_35_0.png)
     
 
 
@@ -639,7 +605,7 @@ effector.compare(pdp, rhale, feature="hr", scale_x=scale_x_list[3], scale_y=scal
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_39_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_37_0.png)
     
 
 
@@ -685,13 +651,13 @@ for r in part_rhale:
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_42_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_40_0.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_42_1.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_40_1.png)
     
 
 
@@ -704,25 +670,25 @@ for r in part_rhale:
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_43_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_41_0.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_43_1.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_41_1.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_43_2.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_41_2.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_43_3.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_41_3.png)
     
 
 
@@ -736,7 +702,7 @@ shap_dp.plot(feature="hr", centering=True, scale_x=scale_x, scale_y=scale_y, sho
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_45_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_43_0.png)
     
 
 
@@ -782,13 +748,13 @@ for r in part_shap:
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_48_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_46_0.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_48_1.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_46_1.png)
     
 
 
@@ -801,25 +767,25 @@ for r in part_shap:
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_49_0.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_47_0.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_49_1.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_47_1.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_49_2.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_47_2.png)
     
 
 
 
     
-![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_49_3.png)
+![png](01_bike_sharing_dataset_files/01_bike_sharing_dataset_47_3.png)
     
 
 
@@ -867,7 +833,8 @@ for _m in ["pdp", "derpdp", "ale", "rhale", "shapdp"]:
         X_train.to_numpy(), model_forward, model_jac,
         y=Y_train.to_numpy().squeeze(), method=_m, schema=schema, **_kw
     )
-    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+    if _m != "pdp":  # the published report is the narrated one above
+        sweep_reports[_m].to_html(_out / f"report_{_m}.html")
 
 print()
 print(f"{'method':<8} {'ranking (plotted)':<44} {'GAM R2':>8} {'final R2':>9}  splits")
@@ -889,17 +856,26 @@ print(f"\nreports stored in {_out}/")
 
     [effector] global effects   (GAM)  -> 71.3% of the model's variance
                regional effects (CALM) -> 88.7%
-
-
-    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-      fig.tight_layout()
-
-
     --- derpdp --------------------------------------------------
 
 
-    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
+
+
+    W0000 00:00:1784068630.950851   24871 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
+
+
+    W0000 00:00:1784068631.815626   24871 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
+
+
+    W0000 00:00:1784068632.990134   24871 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
+
+
+    W0000 00:00:1784068641.638159   24871 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
+
+
+    W0000 00:00:1784068648.413415   24871 cpu_allocator_impl.cc:82] Allocation of 4014080000 exceeds 10% of free system memory.
 
 
     --- ale --------------------------------------------------
@@ -909,7 +885,7 @@ print(f"\nreports stored in {_out}/")
                regional effects (CALM) -> 88.8%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
@@ -920,7 +896,7 @@ print(f"\nreports stored in {_out}/")
                regional effects (CALM) -> 88.4%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
@@ -931,7 +907,7 @@ print(f"\nreports stored in {_out}/")
                regional effects (CALM) -> 88.4%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:596: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 

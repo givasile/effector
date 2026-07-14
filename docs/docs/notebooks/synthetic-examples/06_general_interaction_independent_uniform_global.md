@@ -5,6 +5,7 @@
 - Description: Global effects and heterogeneity (PDP, ALE, RHALE) on a model
   with a general-form interaction $x_1 x_2^2$; all estimates are derived
   analytically and tested against `effector.benchmarks`.
+- 📄 The whole notebook in one page: [PDP report](https://xai-effector.github.io/static/reports/06_general_interaction_independent_uniform_global_pdp.html)
 
 In this example, we show global effects of a model with general form interactions using PDP, ALE, and RHALE.
 In particular, we:
@@ -599,28 +600,57 @@ print("importances:", np.round(pdp.importances(), 3))
 # one-click auto-explanation -> Report (serializable; self-contained HTML)
 report = effector.explain(x, model.predict, method="pdp", nof_instances="all")
 report.show()
+
+# the whole notebook, in one page: the report published with this example
+from pathlib import Path
+_out = Path("reports") / "06_general_interaction_independent_uniform_global"
+_out.mkdir(parents=True, exist_ok=True)
+report.to_html(_out / "report_pdp.html")
+
 ```
 
     importances: [0.19  0.009 0.668]
-
-
-    [effector] global effects reproduce 94.0% of the model's variance; with subregions, 99.6%
+    [effector] global effects   (GAM)  -> 94.0% of the model's variance
+               regional effects (CALM) -> 99.6%
     
-    PDP report — target: y
-    ============================================================
-    data: 1,000 instances × 3 features (3 continuous) — target y
-    model output: mean 1.17, std 0.7, range [-0.432, 3.1]
-    explained variance: global effects (GAM) 94.0%
-      + split x_1 (on x_0) → 99.6% (+5.6 pts, heter 0.172→0.044)
-      rejected: x_0 (on x_1) — -4.0 pts, redundant (variance already explained)
-    ------------------------------------------------------------
-    feature                   importance     heter  #regions
-    ------------------------------------------------------------
-    x_2                           0.6679    0.0000         1
-    x_0                           0.1897    0.1713         1
-    x_1                           0.1481    0.0440         7
-    ============================================================
-    the plotted features carry 100% of the total importance mass
+      ════════════════════════════════════════════════════════════════════════
+      PDP report  ·  target: y
+      ════════════════════════════════════════════════════════════════════════
+    
+      DATA & MODEL
+      ────────────────────────────────────────────────────────────────────────
+        instances     1,000
+        features      3  ·  3 continuous
+        model output  mean 1.17 · std 0.7 · range [-0.432, 3.1]
+    
+      EXPLAINED VARIANCE
+      ────────────────────────────────────────────────────────────────────────
+        step         split on                 solo     ΔR²      R²       heter
+        ──────────────────────────────────────────────────────────────────────
+        GAM          (all features global)       —       —   94.0%           —
+      + x_1          x_0                     +5.6%   +5.6%   99.6% 0.17 → 0.04
+        ──────────────────────────────────────────────────────────────────────
+        FINAL                                                99.6%
+    
+      REJECTED SPLITS                                            min gain 1.0%
+      ────────────────────────────────────────────────────────────────────────
+        feature      split on                 solo     ΔR²    reason
+        ──────────────────────────────────────────────────────────────────────
+      ✗ x_0          x_1                     +4.8%   -4.0%    redundant
+    
+        ✗ redundant: it would explain variance on its own (see solo),
+          but the accepted splits already account for it.
+    
+      FEATURES                                ranked, in the selected snapshot
+      ────────────────────────────────────────────────────────────────────────
+        feature        importance                          heter      #regions
+        ──────────────────────────────────────────────────────────────────────
+        x_2                0.6679  ██████████████████     0.0000             1
+        x_0                0.1897  █████                  0.1713             1
+        x_1                0.1481  ████                   0.0440             4
+        ──────────────────────────────────────────────────────────────────────
+        the features above carry 100% of the total importance mass
+    
     
     
     Feature 1 - Full partition tree:
@@ -642,6 +672,10 @@ report.show()
             Level 2🔹heter: 0.04 | 🔻0.04 (48.85%)
     
     
+
+
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+      fig.tight_layout()
 
 
 ## Cross-method sanity check
@@ -666,7 +700,8 @@ for _m in ["pdp", "derpdp", "ale", "rhale", "shapdp"]:
     sweep_reports[_m] = effector.explain(
         x, model.predict, model.jacobian, method=_m, **_kw
     )
-    sweep_reports[_m].to_html(_out / f"report_{_m}.html")
+    if _m != "pdp":  # the published report is the narrated one above
+        sweep_reports[_m].to_html(_out / f"report_{_m}.html")
 
 print()
 print(f"{'method':<8} {'ranking (plotted)':<44} {'GAM R2':>8} {'final R2':>9}  splits")
@@ -684,49 +719,43 @@ print(f"\nreports stored in {_out}/")
 ```
 
     --- pdp --------------------------------------------------
-
-
-    [effector] global effects reproduce 94.0% of the model's variance; with subregions, 99.6%
-
-
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-      fig.tight_layout()
-
-
+    [effector] global effects   (GAM)  -> 94.0% of the model's variance
+               regional effects (CALM) -> 99.6%
     --- derpdp --------------------------------------------------
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
     --- ale --------------------------------------------------
+    [effector] global effects   (GAM)  -> 93.9% of the model's variance
+               regional effects (CALM) -> 99.6%
 
 
-    [effector] global effects reproduce 93.9% of the model's variance; with subregions, 99.6%
-
-
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
     --- rhale --------------------------------------------------
 
 
-    [effector] global effects reproduce 94.0% of the model's variance; with subregions, 99.6%
+    [effector] global effects   (GAM)  -> 94.0% of the model's variance
+               regional effects (CALM) -> 99.6%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 
     --- shapdp --------------------------------------------------
 
 
-    [effector] global effects reproduce 94.3% of the model's variance; with subregions, 99.6%
+    [effector] global effects   (GAM)  -> 94.3% of the model's variance
+               regional effects (CALM) -> 99.6%
 
 
-    /home/givasile/github/packages/effector/effector/report.py:422: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+    /home/givasile/github/packages/effector/effector/report.py:606: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
       fig.tight_layout()
 
 

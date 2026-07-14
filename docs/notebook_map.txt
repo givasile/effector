@@ -11,8 +11,6 @@
 # --- PAGES (bucket c): converted notebooks shown as documentation pages ---
 page  notebooks/guides/efficiency_global.ipynb                                   guides
 page  notebooks/guides/efficiency_regional.ipynb                                 guides
-page  notebooks/synthetic-examples/01_linear_model.ipynb                         synthetic-examples
-page  notebooks/synthetic-examples/02_global_effect_methods_comparison.ipynb     synthetic-examples
 page  notebooks/synthetic-examples/03_regional_effects_synthetic_f.ipynb         synthetic-examples
 page  notebooks/synthetic-examples/04_regional_effects_real_f.ipynb              synthetic-examples
 page  notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_global.ipynb  synthetic-examples
@@ -35,6 +33,23 @@ image notebooks/quickstart/simple_api.ipynb                                     
 image notebooks/quickstart/flexible_api.ipynb                                    quickstart
 image notebooks/real-examples/01_bike_sharing_dataset.ipynb                      real-examples
 
-# --- REPORTS (bucket d): to_html pages embedded in authored pages ---
-# 3rd column = method. Keep in sync with the .show() example in quickstart/report.md.
+# --- REPORTS (bucket d): to_html pages published next to their notebook ---
+# 3rd column = method: the one the notebook's own narrated explain() cell uses.
+# Every example page links its report from examples.md; the bike-sharing one is
+# also embedded in quickstart/report.md (keep it in sync with the .show() there).
+# 03_california_housing_tabpfn is absent on purpose: it needs TABPFN_TOKEN to run.
+report notebooks/synthetic-examples/03_regional_effects_synthetic_f.ipynb        pdp
+report notebooks/synthetic-examples/04_regional_effects_real_f.ipynb             pdp
+report notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_global.ipynb    pdp
+report notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_heter.ipynb     pdp
+report notebooks/synthetic-examples/05_conditional_interaction_independent_uniform_regional.ipynb  pdp
+report notebooks/synthetic-examples/06_general_interaction_independent_uniform_global.ipynb        pdp
+report notebooks/synthetic-examples/07_conditional_interaction_4_regions_independent_uniform_global.ipynb  pdp
+report notebooks/synthetic-examples/08_categorical_features.ipynb                pdp
+report notebooks/synthetic-examples/09_explain_importance_report.ipynb           pdp
 report notebooks/real-examples/01_bike_sharing_dataset.ipynb                     pdp
+report notebooks/real-examples/02_california_housing.ipynb                       rhale
+report notebooks/real-examples/04_no2.ipynb                                      pdp
+report notebooks/real-examples/05_medical_costs.ipynb                            pdp
+report notebooks/real-examples/06_airfoil_self_noise.ipynb                       pdp
+report notebooks/real-examples/07_adult_income.ipynb                             pdp
