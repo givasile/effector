@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Display units honor the schema's `scale_y`**: every surface labeled "(target units)" — `effector.plot_triage`, `CALM.plot_triage`, and the report's importance/heterogeneity bars, triage plane, ranked tables, ledger heter columns, and `heter_threshold` chip — now bridges the model-unit scalars by `scale_y["std"]`, so a model trained on a standardized target reads in the target's own scale (matching the curve plots, which already rescaled). Unbound reports render the same as bound ones: `Report` stamps `scale_y`/`scale_x_list`, and the unbound curve fallback applies them. The engine verbs (`importance`, `heter_score`) and all stamped/serialized payloads stay in model-output units, so `find_regions` thresholds and old dicts are unaffected.
+
 # [0.5.0] - 2026-07-14
 
 ### Breaking

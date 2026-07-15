@@ -131,3 +131,65 @@ def test_unsupported_features_skipped_with_warning(monkeypatch):
 def test_junk_features_string_raises(pdp):
     with pytest.raises(ValueError, match="'all'"):
         effector.plot_triage(pdp, features="heterogeneous", show_plot=False)
+
+
+# -- display units: the axes claim the target's units, so a schema `scale_y`
+# bridges the model-unit verbs by its std (spreads: no mean shift) -----------
+
+SCALED_SCHEMA = {
+    "feature_names": ["g", "gate", "flag"],
+    "scale_y": {"mean": 5.0, "std": 3.0},
+}
+
+
+@pytest.fixture(scope="module")
+def pdp_scaled():
+    data = make_regional_data(n=300)
+    fx = effector.PDP(data, gated_model, nof_instances="all", schema=SCALED_SCHEMA)
+    fx.fit("all", centering=False)
+    return fx
+
+
+def test_offsets_scale_by_the_schema_y_std(pdp_scaled):
+    fig, ax = effector.plot_triage(pdp_scaled, show_plot=False)
+    offsets = np.asarray(ax.collections[0].get_offsets())
+    expected = 3.0 * np.array(
+        [[pdp_scaled.importance(f), pdp_scaled.heter_score(f)] for f in range(3)]
+    )
+    np.testing.assert_allclose(offsets, expected, atol=1e-12)
+    plt.close(fig)
+
+
+def test_threshold_scales_with_the_points(pdp_scaled):
+    # the median default is the median of the scaled points
+    fig, ax = effector.plot_triage(pdp_scaled, show_plot=False)
+    hs = [pdp_scaled.heter_score(f) * 3.0 for f in range(3)]
+    line = [ln for ln in ax.get_lines() if "threshold" in str(ln.get_label())][0]
+    assert line.get_ydata()[0] == pytest.approx(float(np.median(hs)))
+    plt.close(fig)
+    # a float is given in heter_score units and rescaled alongside the points
+    fig, ax = effector.plot_triage(pdp_scaled, threshold=0.5, show_plot=False)
+    line = [ln for ln in ax.get_lines() if "threshold" in str(ln.get_label())][0]
+    assert line.get_ydata()[0] == pytest.approx(1.5)
+    plt.close(fig)
+
+
+def test_leaf_points_scale_by_the_schema_y_std(pdp_scaled):
+    part = pdp_scaled.find_regions("g")
+    fig, ax = effector.plot_triage(pdp_scaled, partitions={"g": part}, show_plot=False)
+    leaf_offsets = np.concatenate(
+        [np.asarray(c.get_offsets()) for c in ax.collections[1:]]
+    )
+    expected = 3.0 * np.array(
+        [
+            [
+                pdp_scaled.importance("g", rule=leaf.rule),
+                pdp_scaled.heter_score("g", rule=leaf.rule),
+            ]
+            for leaf in part.leaves
+        ]
+    )
+    np.testing.assert_allclose(
+        np.sort(leaf_offsets, axis=0), np.sort(expected, axis=0), atol=1e-12
+    )
+    plt.close(fig)
