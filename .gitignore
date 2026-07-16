@@ -143,6 +143,7 @@ dmypy.json
 paper.prv
 *~
 \#*\#
+.\#*
 
 out/
 
@@ -154,3 +155,19 @@ docs/docs/Tutorials/
 # are harvested into docs/docs/static/reports/ by `make docs-reports`
 notebooks/**/reports/
 scripts/reports/
+
+# working notes: roadmap, decision trail, vision. Kept locally, not published.
+# The published contract is docs/design.md; the published history is CHANGELOG.md.
+/PLAN.md
+/LOGBOOK.md
+/EFFECTOR_VISION.md
+/variance_ledger_plan.md
+/importance_heterogeneity_interpretation.*
+/plot_design_review/
+
+# scratch scripts and generated figures from the implementation phase
+/scripts/global_runtime_figures/
+/scripts/ledger_figures/
+/scripts/bike_sharing_one_liners.py
+/scripts/variance_ledger_case_studies.py
+/scripts/verify_variance_ledger.py
