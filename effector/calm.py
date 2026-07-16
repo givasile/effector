@@ -68,6 +68,7 @@ class CALM:
         importances,
         heter_scores,
         baseline,
+        scale_y=None,
     ):
         self.index = int(index)
         self.r2 = float(r2)
@@ -75,6 +76,9 @@ class CALM:
         self.stage = stage
         self.feature_names = list(feature_names)
         self.target_name = target_name
+        # the schema's y scaling ({"mean", "std"} or None): the stamped
+        # scalars speak model-output units; display surfaces bridge by its std
+        self.scale_y = scale_y
         self._importances = {int(k): float(v) for k, v in importances.items()}
         self._heter_scores = {int(k): float(v) for k, v in heter_scores.items()}
         # global (imp, het) start points of the split features' triage arrows
@@ -128,6 +132,8 @@ class CALM:
             else:
                 imps[f] = float(effect.importance(f))
                 hets[f] = float(effect.heter_score(f))
+        from effector.report import _scale_payload
+
         calm = cls(
             index=index,
             r2=r2,
@@ -138,6 +144,7 @@ class CALM:
             importances=imps,
             heter_scores=hets,
             baseline=base,
+            scale_y=_scale_payload(effect.scale_y),
         )
         calm._effect = effect
         return calm
@@ -240,26 +247,36 @@ class CALM:
         weighted-mean point — the movement the accepted split bought.
 
         Args:
-            threshold: heterogeneity line — a float draws it, `False`
-                (default) nothing.
+            threshold: heterogeneity line — a float draws it (given in
+                `heter_score` units; rescaled with the points when the schema
+                declared a `scale_y`), `False` (default) nothing.
             title: figure title.
             show_plot: if `True`, show and return `None`; else `(fig, ax)`.
         """
         from effector.visualization import triage_scatter
 
+        # stamped scalars speak model-output units; the axes claim the
+        # target's units, so bridge by the schema's y-std (spreads: std only)
+        sy = self.scale_y["std"] if self.scale_y else 1.0
         pts = [
-            (self.feature_names[f], self._importances[f], self._heter_scores[f])
+            (
+                self.feature_names[f],
+                self._importances[f] * sy,
+                self._heter_scores[f] * sy,
+            )
             for f in range(len(self.feature_names))
             if np.isfinite(self._importances[f])
         ]
         arrows = {
             self.feature_names[f]: (
-                self._baseline[f],
-                (self._importances[f], self._heter_scores[f]),
+                tuple(v * sy for v in self._baseline[f]),
+                (self._importances[f] * sy, self._heter_scores[f] * sy),
             )
             for f in self.features
             if f in self._baseline
         }
+        if threshold is not None and threshold is not False:
+            threshold = float(threshold) * sy
         default = (
             "Feature triage" if self.is_gam else f"Feature triage — CALM {self.index}"
         )
@@ -305,6 +322,7 @@ class CALM:
             "importances": {str(f): v for f, v in self._importances.items()},
             "heter_scores": {str(f): v for f, v in self._heter_scores.items()},
             "baseline": {str(f): list(v) for f, v in self._baseline.items()},
+            "scale_y": self.scale_y,
         }
 
     @classmethod
@@ -329,6 +347,7 @@ class CALM:
             importances=d["importances"],
             heter_scores=d["heter_scores"],
             baseline=d["baseline"],
+            scale_y=d.get("scale_y"),
         )
 
 
@@ -398,6 +417,7 @@ class CalmSequence:
         """
         from effector.report import _print_explained_variance
 
+        sy = self.final.scale_y["std"] if self.final.scale_y else 1.0
         _print_explained_variance(
             {
                 "gam_r2": self.gam_r2,
@@ -407,6 +427,7 @@ class CalmSequence:
                 "skipped": self.skipped,
             },
             ascii=ascii,
+            sy=sy,
         )
 
     def __repr__(self):

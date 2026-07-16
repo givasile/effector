@@ -387,3 +387,36 @@ def test_explain_across_methods(method):
     assert isinstance(rep, Report)
     assert len(rep.features) == 2
     assert rep.features[0].importance >= rep.features[1].importance
+
+
+def test_report_display_units_scale_by_the_schema_y_std():
+    import matplotlib.pyplot as plt
+
+    data = make_global_data(n=800)
+    sy = {"mean": 5.0, "std": 3.0}
+    rep = effector.explain(
+        data, linear_model, method="pdp", nof_instances="all", schema={"scale_y": sy}
+    )
+    # the schema scaling is stamped, round-trips, and old dicts default to 1:1
+    assert rep.scale_y == sy
+    d = rep.to_dict()
+    assert Report.from_dict(d).scale_y == sy
+    d.pop("scale_y")
+    d.pop("scale_x_list")
+    assert Report.from_dict(d).scale_y is None
+    # the stamped scalars stay in model units; the bars stretch by the std
+    fig, ax = rep.plot_importance(show_plot=False)
+    widths = sorted(float(p.get_width()) for p in ax.patches)
+    expected = sorted(
+        3.0 * float(o.get("calm_importance", o["importance"])) for o in rep.overview
+    )
+    np.testing.assert_allclose(widths, expected, rtol=1e-9)
+    plt.close(fig)
+    # the triage points scale the same way
+    fig, ax = rep._triage_fig()
+    offsets = np.asarray(ax.collections[0].get_offsets())
+    expected = 3.0 * np.array(
+        [[o["importance"], o["heter_score"]] for o in rep.overview]
+    )
+    np.testing.assert_allclose(offsets, expected, rtol=1e-9)
+    plt.close(fig)

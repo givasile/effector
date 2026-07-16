@@ -1203,8 +1203,9 @@ def plot_triage(
         threshold: the heterogeneity threshold line. `None` (default) draws
             the median heterogeneity of the plotted features — the same
             convention `effector.explain` and `find_regions
-            (features="heterogeneous")` use; a float draws that value;
-            `False` draws nothing.
+            (features="heterogeneous")` use; a float draws that value, given
+            in `heter_score` units (it is rescaled together with the points
+            when the schema declares a `scale_y`); `False` draws nothing.
         features: which features to plot — `"all"` or a list of
             indices/names. Feature types the method does not support are
             skipped with one `UserWarning`.
@@ -1239,14 +1240,20 @@ def plot_triage(
     if not plotted:
         raise ValueError("plot_triage: no supported features to plot")
 
-    imp = {f: effect.importance(f) for f in plotted}
-    het = {f: effect.heter_score(f) for f in plotted}
+    # the verbs speak model-output units; the axes claim the target's units,
+    # so both scalars (spread-type quantities: std only, no mean shift) are
+    # bridged by the schema's y-std — the same convention the curve plots use
+    sy = effect.scale_y["std"] if effect.scale_y is not None else 1.0
+    imp = {f: effect.importance(f) * sy for f in plotted}
+    het = {f: effect.heter_score(f) * sy for f in plotted}
 
     if threshold is None:
         threshold = float(np.median([het[f] for f in plotted]))
         thr_label = "heterogeneity threshold (median)"
     else:
         thr_label = "heterogeneity threshold"
+        if threshold is not False:
+            threshold = float(threshold) * sy
 
     arrows = []
     if partitions:
@@ -1260,15 +1267,14 @@ def plot_triage(
                     (
                         start,
                         (
-                            effect.importance(f, rule=leaf.rule),
-                            effect.heter_score(f, rule=leaf.rule),
+                            effect.importance(f, rule=leaf.rule) * sy,
+                            effect.heter_score(f, rule=leaf.rule) * sy,
                         ),
                     )
                 )
 
     fig, ax = plt.subplots()
     points = [(effect.feature_names[f], imp[f], het[f]) for f in plotted]
-    # both axes are std-type quantities in the target's units (units contract)
     unit = f" ({effect.target_name} units)"
     _draw_triage(fig, ax, points, arrows, threshold, thr_label, unit, title)
     return _finalize(fig, ax, show_plot)

@@ -185,3 +185,39 @@ def test_select_regions_costs_one_prediction_pass_after_fit():
     with budget(counting, expected=0):
         m.select_regions()
     assert counting.n_calls == fit_calls + 1
+
+
+# ---------------------------------------------------------------------------
+# display units
+# ---------------------------------------------------------------------------
+
+
+def test_calm_triage_scales_by_the_schema_y_std():
+    import matplotlib.pyplot as plt
+
+    data = make_uniform()
+    m = effector.PDP(
+        data,
+        switch_model,
+        nof_instances="all",
+        schema={"scale_y": {"mean": 1.0, "std": 4.0}},
+    )
+    m.fit(features="all")
+    chain = m.select_regions()
+    # the stamped scalars stay in model units (agree with the live verbs) ...
+    assert chain.final.scale_y == {"mean": 1.0, "std": 4.0}
+    d = chain.to_dict()
+    rebuilt = effector.CalmSequence.from_dict(d)
+    assert rebuilt.final.scale_y == {"mean": 1.0, "std": 4.0}
+    # ... old dicts (no scale_y key) default to 1:1
+    for c in d["calms"]:
+        c.pop("scale_y")
+    assert effector.CalmSequence.from_dict(d).final.scale_y is None
+    # ... and the triage plane bridges them by the schema's y-std, unbound too
+    fig, ax = rebuilt.final.plot_triage(show_plot=False)
+    offsets = np.asarray(ax.collections[0].get_offsets())
+    imp, het = chain.final.importances(), chain.final.heter_scores()
+    keep = np.isfinite(imp)
+    expected = 4.0 * np.stack([imp[keep], het[keep]], axis=1)
+    np.testing.assert_allclose(offsets, expected, atol=1e-12)
+    plt.close(fig)

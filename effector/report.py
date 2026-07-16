@@ -70,7 +70,7 @@ def _clip(text, width, ell="…"):
     return text if len(text) <= width else text[: width - len(ell)] + ell
 
 
-def _print_explained_variance(ev, *, ascii=False):
+def _print_explained_variance(ev, *, ascii=False, sy=1.0):
     """Print the EXPLAINED VARIANCE and REJECTED SPLITS tables from an
     explained-variance payload (`Report.explained_variance`, or a
     `CalmSequence`'s decision-sequence keys). Shared by `Report.show` and
@@ -79,6 +79,9 @@ def _print_explained_variance(ev, *, ascii=False):
     Args:
         ev: dict with `gam_r2`, `regional_r2`, `min_gain`, `stages`, `skipped`.
         ascii: draw with plain ASCII instead of box-drawing characters.
+        sy: display scale for the heter columns (the schema's y-std) — the
+            stamped values speak model-output units; R² columns are ratios
+            and never scale.
     """
     g = _ASCII_GLYPHS if ascii else _UNICODE_GLYPHS
     dash, arrow, cross, em = g["dash"], g["arrow"], g["cross"], g["em"]
@@ -123,7 +126,7 @@ def _print_explained_variance(ev, *, ascii=False):
     def heter_cell(st):
         if st.get("heter_before") is None:
             return em
-        return f"{hnum(st['heter_before'])} {arrow} {hnum(st['heter_after'])}"
+        return f"{hnum(st['heter_before'] * sy)} {arrow} {hnum(st['heter_after'] * sy)}"
 
     # 13 + on + 8 + 8 + 8 + het = 70. `solo`/`dR2` are 8 wide because a
     # signed percent runs to 7 glyphs ("+100.0%") and needs a space.
@@ -289,6 +292,12 @@ class Report:
     overview: List[dict] = field(default_factory=list)
     explained_variance: Optional[dict] = None
     summary: Optional[dict] = None
+    # the schema's y scaling ({"mean", "std"} or None), stamped so unbound
+    # reports render in the same display units as bound ones
+    scale_y: Optional[dict] = None
+    # per-feature x scaling (list of {"mean", "std"}/None, or None), for the
+    # unbound curve fallback
+    scale_x_list: Optional[list] = None
 
     def __post_init__(self):
         self._effect = None
@@ -308,6 +317,15 @@ class Report:
     def _bind(self, effect):
         self._effect = effect
         return self
+
+    @property
+    def _sy(self):
+        """Display scale for the spread-type scalars (importance/heter_score):
+        the stamped scalars speak model-output units, every labeled surface
+        speaks the target's units, and the schema's y-std is the bridge (std
+        only, no mean shift — they are spreads). 1.0 when no scaling is
+        declared: model units already are display units."""
+        return float(self.scale_y["std"]) if self.scale_y else 1.0
 
     def _require_effect(self):
         if self._effect is None:
@@ -422,7 +440,7 @@ class Report:
         ev = self.explained_variance
         accepted = {st["feature"] for st in ev["stages"]} if ev else None
         if ev and self._ev_headline():
-            _print_explained_variance(ev, ascii=ascii)
+            _print_explained_variance(ev, ascii=ascii, sy=self._sy)
 
         # -- the ranked features -----------------------------------------------
         # 14 + 11 + 2 + 18 + 11 + 14 = 70
@@ -433,11 +451,12 @@ class Report:
         )
         rule()
         imax = max((fr.importance for fr in self.features), default=0.0)
+        sy = self._sy
         for fr in self.features:
             n = int(round(18 * fr.importance / imax)) if imax > 0 else 0
             p(
-                f"{' ' * INDENT}{fr.name:<14.14}{fr.importance:>11.4f}  "
-                f"{bar * n:<18}{fr.heter_score:>11.4f}"
+                f"{' ' * INDENT}{fr.name:<14.14}{fr.importance * sy:>11.4g}  "
+                f"{bar * n:<18}{fr.heter_score * sy:>11.4g}"
                 f"{self._regions_of(fr, accepted):>14d}"
             )
         cov = self.config.get("coverage_achieved")
@@ -508,7 +527,7 @@ class Report:
         rows = self._sorted_overview()
         split = self._split_features()
         fig, ax = plt.subplots(figsize=(7, 0.35 * len(rows) + 1.2))
-        vals = [o["_imp"] for o in rows]
+        vals = [o["_imp"] * self._sy for o in rows]
         ax.barh(range(len(rows)), vals, height=0.55, color=t.BAR_FACE)
         ax.set_yticks(range(len(rows)))
         ax.set_yticklabels([o["name"] for o in rows])
@@ -517,7 +536,7 @@ class Report:
             ax,
             vals,
             [
-                f"{v:.3f}" + ("  · split" if o["feature"] in split else "")
+                f"{v:.4g}" + ("  · split" if o["feature"] in split else "")
                 for v, o in zip(vals, rows)
             ],
             muted=theme.MUTED,
@@ -557,8 +576,9 @@ class Report:
             gridspec_kw={"wspace": 0.06},
         )
         y = range(len(rows))
-        imp = [o["_imp"] for o in rows]
-        het = [float(o["heter_score"]) for o in rows]
+        sy = self._sy
+        imp = [o["_imp"] * sy for o in rows]
+        het = [float(o["heter_score"]) * sy for o in rows]
         ax1.barh(y, imp, height=0.55, color=t.BAR_FACE)
         ax2.barh(y, het, height=0.55, color=t.BAND, alpha=0.75)
         ax1.set_yticks(list(y))
@@ -568,7 +588,7 @@ class Report:
             ax1,
             imp,
             [
-                f"{v:.3f}" + ("  · split" if o["feature"] in split else "")
+                f"{v:.4g}" + ("  · split" if o["feature"] in split else "")
                 for v, o in zip(imp, rows)
             ],
             muted=theme.MUTED,
@@ -578,13 +598,14 @@ class Report:
         self._value_labels(
             ax2,
             het,
-            [f"{v:.3f}" for v in het],
+            [f"{v:.4g}" for v in het],
             muted=theme.MUTED,
             emphasized=theme.INK2,
             emphasis=[False] * len(rows),
         )
         thr = self.config.get("heter_threshold")
         if thr is not None:
+            thr = thr * sy
             ax2.axvline(thr, color=t.REF, linewidth=1.0)
             ax2.text(
                 thr,
@@ -614,8 +635,12 @@ class Report:
         `effector.plot_triage`)."""
         from effector.visualization import triage_scatter
 
+        sy = self._sy
         thr = self.config.get("heter_threshold")
-        pts = [(o["name"], o["importance"], o["heter_score"]) for o in self.overview]
+        pts = [
+            (o["name"], o["importance"] * sy, o["heter_score"] * sy)
+            for o in self.overview
+        ]
         by_feature = {o["feature"]: o for o in self.overview}
         arrows = {}
         ev = self.explained_variance
@@ -626,16 +651,16 @@ class Report:
                 if o is None:
                     continue
                 arrows[o["name"]] = (
-                    (o["importance"], o["heter_score"]),
+                    (o["importance"] * sy, o["heter_score"] * sy),
                     (
-                        float(final["importances"][str(st["feature"])]),
-                        float(final["heter_scores"][str(st["feature"])]),
+                        float(final["importances"][str(st["feature"])]) * sy,
+                        float(final["heter_scores"][str(st["feature"])]) * sy,
                     ),
                 )
         return triage_scatter(
             pts,
             arrows=arrows,
-            threshold=thr if thr is not None else False,
+            threshold=thr * sy if thr is not None else False,
             unit=f" ({self.target_name} units)",
             title="Feature triage" if title is None else title,
             show_plot=False,
@@ -908,6 +933,10 @@ class Report:
         ):
             if key in self.config:
                 val = self.config[key]
+                if key == "heter_threshold" and val is not None:
+                    # display units, so the chip agrees with the threshold
+                    # line the overview figures draw
+                    val = val * self._sy
                 val = f"{val:.4f}" if isinstance(val, float) else str(val)
                 chips.append(f"<span class='chip'>{esc(key)} <b>{esc(val)}</b></span>")
         if chips:
@@ -952,13 +981,14 @@ class Report:
             "<th>heterogeneity</th><th>#regions</th><th>regional analysis</th></tr>"
         )
         reported = {fr.feature: fr for fr in self.features}
+        sy = self._sy
         for rank, o in enumerate(self.overview, 1):
             fr = reported.get(o["feature"])
             if fr is None:
                 imp_v = o.get("calm_importance", o["importance"])
                 out.append(
                     f"<tr class='dim'><td>{rank}</td><td>{esc(o['name'])}</td>"
-                    f"<td>{imp_v:.4f}</td><td>{o['heter_score']:.4f}</td>"
+                    f"<td>{imp_v * sy:.4g}</td><td>{o['heter_score'] * sy:.4g}</td>"
                     f"<td>·</td><td>not plotted (below the coverage cut)</td></tr>"
                 )
                 continue
@@ -974,8 +1004,8 @@ class Report:
                 note = "split found — rejected by the decision sequence"
             out.append(
                 f"<tr data-href='feat-{fr.feature}'><td>{rank}</td>"
-                f"<td>{esc(fr.name)}</td><td>{fr.importance:.4f}</td>"
-                f"<td>{fr.heter_score:.4f}</td><td>{nregions}</td>"
+                f"<td>{esc(fr.name)}</td><td>{fr.importance * sy:.4g}</td>"
+                f"<td>{fr.heter_score * sy:.4g}</td><td>{nregions}</td>"
                 f"<td>{note} →</td></tr>"
             )
         out.append("</table>")
@@ -1300,12 +1330,27 @@ class Report:
 
         t = theme.active()
         fig, ax = plt.subplots(figsize=(7, 4))
+        # stamped curves speak model units; rescale exactly like the live
+        # `effect.plot` (mean effect affine, band by std only, derivative
+        # curves by std only), so bound and unbound pages agree
+        xs, y = np.asarray(fr.xs, dtype=float), np.asarray(fr.y, dtype=float)
         band = np.sqrt(np.clip(fr.h, 0, None))
-        ax.plot(fr.xs, fr.y, color=t.MEAN, label="mean effect")
+        sx = (self.scale_x_list or [None] * len(self.feature_names))[fr.feature]
+        if sx is not None:
+            xs = xs * sx["std"] + sx["mean"]
+        if self.scale_y is not None:
+            is_der = getattr(
+                method_registry.resolve(self.method_name).cls, "IS_DERIVATIVE", False
+            )
+            band = band * self.scale_y["std"]
+            y = y * self.scale_y["std"]
+            if not is_der:
+                y = y + self.scale_y["mean"]
+        ax.plot(xs, y, color=t.MEAN, label="mean effect")
         ax.fill_between(
-            fr.xs,
-            fr.y - band,
-            fr.y + band,
+            xs,
+            y - band,
+            y + band,
             alpha=t.BAND_ALPHA,
             color=t.BAND,
             label="± std",
@@ -1360,6 +1405,8 @@ class Report:
             "features": [fr.to_dict() for fr in self.features],
             "explained_variance": self.explained_variance,
             "summary": self.summary,
+            "scale_y": self.scale_y,
+            "scale_x_list": self.scale_x_list,
         }
 
     @classmethod
@@ -1385,6 +1432,8 @@ class Report:
             overview=[dict(o) for o in d.get("overview", [])],
             explained_variance=d.get("explained_variance"),
             summary=d.get("summary"),
+            scale_y=d.get("scale_y"),
+            scale_x_list=d.get("scale_x_list"),
         )
 
 
@@ -1556,6 +1605,12 @@ def explain(
         finder=finder,
         candidate_conditioning_features=candidate_conditioning_features,
     )
+
+
+def _scale_payload(s):
+    """JSON-safe copy of a `{"mean", "std"}` scaling dict — plain floats, so
+    stamped reports/CALMs serialize even when the schema held numpy scalars."""
+    return None if s is None else {"mean": float(s["mean"]), "std": float(s["std"])}
 
 
 def _model_summary(effect, y=None):
@@ -1752,6 +1807,12 @@ def _explain_effect(
         ],
         explained_variance=ev,
         summary=summary,
+        scale_y=_scale_payload(effect.scale_y),
+        scale_x_list=(
+            [_scale_payload(s) for s in effect.scale_x_list]
+            if effect.scale_x_list
+            else None
+        ),
     )
     report._bind(effect)
     headline = report._ev_headline()
