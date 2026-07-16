@@ -5,6 +5,7 @@
 ### Fixed
 
 - **Display units honor the schema's `scale_y`**: every surface labeled "(target units)" — `effector.plot_triage`, `CALM.plot_triage`, and the report's importance/heterogeneity bars, triage plane, ranked tables, ledger heter columns, and `heter_threshold` chip — now bridges the model-unit scalars by `scale_y["std"]`, so a model trained on a standardized target reads in the target's own scale (matching the curve plots, which already rescaled). Unbound reports render the same as bound ones: `Report` stamps `scale_y`/`scale_x_list`, and the unbound curve fallback applies them. The engine verbs (`importance`, `heter_score`) and all stamped/serialized payloads stay in model-output units, so `find_regions` thresholds and old dicts are unaffected.
+- **HTML report surfaces missed by the `scale_y` bridge**: the decision-sequence table's heterogeneity column, the per-feature and global-baseline chips, the rejected-split note, and the per-leaf statistics (figure captions and the unbound leaf table) still rendered raw model-unit scalars while the rest of the page was bridged. They now use the same `scale_y["std"]` bridge and the ranked table's `.4g` format, so one page reads in one unit. The partition-tree `<pre>` dump keeps model units by design (it is the verbatim `Partition.show()` payload).
 
 # [0.5.0] - 2026-07-14
 

@@ -420,3 +420,8 @@ def test_report_display_units_scale_by_the_schema_y_std():
     )
     np.testing.assert_allclose(offsets, expected, rtol=1e-9)
     plt.close(fig)
+    # the html chips bridge the same way as the ranked table
+    html = rep.to_html()
+    fr = rep.features[0]
+    assert f"importance <b>{fr.importance * 3.0:.4g}</b>" in html
+    assert f"heterogeneity <b>{fr.heter_score * 3.0:.4g}</b>" in html

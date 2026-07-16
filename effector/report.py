@@ -1040,7 +1040,10 @@ class Report:
             def _heter_cell(entry):
                 if entry.get("heter_before") is None:
                     return "·"
-                return f"{entry['heter_before']:.3f} → {entry['heter_after']:.3f}"
+                return (
+                    f"{entry['heter_before'] * sy:.4g} → "
+                    f"{entry['heter_after'] * sy:.4g}"
+                )
 
             for st in ev["stages"]:
                 out.append(
@@ -1105,7 +1108,7 @@ class Report:
                     # carries only the stats
                     blk.append(
                         f"<figcaption>heterogeneity "
-                        f"{leaf.heterogeneity:.4f}{drop} · "
+                        f"{leaf.heterogeneity * sy:.4g}{drop} · "
                         f"n={leaf.nof_instances:,}</figcaption></figure>"
                     )
                 blk.append("</div>")
@@ -1127,7 +1130,7 @@ class Report:
                     )
                     blk.append(
                         f"<tr><td>{esc(part.label(leaf.idx))}</td>"
-                        f"<td>{leaf.heterogeneity:.4f}</td><td>{drop}</td>"
+                        f"<td>{leaf.heterogeneity * sy:.4g}</td><td>{drop}</td>"
                         f"<td>{leaf.nof_instances:,}</td></tr>"
                     )
                 blk.append("</table>")
@@ -1152,8 +1155,8 @@ class Report:
             nregions = len(part.leaves) if part and (in_calm or ev is None) else 1
             out.append(
                 "<div class='chips'>"
-                f"<span class='chip'>importance <b>{fr.importance:.4f}</b></span>"
-                f"<span class='chip'>heterogeneity <b>{fr.heter_score:.4f}</b></span>"
+                f"<span class='chip'>importance <b>{fr.importance * sy:.4g}</b></span>"
+                f"<span class='chip'>heterogeneity <b>{fr.heter_score * sy:.4g}</b></span>"
                 f"<span class='chip'>regions <b>{nregions}</b>"
                 "</span></div>"
             )
@@ -1196,8 +1199,8 @@ class Report:
             elif fr.feature in demoted:
                 sk = demoted[fr.feature]
                 drop = (
-                    f" (heterogeneity {sk['heter_before']:.3f} → "
-                    f"{sk['heter_after']:.3f})"
+                    f" (heterogeneity {sk['heter_before'] * sy:.4g} → "
+                    f"{sk['heter_after'] * sy:.4g})"
                     if sk.get("heter_before") is not None
                     else ""
                 )
@@ -1243,9 +1246,9 @@ class Report:
                     out.append(
                         "<div class='chips'>"
                         "<span class='chip'>global importance "
-                        f"<b>{o['importance']:.4f}</b></span>"
+                        f"<b>{o['importance'] * sy:.4g}</b></span>"
                         "<span class='chip'>global heterogeneity "
-                        f"<b>{o['heter_score']:.4f}</b></span></div>"
+                        f"<b>{o['heter_score'] * sy:.4g}</b></span></div>"
                     )
                 out.append(
                     _defer(
