@@ -360,12 +360,28 @@ class CalmSequence:
     `regional_r2 - gam_r2`.
     """
 
-    def __init__(self, calms, *, skipped=None, min_gain=0.01):
+    def __init__(
+        self,
+        calms,
+        *,
+        skipped=None,
+        min_gain=0.01,
+        relative_gain=None,
+        max_conditional_interactions=None,
+        max_partitions=None,
+    ):
         if not calms:
             raise ValueError("CalmSequence needs at least the GAM snapshot.")
         self.calms = list(calms)
         self.skipped = list(skipped) if skipped else []
         self.min_gain = float(min_gain)
+        self.relative_gain = None if relative_gain is None else float(relative_gain)
+        self.max_conditional_interactions = (
+            None
+            if max_conditional_interactions is None
+            else int(max_conditional_interactions)
+        )
+        self.max_partitions = None if max_partitions is None else int(max_partitions)
 
     # -- container protocol ----------------------------------------------------
     def __len__(self):
@@ -442,7 +458,7 @@ class CalmSequence:
         """Serialize the chain — a superset of the report's explained-variance
         payload: the flat decision-sequence keys (`gam_r2`, `regional_r2`,
         `min_gain`, `stages`, `skipped`) plus the full `calms` list."""
-        return {
+        d = {
             "schema_version": _SCHEMA_VERSION,
             "gam_r2": self.gam_r2,
             "regional_r2": self.regional_r2,
@@ -451,6 +467,15 @@ class CalmSequence:
             "skipped": self.skipped,
             "calms": [c.to_dict() for c in self.calms],
         }
+        # emitted only when set: default-path chains stay byte-identical to
+        # every chain written before the hybrid gate existed
+        if self.relative_gain is not None:
+            d["relative_gain"] = self.relative_gain
+        if self.max_conditional_interactions is not None:
+            d["max_conditional_interactions"] = self.max_conditional_interactions
+        if self.max_partitions is not None:
+            d["max_partitions"] = self.max_partitions
+        return d
 
     @classmethod
     def from_dict(cls, d):
@@ -464,4 +489,7 @@ class CalmSequence:
             [CALM.from_dict(c) for c in d["calms"]],
             skipped=d["skipped"],
             min_gain=d["min_gain"],
+            relative_gain=d.get("relative_gain"),
+            max_conditional_interactions=d.get("max_conditional_interactions"),
+            max_partitions=d.get("max_partitions"),
         )

@@ -44,12 +44,20 @@ def _check_finite_number(value, what: str) -> float:
     return value
 
 
-def _fmt_num(value: float, scale: Optional[dict]) -> str:
+def _display(value: float, scale: Optional[dict]) -> float:
+    """A stored value in display units: optional scale (``std * v + mean``)."""
+    return value if scale is None else scale["std"] * value + scale["mean"]
+
+
+def _fmt_num(value: float, scale: Optional[dict], integer: bool = False) -> str:
     """Render a numeric value at the format boundary: optional scale
-    (``std * v + mean``), then two decimals (parity with the tree labels)."""
-    if scale is not None:
-        value = scale["std"] * value + scale["mean"]
-    return f"{value:.2f}"
+    (``std * v + mean``), then two decimals (parity with the tree labels) —
+    or no decimals for an integer-valued feature. Never prints ``-0.00``."""
+    value = _display(value, scale)
+    if integer:
+        return f"{int(round(value))}"
+    text = f"{value:.2f}"
+    return "0.00" if text == "-0.00" else text
 
 
 @dataclass(frozen=True)
@@ -104,12 +112,31 @@ class Interval:
             hi, hi_closed = self.hi, self.hi_closed and other.hi_closed
         return Interval(lo, hi, lo_closed, hi_closed)
 
-    def format(self, name: str, scale=None, level_names=None) -> str:
+    def _format_integer(self, name: str, scale) -> str:
+        """The interval as it reads on an integer-valued feature: the bounds
+        become the integers they admit (``x < 6.9`` is ``x ≤ 6``)."""
+        eps = 1e-9
+        lo = hi = None
+        if np.isfinite(self.lo):
+            v = _display(self.lo, scale)
+            lo = math.ceil(v - eps) if self.lo_closed else math.floor(v + eps) + 1
+        if np.isfinite(self.hi):
+            v = _display(self.hi, scale)
+            hi = math.floor(v + eps) if self.hi_closed else math.ceil(v - eps) - 1
+        if lo is not None and hi is not None:
+            if lo > hi:
+                return f"{name} ∈ ∅"
+            return f"{name} = {lo}" if lo == hi else f"{lo} ≤ {name} ≤ {hi}"
+        return f"{name} ≥ {lo}" if hi is None else f"{name} ≤ {hi}"
+
+    def format(self, name: str, scale=None, level_names=None, integer=False) -> str:
         if self.is_empty:
             return f"{name} ∈ ∅"
         lo_fin, hi_fin = np.isfinite(self.lo), np.isfinite(self.hi)
         if not lo_fin and not hi_fin:
             return f"{name} ∈ (-∞, ∞)"
+        if integer:
+            return self._format_integer(name, scale)
         if self.lo == self.hi:  # both closed (else is_empty above)
             return f"{name} = {_fmt_num(self.lo, scale)}"
         if not lo_fin:
@@ -166,11 +193,11 @@ class LevelSet:
             return LevelSet(v for v in self.levels if other.contains(np.array([v]))[0])
         return LevelSet(self.levels & other.levels)
 
-    def format(self, name: str, scale=None, level_names=None) -> str:
+    def format(self, name: str, scale=None, level_names=None, integer=False) -> str:
         def label(v):
             if level_names is not None and v in level_names:
                 return level_names[v]
-            return _fmt_num(v, scale)
+            return _fmt_num(v, scale, integer)
 
         if self.is_empty:
             return f"{name} ∈ ∅"
@@ -220,11 +247,20 @@ class Condition:
     def contains(self, X: np.ndarray) -> np.ndarray:
         return self.subset.contains(np.asarray(X)[:, self.feature])
 
-    def format(self, feature_names=None, scale_x_list=None, category_names=None) -> str:
+    def format(
+        self,
+        feature_names=None,
+        scale_x_list=None,
+        category_names=None,
+        integer_features=None,
+    ) -> str:
         name = feature_names[self.feature] if feature_names else f"x_{self.feature}"
         scale = scale_x_list[self.feature] if scale_x_list else None
         level_names = category_names.get(self.feature) if category_names else None
-        return self.subset.format(name, scale=scale, level_names=level_names)
+        integer = bool(integer_features) and self.feature in integer_features
+        return self.subset.format(
+            name, scale=scale, level_names=level_names, integer=integer
+        )
 
 
 class Rule:
@@ -349,7 +385,13 @@ class Rule:
         return self.intersect(Rule([condition]))
 
     # -- format boundary ---------------------------------------------------------
-    def format(self, feature_names=None, scale_x_list=None, category_names=None) -> str:
+    def format(
+        self,
+        feature_names=None,
+        scale_x_list=None,
+        category_names=None,
+        integer_features=None,
+    ) -> str:
         """Human-readable conjunction. A single condition stays bare
         (``"temp < 3.00"``); two or more are parenthesized:
         ``"(temp < 3.00) and (season = winter)"``.
@@ -361,12 +403,17 @@ class Rule:
                 show numeric values in original units.
             category_names: ``{feature: {level: name}}`` map to show level
                 names instead of numbers.
+            integer_features: indices of the features whose values are all
+                integers; their conditions print without decimals, as the
+                integers they admit (``"hr ≤ 6"`` for ``hr < 6.9``).
 
         Returns:
             the formatted string; the root rule formats to ``""``.
         """
         parts = [
-            Condition(f, s).format(feature_names, scale_x_list, category_names)
+            Condition(f, s).format(
+                feature_names, scale_x_list, category_names, integer_features
+            )
             for f, s in self._conditions.items()
         ]
         if len(parts) <= 1:

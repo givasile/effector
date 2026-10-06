@@ -157,7 +157,7 @@ def test_from_dataframe_bool_is_ordinal():
     df = pd.DataFrame({"a": np.tile([True, False], 15)})
     _, schema = from_dataframe(df)
     assert schema.feature_types == [ORDINAL]
-    assert schema.category_names[0] == ["False", "True"]
+    assert schema.category_names[0] == {0.0: "False", 1.0: "True"}
 
 
 def test_from_dataframe_ordered_category_keeps_declared_order():
@@ -165,7 +165,7 @@ def test_from_dataframe_ordered_category_keeps_declared_order():
         _, schema = from_dataframe(_mixed_df())
     # ordered 'size' -> ordinal, labels in declared (not alphabetical) order
     assert schema.feature_types[3] == ORDINAL
-    assert schema.category_names[3] == ["S", "M", "L"]
+    assert schema.category_names[3] == {0.0: "S", 1.0: "M", 2.0: "L"}
     # unordered 'color' -> nominal
     assert schema.feature_types[2] == NOMINAL
 
@@ -208,8 +208,16 @@ def test_from_dataframe_roundtrip_numpy_and_schema():
     X, schema = from_dataframe(df)
     assert X.dtype == np.float64 and X.shape == (6, 3)
     assert schema.feature_types == [CONTINUOUS, ORDINAL, NOMINAL]
-    assert schema.category_names[1] == ["low", "mid", "high"]  # ordered kept
-    assert schema.category_names[2] == ["b", "g", "r"]  # unordered -> sorted
+    assert schema.category_names[1] == {
+        0.0: "low",
+        1.0: "mid",
+        2.0: "high",
+    }  # ordered kept
+    assert schema.category_names[2] == {
+        0.0: "b",
+        1.0: "g",
+        2.0: "r",
+    }  # unordered -> sorted
     np.testing.assert_array_equal(X[:, 1], df["grade"].cat.codes.to_numpy())
     # the (X, schema) pair drives a constructor; labels resolve by value
     res = ingest(X, _model, schema=schema)
@@ -424,3 +432,44 @@ def test_category_names_length_must_match_dim():
                 "category_names": [["a", "b", "c"]],
             },
         )
+
+
+def test_category_names_as_a_value_keyed_dict():
+    # a dict names levels by value: a level absent from the data is fine
+    X = np.column_stack([np.tile([0.0, 2.0], 15), np.linspace(0, 1, 30)])
+    res = ingest(
+        X,
+        _model,
+        schema={
+            "feature_types": ["nominal", "continuous"],
+            "category_names": [{0: "a", 1: "b", 2: "c"}, None],
+        },
+    )
+    assert res.meta.category_names == {0: {0.0: "a", 1.0: "b", 2.0: "c"}}
+    with pytest.raises(TypeError, match="keyed by the numeric level"):
+        ingest(
+            X,
+            _model,
+            schema={
+                "feature_types": ["nominal", "continuous"],
+                "category_names": [{"a": "x"}, None],
+            },
+        )
+
+
+def test_from_dataframe_names_survive_an_unobserved_level():
+    df = pd.DataFrame(
+        {"c": pd.Categorical(["x", "z"] * 15, categories=["x", "y", "z"])}
+    )
+    X, schema = from_dataframe(df)
+    assert schema.category_names[0] == {0.0: "x", 1.0: "y", 2.0: "z"}
+    res = ingest(X, _model, schema=schema)  # codes 0 and 2 only
+    assert res.meta.category_names[0][2.0] == "z"
+
+
+@pytest.mark.parametrize("bad", [np.nan, np.inf, -np.inf])
+def test_ingest_rejects_missing_and_infinite_values(bad):
+    X = np.random.default_rng(0).uniform(size=(30, 2))
+    X[3, 1] = bad
+    with pytest.raises(ValueError, match="'b' contains missing or infinite"):
+        ingest(X, _model, schema={"feature_names": ["a", "b"]})

@@ -311,7 +311,7 @@ df = pd.DataFrame({
 
 # effector is numpy-only: convert the DataFrame to (X, schema) at the door.
 X, schema_nominal = effector.from_dataframe(df)
-levels = schema_nominal.category_names[0]  # e.g. ['blue', 'green', 'red']
+levels = list(schema_nominal.category_names[0].values())  # the names by code: ['blue', 'green', 'red']
 
 # the model is numpy->numpy; it receives the encoded codes in column 0.
 color_effect = {"red": 2.0, "green": 1.5, "blue": -1.0}

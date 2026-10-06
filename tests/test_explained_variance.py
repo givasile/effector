@@ -316,3 +316,195 @@ def test_shapdp_importance_is_the_inherited_base_flavor():
     for f in range(3):
         expected = abs(COEF[f]) * np.std(data[:, f])
         np.testing.assert_allclose(m.importance(f), expected, rtol=5e-2)
+
+
+# ---------------------------------------------------------------------------
+# the hybrid relative gate (T9): min(min_gain, relative_gain * (1 - R²))
+# ---------------------------------------------------------------------------
+
+
+def test_effective_min_gain_edges():
+    # None -> the absolute rule, untouched
+    assert ev._effective_min_gain(0.01, None, 0.99) == 0.01
+    # near saturation the relative bar is the smaller one
+    np.testing.assert_allclose(ev._effective_min_gain(0.01, 0.1, 0.99), 0.001)
+    # low or negative R² (1 - r2 >= 1): the absolute rule wins — the hybrid
+    # gate is never stricter than min_gain alone
+    assert ev._effective_min_gain(0.01, 0.1, 0.5) == 0.01
+    assert ev._effective_min_gain(0.01, 0.1, -0.5) == 0.01
+
+
+def test_relative_gain_admits_a_split_the_absolute_gate_rejects():
+    # switch model: gam_r2 ~ 5/6, the x3-split's marginal ~ 1/6 of Var(f).
+    # min_gain=0.5 rejects it absolutely; with relative_gain=0.5 the bar
+    # becomes min(0.5, 0.5 * (1 - 5/6)) ~ 0.083 < 1/6 -> accepted.
+    data = make_uniform()
+    m = fitted_pdp(data, switch_model)
+    part = effector.Partition.from_rules(
+        [f"{m.feature_names[2]} > 0", f"{m.feature_names[2]} <= 0"],
+        effect=m,
+        feature=0,
+    )
+    absolute = ev.select(m, {0: part}, [0, 1, 2], min_gain=0.5)
+    assert not absolute.stages
+    assert absolute.skipped[0]["reason"] == "below_threshold"
+
+    hybrid = ev.select(m, {0: part}, [0, 1, 2], min_gain=0.5, relative_gain=0.5)
+    assert len(hybrid.stages) == 1 and not hybrid.skipped
+    assert hybrid.regional_r2 > absolute.regional_r2
+
+
+def test_relative_gain_none_is_byte_identical_to_the_absolute_path():
+    # the default path must serialize exactly as before the knob existed:
+    # no relative_gain key, identical payload
+    import json
+
+    data = make_uniform()
+    m = fitted_pdp(data, switch_model)
+    part = effector.Partition.from_rules(
+        [f"{m.feature_names[2]} > 0", f"{m.feature_names[2]} <= 0"],
+        effect=m,
+        feature=0,
+    )
+    d_default = ev.select(m, {0: part}, [0, 1, 2]).to_dict()
+    d_explicit = ev.select(m, {0: part}, [0, 1, 2], relative_gain=None).to_dict()
+    assert "relative_gain" not in d_default
+    assert json.dumps(d_default, sort_keys=True) == json.dumps(
+        d_explicit, sort_keys=True
+    )
+
+
+def test_calm_sequence_roundtrips_relative_gain():
+    from effector.calm import CalmSequence
+
+    data = make_uniform()
+    m = fitted_pdp(data, switch_model)
+    part = effector.Partition.from_rules(
+        [f"{m.feature_names[2]} > 0", f"{m.feature_names[2]} <= 0"],
+        effect=m,
+        feature=0,
+    )
+    chain = ev.select(m, {0: part}, [0, 1, 2], min_gain=0.5, relative_gain=0.5)
+    d = chain.to_dict()
+    assert d["relative_gain"] == 0.5
+    assert CalmSequence.from_dict(d).relative_gain == 0.5
+    # a pre-knob dict (no key) loads with relative_gain None
+    d.pop("relative_gain")
+    assert CalmSequence.from_dict(d).relative_gain is None
+
+
+# ---------------------------------------------------------------------------
+# the caps: max_conditional_interactions, max_partitions
+# ---------------------------------------------------------------------------
+
+
+def _two_claimants():
+    # f = x0*s + x1*s + 2s with s = sign(x2): two partitions, one conditional
+    # interaction each, both worth a stage when uncapped
+    def f(x):
+        s = np.sign(x[:, 2])
+        return x[:, 0] * s + x[:, 1] * s + 2 * s
+
+    data = make_uniform()
+    m = fitted_pdp(data, f)
+    rules = [f"{m.feature_names[2]} > 0", f"{m.feature_names[2]} <= 0"]
+    parts = {
+        0: effector.Partition.from_rules(rules, effect=m, feature=0),
+        1: effector.Partition.from_rules(rules, effect=m, feature=1),
+    }
+    return m, parts
+
+
+def test_caps_none_are_byte_identical_to_the_uncapped_path():
+    m, parts = _two_claimants()
+    plain = ev.select(m, parts, [0, 1, 2])
+    capped = ev.select(
+        m, parts, [0, 1, 2], max_conditional_interactions=None, max_partitions=None
+    )
+    assert plain.to_dict() == capped.to_dict()
+    assert "max_conditional_interactions" not in plain.to_dict()
+    assert "max_partitions" not in plain.to_dict()
+
+
+@pytest.mark.parametrize("cap", ["max_conditional_interactions", "max_partitions"])
+def test_a_cap_stops_the_sequence_at_a_prefix(cap):
+    m, parts = _two_claimants()
+    full = ev.select(m, parts, [0, 1, 2])
+    assert len(full.stages) == 2 and not full.skipped
+
+    chain = ev.select(m, parts, [0, 1, 2], **{cap: 1})
+    assert chain.stages == full.stages[:1]
+    assert [sk["reason"] for sk in chain.skipped] == [cap]
+    # the rejected split is reported with its real marginal
+    np.testing.assert_allclose(
+        chain.skipped[0]["delta_r2"], full.stages[1]["delta_r2"], atol=1e-12
+    )
+    assert getattr(chain, cap) == 1
+
+
+@pytest.mark.parametrize("cap", ["max_conditional_interactions", "max_partitions"])
+def test_a_zero_cap_keeps_the_gam(cap):
+    m, parts = _two_claimants()
+    chain = ev.select(m, parts, [0, 1, 2], **{cap: 0})
+    assert len(chain) == 1 and chain.regional_r2 == chain.gam_r2
+    assert [sk["reason"] for sk in chain.skipped] == [cap, cap]
+
+
+def test_a_partition_is_never_accepted_in_part():
+    # one partition conditioning on two features counts two: with a cap of
+    # one it is rejected whole, not cut down to a single interaction
+    data = make_uniform()
+
+    def f(x):
+        return x[:, 0] * np.sign(x[:, 1]) * np.where(x[:, 2] > 0, 2.0, 1.0)
+
+    m = fitted_pdp(data, f)
+    n1, n2 = m.feature_names[1], m.feature_names[2]
+    part = effector.Partition.from_rules(
+        [
+            f"{n1} > 0 and {n2} > 0",
+            f"{n1} > 0 and {n2} <= 0",
+            f"{n1} <= 0 and {n2} > 0",
+            f"{n1} <= 0 and {n2} <= 0",
+        ],
+        effect=m,
+        feature=0,
+    )
+    assert len(ev.select(m, {0: part}, [0, 1, 2]).stages) == 1
+    chain = ev.select(m, {0: part}, [0, 1, 2], max_conditional_interactions=1)
+    assert not chain.stages
+    assert chain.skipped[0]["reason"] == "max_conditional_interactions"
+    assert (
+        len(ev.select(m, {0: part}, [0, 1, 2], max_conditional_interactions=2).stages)
+        == 1
+    )
+
+
+def test_the_gain_gate_keeps_priority_over_a_cap():
+    # nothing clears the gate: the cap is never the reason
+    m, parts = _two_claimants()
+    chain = ev.select(m, parts, [0, 1, 2], min_gain=0.9, max_partitions=0)
+    assert {sk["reason"] for sk in chain.skipped} == {"below_threshold"}
+
+
+def test_caps_reach_select_regions_the_ledger_and_the_roundtrip(capsys):
+    m, parts = _two_claimants()
+    chain = m.select_regions(parts, max_conditional_interactions=1)
+    assert len(chain.stages) == 1
+    chain.show()
+    assert "interaction cap" in capsys.readouterr().out
+
+    d = chain.to_dict()
+    assert d["max_conditional_interactions"] == 1 and "max_partitions" not in d
+    back = effector.calm.CalmSequence.from_dict(d)
+    assert back.max_conditional_interactions == 1 and back.max_partitions is None
+    assert back.skipped == chain.skipped
+
+
+@pytest.mark.parametrize("bad", [-1, 1.5, "2", True])
+def test_a_cap_must_be_none_or_a_non_negative_integer(bad):
+    m, parts = _two_claimants()
+    with pytest.raises(ValueError, match="max_partitions"):
+        ev.select(m, parts, [0, 1, 2], max_partitions=bad)
+    with pytest.raises(ValueError, match="max_conditional_interactions"):
+        ev.select(m, parts, [0, 1, 2], max_conditional_interactions=bad)

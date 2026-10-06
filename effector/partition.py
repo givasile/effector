@@ -115,6 +115,9 @@ class Partition:
         self._effect = None
         self._default_scale_x_list = None
         self._category_names = None
+        # features whose values are all integers (in display units): their
+        # conditions print without decimals. Stamped by `bind`, serialized.
+        self._integer_features = None
         self._check_leaves_partition()
 
     def _check_leaves_partition(self):
@@ -188,10 +191,25 @@ class Partition:
         self._effect = effect
         self._default_scale_x_list = effect.scale_x_list
         self._category_names = effect.feature_metadata.category_names
+        self._integer_features = self._find_integer_features(effect.scale_x_list)
         if self.feature_names is None:
             self.feature_names = list(effect.feature_names)
         self._check_leaves_partition()
         return self
+
+    def _find_integer_features(self, scale_x_list):
+        """The rule features whose data are all integers once shown in
+        `scale_x_list`'s units — only those can print as ``hr ≤ 6``."""
+        data = self._effect.data
+        found = set()
+        for f in {f for r in self.regions for f in r.rule.features}:
+            col = data[:, f]
+            scale = scale_x_list[f] if scale_x_list else None
+            if scale is not None:
+                col = scale["std"] * col + scale["mean"]
+            if np.all(np.abs(col - np.round(col)) < 1e-6):
+                found.add(f)
+        return frozenset(found)
 
     def _require_effect(self):
         if self._effect is None:
@@ -333,7 +351,15 @@ class Partition:
         return region.mask.copy()
 
     def _format_rule(self, rule, scale_x_list):
-        return rule.format(self.feature_names, scale_x_list, self._category_names)
+        if scale_x_list is self._default_scale_x_list:
+            integer = self._integer_features
+        elif self._effect is not None:
+            integer = self._find_integer_features(scale_x_list)
+        else:
+            integer = None  # unbound, in units the stamp was not made for
+        return rule.format(
+            self.feature_names, scale_x_list, self._category_names, integer
+        )
 
     def label(self, idx, scale_x_list=None):
         """Human-readable label for region `idx`.
@@ -356,6 +382,31 @@ class Partition:
         return (
             f"{self.feature_name} where {self._format_rule(region.rule, scale_x_list)}"
         )
+
+    def conditions(self, idx, scale_x_list=None):
+        """Region `idx`'s rule as a list, one formatted condition per feature.
+
+        ```python
+        part.conditions(3)        # ['workingday = True', 'temp ≥ 18.90']
+        ```
+
+        The pieces `label` joins with ``and`` — for callers that lay the rule
+        out themselves (a legend, a table cell).
+
+        Args:
+            idx: region index (0 = root, whose list is empty).
+            scale_x_list: optional per-feature ``{"mean": ..., "std": ...}``
+                list to display values in original units; defaults to the
+                bound effect's.
+
+        Returns:
+            the formatted conditions, in the rule's display order.
+        """
+        scale_x_list = helpers.resolve_scale(scale_x_list, self._default_scale_x_list)
+        return [
+            self._format_rule(Rule({f: subset}), scale_x_list)
+            for f, subset in self[idx].rule.conditions.items()
+        ]
 
     def _own_condition(self, region, scale_x_list=None):
         """The condition(s) that carve this region out of its parent (root ->
@@ -450,6 +501,58 @@ class Partition:
             f"| inst: {region.nof_instances:d}"
         )
         return chip + (f" | w: {region.weight:.2f}]" if with_weight else "]")
+
+    def tree_lines(self, scale_x_list=None, counts=True):
+        """The partition as a plain tree, one line per region below the root.
+
+        ```python
+        print("\n".join(part.tree_lines()))
+        # hr
+        # ├─ workingday = False
+        # │  ├─ temp < 18.90      n = 2,104
+        # │  └─ temp ≥ 18.90      n = 2,251
+        # └─ workingday = True    n = 9,548
+        ```
+
+        The quiet sibling of `show`: each node is the condition that carves
+        it out of its parent, each leaf its number of instances — no
+        heterogeneity statistics. Works on unbound partitions too.
+
+        Args:
+            scale_x_list: optional per-feature ``{"mean": ..., "std": ...}``
+                list for display in original units; defaults to the bound
+                effect's.
+            counts: if `True`, leaves end with ``n = <instances>``, aligned.
+
+        Returns:
+            the lines, the first being the feature name.
+        """
+        scale_x_list = helpers.resolve_scale(scale_x_list, self._default_scale_x_list)
+        children = {}
+        for r in self.regions[1:]:
+            # a flat producer leaves parent_idx unset: hang those off the root
+            parent = 0 if r.parent_idx is None else r.parent_idx
+            children.setdefault(parent, []).append(r)
+
+        rows = []  # (text, region or None)
+
+        def walk(idx, prefix):
+            kids = children.get(idx, [])
+            for i, r in enumerate(kids):
+                last = i == len(kids) - 1
+                text = f"{prefix}{'└─ ' if last else '├─ '}"
+                text += self._own_condition(r, scale_x_list)
+                rows.append((text, None if r.idx in children else r))
+                walk(r.idx, prefix + ("   " if last else "│  "))
+
+        walk(0, "")
+        width = max((len(text) for text, _ in rows), default=0)
+        lines = [self.feature_name]
+        for text, leaf in rows:
+            if counts and leaf is not None:
+                text = f"{text:<{width}}   n = {leaf.nof_instances:,}"
+            lines.append(text)
+        return lines
 
     def show_axes(self, scale_x_list=None):
         """Print the leaves as a partition of the conditioning axes.
@@ -638,13 +741,16 @@ class Partition:
             )
             for r in d["regions"]
         ]
-        return cls(
+        part = cls(
             regions,
             feature=d["feature"],
             feature_name=d["feature_name"],
             finder_name=d["finder"],
             feature_names=d.get("feature_names"),
         )
+        if d.get("integer_features") is not None:
+            part._integer_features = frozenset(d["integer_features"])
+        return part
 
     def to_dict(self):
         """Serialize to a plain JSON-able dict.
@@ -658,7 +764,7 @@ class Partition:
             a dict with `schema_version` 2, feature metadata, and one entry
             per region (rule, heterogeneity, counts, weight, tree links).
         """
-        return {
+        d = {
             "schema_version": 2,
             "feature": self.feature,
             "feature_name": self.feature_name,
@@ -678,3 +784,7 @@ class Partition:
                 for r in self.regions
             ],
         }
+        if self._integer_features:
+            # emitted only when set, so dicts of older partitions still compare
+            d["integer_features"] = sorted(self._integer_features)
+        return d

@@ -55,7 +55,7 @@ class Schema:
     | `target_name` | name of the model output (default `"y"`) |
     | `scale_x_list` | per-feature `{"mean": .., "std": ..}` dicts (or `None` entries) to display plots in original units; plot-time `scale_x` overrides |
     | `scale_y` | `{"mean": .., "std": ..}` for the output axis; plot-time `scale_y` overrides |
-    | `category_names` | per categorical (ordinal/nominal) feature: one human-readable name per observed level in ascending order, shown on the plot axis instead of the numeric codes; `None` entries keep the codes |
+    | `category_names` | per categorical (ordinal/nominal) feature, the human-readable level names shown on the plot axis instead of the numeric codes: a `{level value: name}` dict (levels absent from the data are fine), or a list with one name per observed level in ascending order; `None` entries keep the codes |
 
     !!! tip "Coming from pandas"
         `effector.from_dataframe(df)` populates a `Schema` from a DataFrame's
@@ -78,6 +78,86 @@ class ColumnEncoding:
     levels: tuple  # code k -> levels[k]; ordered Categorical keeps its order
     kind: str  # "category" | "object" | "bool" (how to reconstruct)
     ordered: bool
+
+    def level_names(self) -> dict:
+        """`{code: name}` for every level — the `Schema.category_names` entry."""
+        return {float(k): str(level) for k, level in enumerate(self.levels)}
+
+
+@dataclass(frozen=True)
+class DataFrameEncoding:
+    """How a DataFrame was encoded by `from_dataframe` — replayable on new frames.
+
+    ```python
+    X, schema, encoding = effector.from_dataframe(df, return_encoding=True)
+    X_new = encoding.transform(df_new)   # same columns, same codes
+    ```
+
+    `from_dataframe` derives category codes from the frame it is given, so two
+    frames with different observed levels get different codes. `transform`
+    encodes a new frame with the levels recorded here instead: columns are
+    matched by name and every level keeps the code it had originally.
+    """
+
+    feature_names: tuple
+    columns: dict  # {column idx: ColumnEncoding} for the non-numeric columns
+
+    def transform(self, df) -> np.ndarray:
+        """Encode `df` exactly as the original frame was encoded.
+
+        Args:
+            df: a pandas DataFrame with the original columns (any order).
+
+        Returns:
+            `(N, D)` float64 numpy array, columns in the original order.
+
+        Raises:
+            TypeError: `df` is not a pandas DataFrame.
+            ValueError: columns are missing or unknown, a column contains
+                missing values or is not numeric, or a categorical column has
+                a level the original frame did not have.
+        """
+        if not is_dataframe(df):
+            raise TypeError(
+                f"transform expects a pandas DataFrame, got {type(df).__name__}"
+            )
+        import pandas as pd
+
+        names = [str(c) for c in df.columns]
+        missing = [n for n in self.feature_names if n not in names]
+        unknown = [n for n in names if n not in self.feature_names]
+        if missing or unknown:
+            raise ValueError(
+                f"columns do not match the original frame; "
+                f"missing: {missing}, unknown: {unknown}"
+            )
+        matrix = np.empty((len(df), len(self.feature_names)), dtype=np.float64)
+        for j, name in enumerate(self.feature_names):
+            col = df.iloc[:, names.index(name)]
+            if col.isna().any():
+                raise ValueError(
+                    f"column {name!r} contains missing values; "
+                    f"effector does not handle NaN — impute or drop first"
+                )
+            enc = self.columns.get(j)
+            if enc is None or enc.kind == "bool":
+                try:
+                    matrix[:, j] = col.to_numpy(dtype=np.float64)
+                except (TypeError, ValueError):
+                    raise ValueError(
+                        f"column {name!r} has dtype {col.dtype} but was numeric "
+                        f"in the original frame"
+                    ) from None
+                continue
+            codes = pd.Index(list(enc.levels)).get_indexer(pd.Index(col))
+            if (codes < 0).any():
+                unseen = sorted({str(v) for v in col[codes < 0]})
+                raise ValueError(
+                    f"column {name!r} has level(s) {unseen} that the original "
+                    f"frame did not have; known levels: {list(enc.levels)}"
+                )
+            matrix[:, j] = codes
+        return matrix
 
 
 @dataclass(frozen=True)
@@ -216,6 +296,14 @@ def _validate_scale(scale: dict, what: str):
         raise ValueError(f"{what}['std'] must be non-zero")
 
 
+def _check_level_key(level, feature_name: str):
+    if isinstance(level, bool) or not isinstance(level, (int, float, np.number)):
+        raise TypeError(
+            f"category_names of feature {feature_name!r} must be keyed by the "
+            f"numeric level values, got key {level!r}"
+        )
+
+
 def validate_metadata(
     dim: int,
     feature_names: list,
@@ -262,6 +350,10 @@ def validate_metadata(
                     f"category_names[{j}] is set but feature {feature_names[j]!r} "
                     f"is {feature_types[j]!r}, not categorical (ordinal/nominal)"
                 )
+            if isinstance(names, dict):
+                for level in names:
+                    _check_level_key(level, feature_names[j])
+                continue
             if level_counts is not None and len(names) != level_counts.get(j):
                 raise ValueError(
                     f"category_names[{j}] has {len(names)} names but feature "
@@ -336,6 +428,28 @@ def _encode_dataframe(df, cat_limit: int):
     return matrix, names, inferred_types, categories, column_dtypes, heuristic_idx
 
 
+def check_finite(data: np.ndarray, feature_names: typing.Optional[list] = None):
+    """Reject NaN / infinity in a numeric matrix — effector has no
+    missing-value semantics, on any input door.
+
+    Args:
+        data: a 2-D numeric numpy array.
+        feature_names: names used in the error message (default `x_0…`).
+
+    Raises:
+        ValueError: a column contains NaN or infinite values (the error
+            names the first such column — impute or drop first).
+    """
+    bad = ~np.isfinite(data).all(axis=0)
+    if bad.any():
+        j = int(np.flatnonzero(bad)[0])
+        name = str(feature_names[j]) if feature_names is not None else f"x_{j}"
+        raise ValueError(
+            f"feature {name!r} contains missing or infinite values; "
+            f"effector does not handle NaN — impute or drop first"
+        )
+
+
 def _heuristic_warning(heuristic_info: list):
     detail = ", ".join(f"{name!r} -> {t}" for name, t in heuristic_info)
     warnings.warn(
@@ -405,6 +519,8 @@ def ingest(
         feature_names = [str(name) for name in schema.feature_names]
     else:
         feature_names = ["x_" + str(i) for i in range(dim)]
+    if len(feature_names) == dim:  # a wrong length is reported below
+        check_finite(matrix, feature_names)
 
     if schema.feature_types is not None:
         feature_types = normalize_feature_types(schema.feature_types, dim)
@@ -437,14 +553,18 @@ def ingest(
         level_counts,
     )
 
-    # resolve category_names (per-feature name list, one per ascending observed
-    # level) to a {level_value: name} map, so it maps by value and survives to
-    # regional nodes, where a split feature may show only a subset of its levels
+    # resolve category_names to a {level_value: name} map per feature (a list
+    # pairs with the ascending observed levels), so it maps by value and
+    # survives to regional nodes, where a split feature may show only a subset
+    # of its levels
     category_names_map = None
     if schema.category_names is not None:
         category_names_map = {}
         for j, names in enumerate(schema.category_names):
             if names is None:
+                continue
+            if isinstance(names, dict):
+                category_names_map[j] = {float(lv): str(n) for lv, n in names.items()}
                 continue
             levs = np.unique(matrix[:, j])
             category_names_map[j] = {float(lv): str(n) for lv, n in zip(levs, names)}
@@ -461,7 +581,9 @@ def ingest(
     return IngestResult(data=matrix, model=model, model_jac=model_jac, meta=meta)
 
 
-def from_dataframe(df, *, cat_limit: int = DEFAULT_CAT_LIMIT):
+def from_dataframe(
+    df, *, cat_limit: int = DEFAULT_CAT_LIMIT, return_encoding: bool = False
+):
     """Extract a numpy matrix and a populated `Schema` from a pandas DataFrame — data only.
 
     ```python
@@ -472,7 +594,7 @@ def from_dataframe(df, *, cat_limit: int = DEFAULT_CAT_LIMIT):
     Constructors hard-reject a DataFrame as `data` (effector is numpy-only);
     this is the opt-in door. It reads column names, maps dtypes to feature
     types, encodes non-numeric columns to float codes, and records the level
-    labels in `category_names`:
+    labels in `category_names` (a `{code: name}` dict per encoded column):
 
     | DataFrame dtype | feature type | encoded as |
     |---|---|---|
@@ -499,11 +621,14 @@ def from_dataframe(df, *, cat_limit: int = DEFAULT_CAT_LIMIT):
             columns (no missing values).
         cat_limit: cardinality threshold for the int-column ordinal heuristic
             (default 10), recorded on the returned schema.
+        return_encoding: also return the `DataFrameEncoding`, whose
+            `transform(df_new)` encodes later frames with the same codes.
 
     Returns:
         `(X, schema)` where `X` is a `(N, D)` float64 numpy array and `schema`
         is an `effector.Schema` with `feature_names`, `feature_types`,
-        `cat_limit`, and `category_names` populated.
+        `cat_limit`, and `category_names` populated; `(X, schema, encoding)`
+        when `return_encoding=True`.
 
     Raises:
         TypeError: `df` is not a pandas DataFrame.
@@ -519,13 +644,11 @@ def from_dataframe(df, *, cat_limit: int = DEFAULT_CAT_LIMIT):
         _encode_dataframe(df, cat_limit)
     )
 
-    # human-readable level names, one per *observed* level in ascending code
-    # order — exactly the shape Schema.category_names expects, so an unused
-    # declared category never trips the length check downstream
+    # human-readable level names keyed by code, for every declared level — the
+    # same record `DataFrameEncoding` replays, so names and codes cannot drift
     category_names = [None] * len(names)
     for j, enc in categories.items():
-        observed = np.unique(matrix[:, j])
-        category_names[j] = [str(enc.levels[int(c)]) for c in observed]
+        category_names[j] = enc.level_names()
     if not any(n is not None for n in category_names):
         category_names = None
 
@@ -540,4 +663,6 @@ def from_dataframe(df, *, cat_limit: int = DEFAULT_CAT_LIMIT):
         cat_limit=cat_limit,
         category_names=category_names,
     )
+    if return_encoding:
+        return matrix, schema, DataFrameEncoding(tuple(names), dict(categories))
     return matrix, schema

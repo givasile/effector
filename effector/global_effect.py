@@ -956,6 +956,10 @@ class GlobalEffectBase(ABC):
         finder="best",
         candidate_conditioning_features="all",
         min_r2_gain: float = 0.01,
+        target: Optional[np.ndarray] = None,
+        relative_gain: Optional[float] = None,
+        max_conditional_interactions: Optional[int] = None,
+        max_partitions: Optional[int] = None,
     ):
         """Greedily select which partitions earn their complexity — the CALM chain.
 
@@ -996,15 +1000,36 @@ class GlobalEffectBase(ABC):
             min_r2_gain: smallest explained-variance marginal (fraction of
                 `Var(f̂)`, default 0.01 = 1 pt) a split must add — on top of
                 the splits already applied — to earn a snapshot.
+            target: optional `(N,)` vector replacing `f̂(X)` as the selection
+                objective (e.g. ground-truth labels: "which splits predict
+                better" instead of "which splits explain the teacher"). The
+                curves still come from this effect; only the offsets fit and
+                the R² denominator change.
+            relative_gain: optional hybrid gate — when set, each round's
+                threshold is ``min(min_r2_gain, relative_gain * (1 - cum_r2))``:
+                a near-saturated chain still accepts a split explaining at
+                least `relative_gain` of the *remaining* unexplained variance.
+                Never stricter than `min_r2_gain`; `None` (default) is the
+                absolute rule, unchanged.
+            max_conditional_interactions: optional cap on the conditional
+                interactions of the selected partitions — one per (feature,
+                conditioning feature) pair, so `x1 | x2` and `x2 | x1` are
+                two. A partition is accepted whole, so the sequence stops
+                before the round that would exceed the cap. `None` (default)
+                is no cap; 0 keeps the GAM.
+            max_partitions: optional cap on the number of selected
+                partitions (split features). `None` (default) is no cap.
 
         Returns:
             a `CalmSequence` — `[GAM, calm1, ...]`, R² non-decreasing along
             it, with the rejected splits in `.skipped`
-            (`"redundant"`/`"below_threshold"`).
+            (`"redundant"`/`"below_threshold"`, or the name of the cap that
+            stopped the sequence).
 
         Raises:
             ValueError: the method is derivative-scale (no output-scale
-                surrogate) or `Var(f̂) == 0`.
+                surrogate), `Var(f̂) == 0`, or a cap is not `None` or an
+                integer >= 0.
         """
         from effector import explained_variance as _ev  # lazy: one-way dep guard
 
@@ -1026,7 +1051,16 @@ class GlobalEffectBase(ABC):
                 supported.append(f)
             except ValueError:
                 continue
-        return _ev.select(self, parts, supported, min_gain=min_r2_gain)
+        return _ev.select(
+            self,
+            parts,
+            supported,
+            min_gain=min_r2_gain,
+            target=target,
+            relative_gain=relative_gain,
+            max_conditional_interactions=max_conditional_interactions,
+            max_partitions=max_partitions,
+        )
 
     def grid(self, feature: Union[int, str]) -> np.ndarray:
         """The evaluation grid on which this feature's effect is model-free.

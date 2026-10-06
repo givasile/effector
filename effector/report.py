@@ -70,6 +70,16 @@ def _clip(text, width, ell="…"):
     return text if len(text) <= width else text[: width - len(ell)] + ell
 
 
+# the ledger's reason column: `select`'s reason -> what is printed (<= 16 glyphs)
+_REJECTION_LABELS = {
+    "redundant": "redundant",
+    "below_threshold": "below threshold",
+    "empty_region": "empty region",
+    "max_conditional_interactions": "interaction cap",
+    "max_partitions": "partition cap",
+}
+
+
 def _print_explained_variance(ev, *, ascii=False, sy=1.0):
     """Print the EXPLAINED VARIANCE and REJECTED SPLITS tables from an
     explained-variance payload (`Report.explained_variance`, or a
@@ -168,7 +178,7 @@ def _print_explained_variance(ev, *, ascii=False, sy=1.0):
         )
         rule()
         for sk in ev["skipped"]:
-            why = "redundant" if sk["reason"] == "redundant" else "below threshold"
+            why = _REJECTION_LABELS.get(sk["reason"], "below threshold")
             p(
                 f"  {cross} {sk['name']:<13.13}"
                 f"{_clip(sk['on'], 20, g['ell']):<21}"
