@@ -341,7 +341,7 @@ EXPECTED_GATED_PDP = {
         },
         {
             "idx": 2,
-            "name": "x_0 where (x_2 = 0.00) and (x_1 < -0.00)",
+            "name": "x_0 where (x_2 = 0.00) and (x_1 < 0.00)",
             "rule": {
                 "conditions": [
                     {"feature": 2, "kind": "levels", "levels": [0.0]},
@@ -363,7 +363,7 @@ EXPECTED_GATED_PDP = {
         },
         {
             "idx": 3,
-            "name": "x_0 where (x_2 = 0.00) and (x_1 ≥ -0.00)",
+            "name": "x_0 where (x_2 = 0.00) and (x_1 ≥ 0.00)",
             "rule": {
                 "conditions": [
                     {"feature": 2, "kind": "levels", "levels": [0.0]},
@@ -394,6 +394,7 @@ EXPECTED_GATED_PDP = {
             "parent_idx": 0,
         },
     ],
+    "integer_features": [2],
 }
 
 EXPECTED_GATED_PDP_MASK_SUMS = [500, 244, 121, 123, 256]
@@ -405,10 +406,10 @@ EXPECTED_GATED_PDP_SHOW = (
     "🌳 Full Tree Structure:\n"
     "───────────────────────\n"
     "x_0 🔹 [id: 0 | heter: 1.24 | inst: 500 | w: 1.00]\n"
-    "    x_2 = 0.00 🔹 [id: 1 | heter: 1.38 | inst: 244 | w: 0.49]\n"
-    "        x_1 < -0.00 🔹 [id: 2 | heter: 0.00 | inst: 121 | w: 0.24]\n"
-    "        x_1 ≥ -0.00 🔹 [id: 3 | heter: 0.00 | inst: 123 | w: 0.25]\n"
-    "    x_2 = 1.00 🔹 [id: 4 | heter: 0.00 | inst: 256 | w: 0.51]\n"
+    "    x_2 = 0 🔹 [id: 1 | heter: 1.38 | inst: 244 | w: 0.49]\n"
+    "        x_1 < 0.00 🔹 [id: 2 | heter: 0.00 | inst: 121 | w: 0.24]\n"
+    "        x_1 ≥ 0.00 🔹 [id: 3 | heter: 0.00 | inst: 123 | w: 0.25]\n"
+    "    x_2 = 1 🔹 [id: 4 | heter: 0.00 | inst: 256 | w: 0.51]\n"
     "--------------------------------------------------\n"
     "Feature 0 - Statistics per tree level:\n"
     "🌳 Tree Summary:\n"

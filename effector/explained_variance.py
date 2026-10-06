@@ -155,11 +155,56 @@ def _heter_pair(part) -> tuple:
     return before, after
 
 
-def select(effect, partitions: dict, features: list, min_gain: float = 0.01):
+def _check_cap(name: str, value) -> Optional[int]:
+    """A selection cap: `None` (no cap) or an integer >= 0."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, np.integer)) or value < 0:
+        raise ValueError(
+            f"select_regions: {name} must be None or an integer >= 0; got {value!r}"
+        )
+    return int(value)
+
+
+def _conditioning_features(part) -> set:
+    """The features a partition's rules condition on — one conditional
+    interaction each (`x1 | x2` and `x2 | x1` are two)."""
+    return {k for leaf in part.leaves for k in leaf.rule.conditions}
+
+
+def _effective_min_gain(min_gain, relative_gain, r2):
+    """The hybrid acceptance threshold for one greedy round.
+
+    Absolute rule when `relative_gain` is None; otherwise
+    ``min(min_gain, relative_gain * (1 - r2))`` — a split must add `min_gain`
+    of total variance *or* `relative_gain` of the still-unexplained variance,
+    whichever is less. The `min` also handles r2 <= 0 (1 - r2 > 1: the
+    absolute rule wins, so low-R² chains are gated exactly as before; only
+    near-saturated chains get the relaxed bar).
+    """
+    if relative_gain is None:
+        return min_gain
+    return min(min_gain, relative_gain * (1.0 - r2))
+
+
+def select(
+    effect,
+    partitions: dict,
+    features: list,
+    min_gain: float = 0.01,
+    target: Optional[np.ndarray] = None,
+    relative_gain: Optional[float] = None,
+    max_conditional_interactions: Optional[int] = None,
+    max_partitions: Optional[int] = None,
+):
     """Greedy forward selection of partitions → a `CalmSequence` of snapshots.
 
     Computes `f̂(X)` through `effect._y_pred` (filling it on first use — the
-    one model call this module ever costs; plots reuse it).
+    one model call this module ever costs; plots reuse it). Passing `target`
+    replaces `f̂(X)` as the selection objective: the surrogate's offsets are
+    fitted to and its R² measured against that vector instead (e.g. ground
+    truth labels — "which splits *predict* better" rather than "which splits
+    explain the teacher"). The curves themselves always come from the effect.
 
     The chain is a **decision sequence**: each round applies the split with
     the largest R² gain *measured on top of the splits already applied*, and
@@ -179,6 +224,21 @@ def select(effect, partitions: dict, features: list, min_gain: float = 0.01):
         features: feature indices the surrogates sum over.
         min_gain: smallest R² marginal worth a stage (default 1%) — below
             it a split is skipped as `below_threshold`.
+        relative_gain: optional hybrid gate — when set, a round's threshold
+            becomes ``min(min_gain, relative_gain * (1 - cum_r2))``, so a
+            near-saturated chain (little variance left) still accepts a split
+            that explains at least `relative_gain` of what remains. Never
+            stricter than `min_gain` alone; `None` (default) reproduces the
+            absolute rule exactly.
+        max_conditional_interactions: optional cap on the conditional
+            interactions of the selected partitions — one per (feature,
+            conditioning feature) pair, so `x1 | x2` and `x2 | x1` are two.
+            A partition is accepted whole, so the sequence stops before the
+            round that would exceed the cap: the capped chain is a prefix of
+            the uncapped one. `None` (default) is no cap; 0 keeps the GAM.
+        max_partitions: optional cap on the number of selected partitions
+            (split features); the sequence stops once it is reached. `None`
+            (default) is no cap.
 
     Returns:
         a `CalmSequence` — `[GAM, calm1, ...]` with each stage carrying
@@ -189,13 +249,21 @@ def select(effect, partitions: dict, features: list, min_gain: float = 0.01):
         programmatic consumers, it does not add up across splits). Rejected
         splits land in `.skipped` with their marginal on top of the final
         selection and a `reason`: `"redundant"` (adds ~nothing — its variance
-        is already explained) or `"below_threshold"` (real but < `min_gain`).
+        is already explained), `"below_threshold"` (real but < `min_gain`),
+        or — for a split that clears the gate when a cap stops the sequence —
+        `"max_conditional_interactions"` / `"max_partitions"`.
 
     Raises:
-        ValueError: the method is derivative-scale (see `supports`) or
-            `Var(f̂) == 0` — an additive output-scale surrogate is undefined.
+        ValueError: the method is derivative-scale (see `supports`),
+            `Var(f̂) == 0` — an additive output-scale surrogate is undefined —
+            or a cap is not `None` or an integer >= 0.
     """
     from effector.calm import CALM, CalmSequence  # leaf importing a leaf
+
+    max_conditional_interactions = _check_cap(
+        "max_conditional_interactions", max_conditional_interactions
+    )
+    max_partitions = _check_cap("max_partitions", max_partitions)
 
     if not supports(effect):
         raise ValueError(
@@ -203,13 +271,21 @@ def select(effect, partitions: dict, features: list, min_gain: float = 0.01):
             "derivative-scale methods (the cached curves are ∂f/∂x, summing "
             "them does not approximate f̂)."
         )
-    if effect._y_pred is None:
-        effect._y_pred = np.asarray(effect.model(effect.data))
-    fx = np.asarray(effect._y_pred, dtype=float).reshape(-1)
+    if target is not None:
+        fx = np.asarray(target, dtype=float).reshape(-1)
+        if fx.shape[0] != effect.data.shape[0]:
+            raise ValueError(
+                f"select_regions: target has {fx.shape[0]} rows but the "
+                f"effect's data has {effect.data.shape[0]}"
+            )
+    else:
+        if effect._y_pred is None:
+            effect._y_pred = np.asarray(effect.model(effect.data))
+        fx = np.asarray(effect._y_pred, dtype=float).reshape(-1)
     if not np.var(fx) > 0:
         raise ValueError(
-            "select_regions: Var(f̂) == 0 — the model is constant on this "
-            "data, explained variance is undefined."
+            "select_regions: Var(target) == 0 — explained variance is "
+            "undefined for a constant objective."
         )
 
     parts = {j: p for j, p in partitions.items() if len(p.leaves) > 1}
@@ -221,11 +297,7 @@ def select(effect, partitions: dict, features: list, min_gain: float = 0.01):
 
     def _info(j, part):
         conditioning = sorted(
-            {
-                effect.feature_names[k]
-                for leaf in part.leaves
-                for k in leaf.rule.conditions
-            }
+            effect.feature_names[k] for k in _conditioning_features(part)
         )
         before, after = _heter_pair(part)
         return {
@@ -242,6 +314,7 @@ def select(effect, partitions: dict, features: list, min_gain: float = 0.01):
     skipped: list = []
     selected: dict = {}
     regional_r2 = gam_r2
+    nof_interactions = 0
     remaining = dict(parts)
     while remaining:
         scored = {
@@ -250,7 +323,26 @@ def select(effect, partitions: dict, features: list, min_gain: float = 0.01):
         }
         best = max(scored, key=lambda j: scored[j])
         gain = scored[best] - regional_r2
-        if gain <= 0 or gain < min_gain:
+        threshold = _effective_min_gain(min_gain, relative_gain, regional_r2)
+        # a partition can clear the gate yet carry a leaf with no instances
+        # (the leaf contributes nothing to the surrogate, so its R² is
+        # finite) — snapshotting such a partition is undefined. Latent under
+        # the absolute gate: a candidate like this was never accepted (it
+        # would have crashed at CALM.from_effect); the relaxed gate can reach
+        # one, so it is skipped explicitly instead.
+        if gain > 0 and gain >= threshold:
+            part_best = remaining[best]
+            if any(not np.any(part_best.mask(leaf.idx)) for leaf in part_best.leaves):
+                skipped.append(
+                    {
+                        **_info(best, part_best),
+                        "delta_r2": gain,
+                        "reason": "empty_region",
+                    }
+                )
+                remaining.pop(best)
+                continue
+        if gain <= 0 or gain < threshold:
             for j, p in remaining.items():
                 marginal = scored[j] - regional_r2
                 skipped.append(
@@ -263,7 +355,28 @@ def select(effect, partitions: dict, features: list, min_gain: float = 0.01):
                     }
                 )
             break
+        # the caps: a partition is accepted whole, so the sequence stops
+        # before the round that would exceed one
+        nof_best = len(_conditioning_features(remaining[best]))
+        capped = None
+        if max_partitions is not None and len(selected) >= max_partitions:
+            capped = "max_partitions"
+        elif (
+            max_conditional_interactions is not None
+            and nof_interactions + nof_best > max_conditional_interactions
+        ):
+            capped = "max_conditional_interactions"
+        if capped is not None:
+            for j, p in remaining.items():
+                marginal = scored[j] - regional_r2
+                if marginal > 0 and marginal >= threshold:
+                    reason = capped
+                else:
+                    reason = "below_threshold" if marginal > 1e-9 else "redundant"
+                skipped.append({**_info(j, p), "delta_r2": marginal, "reason": reason})
+            break
         selected[best] = remaining.pop(best)
+        nof_interactions += nof_best
         regional_r2 = scored[best]
         stage = {
             **_info(best, selected[best]),
@@ -280,7 +393,14 @@ def select(effect, partitions: dict, features: list, min_gain: float = 0.01):
             )
         )
 
-    return CalmSequence(calms, skipped=skipped, min_gain=min_gain)
+    return CalmSequence(
+        calms,
+        skipped=skipped,
+        min_gain=min_gain,
+        relative_gain=relative_gain,
+        max_conditional_interactions=max_conditional_interactions,
+        max_partitions=max_partitions,
+    )
 
 
 def summarize(

@@ -1,9 +1,26 @@
 # Changelog
 
-## Unreleased
+# [0.6.0] - 2026-10-06
+
+### Breaking
+
+- **`from_dataframe` returns `category_names` as dicts**: each encoded column's entry is now a `{code: name}` dict over **every declared level** (it was a list with one name per *observed* level). Names are keyed by the code they belong to, so a level the frame does not show cannot shift the others. Migration: `names = schema.category_names[j]` → `names = list(schema.category_names[j].values())` for the names in code order, or look a code up directly with `schema.category_names[j][code]`. A `Schema` you write by hand may still use a list.
+- **NaN and infinity are rejected on numpy input**: every constructor now raises a `ValueError` naming the first column that contains missing or infinite values. Before, such data was accepted and failed later — `find_regions` and any verb on the affected feature raised an unrelated error, `importance` returned `NaN` — while the effects of the clean columns still computed. effector has no missing-value semantics; impute or drop first (`from_dataframe` already rejected missing values).
+- **Integer-valued features print without decimals**: a rule on a feature whose values are all integers (in display units) is written as the integers it admits — `hr ≤ 6` where it read `hr < 6.90`, `year = 0` where it read `year = 0.00`. This changes region labels in `Partition.show()`, plot titles and reports. A value that rounds to zero prints as `0.00`, never `-0.00`.
+
+### Added
+
+- **`select_regions(..., target=)`**: an optional `(N,)` vector that replaces `f̂(X)` as the selection objective — e.g. the ground-truth labels, "which splits *predict* better" instead of "which splits explain the model". The curves still come from the effect; only the offsets fit and the R² denominator change.
+- **`select_regions(..., relative_gain=)`**: an optional hybrid gate. When set, a round's threshold is `min(min_r2_gain, relative_gain * (1 - cum_r2))`, so a near-saturated chain still accepts a split that explains at least `relative_gain` of the *remaining* unexplained variance. Never stricter than `min_r2_gain`; `None` (default) is the absolute rule, unchanged.
+- **`select_regions(..., max_conditional_interactions=, max_partitions=)`**: optional caps on the selected partitions — conditional interactions counted one per (feature, conditioning feature) pair, and the number of split features. A partition is accepted whole, so the sequence stops before the round that would exceed a cap: a capped chain is a prefix of the uncapped one. Splits a cap left out land in `.skipped` with the cap's name as the reason (`interaction cap` / `partition cap` in the printed ledger). `CalmSequence` stores and serializes the gate and the caps, only when set.
+- **`from_dataframe(df, return_encoding=True)`** also returns a `DataFrameEncoding`, whose `transform(df_new)` encodes a later frame with the codes of the original one — columns matched by name, every level keeping its code, an unseen level raising.
+- **`Schema.category_names` accepts a `{level value: name}` dict** per feature, next to the list form; levels absent from the data are fine.
+- **`Partition.conditions(idx)`** — a region's rule as a list, one formatted condition per feature — and **`Partition.tree_lines()`** — the partition as a plain tree, one line per region, leaves with their number of instances.
+- `effector.ingestion.check_finite(data, feature_names)` — the NaN / infinity check as a function.
 
 ### Fixed
 
+- **A candidate partition with an empty region is skipped** in `select_regions` (reason `empty_region`) instead of failing when its snapshot is built.
 - **Display units honor the schema's `scale_y`**: every surface labeled "(target units)" — `effector.plot_triage`, `CALM.plot_triage`, and the report's importance/heterogeneity bars, triage plane, ranked tables, ledger heter columns, and `heter_threshold` chip — now bridges the model-unit scalars by `scale_y["std"]`, so a model trained on a standardized target reads in the target's own scale (matching the curve plots, which already rescaled). Unbound reports render the same as bound ones: `Report` stamps `scale_y`/`scale_x_list`, and the unbound curve fallback applies them. The engine verbs (`importance`, `heter_score`) and all stamped/serialized payloads stay in model-output units, so `find_regions` thresholds and old dicts are unaffected.
 - **HTML report surfaces missed by the `scale_y` bridge**: the decision-sequence table's heterogeneity column, the per-feature and global-baseline chips, the rejected-split note, and the per-leaf statistics (figure captions and the unbound leaf table) still rendered raw model-unit scalars while the rest of the page was bridged. They now use the same `scale_y["std"]` bridge and the ranked table's `.4g` format, so one page reads in one unit. The partition-tree `<pre>` dump keeps model units by design (it is the verbatim `Partition.show()` payload).
 

@@ -366,7 +366,7 @@ Every field is optional; whatever you do not declare is inferred or synthesized
 |---|---|
 | `feature_names` | one name per column (default `x_0, x_1, …`) |
 | `feature_types` | `"continuous"` / `"ordinal"` / `"nominal"` per column |
-| `category_names` | per categorical feature: a human-readable name per level, in ascending order |
+| `category_names` | per categorical feature, the human-readable level names: a list with one name per observed level in ascending order, or a `{level value: name}` dict (what `from_dataframe` returns) |
 | `target_name` | name of the model output (default `"y"`) |
 | `scale_x_list` | per-feature `{"mean": .., "std": ..}` to display plots in original units |
 | `scale_y` | `{"mean": .., "std": ..}` for the output axis |

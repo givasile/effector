@@ -256,9 +256,10 @@ def test_r10_summary_uses_stored_scale(capsys):
     part = fx.find_regions(0, finder=effector.space_partitioning.Best(max_depth=1))
     part.show()
     out = capsys.readouterr().out
-    # the x_2 = 0 split prints in scaled units (= 100.00) without passing
+    # the x_2 = 0 split prints in scaled units (= 100) without passing
     # scale_x_list to show() — the partition carries the effect's stored scale
-    assert "100.00" in out
+    # (x_2 is integer-valued in those units, so no decimals)
+    assert "x_2 = 100" in out
 
 
 # ---------------------------------------------------------------------------
@@ -378,3 +379,39 @@ def test_ale_plot_non_zero_based_ordinal_regional():
     fx.fit(0)
     part = fx.find_regions(0, finder=effector.space_partitioning.Best(max_depth=2))
     part.plot(0, show_plot=False)  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# R10.7 — a DataFrame's encoding is replayable on later frames
+# ---------------------------------------------------------------------------
+
+
+def test_r10_dataframe_encoding_replays_the_original_codes():
+    pd = pytest.importorskip("pandas")
+    df = pd.DataFrame(
+        {
+            "a": [0.5, 1.5, 2.5, 3.5],
+            "c": ["x", "y", "z", "y"],
+            "flag": [True, False, True, False],
+        }
+    )
+    X, schema, encoding = effector.from_dataframe(df, return_encoding=True)
+    np.testing.assert_array_equal(encoding.transform(df), X)
+
+    # a frame without level "x": from_dataframe recodes, the encoding does not
+    sub = df[df["c"] != "x"]
+    assert effector.from_dataframe(sub)[0][:, 1].tolist() == [0.0, 1.0, 0.0]
+    assert encoding.transform(sub)[:, 1].tolist() == [1.0, 2.0, 1.0]
+
+    # columns are matched by name, a Categorical column by its values
+    shuffled = sub[["flag", "c", "a"]].astype({"c": "category"})
+    np.testing.assert_array_equal(encoding.transform(shuffled), X[[1, 2, 3]])
+
+    with pytest.raises(ValueError, match="level"):
+        encoding.transform(df.assign(c="w"))
+    with pytest.raises(ValueError, match="columns"):
+        encoding.transform(df.drop(columns="a"))
+    with pytest.raises(ValueError, match="numeric"):
+        encoding.transform(df.assign(a="oops"))
+    with pytest.raises(TypeError):
+        encoding.transform(X)

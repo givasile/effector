@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+import effector
 from effector.partition import Partition, Region
 from effector.rules import Interval, LevelSet, Rule
 
@@ -419,3 +420,88 @@ def test_mask_returns_copy():
     m = part.mask(1)
     m[:] = False
     assert part[1].mask.any()  # original untouched
+
+
+# ---------------------------------------------------------------------------
+# integer-valued features, conditions(), tree_lines()
+# ---------------------------------------------------------------------------
+
+
+def _integer_effect():
+    """x0's effect flips on x1 (integer hours 0..23) and x2 (a 0/1 flag)."""
+    rng = np.random.default_rng(0)
+    n = 600
+    data = np.column_stack(
+        [
+            rng.uniform(-1, 1, n),
+            rng.integers(0, 24, n).astype(float),
+            rng.integers(0, 2, n).astype(float),
+        ]
+    )
+
+    def model(x):
+        return x[:, 0] * np.where(x[:, 1] < 6.9, 1.0, -1.0) + x[:, 0] * x[:, 2]
+
+    fx = effector.PDP(
+        data,
+        model,
+        nof_instances="all",
+        schema={
+            "feature_names": ["x", "hr", "flag"],
+            "feature_types": ["continuous", "continuous", "ordinal"],
+        },
+    )
+    fx.fit("all")
+    return fx
+
+
+def test_integer_features_print_as_the_integers_they_admit():
+    fx = _integer_effect()
+    part = Partition.from_rules(
+        [
+            Rule({1: Interval(hi=6.9)}),
+            Rule({1: Interval(6.9, 14.95), 2: LevelSet([0])}),
+            Rule({1: Interval(6.9, 14.95), 2: LevelSet([1])}),
+            Rule({1: Interval(lo=14.95)}),
+        ],
+        effect=fx,
+        feature=0,
+    )
+    assert part.label(1) == "x where hr ≤ 6"
+    assert part.label(2) == "x where (7 ≤ hr ≤ 14) and (flag = 0)"
+    assert part.label(4) == "x where hr ≥ 15"
+    assert part.conditions(2) == ["7 ≤ hr ≤ 14", "flag = 0"]
+    assert part.conditions(0) == []
+    # the stamp survives serialization: an unbound partition prints the same
+    unbound = Partition.from_dict(part.to_dict())
+    assert unbound.label(1) == "x where hr ≤ 6"
+
+
+def test_continuous_features_keep_their_decimals():
+    fx = _integer_effect()
+    part = Partition.from_rules(
+        [Rule({0: Interval(hi=0.0)}), Rule({0: Interval(lo=0.0)})],
+        effect=fx,
+        feature=1,
+    )
+    # and a threshold at zero never prints as -0.00
+    assert part.label(1) == "hr where x < 0.00"
+    assert Rule({0: Interval(hi=-0.0)}).format(["x"]) == "x < 0.00"
+
+
+def test_tree_lines_is_a_plain_tree_with_leaf_counts():
+    fx = _integer_effect()
+    part = fx.find_regions(0, finder=effector.space_partitioning.Best(max_depth=2))
+    lines = part.tree_lines()
+    assert lines[0] == "x"
+    body = lines[1:]
+    assert len(body) == len(part) - 1
+    assert all(line.lstrip("│ ").startswith(("├─ ", "└─ ")) for line in body)
+    counts = [line for line in body if " n = " in line]
+    assert len(counts) == len(part.leaves)
+    total = sum(int(line.rsplit("n = ", 1)[1].replace(",", "")) for line in counts)
+    assert total == 600
+    # the counts are aligned in one column
+    assert len({line.index(" n = ") for line in counts}) == 1
+    assert "heter" not in "\n".join(lines)
+    assert all(" n = " not in line for line in part.tree_lines(counts=False))
